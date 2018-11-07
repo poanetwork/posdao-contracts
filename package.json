@@ -1,0 +1,25 @@
+{
+  "name": "pos-contracts",
+  "version": "1.0.0",
+  "description": "Smart contracts for PoS",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/poanetwork/pos-contracts.git"
+  },
+  "author": "vadim@poa.network",
+  "bugs": {
+    "url": "https://github.com/poanetwork/pos-contracts/issues"
+  },
+  "homepage": "https://github.com/poanetwork/pos-contracts#readme",
+  "dependencies": {},
+  "devDependencies": {
+    "mochawesome": "^3.1.1",
+    "solhint": "^1.4.0",
+    "solidity-coverage": "^0.5.11",
+    "truffle": "^5.0.0-beta.1"
+  }
+}

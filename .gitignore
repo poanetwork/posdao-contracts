@@ -1,0 +1,8 @@
+node_modules
+build
+mochawesome-report
+coverage
+coverageEnv
+scTopics
+.DS_Store
+coverage.json
