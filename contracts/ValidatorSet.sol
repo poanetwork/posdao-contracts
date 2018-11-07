@@ -1,7 +1,11 @@
 pragma solidity ^0.4.25;
 
+import "./libs/SafeMath.sol";
+
 
 contract ReportingValidatorSet {
+    using SafeMath for uint256;
+
     struct ValidatorState {
         uint256 index; // index in the currentValidators
         bool isValidator; // is this a validator
