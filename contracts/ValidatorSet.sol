@@ -11,10 +11,16 @@ contract ReportingValidatorSet {
         bool isValidator; // is this a validator
     }
 
-    address[] internal currentValidators;
+    address[] public currentValidators;
+    uint256 public epoch;
+    address[] public pools;
+    mapping(address => mapping(address => uint256)) public stakes;
     mapping(address => ValidatorState) public validatorsState;
+
+    uint256 public constant MIN_STAKE = 1 ether;
     
     event InitiateChange(bytes32 indexed parentHash, address[] newSet);
+    event Staked(address indexed observer, address indexed staker, uint256 amount);
 
     modifier onlySystem() {
         require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
@@ -27,24 +33,58 @@ contract ReportingValidatorSet {
     }
 
     constructor() public {
-        currentValidators.push(address(0x6546ed725e88fa728a908f9ee9d61f50edc40ad6));
-        currentValidators.push(address(0x1a22d96792666863f429a85623e6d4ca173d26ab));
-        currentValidators.push(address(0x4579c2a15651609ec44a5fadeaabfc30943b5949));
     }
 
     function finalizeChange() public onlySystem {
+        epoch++;
     }
 
-    function reportBenign(address _validator, uint256 _blockNumber)
-        public
-        onlyValidator
-    {
-    }
+    // function reportBenign(address _validator, uint256 _blockNumber)
+    //     public
+    //     onlyValidator
+    // {
+    // }
 
     function reportMalicious(address _validator, uint256 _blockNumber, bytes _proof)
         public
         onlyValidator
     {
+    }
+
+    function stake(address _observer) public payable {
+        require(_observer != address(0));
+        require(msg.value != 0);
+
+        address staker = msg.sender;
+
+        if (_observer == staker) {
+            pools.push(_observer);
+        } else {
+            // observer must firstly make a stake for himself
+            require(stakes[_observer][_observer] != 0);
+        }
+
+        uint256 newStakeValue = stakes[_observer][staker].add(msg.value);
+        require(newStakeValue >= MIN_STAKE);
+        stakes[_observer][staker] = newStakeValue;
+
+        emit Staked(_observer, staker, msg.value);
+    }
+
+    function unstake(address _observer) public {
+        /*
+        require(_observer != address(0));
+
+        address staker = msg.sender;
+
+        if (_observer == staker) {
+
+        }
+        */
+    }
+
+    function getPools() public view returns(address[]) {
+        return pools;
     }
 
     function getValidators() public view returns(address[]) {
