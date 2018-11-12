@@ -12,15 +12,19 @@ contract ReportingValidatorSet {
     }
 
     address[] public currentValidators;
+    address[] public previousValidators;
     uint256 public epoch;
     address[] public pools;
-    mapping(address => mapping(address => uint256)) public stakes;
+    mapping(address => mapping(address => uint256)) public stakeAmount;
+    mapping(address => mapping(address => mapping(uint256 => uint256))) public stakeAmountByEpoch;
     mapping(address => ValidatorState) public validatorsState;
+    mapping(address => ValidatorState) public validatorsStatePreviousEpoch;
 
     uint256 public constant MIN_STAKE = 1 ether;
     
     event InitiateChange(bytes32 indexed parentHash, address[] newSet);
-    event Staked(address indexed observer, address indexed staker, uint256 amount);
+    event Staked(address indexed observer, address indexed staker, uint256 indexed epoch, uint256 amount);
+    event Unstaked(address indexed observer, address indexed staker, uint256 indexed epoch, uint256 amount);
 
     modifier onlySystem() {
         require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
@@ -36,6 +40,18 @@ contract ReportingValidatorSet {
     }
 
     function finalizeChange() public onlySystem {
+        uint256 i;
+        for (i = 0; i < previousValidators.length; i++) {
+            delete validatorsStatePreviousEpoch[previousValidators[i]];
+        }
+        previousValidators = currentValidators;
+        for (i = 0; i < previousValidators.length; i++) {
+            validatorsStatePreviousEpoch[previousValidators[i]] = ValidatorState({
+                index: i,
+                isValidator: true
+            });
+        }
+        // ... changing `currentValidators` and `validatorsState`...
         epoch++;
     }
 
@@ -60,27 +76,56 @@ contract ReportingValidatorSet {
         if (_observer == staker) {
             pools.push(_observer);
         } else {
-            // observer must firstly make a stake for himself
-            require(stakes[_observer][_observer] != 0);
+            // The observer must firstly make a stake for himself
+            require(stakeAmount[_observer][_observer] != 0);
         }
 
-        uint256 newStakeValue = stakes[_observer][staker].add(msg.value);
-        require(newStakeValue >= MIN_STAKE);
-        stakes[_observer][staker] = newStakeValue;
+        // The staked amount must be at least MIN_STAKE
+        uint256 newStakeAmount = stakeAmount[_observer][staker].add(msg.value);
+        require(newStakeAmount >= MIN_STAKE);
+        stakeAmount[_observer][staker] = newStakeAmount;
+        stakeAmountByEpoch[_observer][staker][epoch] = stakeAmountByEpoch[_observer][staker][epoch].add(msg.value);
 
-        emit Staked(_observer, staker, msg.value);
+        emit Staked(_observer, staker, epoch, msg.value);
     }
 
-    function unstake(address _observer) public {
-        /*
+    function withdraw(address _observer, uint256 _amount) public {
         require(_observer != address(0));
+        require(_amount != 0);
 
         address staker = msg.sender;
+        bool observerIsValidator = validatorsState[_observer].isValidator;
 
         if (_observer == staker) {
-
+            // An observer can't withdraw while he is a validator
+            require(!observerIsValidator);
         }
-        */
+
+        if (observerIsValidator) {
+            uint256 withdrawAllowed;
+            if (validatorsStatePreviousEpoch[_observer].isValidator) {
+                // The observer was also a validator on the previous epoch, so
+                // the staker can't withdraw amount staked on the previous epoch
+                withdrawAllowed = stakeAmount[_observer][staker].sub(
+                    stakeAmountByEpoch[_observer][staker][epoch.sub(1)]
+                );
+            } else {
+                // The observer wasn't a validator on the previous epoch, so
+                // the staker can only withdraw amount staked on the current epoch
+                withdrawAllowed = stakeAmountByEpoch[_observer][staker][epoch];
+            }
+            require(_amount <= withdrawAllowed);
+        }
+
+        // The amount to be withdrawn must be the whole staked amount or
+        // must not exceed the diff between the entire amount and MIN_STAKE
+        uint256 newStakeAmount = stakeAmount[_observer][staker].sub(_amount);
+        require(newStakeAmount == 0 || newStakeAmount >= MIN_STAKE);
+        stakeAmount[_observer][staker] = newStakeAmount;
+
+        staker.transfer(_amount);
+
+        emit Unstaked(_observer, staker, epoch, _amount);
     }
 
     function getPools() public view returns(address[]) {
