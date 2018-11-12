@@ -6,7 +6,7 @@ import "./libs/SafeMath.sol";
 contract ReportingValidatorSet {
     using SafeMath for uint256;
 
-    struct ValidatorState {
+    struct ObserverState {
         uint256 index; // index in the currentValidators
         bool isValidator; // is this a validator
     }
@@ -15,12 +15,14 @@ contract ReportingValidatorSet {
     address[] public currentValidators;
     address[] public previousValidators;
     address[] public pools;
+    mapping(address => uint256) public poolIndex;
     mapping(address => address[]) public poolStakers;
+    mapping(address => mapping(address => uint256)) public poolStakerIndex;
     mapping(address => mapping(address => uint256)) public stakeAmount;
     mapping(address => mapping(address => mapping(uint256 => uint256))) public stakeAmountByEpoch;
     mapping(address => uint256) public stakeAmountTotal;
-    mapping(address => ValidatorState) public validatorsState;
-    mapping(address => ValidatorState) public validatorsStatePreviousEpoch;
+    mapping(address => ObserverState) public observersState;
+    mapping(address => ObserverState) public observersStatePreviousEpoch;
 
     uint256 public constant MIN_STAKE = 1 ether;
     
@@ -34,7 +36,7 @@ contract ReportingValidatorSet {
     }
 
     modifier onlyValidator() {
-        require(validatorsState[msg.sender].isValidator);
+        require(observersState[msg.sender].isValidator);
         _;
     }
 
@@ -44,16 +46,16 @@ contract ReportingValidatorSet {
     function finalizeChange() public onlySystem {
         uint256 i;
         for (i = 0; i < previousValidators.length; i++) {
-            delete validatorsStatePreviousEpoch[previousValidators[i]];
+            delete observersStatePreviousEpoch[previousValidators[i]];
         }
         previousValidators = currentValidators;
         for (i = 0; i < previousValidators.length; i++) {
-            validatorsStatePreviousEpoch[previousValidators[i]] = ValidatorState({
+            observersStatePreviousEpoch[previousValidators[i]] = ObserverState({
                 index: i,
                 isValidator: true
             });
         }
-        // ... changing `currentValidators` and `validatorsState`...
+        // ... changing `currentValidators` and `observersState`...
         epoch++;
     }
 
@@ -75,13 +77,9 @@ contract ReportingValidatorSet {
 
         address staker = msg.sender;
 
-        if (_observer == staker) {
-            if (stakeAmount[_observer][_observer] == 0) {
-                pools.push(_observer);
-            }
-        } else {
+        if (_observer != staker) {
             // The observer must firstly make a stake for himself
-            require(stakeAmount[_observer][_observer] != 0);
+            require(doesPoolExist(_observer));
         }
 
         uint256 newStakeAmount = stakeAmount[_observer][staker].add(msg.value);
@@ -90,9 +88,16 @@ contract ReportingValidatorSet {
         stakeAmountByEpoch[_observer][staker][epoch] = stakeAmountByEpoch[_observer][staker][epoch].add(msg.value);
         stakeAmountTotal[_observer] = stakeAmountTotal[_observer].add(msg.value);
 
-        if (newStakeAmount == msg.value && _observer != staker) {
-            // Add `staker` to an array of observer's stakers
-            poolStakers[_observer].push(staker);
+        if (newStakeAmount == msg.value) {
+            if (_observer == staker) {
+                // Add `_observer` to the array of pools
+                poolIndex[_observer] = pools.length;
+                pools.push(_observer);
+            } else {
+                // Add `staker` to the array of observer's stakers
+                poolStakerIndex[_observer][staker] = poolStakers[_observer].length;
+                poolStakers[_observer].push(staker);
+            }
         }
 
         emit Staked(_observer, staker, epoch, msg.value);
@@ -105,7 +110,7 @@ contract ReportingValidatorSet {
         address staker = msg.sender;
 
         bool observerIsStaker = _observer == staker;
-        bool observerIsValidator = validatorsState[_observer].isValidator;
+        bool observerIsValidator = observersState[_observer].isValidator;
 
         if (observerIsStaker) {
             // An observer can't withdraw while he is a validator
@@ -114,7 +119,7 @@ contract ReportingValidatorSet {
 
         if (observerIsValidator) {
             uint256 withdrawAllowed;
-            if (validatorsStatePreviousEpoch[_observer].isValidator) {
+            if (observersStatePreviousEpoch[_observer].isValidator) {
                 // The observer was also a validator on the previous epoch, so
                 // the staker can't withdraw amount staked on the previous epoch
                 withdrawAllowed = stakeAmount[_observer][staker].sub(
@@ -137,7 +142,12 @@ contract ReportingValidatorSet {
 
         if (newStakeAmount == 0) {
             if (observerIsStaker) {
-                // TODO: remove `_observer` from `pools`
+                // Remove `_observer` from the array of pools
+                uint256 removedIndex = poolIndex[_observer];
+                pools[removedIndex] = pools[pools.length - 1];
+                pools.length--;
+                poolIndex[pools[removedIndex]] = removedIndex;
+                delete poolIndex[_observer];
             } else {
                 // TODO: remove `staker` from `poolStakers`
             }
@@ -146,6 +156,10 @@ contract ReportingValidatorSet {
         staker.transfer(_amount);
 
         emit Withdrawn(_observer, staker, epoch, _amount);
+    }
+
+    function doesPoolExist(address _observer) public view returns(bool) {
+        return stakeAmount[_observer][_observer] != 0;
     }
 
     function getPools() public view returns(address[]) {
