@@ -12,23 +12,49 @@ contract ReportingValidatorSet {
     }
 
     uint256 public epoch;
+    
     address[] public currentValidators;
     address[] public previousValidators;
+
     address[] public pools;
     mapping(address => uint256) public poolIndex;
+
     mapping(address => address[]) public poolStakers;
     mapping(address => mapping(address => uint256)) public poolStakerIndex;
+
     mapping(address => mapping(address => uint256)) public stakeAmount;
     mapping(address => mapping(address => mapping(uint256 => uint256))) public stakeAmountByEpoch;
     mapping(address => uint256) public stakeAmountTotal;
+
     mapping(address => ObserverState) public observersState;
     mapping(address => ObserverState) public observersStatePreviousEpoch;
 
     uint256 public constant MIN_STAKE = 1 ether;
     
-    event InitiateChange(bytes32 indexed parentHash, address[] newSet);
-    event Staked(address indexed observer, address indexed staker, uint256 indexed epoch, uint256 amount);
-    event Withdrawn(address indexed observer, address indexed staker, uint256 indexed epoch, uint256 amount);
+    event InitiateChange(
+        bytes32 indexed parentHash,
+        address[] newSet
+    );
+
+    event MaliciousReported(
+        address indexed reporter,
+        address indexed validator,
+        uint256 indexed blockNumber
+    );
+    
+    event Staked(
+        address indexed observer,
+        address indexed staker,
+        uint256 indexed epoch,
+        uint256 amount
+    );
+    
+    event Withdrawn(
+        address indexed observer,
+        address indexed staker,
+        uint256 indexed epoch,
+        uint256 amount
+    );
 
     modifier onlySystem() {
         require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
@@ -65,10 +91,11 @@ contract ReportingValidatorSet {
     // {
     // }
 
-    function reportMalicious(address _validator, uint256 _blockNumber, bytes _proof)
+    function reportMalicious(address _validator, uint256 _blockNumber, bytes /*_proof*/)
         public
         onlyValidator
     {
+        emit MaliciousReported(msg.sender, _validator, _blockNumber);
     }
 
     function stake(address _observer) public payable {
@@ -85,7 +112,8 @@ contract ReportingValidatorSet {
         uint256 newStakeAmount = stakeAmount[_observer][staker].add(msg.value);
         require(newStakeAmount >= MIN_STAKE); // the staked amount must be at least MIN_STAKE
         stakeAmount[_observer][staker] = newStakeAmount;
-        stakeAmountByEpoch[_observer][staker][epoch] = stakeAmountByEpoch[_observer][staker][epoch].add(msg.value);
+        stakeAmountByEpoch[_observer][staker][epoch] =
+            stakeAmountByEpoch[_observer][staker][epoch].add(msg.value);
         stakeAmountTotal[_observer] = stakeAmountTotal[_observer].add(msg.value);
 
         if (newStakeAmount == msg.value) {
@@ -141,15 +169,23 @@ contract ReportingValidatorSet {
         stakeAmountTotal[_observer] = stakeAmountTotal[_observer].sub(_amount);
 
         if (newStakeAmount == 0) {
+            uint256 indexToRemove;
             if (observerIsStaker) {
                 // Remove `_observer` from the array of pools
-                uint256 removedIndex = poolIndex[_observer];
-                pools[removedIndex] = pools[pools.length - 1];
+                indexToRemove = poolIndex[_observer];
+                pools[indexToRemove] = pools[pools.length - 1];
+                poolIndex[pools[indexToRemove]] = indexToRemove;
                 pools.length--;
-                poolIndex[pools[removedIndex]] = removedIndex;
                 delete poolIndex[_observer];
             } else {
-                // TODO: remove `staker` from `poolStakers`
+                // Remove `staker` from the array of observer's stakers
+                indexToRemove = poolStakerIndex[_observer][staker];
+                poolStakers[_observer][indexToRemove] =
+                    poolStakers[_observer][poolStakers[_observer].length];
+                poolStakerIndex[_observer][poolStakers[_observer][indexToRemove]] =
+                    indexToRemove;
+                poolStakers[_observer].length--;
+                delete poolStakerIndex[_observer][staker];
             }
         }
 
