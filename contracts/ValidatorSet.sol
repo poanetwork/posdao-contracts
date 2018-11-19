@@ -11,7 +11,7 @@ contract ReportingValidatorSet {
         bool isValidator; // is this a validator
     }
 
-    uint256 public epoch;
+    uint256 public stakingEpoch;
     
     address[] public currentValidators;
     address[] public previousValidators;
@@ -45,14 +45,14 @@ contract ReportingValidatorSet {
     event Staked(
         address indexed observer,
         address indexed staker,
-        uint256 indexed epoch,
+        uint256 indexed stakingEpoch,
         uint256 amount
     );
     
     event Withdrawn(
         address indexed observer,
         address indexed staker,
-        uint256 indexed epoch,
+        uint256 indexed stakingEpoch,
         uint256 amount
     );
 
@@ -82,7 +82,7 @@ contract ReportingValidatorSet {
             });
         }
         // ... changing `currentValidators` and `observersState`...
-        epoch++;
+        stakingEpoch++;
     }
 
     // function reportBenign(address _validator, uint256 _blockNumber)
@@ -104,7 +104,9 @@ contract ReportingValidatorSet {
 
         address staker = msg.sender;
 
-        if (_observer != staker) {
+        bool stakerIsObserver = staker == _observer;
+
+        if (!stakerIsObserver) {
             // The observer must firstly make a stake for himself
             require(doesPoolExist(_observer));
         }
@@ -112,12 +114,12 @@ contract ReportingValidatorSet {
         uint256 newStakeAmount = stakeAmount[_observer][staker].add(msg.value);
         require(newStakeAmount >= MIN_STAKE); // the staked amount must be at least MIN_STAKE
         stakeAmount[_observer][staker] = newStakeAmount;
-        stakeAmountByEpoch[_observer][staker][epoch] =
-            stakeAmountByEpoch[_observer][staker][epoch].add(msg.value);
+        stakeAmountByEpoch[_observer][staker][stakingEpoch] =
+            stakeAmountByEpoch[_observer][staker][stakingEpoch].add(msg.value);
         stakeAmountTotal[_observer] = stakeAmountTotal[_observer].add(msg.value);
 
-        if (newStakeAmount == msg.value) {
-            if (_observer == staker) {
+        if (newStakeAmount == msg.value) { // if the stake is first
+            if (stakerIsObserver) { // if the observer makes a stake for himself
                 // Add `_observer` to the array of pools
                 poolIndex[_observer] = pools.length;
                 pools.push(_observer);
@@ -128,7 +130,7 @@ contract ReportingValidatorSet {
             }
         }
 
-        emit Staked(_observer, staker, epoch, msg.value);
+        emit Staked(_observer, staker, stakingEpoch, msg.value);
     }
 
     function withdraw(address _observer, uint256 _amount) public {
@@ -137,28 +139,17 @@ contract ReportingValidatorSet {
 
         address staker = msg.sender;
 
-        bool observerIsStaker = _observer == staker;
+        bool stakerIsObserver = staker == _observer;
         bool observerIsValidator = observersState[_observer].isValidator;
 
-        if (observerIsStaker) {
+        if (stakerIsObserver) {
             // An observer can't withdraw while he is a validator
             require(!observerIsValidator);
         }
 
         if (observerIsValidator) {
-            uint256 withdrawAllowed;
-            if (observersStatePreviousEpoch[_observer].isValidator) {
-                // The observer was also a validator on the previous epoch, so
-                // the staker can't withdraw amount staked on the previous epoch
-                withdrawAllowed = stakeAmount[_observer][staker].sub(
-                    stakeAmountByEpoch[_observer][staker][epoch.sub(1)]
-                );
-            } else {
-                // The observer wasn't a validator on the previous epoch, so
-                // the staker can only withdraw amount staked on the current epoch
-                withdrawAllowed = stakeAmountByEpoch[_observer][staker][epoch];
-            }
-            require(_amount <= withdrawAllowed);
+            // How much can be withdrawn on the current staking epoch?
+            require(_amount <= maxWithdrawAllowed(_observer, staker));
         }
 
         // The amount to be withdrawn must be the whole staked amount or
@@ -166,11 +157,16 @@ contract ReportingValidatorSet {
         uint256 newStakeAmount = stakeAmount[_observer][staker].sub(_amount);
         require(newStakeAmount == 0 || newStakeAmount >= MIN_STAKE);
         stakeAmount[_observer][staker] = newStakeAmount;
+        if (_amount <= stakeAmountByEpoch[_observer][staker][stakingEpoch]) {
+            stakeAmountByEpoch[_observer][staker][stakingEpoch] -= _amount;
+        } else {
+            stakeAmountByEpoch[_observer][staker][stakingEpoch] = 0;
+        }
         stakeAmountTotal[_observer] = stakeAmountTotal[_observer].sub(_amount);
 
         if (newStakeAmount == 0) {
             uint256 indexToRemove;
-            if (observerIsStaker) {
+            if (stakerIsObserver) {
                 // Remove `_observer` from the array of pools
                 indexToRemove = poolIndex[_observer];
                 pools[indexToRemove] = pools[pools.length - 1];
@@ -191,7 +187,7 @@ contract ReportingValidatorSet {
 
         staker.transfer(_amount);
 
-        emit Withdrawn(_observer, staker, epoch, _amount);
+        emit Withdrawn(_observer, staker, stakingEpoch, _amount);
     }
 
     function doesPoolExist(address _observer) public view returns(bool) {
@@ -204,5 +200,19 @@ contract ReportingValidatorSet {
 
     function getValidators() public view returns(address[]) {
         return currentValidators;
+    }
+
+    function maxWithdrawAllowed(address _observer, address _staker) public view returns(uint256) {
+        if (observersStatePreviousEpoch[_observer].isValidator) {
+            // The observer was also a validator on the previous staking epoch, so
+            // the staker can't withdraw amount staked on the previous staking epoch
+            return stakeAmount[_observer][_staker].sub(
+                stakeAmountByEpoch[_observer][_staker][stakingEpoch.sub(1)] // stakingEpoch is always > 0 here
+            );
+        } else {
+            // The observer wasn't a validator on the previous staking epoch, so
+            // the staker can only withdraw amount staked on the current staking epoch
+            return stakeAmountByEpoch[_observer][_staker][stakingEpoch];
+        }
     }
 }
