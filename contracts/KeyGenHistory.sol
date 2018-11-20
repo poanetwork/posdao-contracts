@@ -15,7 +15,7 @@ contract KeyGenHistory {
 
     event AckWritten(
         address indexed validator,
-        bytes32 hashOfPart,
+        bytes32 indexed hashOfPart,
         bytes ack,
         uint256 indexed stakingEpoch
     );
