@@ -111,8 +111,10 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         onlyValidator
     {
         // ... check `_proof` and remove `_validator` from `currentValidators` ...
-        changeRequestCount++;
-        emit InitiateChange(blockhash(block.number - 1), currentValidators);
+        // if (majorityAchieved) {
+        //     changeRequestCount++;
+        //     emit InitiateChange(blockhash(block.number - 1), currentValidators);
+        // }
         emit MaliciousReported(msg.sender, _validator, _blockNumber);
     }
 
