@@ -25,9 +25,10 @@ contract KeyGenHistory {
         _;
     }
 
-    IReportingValidatorSet public validatorSet;
     mapping(uint256 => mapping(bytes32 => bytes32[])) public partAcks;
+    mapping(uint256 => mapping(bytes32 => mapping(bytes32 => bool))) public partAckExists;
     mapping(uint256 => mapping(address => bytes32)) public validatorPart;
+    IReportingValidatorSet public validatorSet;
 
     constructor(IReportingValidatorSet _validatorSet) public {
         validatorSet = _validatorSet;
@@ -50,16 +51,10 @@ contract KeyGenHistory {
         bytes32 hashOfAck = keccak256(_ack);
 
         require(hashOfPart != bytes32(0));
-
-        uint256 boundAcksLength = partAcks[stakingEpoch][hashOfPart].length;
-
-        for (uint256 i = 0; i < boundAcksLength; i++) {
-            if (partAcks[stakingEpoch][hashOfPart][i] == hashOfAck) {
-                return;
-            }
-        }
+        require(!partAckExists[stakingEpoch][hashOfPart][hashOfAck]);
 
         partAcks[stakingEpoch][hashOfPart].push(hashOfAck);
+        partAckExists[stakingEpoch][hashOfPart][hashOfAck] = true;
 
         emit AckWritten(msg.sender, hashOfPart, _ack, stakingEpoch);
     }
