@@ -52,7 +52,7 @@ contract KeyGenHistory {
         uint256 stakingEpoch = validatorSet.stakingEpoch();
         uint256 changeRequestCount = validatorSet.changeRequestCount();
         
-        bytes32 hashOfPart = validatorPart[stakingEpoch][msg.sender];
+        bytes32 hashOfPart = validatorPart[changeRequestCount][msg.sender];
         bytes32 hashOfAck = keccak256(_ack);
 
         require(hashOfPart != bytes32(0));
