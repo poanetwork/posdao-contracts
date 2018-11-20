@@ -10,14 +10,16 @@ contract KeyGenHistory {
     event PartWritten(
         address indexed validator,
         bytes part,
-        uint256 indexed stakingEpoch
+        uint256 indexed stakingEpoch,
+        uint256 indexed changeRequestCount
     );
 
     event AckWritten(
         address indexed validator,
         bytes32 indexed hashOfPart,
         bytes ack,
-        uint256 indexed stakingEpoch
+        uint256 stakingEpoch,
+        uint256 indexed changeRequestCount
     );
 
     modifier onlyValidator() {
@@ -37,39 +39,42 @@ contract KeyGenHistory {
     function writePart(bytes _part) public onlyValidator {
         bytes32 hashOfPart = keccak256(_part);
         uint256 stakingEpoch = validatorSet.stakingEpoch();
+        uint256 changeRequestCount = validatorSet.changeRequestCount();
 
-        require(validatorPart[stakingEpoch][msg.sender] == bytes32(0));
+        require(validatorPart[changeRequestCount][msg.sender] == bytes32(0));
 
-        validatorPart[stakingEpoch][msg.sender] = hashOfPart;
+        validatorPart[changeRequestCount][msg.sender] = hashOfPart;
 
-        emit PartWritten(msg.sender, _part, stakingEpoch);
+        emit PartWritten(msg.sender, _part, stakingEpoch, changeRequestCount);
     }
 
     function writeAck(bytes _ack) public onlyValidator {
         uint256 stakingEpoch = validatorSet.stakingEpoch();
+        uint256 changeRequestCount = validatorSet.changeRequestCount();
+        
         bytes32 hashOfPart = validatorPart[stakingEpoch][msg.sender];
         bytes32 hashOfAck = keccak256(_ack);
 
         require(hashOfPart != bytes32(0));
-        require(!partAckExists[stakingEpoch][hashOfPart][hashOfAck]);
+        require(!partAckExists[changeRequestCount][hashOfPart][hashOfAck]);
 
-        partAcks[stakingEpoch][hashOfPart].push(hashOfAck);
-        partAckExists[stakingEpoch][hashOfPart][hashOfAck] = true;
+        partAcks[changeRequestCount][hashOfPart].push(hashOfAck);
+        partAckExists[changeRequestCount][hashOfPart][hashOfAck] = true;
 
-        emit AckWritten(msg.sender, hashOfPart, _ack, stakingEpoch);
+        emit AckWritten(msg.sender, hashOfPart, _ack, stakingEpoch, changeRequestCount);
     }
 
     function isKeyGenComplete() public view returns(bool) {
         address[] memory validators = validatorSet.getValidators();
         uint256 validatorsLength = validators.length;
         
-        uint256 stakingEpoch = validatorSet.stakingEpoch();
+        uint256 changeRequestCount = validatorSet.changeRequestCount();
         uint256 partsReceivedEnoughAcks = 0;
 
         for (uint256 i = 0; i < validatorsLength; i++) {
             address validator = validators[i];
-            bytes32 hashOfPart = validatorPart[stakingEpoch][validator];
-            uint256 acksReceived = partAcks[stakingEpoch][hashOfPart].length;
+            bytes32 hashOfPart = validatorPart[changeRequestCount][validator];
+            uint256 acksReceived = partAcks[changeRequestCount][hashOfPart].length;
             
             if (acksReceived.mul(3) >= validatorsLength) {
                 partsReceivedEnoughAcks++;

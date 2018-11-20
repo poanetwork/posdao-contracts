@@ -13,6 +13,7 @@ contract ReportingValidatorSet is IReportingValidatorSet {
     }
 
     uint256 public stakingEpoch;
+    uint256 public changeRequestCount;
     
     address[] public currentValidators;
     address[] public previousValidators;
@@ -35,6 +36,12 @@ contract ReportingValidatorSet is IReportingValidatorSet {
     event InitiateChange(
         bytes32 indexed parentHash,
         address[] newSet
+    );
+
+    event BenignReported(
+        address indexed reporter,
+        address indexed validator,
+        uint256 indexed blockNumber
     );
 
     event MaliciousReported(
@@ -71,6 +78,10 @@ contract ReportingValidatorSet is IReportingValidatorSet {
     }
 
     function finalizeChange() public onlySystem {
+    }
+
+    function newValidatorSet() public onlySystem returns(address[]) {
+        /*
         uint256 i;
         for (i = 0; i < previousValidators.length; i++) {
             delete observersStatePreviousEpoch[previousValidators[i]];
@@ -83,19 +94,25 @@ contract ReportingValidatorSet is IReportingValidatorSet {
             });
         }
         // ... changing `currentValidators` and `observersState`...
+        */
+        changeRequestCount++;
         stakingEpoch++;
     }
 
-    // function reportBenign(address _validator, uint256 _blockNumber)
-    //     public
-    //     onlyValidator
-    // {
-    // }
+    function reportBenign(address _validator, uint256 _blockNumber)
+        public
+        onlyValidator
+    {
+        emit BenignReported(msg.sender, _validator, _blockNumber);
+    }
 
     function reportMalicious(address _validator, uint256 _blockNumber, bytes /*_proof*/)
         public
         onlyValidator
     {
+        // ... check `_proof` and remove `_validator` from `currentValidators` ...
+        changeRequestCount++;
+        emit InitiateChange(blockhash(block.number - 1), currentValidators);
         emit MaliciousReported(msg.sender, _validator, _blockNumber);
     }
 
