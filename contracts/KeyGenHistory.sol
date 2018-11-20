@@ -1,72 +1,86 @@
-pragma solidity ^0.4.25;
+pragma solidity 0.4.25;
 
+import "./interfaces/IReportingValidatorSet.sol";
 import "./libs/SafeMath.sol";
 
 
 contract KeyGenHistory {
     using SafeMath for uint256;
 
-    modifier onlyNewValidator() {
-        // ... check if msg.sender is a validator from a new validator set ...
+    event PartWritten(
+        address indexed validator,
+        bytes part,
+        uint256 indexed stakingEpoch
+    );
+
+    event AckWritten(
+        address indexed validator,
+        bytes32 hashOfPart,
+        bytes ack,
+        uint256 indexed stakingEpoch
+    );
+
+    modifier onlyValidator() {
+        require(validatorSet.isValidator(msg.sender));
         _;
     }
 
-    mapping(uint256 => mapping(bytes32 => bytes32[])) public messages;
-    mapping(uint256 => mapping(address => bytes32) public validatorPart;
+    IReportingValidatorSet public validatorSet;
+    mapping(uint256 => mapping(bytes32 => bytes32[])) public partAcks;
+    mapping(uint256 => mapping(address => bytes32)) public validatorPart;
 
-    function writePart(bytes _part) public onlyNewValidator {
+    constructor(IReportingValidatorSet _validatorSet) public {
+        validatorSet = _validatorSet;
+    }
+
+    function writePart(bytes _part) public onlyValidator {
         bytes32 hashOfPart = keccak256(_part);
-        uint256 stakingEpoch = _getStakingEpoch();
+        uint256 stakingEpoch = validatorSet.stakingEpoch();
 
         require(validatorPart[stakingEpoch][msg.sender] == bytes32(0));
 
         validatorPart[stakingEpoch][msg.sender] = hashOfPart;
+
+        emit PartWritten(msg.sender, _part, stakingEpoch);
     }
 
-    function bindAckToPart(bytes _ack) public onlyNewValidator {
-        uint256 stakingEpoch = _getStakingEpoch();
+    function writeAck(bytes _ack) public onlyValidator {
+        uint256 stakingEpoch = validatorSet.stakingEpoch();
         bytes32 hashOfPart = validatorPart[stakingEpoch][msg.sender];
         bytes32 hashOfAck = keccak256(_ack);
 
         require(hashOfPart != bytes32(0));
 
-        uint256 boundAcks = messages[stakingEpoch][hashOfPart].length;
+        uint256 boundAcksLength = partAcks[stakingEpoch][hashOfPart].length;
 
-        for (uint256 i = 0; i < boundAcks; i++) {
-            if (messages[stakingEpoch][hashOfPart][i] == hashOfAck) {
+        for (uint256 i = 0; i < boundAcksLength; i++) {
+            if (partAcks[stakingEpoch][hashOfPart][i] == hashOfAck) {
                 return;
             }
         }
 
-        messages[stakingEpoch][hashOfPart].push(hashOfAck);
+        partAcks[stakingEpoch][hashOfPart].push(hashOfAck);
+
+        emit AckWritten(msg.sender, hashOfPart, _ack, stakingEpoch);
     }
 
-    function isKeyGenComplete() public returns(bool) {
-        address[] newValidators = _getNewValidatorSet();
-        uint256 newValidatorsLength = newValidators.length;
+    function isKeyGenComplete() public view returns(bool) {
+        address[] memory validators = validatorSet.getValidators();
+        uint256 validatorsLength = validators.length;
         
-        uint256 stakingEpoch = _getStakingEpoch();
+        uint256 stakingEpoch = validatorSet.stakingEpoch();
         uint256 partsReceivedEnoughAcks = 0;
 
-        for (uint256 i = 0; i < newValidatorsLength; i++) {
-            address newValidator = newValidators[i];
-            bytes32 hashOfPart = validatorPart[stakingEpoch][newValidator];
-            uint256 acksReceived = messages[stakingEpoch][hashOfPart].length;
+        for (uint256 i = 0; i < validatorsLength; i++) {
+            address validator = validators[i];
+            bytes32 hashOfPart = validatorPart[stakingEpoch][validator];
+            uint256 acksReceived = partAcks[stakingEpoch][hashOfPart].length;
             
-            if (acksReceived > newValidatorsLength / 3) {
+            if (acksReceived.mul(3) >= validatorsLength) {
                 partsReceivedEnoughAcks++;
             }
         }
 
-        return partsReceivedEnoughAcks > newValidatorsLength * 2 / 3;
-    }
-
-    function _getStakingEpoch() internal view returns(uint256) {
-        // ... read the current number of staking epoch from ValidatorSet contract ...
-        return 0;
-    }
-
-    function _getNewValidatorSet() internal view returns(address[]) {
-        // ... read new validator set from ValidatorSet contract ...
+        return partsReceivedEnoughAcks.mul(3) > validatorsLength.mul(2);
     }
 }
