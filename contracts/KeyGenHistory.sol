@@ -7,6 +7,11 @@ import "./libs/SafeMath.sol";
 contract KeyGenHistory {
     using SafeMath for uint256;
 
+    mapping(uint256 => mapping(bytes32 => bytes32[])) public partAcks;
+    mapping(uint256 => mapping(bytes32 => mapping(bytes32 => bool))) public partAckExists;
+    mapping(uint256 => mapping(address => bytes32)) public validatorPart;
+    IReportingValidatorSet public validatorSet;
+
     event PartWritten(
         address indexed validator,
         bytes part,
@@ -26,11 +31,6 @@ contract KeyGenHistory {
         require(validatorSet.isValidator(msg.sender));
         _;
     }
-
-    mapping(uint256 => mapping(bytes32 => bytes32[])) public partAcks;
-    mapping(uint256 => mapping(bytes32 => mapping(bytes32 => bool))) public partAckExists;
-    mapping(uint256 => mapping(address => bytes32)) public validatorPart;
-    IReportingValidatorSet public validatorSet;
 
     constructor(IReportingValidatorSet _validatorSet) public {
         validatorSet = _validatorSet;

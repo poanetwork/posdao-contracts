@@ -8,23 +8,25 @@ contract ReportingValidatorSet is IReportingValidatorSet {
     using SafeMath for uint256;
 
     struct ObserverState {
-        uint256 index; // index in the currentValidators
+        uint256 index; // index in the `currentValidators`
         bool isValidator; // is this a validator
     }
 
-    uint256 public stakingEpoch;
-    uint256 public changeRequestCount;
+    // ================================================ Store =========================================================
+
+    uint256 public stakingEpoch; // the internal serial number of staking epoch
+    uint256 public changeRequestCount; // the serial number of validator set changing request
     
-    address[] public currentValidators;
-    address[] public previousValidators;
+    address[] public currentValidators; // the current set of validators
+    address[] public previousValidators; // the set of validators at the end of previous staking epoch
 
     uint256[] public currentRandom;
 
-    address[] public pools;
-    mapping(address => uint256) public poolIndex;
+    address[] public pools; // the list of current observers (pools)
+    mapping(address => uint256) public poolIndex; // pool index in `pools` array
 
-    mapping(address => address[]) public poolStakers;
-    mapping(address => mapping(address => uint256)) public poolStakerIndex;
+    mapping(address => address[]) public poolStakers; // the list of current stakers in the specified pool
+    mapping(address => mapping(address => uint256)) public poolStakerIndex; // staker index in `poolStakers` array
 
     mapping(address => mapping(address => uint256)) public stakeAmount;
     mapping(address => mapping(address => mapping(uint256 => uint256))) public stakeAmountByEpoch;
@@ -35,39 +37,21 @@ contract ReportingValidatorSet is IReportingValidatorSet {
 
     mapping(address => bytes) public publicKey;
 
+    // ============================================== Constants =======================================================
+
+    uint256 public constant MAX_OBSERVERS = 2000;
     uint256 public constant MAX_VALIDATORS = 20;
-    uint256 public constant MIN_STAKE = 1 ether;
-    
-    event InitiateChange(
-        bytes32 indexed parentHash,
-        address[] newSet
-    );
+    uint256 public constant MIN_STAKE = 1 ether; // must be specified before network launching
 
-    event BenignReported(
-        address indexed reporter,
-        address indexed validator,
-        uint256 indexed blockNumber
-    );
+    // ================================================ Events ========================================================
+    
+    event InitiateChange(bytes32 indexed parentHash, address[] newSet);
+    event BenignReported(address indexed reporter, address indexed validator, uint256 indexed blockNumber);
+    event MaliciousReported(address indexed reporter, address indexed validator, uint256 indexed blockNumber);
+    event Staked(address indexed observer, address indexed staker, uint256 indexed stakingEpoch, uint256 amount);
+    event Withdrawn(address indexed observer, address indexed staker, uint256 indexed stakingEpoch, uint256 amount);
 
-    event MaliciousReported(
-        address indexed reporter,
-        address indexed validator,
-        uint256 indexed blockNumber
-    );
-    
-    event Staked(
-        address indexed observer,
-        address indexed staker,
-        uint256 indexed stakingEpoch,
-        uint256 amount
-    );
-    
-    event Withdrawn(
-        address indexed observer,
-        address indexed staker,
-        uint256 indexed stakingEpoch,
-        uint256 amount
-    );
+    // ============================================== Modifiers =======================================================
 
     modifier onlySystem() {
         require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
@@ -78,6 +62,8 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         require(isValidator(msg.sender));
         _;
     }
+
+    // =============================================== Setters ========================================================
 
     constructor() public {
     }
@@ -162,6 +148,7 @@ contract ReportingValidatorSet is IReportingValidatorSet {
                 // Add `_observer` to the array of pools
                 poolIndex[_observer] = pools.length;
                 pools.push(_observer);
+                require(pools.length <= MAX_OBSERVERS);
             } else {
                 // Add `staker` to the array of observer's stakers
                 poolStakerIndex[_observer][staker] = poolStakers[_observer].length;
@@ -178,18 +165,8 @@ contract ReportingValidatorSet is IReportingValidatorSet {
 
         address staker = msg.sender;
 
-        bool stakerIsObserver = staker == _observer;
-        bool observerIsValidator = observersState[_observer].isValidator;
-
-        if (stakerIsObserver) {
-            // An observer can't withdraw while he is a validator
-            require(!observerIsValidator);
-        }
-
-        if (observerIsValidator) {
-            // How much can be withdrawn on the current staking epoch?
-            require(_amount <= maxWithdrawAllowed(_observer, staker));
-        }
+        // How much can `staker` withdraw from `_observer` pool on the current staking epoch?
+        require(_amount <= maxWithdrawAllowed(_observer, staker));
 
         // The amount to be withdrawn must be the whole staked amount or
         // must not exceed the diff between the entire amount and MIN_STAKE
@@ -203,9 +180,9 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         }
         stakeAmountTotal[_observer] = stakeAmountTotal[_observer].sub(_amount);
 
-        if (newStakeAmount == 0) {
+        if (newStakeAmount == 0) { // the whole amount has been withdrawn
             uint256 indexToRemove;
-            if (stakerIsObserver) {
+            if (staker == _observer) {
                 // Remove `_observer` from the array of pools
                 indexToRemove = poolIndex[_observer];
                 pools[indexToRemove] = pools[pools.length - 1];
@@ -229,6 +206,8 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         emit Withdrawn(_observer, staker, stakingEpoch, _amount);
     }
 
+    // =============================================== Getters ========================================================
+
     function doesPoolExist(address _observer) public view returns(bool) {
         return stakeAmount[_observer][_observer] != 0;
     }
@@ -246,6 +225,18 @@ contract ReportingValidatorSet is IReportingValidatorSet {
     }
 
     function maxWithdrawAllowed(address _observer, address _staker) public view returns(uint256) {
+        bool observerIsValidator = isValidator(_observer);
+
+        if (_staker == _observer && observerIsValidator) {
+            // An observer can't withdraw while he is a validator
+            return 0;
+        }
+
+        if (!observerIsValidator) {
+            // The whole amount can be withdrawn if observer is not a validator
+            return stakeAmount[_observer][_staker];
+        }
+
         if (observersStatePreviousEpoch[_observer].isValidator) {
             // The observer was also a validator on the previous staking epoch, so
             // the staker can't withdraw amount staked on the previous staking epoch
