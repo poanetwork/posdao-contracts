@@ -9,7 +9,7 @@ contract ReportingValidatorSet is IReportingValidatorSet {
 
     struct ObserverState {
         uint256 index; // index in the `currentValidators`
-        bool isValidator; // is this a validator
+        bool isValidator; // is this observer a validator?
     }
 
     // ================================================ Store =========================================================
@@ -35,7 +35,7 @@ contract ReportingValidatorSet is IReportingValidatorSet {
     mapping(address => ObserverState) public observersState;
     mapping(address => ObserverState) public observersStatePreviousEpoch;
 
-    mapping(address => bytes) public publicKey;
+    mapping(address => bytes) public publicKey; // serialized public key for each observer
 
     // ============================================== Constants =======================================================
 
@@ -110,7 +110,7 @@ contract ReportingValidatorSet is IReportingValidatorSet {
     }
 
     function savePublicKey(bytes _key) public {
-        require(_key.length != 0);
+        require(_key.length == 48); // https://github.com/poanetwork/threshold_crypto/issues/63
         publicKey[msg.sender] = _key;
     }
 
