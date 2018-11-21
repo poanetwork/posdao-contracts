@@ -18,6 +18,8 @@ contract ReportingValidatorSet is IReportingValidatorSet {
     address[] public currentValidators;
     address[] public previousValidators;
 
+    uint256[] public currentRandom;
+
     address[] public pools;
     mapping(address => uint256) public poolIndex;
 
@@ -31,6 +33,9 @@ contract ReportingValidatorSet is IReportingValidatorSet {
     mapping(address => ObserverState) public observersState;
     mapping(address => ObserverState) public observersStatePreviousEpoch;
 
+    mapping(address => bytes) public publicKey;
+
+    uint256 public constant MAX_VALIDATORS = 20;
     uint256 public constant MIN_STAKE = 1 ether;
     
     event InitiateChange(
@@ -116,6 +121,20 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         //     emit InitiateChange(blockhash(block.number - 1), currentValidators);
         // }
         emit MaliciousReported(msg.sender, _validator, _blockNumber);
+    }
+
+    function savePublicKey(bytes _key) public {
+        // require(doesPoolExist(msg.sender));
+        require(isValidator(msg.sender));
+        publicKey[msg.sender] = _key;
+    }
+
+    function storeRandom(uint256[] _random) public onlySystem {
+        require(_random.length == MAX_VALIDATORS);
+        currentRandom.length = 0;
+        for (uint256 i = 0; i < _random.length; i++) {
+            currentRandom.push(_random[i]);
+        }
     }
 
     function stake(address _observer) public payable {
