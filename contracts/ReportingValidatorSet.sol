@@ -110,8 +110,7 @@ contract ReportingValidatorSet is IReportingValidatorSet {
     }
 
     function savePublicKey(bytes _key) public {
-        // require(doesPoolExist(msg.sender));
-        require(isValidator(msg.sender));
+        require(_key.length != 0);
         publicKey[msg.sender] = _key;
     }
 
@@ -144,9 +143,11 @@ contract ReportingValidatorSet is IReportingValidatorSet {
 
         address staker = msg.sender;
 
-        bool stakerIsObserver = staker == _observer;
+        bool stakerIsObserver = staker == _observer; // `staker` makes a stake for himself and becomes an observer
 
-        if (!stakerIsObserver) {
+        if (stakerIsObserver) {
+            require(publicKey[_observer].length != 0);
+        } else {
             // The observer must firstly make a stake for himself
             require(doesPoolExist(_observer));
         }
