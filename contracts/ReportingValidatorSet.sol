@@ -10,6 +10,7 @@ contract ReportingValidatorSet is IReportingValidatorSet {
     struct ObserverState {
         uint256 index; // index in the `currentValidators`
         bool isValidator; // is this observer a validator?
+        bytes publicKey; // serialized public key of observer
     }
 
     // ================================================ Store =========================================================
@@ -34,8 +35,6 @@ contract ReportingValidatorSet is IReportingValidatorSet {
 
     mapping(address => ObserverState) public observersState;
     mapping(address => ObserverState) public observersStatePreviousEpoch;
-
-    mapping(address => bytes) public publicKey; // serialized public key for each observer
 
     // ============================================== Constants =======================================================
 
@@ -81,7 +80,8 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         for (i = 0; i < previousValidators.length; i++) {
             observersStatePreviousEpoch[previousValidators[i]] = ObserverState({
                 index: i,
-                isValidator: true
+                isValidator: true,
+                publicKey: observersState[previousValidators[i]].publicKey
             });
         }
         // ... changing `currentValidators` and `observersState`...
@@ -111,7 +111,7 @@ contract ReportingValidatorSet is IReportingValidatorSet {
 
     function savePublicKey(bytes _key) public {
         require(_key.length == 48); // https://github.com/poanetwork/threshold_crypto/issues/63
-        publicKey[msg.sender] = _key;
+        observersState[msg.sender].publicKey = _key;
     }
 
     function storeRandom(uint256[] _random) public onlySystem {
@@ -146,7 +146,7 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         bool stakerIsObserver = staker == _observer; // `staker` makes a stake for himself and becomes an observer
 
         if (stakerIsObserver) {
-            require(publicKey[_observer].length != 0);
+            require(observersState[_observer].publicKey.length != 0);
         } else {
             // The observer must firstly make a stake for himself
             require(doesPoolExist(_observer));
