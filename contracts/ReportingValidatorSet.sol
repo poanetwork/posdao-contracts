@@ -123,6 +123,21 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         }
     }
 
+    function moveStake(address _fromObserver, address _toObserver, uint256 _amount) public {
+        /*
+        require(_fromObserver != address(0));
+        require(_toObserver != address(0));
+        require(_amount != 0);
+
+        address staker = msg.sender;
+
+        if (staker != _toObserver) {
+            // The observer must firstly make a stake for himself
+            require(doesPoolExist(_toObserver));
+        }
+        */
+    }
+
     function stake(address _observer) public payable {
         require(_observer != address(0));
         require(msg.value != 0);
