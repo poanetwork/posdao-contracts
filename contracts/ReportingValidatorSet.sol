@@ -44,11 +44,44 @@ contract ReportingValidatorSet is IReportingValidatorSet {
 
     // ================================================ Events ========================================================
     
-    event InitiateChange(bytes32 indexed parentHash, address[] newSet);
-    event BenignReported(address indexed reporter, address indexed validator, uint256 indexed blockNumber);
-    event MaliciousReported(address indexed reporter, address indexed validator, uint256 indexed blockNumber);
-    event Staked(address indexed observer, address indexed staker, uint256 indexed stakingEpoch, uint256 amount);
-    event Withdrawn(address indexed observer, address indexed staker, uint256 indexed stakingEpoch, uint256 amount);
+    event InitiateChange(
+        bytes32 indexed parentHash,
+        address[] newSet
+    );
+
+    event BenignReported(
+        address indexed reporter,
+        address indexed validator,
+        uint256 indexed blockNumber
+    );
+
+    event MaliciousReported(
+        address indexed reporter,
+        address indexed validator,
+        uint256 indexed blockNumber
+    );
+
+    event Staked(
+        address indexed toObserver,
+        address indexed staker,
+        uint256 indexed stakingEpoch,
+        uint256 amount
+    );
+
+    event StakeMoved(
+        address indexed fromObserver,
+        address indexed toObserver,
+        address indexed staker,
+        uint256 stakingEpoch,
+        uint256 amount
+    );
+
+    event Withdrawn(
+        address indexed fromObserver,
+        address indexed staker,
+        uint256 indexed stakingEpoch,
+        uint256 amount
+    );
 
     // ============================================== Modifiers =======================================================
 
@@ -123,103 +156,23 @@ contract ReportingValidatorSet is IReportingValidatorSet {
     }
 
     function moveStake(address _fromObserver, address _toObserver, uint256 _amount) public {
-        /*
-        require(_fromObserver != address(0));
-        require(_toObserver != address(0));
-        require(_amount != 0);
-
         address staker = msg.sender;
-
-        if (staker != _toObserver) {
-            // The observer must firstly make a stake for himself
-            require(doesPoolExist(_toObserver));
-        }
-        */
+        _withdraw(_fromObserver, staker, _amount);
+        _stake(_toObserver, staker, _amount);
+        emit StakeMoved(_fromObserver, _toObserver, staker, stakingEpoch, _amount);
     }
 
-    function stake(address _observer) public payable {
-        require(_observer != address(0));
-        require(msg.value != 0);
-
+    function stake(address _toObserver) public payable {
         address staker = msg.sender;
-
-        bool stakerIsObserver = staker == _observer; // `staker` makes a stake for himself and becomes an observer
-
-        if (stakerIsObserver) {
-            require(observersState[_observer].publicKey.length != 0);
-        } else {
-            // The observer must firstly make a stake for himself
-            require(doesPoolExist(_observer));
-        }
-
-        uint256 newStakeAmount = stakeAmount[_observer][staker].add(msg.value);
-        require(newStakeAmount >= MIN_STAKE); // the staked amount must be at least MIN_STAKE
-        stakeAmount[_observer][staker] = newStakeAmount;
-        stakeAmountByEpoch[_observer][staker][stakingEpoch] =
-            stakeAmountByEpoch[_observer][staker][stakingEpoch].add(msg.value);
-        stakeAmountTotal[_observer] = stakeAmountTotal[_observer].add(msg.value);
-
-        if (newStakeAmount == msg.value) { // if the stake is first
-            if (stakerIsObserver) { // if the observer makes a stake for himself
-                // Add `_observer` to the array of pools
-                poolIndex[_observer] = pools.length;
-                pools.push(_observer);
-                require(pools.length <= MAX_OBSERVERS);
-            } else {
-                // Add `staker` to the array of observer's stakers
-                poolStakerIndex[_observer][staker] = poolStakers[_observer].length;
-                poolStakers[_observer].push(staker);
-            }
-        }
-
-        emit Staked(_observer, staker, stakingEpoch, msg.value);
+        _stake(_toObserver, staker, msg.value);
+        emit Staked(_toObserver, staker, stakingEpoch, msg.value);
     }
 
-    function withdraw(address _observer, uint256 _amount) public {
-        require(_observer != address(0));
-        require(_amount != 0);
-
+    function withdraw(address _fromObserver, uint256 _amount) public {
         address staker = msg.sender;
-
-        // How much can `staker` withdraw from `_observer` pool on the current staking epoch?
-        require(_amount <= maxWithdrawAllowed(_observer, staker));
-
-        // The amount to be withdrawn must be the whole staked amount or
-        // must not exceed the diff between the entire amount and MIN_STAKE
-        uint256 newStakeAmount = stakeAmount[_observer][staker].sub(_amount);
-        require(newStakeAmount == 0 || newStakeAmount >= MIN_STAKE);
-        stakeAmount[_observer][staker] = newStakeAmount;
-        if (_amount <= stakeAmountByEpoch[_observer][staker][stakingEpoch]) {
-            stakeAmountByEpoch[_observer][staker][stakingEpoch] -= _amount;
-        } else {
-            stakeAmountByEpoch[_observer][staker][stakingEpoch] = 0;
-        }
-        stakeAmountTotal[_observer] = stakeAmountTotal[_observer].sub(_amount);
-
-        if (newStakeAmount == 0) { // the whole amount has been withdrawn
-            uint256 indexToRemove;
-            if (staker == _observer) {
-                // Remove `_observer` from the array of pools
-                indexToRemove = poolIndex[_observer];
-                pools[indexToRemove] = pools[pools.length - 1];
-                poolIndex[pools[indexToRemove]] = indexToRemove;
-                pools.length--;
-                delete poolIndex[_observer];
-            } else {
-                // Remove `staker` from the array of observer's stakers
-                indexToRemove = poolStakerIndex[_observer][staker];
-                poolStakers[_observer][indexToRemove] =
-                    poolStakers[_observer][poolStakers[_observer].length];
-                poolStakerIndex[_observer][poolStakers[_observer][indexToRemove]] =
-                    indexToRemove;
-                poolStakers[_observer].length--;
-                delete poolStakerIndex[_observer][staker];
-            }
-        }
-
+        _withdraw(_fromObserver, staker, _amount);
         staker.transfer(_amount);
-
-        emit Withdrawn(_observer, staker, stakingEpoch, _amount);
+        emit Withdrawn(_fromObserver, staker, stakingEpoch, _amount);
     }
 
     // =============================================== Getters ========================================================
@@ -263,6 +216,83 @@ contract ReportingValidatorSet is IReportingValidatorSet {
             // The observer wasn't a validator on the previous staking epoch, so
             // the staker can only withdraw amount staked on the current staking epoch
             return stakeAmountByEpoch[_observer][_staker][stakingEpoch];
+        }
+    }
+
+    // =============================================== Private ========================================================
+
+    function _stake(address _observer, address _staker, uint256 _amount) internal {
+        require(_observer != address(0));
+        require(_amount != 0);
+
+        bool stakerIsObserver = _staker == _observer; // `staker` makes a stake for himself and becomes an observer
+
+        if (stakerIsObserver) {
+            require(observersState[_observer].publicKey.length != 0);
+        } else {
+            // The observer must firstly make a stake for himself
+            require(doesPoolExist(_observer));
+        }
+
+        uint256 newStakeAmount = stakeAmount[_observer][_staker].add(_amount);
+        require(newStakeAmount >= MIN_STAKE); // the staked amount must be at least MIN_STAKE
+        stakeAmount[_observer][_staker] = newStakeAmount;
+        stakeAmountByEpoch[_observer][_staker][stakingEpoch] =
+            stakeAmountByEpoch[_observer][_staker][stakingEpoch].add(_amount);
+        stakeAmountTotal[_observer] = stakeAmountTotal[_observer].add(_amount);
+
+        if (newStakeAmount == _amount) { // if the stake is first
+            if (stakerIsObserver) { // if the observer makes a stake for himself
+                // Add `_observer` to the array of pools
+                poolIndex[_observer] = pools.length;
+                pools.push(_observer);
+                require(pools.length <= MAX_OBSERVERS);
+            } else {
+                // Add `_staker` to the array of observer's stakers
+                poolStakerIndex[_observer][_staker] = poolStakers[_observer].length;
+                poolStakers[_observer].push(_staker);
+            }
+        }
+    }
+
+    function _withdraw(address _observer, address _staker, uint256 _amount) internal {
+        require(_observer != address(0));
+        require(_amount != 0);
+
+        // How much can `staker` withdraw from `_observer` pool on the current staking epoch?
+        require(_amount <= maxWithdrawAllowed(_observer, _staker));
+
+        // The amount to be withdrawn must be the whole staked amount or
+        // must not exceed the diff between the entire amount and MIN_STAKE
+        uint256 newStakeAmount = stakeAmount[_observer][_staker].sub(_amount);
+        require(newStakeAmount == 0 || newStakeAmount >= MIN_STAKE);
+        stakeAmount[_observer][_staker] = newStakeAmount;
+        if (_amount <= stakeAmountByEpoch[_observer][_staker][stakingEpoch]) {
+            stakeAmountByEpoch[_observer][_staker][stakingEpoch] -= _amount;
+        } else {
+            stakeAmountByEpoch[_observer][_staker][stakingEpoch] = 0;
+        }
+        stakeAmountTotal[_observer] = stakeAmountTotal[_observer].sub(_amount);
+
+        if (newStakeAmount == 0) { // the whole amount has been withdrawn
+            uint256 indexToRemove;
+            if (_staker == _observer) {
+                // Remove `_observer` from the array of pools
+                indexToRemove = poolIndex[_observer];
+                pools[indexToRemove] = pools[pools.length - 1];
+                poolIndex[pools[indexToRemove]] = indexToRemove;
+                pools.length--;
+                delete poolIndex[_observer];
+            } else {
+                // Remove `_staker` from the array of observer's stakers
+                indexToRemove = poolStakerIndex[_observer][_staker];
+                poolStakers[_observer][indexToRemove] =
+                    poolStakers[_observer][poolStakers[_observer].length];
+                poolStakerIndex[_observer][poolStakers[_observer][indexToRemove]] =
+                    indexToRemove;
+                poolStakers[_observer].length--;
+                delete poolStakerIndex[_observer][_staker];
+            }
         }
     }
 }
