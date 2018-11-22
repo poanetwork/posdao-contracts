@@ -125,16 +125,20 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         } else {
             uint256[] memory likelihood = new uint256[](pools.length);
             address[] memory poolsLocal = pools;
-            uint256 poolsLocalLength = poolsLocal.length;
             address[] memory newValidators = new address[](MAX_VALIDATORS);
+
+            uint256 likelihoodSum = 0;
+            uint256 poolsLocalLength = poolsLocal.length;
 
             for (i = 0; i < pools.length; i++) {
                likelihood[i] = stakeAmountTotal[pools[i]].mul(100).div(STAKE_UNIT);
+               likelihoodSum = likelihoodSum.add(likelihood[i]);
             }
 
             for (i = 0; i < MAX_VALIDATORS; i++) {
-                uint256 index = _getRandomIndex(likelihood, poolsLocalLength, currentRandom[i]);
+                uint256 index = _getRandomIndex(likelihood, likelihoodSum, currentRandom[i]);
                 newValidators[i] = poolsLocal[index];
+                likelihoodSum -= likelihood[index];
                 poolsLocalLength--;
                 poolsLocal[index] = poolsLocal[poolsLocalLength];
                 likelihood[index] = likelihood[poolsLocalLength];
@@ -326,16 +330,12 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         }
     }
 
-    function _getRandomIndex(uint256[] _likelihood, uint256 _length, uint64 _randomNumber)
+    function _getRandomIndex(uint256[] _likelihood, uint256 _likelihoodSum, uint256 _randomNumber)
         internal
         pure
         returns(uint256)
     {
-        uint256 sum = 0;
-        for (uint256 i = 0; i < _length; i++) {
-            sum = sum.add(_likelihood[i]);
-        }
-        int256 r = int256(_randomNumber % sum) + 1;
+        int256 r = int256(_randomNumber % _likelihoodSum) + 1;
         int256 index = -1;
         do {
             r -= int256(_likelihood[uint256(++index)]);
