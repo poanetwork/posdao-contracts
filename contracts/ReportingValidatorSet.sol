@@ -21,7 +21,7 @@ contract ReportingValidatorSet is IReportingValidatorSet {
     address[] public currentValidators; // the current set of validators
     address[] public previousValidators; // the set of validators at the end of previous staking epoch
 
-    uint256[] public currentRandom;
+    uint64[] public currentRandom;
 
     address[] public pools; // the list of current observers (pools)
     mapping(address => uint256) public poolIndex; // pool index in `pools` array
@@ -40,7 +40,8 @@ contract ReportingValidatorSet is IReportingValidatorSet {
 
     uint256 public constant MAX_OBSERVERS = 2000;
     uint256 public constant MAX_VALIDATORS = 20;
-    uint256 public constant MIN_STAKE = 1 ether; // must be specified before network launching
+    uint256 public constant MIN_STAKE = 1 * STAKE_UNIT; // must be specified before network launching
+    uint256 public constant STAKE_UNIT = 1 ether;
 
     // ================================================ Events ========================================================
     
@@ -104,7 +105,7 @@ contract ReportingValidatorSet is IReportingValidatorSet {
     }
 
     function newValidatorSet() public onlySystem returns(address[]) {
-        /*
+        // Save previous validator set
         uint256 i;
         for (i = 0; i < previousValidators.length; i++) {
             delete observersStatePreviousEpoch[previousValidators[i]];
@@ -117,10 +118,39 @@ contract ReportingValidatorSet is IReportingValidatorSet {
                 publicKey: observersState[previousValidators[i]].publicKey
             });
         }
-        // ... changing `currentValidators` and `observersState`...
-        */
+
+        // Choose new validators
+        if (pools.length <= MAX_VALIDATORS) {
+            currentValidators = pools;
+        } else {
+            uint256[] memory likelihood = new uint256[](pools.length);
+            address[] memory poolsLocal = pools;
+            uint256 poolsLocalLength = poolsLocal.length;
+            address[] memory newValidators = new address[](MAX_VALIDATORS);
+
+            for (i = 0; i < pools.length; i++) {
+               likelihood[i] = stakeAmountTotal[pools[i]].mul(100).div(STAKE_UNIT);
+            }
+
+            for (i = 0; i < MAX_VALIDATORS; i++) {
+                uint256 index = _getRandomIndex(likelihood, poolsLocalLength, currentRandom[i]);
+                newValidators[i] = poolsLocal[index];
+                poolsLocalLength--;
+                poolsLocal[index] = poolsLocal[poolsLocalLength];
+                likelihood[index] = likelihood[poolsLocalLength];
+            }
+
+            currentValidators = newValidators;
+        }
+
+        // ...
+        // changing `observersState`
+        // ...
+
         changeRequestCount++;
         stakingEpoch++;
+
+        return currentValidators;
     }
 
     function reportBenign(address _validator, uint256 _blockNumber)
@@ -147,7 +177,7 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         observersState[msg.sender].publicKey = _key;
     }
 
-    function storeRandom(uint256[] _random) public onlySystem {
+    function storeRandom(uint64[] _random) public onlySystem {
         require(_random.length == MAX_VALIDATORS);
         currentRandom.length = 0;
         for (uint256 i = 0; i < _random.length; i++) {
@@ -294,5 +324,22 @@ contract ReportingValidatorSet is IReportingValidatorSet {
                 delete poolStakerIndex[_observer][_staker];
             }
         }
+    }
+
+    function _getRandomIndex(uint256[] _likelihood, uint256 _length, uint64 _randomNumber)
+        internal
+        pure
+        returns(uint256)
+    {
+        uint256 sum = 0;
+        for (uint256 i = 0; i < _length; i++) {
+            sum = sum.add(_likelihood[i]);
+        }
+        int256 r = int256(_randomNumber % sum) + 1;
+        int256 index = -1;
+        do {
+            r -= int256(_likelihood[uint256(++index)]);
+        } while (r > 0);
+        return uint256(index);
     }
 }
