@@ -8,7 +8,7 @@ import "./libs/SafeMath.sol";
 contract ReportingValidatorSet is IReportingValidatorSet {
     using SafeMath for uint256;
 
-    // TODO: add a description for each function and event
+    // TODO: add a description for each function
 
     struct ObserverState {
         uint256 validatorIndex; // index in the `currentValidators`
@@ -57,23 +57,41 @@ contract ReportingValidatorSet is IReportingValidatorSet {
 
     // ================================================ Events ========================================================
     
+    /// Emitted by `reportMalicious` function to signal a desired change in validator set.
+    /// @param parentHash Should be the parent block hash.
+    /// @param newSet New set of validators (without malicious validator).
     event InitiateChange(
         bytes32 indexed parentHash,
         address[] newSet
     );
 
+    /// Emitted by `reportBenign` function to signal that the validator doesn't take part
+    /// in the consensus process.
+    /// @param reporter Reporting validator.
+    /// @param validator Reported validator.
+    /// @param blockNumber The block on which the reported validator didn't take part in consensus.
     event BenignReported(
         address indexed reporter,
         address indexed validator,
         uint256 indexed blockNumber
     );
 
+    /// Emitted by `reportMalicious` function to signal that the validator misbehaves.
+    /// @param reporter Reporting validator.
+    /// @param validator Reported validator.
+    /// @param blockNumber The block on which the reported validator misbehaved.
     event MaliciousReported(
         address indexed reporter,
         address indexed validator,
         uint256 indexed blockNumber
     );
 
+    /// Emitted by `stake` function to signal that the staker made a stake of the specified
+    /// amount for the specified observer during the specified staking epoch.
+    /// @param toObserver The observer for whom the `staker` made the stake.
+    /// @param staker The address of staker who made the stake.
+    /// @param stakingEpoch The serial number of staking epoch during which the stake was made.
+    /// @param amount The amount of the stake.
     event Staked(
         address indexed toObserver,
         address indexed staker,
@@ -81,14 +99,27 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         uint256 amount
     );
 
+    /// Emitted by `moveStake` function to signal that the staker moved the specified
+    /// amount of a stake from one observer to another during the specified staking epoch.
+    /// @param fromObserver The observer from whom the `staker` moved the stake.
+    /// @param toObserver The observer to whom the `staker` moved the stake.
+    /// @param staker The address of staker who moved the `amount`.
+    /// @param stakingEpoch The serial number of staking epoch during which the `amount` was moved.
+    /// @param amount The amount of the stake.
     event StakeMoved(
-        address indexed fromObserver,
+        address fromObserver,
         address indexed toObserver,
         address indexed staker,
-        uint256 stakingEpoch,
+        uint256 indexed stakingEpoch,
         uint256 amount
     );
 
+    /// Emitted by `withdraw` function to signal that the staker withdrew the specified
+    /// amount of a stake from the specified observer during the specified staking epoch.
+    /// @param fromObserver The observer from whom the `staker` withdrew `amount`.
+    /// @param staker The address of staker who withdrew `amount`.
+    /// @param stakingEpoch The serial number of staking epoch during which the withdrawal was made.
+    /// @param amount The amount of the withdrawal.
     event Withdrawn(
         address indexed fromObserver,
         address indexed staker,
@@ -132,6 +163,8 @@ contract ReportingValidatorSet is IReportingValidatorSet {
     }
 
     function newValidatorSet() public onlySystem returns(address[]) {
+        require(pools.length != 0);
+
         uint256 i;
 
         // Save the previous validator set
@@ -197,8 +230,6 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         _setRewardDistribution();
         applyNewRewards = true;
 
-        // TODO: clear `stakeAmountByEpoch` for stakingEpoch.sub(2)
-
         return currentValidators;
     }
 
@@ -258,6 +289,13 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         _withdraw(_fromObserver, staker, _amount);
         staker.transfer(_amount);
         emit Withdrawn(_fromObserver, staker, stakingEpoch, _amount);
+    }
+
+    function clearStakeHistory(address _observer, address[] _staker, uint256 _stakingEpoch) public onlySystem {
+        require(_stakingEpoch <= stakingEpoch.sub(2));
+        for (uint256 i = 0; i < _staker.length; i++) {
+            delete stakeAmountByEpoch[_observer][_staker[i]][_stakingEpoch];
+        }
     }
 
     // =============================================== Getters ========================================================
