@@ -1,11 +1,14 @@
 pragma solidity 0.4.25;
 
+import "./interfaces/IBlockReward.sol";
 import "./interfaces/IReportingValidatorSet.sol";
 import "./libs/SafeMath.sol";
 
 
 contract ReportingValidatorSet is IReportingValidatorSet {
     using SafeMath for uint256;
+
+    // TODO: add a description for each function and event
 
     struct ObserverState {
         uint256 validatorIndex; // index in the `currentValidators`
@@ -15,6 +18,9 @@ contract ReportingValidatorSet is IReportingValidatorSet {
     }
 
     // ================================================ Store =========================================================
+
+    bool public applyNewRewards; // a flag to initiate the saving of new reward distribution to BlockReward contract
+    IBlockReward public blockReward;
 
     uint256 public stakingEpoch; // the internal serial number of staking epoch
     uint256 public changeRequestCount; // the serial number of validator set changing request
@@ -36,6 +42,11 @@ contract ReportingValidatorSet is IReportingValidatorSet {
 
     mapping(address => ObserverState) public observersState;
     mapping(address => ObserverState) public observersStatePreviousEpoch;
+
+    // Distribution of block reward for the current staking epoch
+    mapping(address => mapping(address => uint256)) public rewardDistribution;
+    mapping(address => address[]) public rewardDistributionStakers;
+    address[] public rewardDistributionValidators;
 
     // ============================================== Constants =======================================================
 
@@ -101,7 +112,9 @@ contract ReportingValidatorSet is IReportingValidatorSet {
 
     // TODO: add `pause` (or `exit`) function for a validator
 
-    constructor() public {
+    constructor(IBlockReward _blockReward) public {
+        require(_blockReward != address(0));
+        blockReward = _blockReward;
     }
 
     function finalizeChange() public onlySystem {
@@ -110,19 +123,18 @@ contract ReportingValidatorSet is IReportingValidatorSet {
             return;
         }
 
-        // TODO: apply new reward distribution after `newValidatorSet()` is called
-        //       (not after `InitiateChange` event is emitted)
-
-        // if (!rewardDistributionApplied[stakingEpoch]) {
-        //     BlockReward.setDistribution(rewardDistribution[stakingEpoch]);
-        //     rewardDistributionApplied[stakingEpoch] = true;
-        // }
+        // Apply new reward distribution after `newValidatorSet()` is called,
+        // not after `InitiateChange` event is emitted
+        if (applyNewRewards) {
+            applyNewRewards = false;
+            blockReward.newDistribution(); // trigger setting of new reward distribution
+        }
     }
 
     function newValidatorSet() public onlySystem returns(address[]) {
         uint256 i;
 
-        // Save previous validator set
+        // Save the previous validator set
         for (i = 0; i < previousValidators.length; i++) {
             delete observersStatePreviousEpoch[previousValidators[i]];
         }
@@ -181,8 +193,9 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         changeRequestCount++;
         stakingEpoch++;
 
-        // TODO: calculate and save new reward distribution
-        // rewardDistribution[stakingEpoch] = ...
+        // Calculate and save the new reward distribution
+        _setRewardDistribution();
+        applyNewRewards = true;
 
         // TODO: clear `stakeAmountByEpoch` for stakingEpoch.sub(2)
 
@@ -200,10 +213,14 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         public
         onlyValidator
     {
-        // ... check `_proof` and remove `_validator` from `currentValidators` ...
+        // TODO:
         // if (majorityAchieved) {
-        //     changeRequestCount++;
-        //     emit InitiateChange(blockhash(block.number - 1), currentValidators);
+        //     ... remove `_validator` from `pools` ...
+        //     if (isValidator(_validator)) {
+        //         ... check `_proof` and remove `_validator` from `currentValidators`, `observersState` ...
+        //         changeRequestCount++;
+        //         emit InitiateChange(blockhash(block.number - 1), currentValidators);
+        //     }
         // }
         emit MaliciousReported(msg.sender, _validator, _blockNumber);
     }
@@ -288,6 +305,55 @@ contract ReportingValidatorSet is IReportingValidatorSet {
     }
 
     // =============================================== Private ========================================================
+
+    function _setRewardDistribution() internal {
+        uint256 i;
+        uint256 s;
+        address validator;
+        address staker;
+
+        // Clear the previous distribution
+        for (i = 0; i < rewardDistributionValidators.length; i++) {
+            validator = rewardDistributionValidators[i];
+            rewardDistribution[validator][validator] = 0;
+            for (s = 0; s < rewardDistributionStakers[validator].length; s++) {
+                staker = rewardDistributionStakers[validator][s];
+                rewardDistribution[validator][staker] = 0;
+            }
+            delete rewardDistributionStakers[validator];
+        }
+
+        // Set a new distribution
+        uint256 poolReward = blockReward.BLOCK_REWARD() / currentValidators.length;
+        
+        rewardDistributionValidators = currentValidators;
+        for (i = 0; i < currentValidators.length; i++) {
+            validator = currentValidators[i];
+            uint256 validatorStake = stakeAmount[validator][validator];
+            uint256 totalAmount = stakeAmountTotal[validator];
+            uint256 stakersAmount = totalAmount - validatorStake;
+
+            uint256 reward;
+            if (stakersAmount < validatorStake) {
+                reward = poolReward.mul(validatorStake).div(totalAmount);
+            } else {
+                reward = poolReward.mul(3).div(10);
+            }
+            rewardDistribution[validator][validator] = reward;
+
+            for (s = 0; s < poolStakers[validator].length; s++) {
+                staker = poolStakers[validator][s];
+                uint256 stakerStake = stakeAmount[validator][staker];
+                if (stakersAmount < validatorStake) {
+                    reward = poolReward.mul(stakerStake).div(totalAmount);
+                } else {
+                    reward = poolReward.mul(stakerStake).mul(7).div(stakersAmount.mul(10));
+                }
+                rewardDistribution[validator][staker] = reward;
+                rewardDistributionStakers[validator].push(staker);
+            }
+        }
+    }
 
     function _stake(address _observer, address _staker, uint256 _amount) internal {
         require(_observer != address(0));
