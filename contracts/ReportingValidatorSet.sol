@@ -367,12 +367,14 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         rewardDistributionValidators = currentValidators;
         for (i = 0; i < currentValidators.length; i++) {
             validator = currentValidators[i];
+
             uint256 validatorStake = stakeAmount[validator][validator];
             uint256 totalAmount = stakeAmountTotal[validator];
             uint256 stakersAmount = totalAmount - validatorStake;
+            bool validatorDominates = validatorStake > stakersAmount;
 
             uint256 reward;
-            if (stakersAmount < validatorStake) {
+            if (validatorDominates) {
                 reward = poolReward.mul(validatorStake).div(totalAmount);
             } else {
                 reward = poolReward.mul(3).div(10);
@@ -382,7 +384,7 @@ contract ReportingValidatorSet is IReportingValidatorSet {
             for (s = 0; s < poolStakers[validator].length; s++) {
                 staker = poolStakers[validator][s];
                 uint256 stakerStake = stakeAmount[validator][staker];
-                if (stakersAmount < validatorStake) {
+                if (validatorDominates) {
                     reward = poolReward.mul(stakerStake).div(totalAmount);
                 } else {
                     reward = poolReward.mul(stakerStake).mul(7).div(stakersAmount.mul(10));
