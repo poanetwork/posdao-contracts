@@ -8,9 +8,10 @@ contract ReportingValidatorSet is IReportingValidatorSet {
     using SafeMath for uint256;
 
     struct ObserverState {
-        uint256 index; // index in the `currentValidators`
-        bool isValidator; // is this observer a validator?
+        uint256 validatorIndex; // index in the `currentValidators`
         bytes publicKey; // serialized public key of observer
+        bool isValidator; // is this observer a validator?
+        // TODO: add `bool isPool`
     }
 
     // ================================================ Store =========================================================
@@ -98,31 +99,54 @@ contract ReportingValidatorSet is IReportingValidatorSet {
 
     // =============================================== Setters ========================================================
 
+    // TODO: add `pause` (or `exit`) function for a validator
+
     constructor() public {
     }
 
     function finalizeChange() public onlySystem {
+        if (stakingEpoch == 0) {
+            // Ignore invocations if `newValidatorSet()` has never been called
+            return;
+        }
+
+        // TODO: apply new reward distribution after `newValidatorSet()` is called
+        //       (not after `InitiateChange` event is emitted)
+
+        // if (!rewardDistributionApplied[stakingEpoch]) {
+        //     BlockReward.setDistribution(rewardDistribution[stakingEpoch]);
+        //     rewardDistributionApplied[stakingEpoch] = true;
+        // }
     }
 
     function newValidatorSet() public onlySystem returns(address[]) {
-        // Save previous validator set
         uint256 i;
+
+        // Save previous validator set
         for (i = 0; i < previousValidators.length; i++) {
             delete observersStatePreviousEpoch[previousValidators[i]];
         }
-        previousValidators = currentValidators;
-        for (i = 0; i < previousValidators.length; i++) {
-            observersStatePreviousEpoch[previousValidators[i]] = ObserverState({
-                index: i,
+        for (i = 0; i < currentValidators.length; i++) {
+            observersStatePreviousEpoch[currentValidators[i]] = ObserverState({
+                validatorIndex: i,
                 isValidator: true,
-                publicKey: observersState[previousValidators[i]].publicKey
+                publicKey: observersState[currentValidators[i]].publicKey
             });
+        }
+        previousValidators = currentValidators;
+
+        // Clear `ObserverState` for current validator set
+        for (i = 0; i < currentValidators.length; i++) {
+            observersState[currentValidators[i]].validatorIndex = 0;
+            observersState[currentValidators[i]].isValidator = false;
         }
 
         // Choose new validators
         if (pools.length <= MAX_VALIDATORS) {
             currentValidators = pools;
         } else {
+            require(currentRandom.length == MAX_VALIDATORS);
+
             uint256[] memory likelihood = new uint256[](pools.length);
             address[] memory poolsLocal = pools;
             address[] memory newValidators = new address[](MAX_VALIDATORS);
@@ -136,23 +160,31 @@ contract ReportingValidatorSet is IReportingValidatorSet {
             }
 
             for (i = 0; i < MAX_VALIDATORS; i++) {
-                uint256 index = _getRandomIndex(likelihood, likelihoodSum, currentRandom[i]);
-                newValidators[i] = poolsLocal[index];
-                likelihoodSum -= likelihood[index];
+                uint256 observerIndex = _getRandomIndex(likelihood, likelihoodSum, currentRandom[i]);
+                newValidators[i] = poolsLocal[observerIndex];
+                likelihoodSum -= likelihood[observerIndex];
                 poolsLocalLength--;
-                poolsLocal[index] = poolsLocal[poolsLocalLength];
-                likelihood[index] = likelihood[poolsLocalLength];
+                poolsLocal[observerIndex] = poolsLocal[poolsLocalLength];
+                likelihood[observerIndex] = likelihood[poolsLocalLength];
             }
 
             currentValidators = newValidators;
         }
 
-        // ...
-        // changing `observersState`
-        // ...
+        // Set `ObserverState` for new validator set
+        for (i = 0; i < currentValidators.length; i++) {
+            observersState[currentValidators[i]].validatorIndex = i;
+            observersState[currentValidators[i]].isValidator = true;
+        }
 
+        // Increment counters
         changeRequestCount++;
         stakingEpoch++;
+
+        // TODO: calculate and save new reward distribution
+        // rewardDistribution[stakingEpoch] = ...
+
+        // TODO: clear `stakeAmountByEpoch` for stakingEpoch.sub(2)
 
         return currentValidators;
     }
@@ -179,6 +211,7 @@ contract ReportingValidatorSet is IReportingValidatorSet {
     function savePublicKey(bytes _key) public {
         require(_key.length == 48); // https://github.com/poanetwork/threshold_crypto/issues/63
         observersState[msg.sender].publicKey = _key;
+        // TODO: allow calling this function only after observer makes a stake for himself
     }
 
     function storeRandom(uint64[] _random) public onlySystem {
@@ -190,6 +223,7 @@ contract ReportingValidatorSet is IReportingValidatorSet {
     }
 
     function moveStake(address _fromObserver, address _toObserver, uint256 _amount) public {
+        require(_fromObserver != _toObserver);
         address staker = msg.sender;
         _withdraw(_fromObserver, staker, _amount);
         _stake(_toObserver, staker, _amount);
