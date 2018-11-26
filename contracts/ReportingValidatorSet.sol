@@ -12,6 +12,7 @@ contract ReportingValidatorSet is IReportingValidatorSet {
 
     struct ObserverState {
         uint256 validatorIndex; // index in the `currentValidators`
+        uint256 bannedUntil; // unix timestamp from which the address can be unbanned (0 if not banned)
         bytes publicKey; // serialized public key of observer
         bool isValidator; // is this address a validator?
         bool isActive; // is this address in the `pools` array?
@@ -83,12 +84,12 @@ contract ReportingValidatorSet is IReportingValidatorSet {
     /// @param reporter Reporting validator.
     /// @param validator Reported validator.
     /// @param blockNumber The block on which the reported validator misbehaved.
-    /// @param proof Is a byte sequence of the proof.
+    /// @param proofHash keccak256 hash of the proof bytes sequence.
     event MaliciousReported(
         address indexed reporter,
         address indexed validator,
         uint256 indexed blockNumber,
-        bytes proof
+        bytes32 proofHash
     );
 
     /// Emitted by `stake` function to signal that the staker made a stake of the specified
@@ -224,6 +225,7 @@ contract ReportingValidatorSet is IReportingValidatorSet {
 
         // Calculate and save the new reward distribution
         _setRewardDistribution();
+
         validatorSetApplyBlock = 0;
 
         return currentValidators;
@@ -258,7 +260,8 @@ contract ReportingValidatorSet is IReportingValidatorSet {
             // Remove `_validator` from `pools`
             _removeFromPools(_validator);
 
-            // TODO: ban the `_validator`
+            // Ban the `_validator` for the next 3 months
+            observersState[_validator].bannedUntil = now + 90 days;
 
             if (isValidator(_validator)) {
                 // Remove `_validator` from `currentValidators`
@@ -274,7 +277,7 @@ contract ReportingValidatorSet is IReportingValidatorSet {
             }
         }
         
-        emit MaliciousReported(msg.sender, _validator, _blockNumber, _proof);
+        emit MaliciousReported(msg.sender, _validator, _blockNumber, proofHash);
     }
 
     function savePublicKey(bytes _key) public {
@@ -338,8 +341,7 @@ contract ReportingValidatorSet is IReportingValidatorSet {
     }
 
     function isValidatorBanned(address _validator) public view returns(bool) {
-        // TODO: implement
-        return false;
+        return now < observersState[_validator].bannedUntil;
     } 
 
     function maxWithdrawAllowed(address _observer, address _staker) public view returns(uint256) {
@@ -347,6 +349,11 @@ contract ReportingValidatorSet is IReportingValidatorSet {
 
         if (_staker == _observer && observerIsValidator) {
             // An observer can't withdraw while he is a validator
+            return 0;
+        }
+
+        if (isValidatorBanned(_observer)) {
+            // No one can withdraw from `_observer` until the ban is expired
             return 0;
         }
 
@@ -370,14 +377,26 @@ contract ReportingValidatorSet is IReportingValidatorSet {
 
     // =============================================== Private ========================================================
 
+    // Adds `_who` to the array of pools
+    function _addToPools(address _who) internal {
+        if (!doesPoolExist(_who)) {
+            poolIndex[_who] = pools.length;
+            pools.push(_who);
+            require(pools.length <= MAX_OBSERVERS);
+            observersState[_who].isActive = true;
+        }
+    }
+
     // Removes `_who` from the array of pools
     function _removeFromPools(address _who) internal {
         uint256 indexToRemove = poolIndex[_who];
-        pools[indexToRemove] = pools[pools.length - 1];
-        poolIndex[pools[indexToRemove]] = indexToRemove;
-        pools.length--;
-        delete poolIndex[_who];
-        observersState[_who].isActive = false;
+        if (pools[indexToRemove] == _who) {
+            pools[indexToRemove] = pools[pools.length - 1];
+            poolIndex[pools[indexToRemove]] = indexToRemove;
+            pools.length--;
+            delete poolIndex[_who];
+            observersState[_who].isActive = false;
+        }
     }
 
     function _setRewardDistribution() internal {
@@ -441,6 +460,7 @@ contract ReportingValidatorSet is IReportingValidatorSet {
             require(observersState[_observer].publicKey.length != 0);
         } else {
             // The observer must firstly make a stake for himself
+            // and must be in the `pools` array
             require(doesPoolExist(_observer));
         }
 
@@ -451,18 +471,14 @@ contract ReportingValidatorSet is IReportingValidatorSet {
             stakeAmountByEpoch[_observer][_staker][stakingEpoch].add(_amount);
         stakeAmountTotal[_observer] = stakeAmountTotal[_observer].add(_amount);
 
-        if (newStakeAmount == _amount) { // if the stake is first
-            if (stakerIsObserver) { // if the observer makes a stake for himself
-                // Add `_observer` to the array of pools
-                poolIndex[_observer] = pools.length;
-                pools.push(_observer);
-                require(pools.length <= MAX_OBSERVERS);
-                observersState[_observer].isActive = true;
-            } else {
-                // Add `_staker` to the array of observer's stakers
-                poolStakerIndex[_observer][_staker] = poolStakers[_observer].length;
-                poolStakers[_observer].push(_staker);
+        if (stakerIsObserver) { // if the observer makes a stake for himself
+            if (!isValidatorBanned(_observer)) {
+                _addToPools(_observer); // add `_observer` to the array of pools
             }
+        } else if (newStakeAmount == _amount) { // if the stake is first
+            // Add `_staker` to the array of observer's stakers
+            poolStakerIndex[_observer][_staker] = poolStakers[_observer].length;
+            poolStakers[_observer].push(_staker);
         }
     }
 
@@ -470,7 +486,7 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         require(_observer != address(0));
         require(_amount != 0);
 
-        // How much can `staker` withdraw from `_observer` pool on the current staking epoch?
+        // How much can `staker` withdraw from `_observer` pool at the moment?
         require(_amount <= maxWithdrawAllowed(_observer, _staker));
 
         // The amount to be withdrawn must be the whole staked amount or
