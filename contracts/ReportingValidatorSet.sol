@@ -12,9 +12,9 @@ contract ReportingValidatorSet is IReportingValidatorSet {
 
     struct ObserverState {
         uint256 validatorIndex; // index in the `currentValidators`
-        uint256 bannedUntil; // unix timestamp from which the address can be unbanned (0 if not banned)
-        bytes publicKey; // serialized public key of observer
-        bool isValidator; // is this address a validator?
+        uint256 bannedUntil; // unix timestamp from which the address will be unbanned
+        bytes publicKey; // serialized public key of observer/ validator
+        bool isValidator; // is this address in the `currentValidators` array?
         bool isActive; // is this address in the `pools` array?
     }
 
@@ -33,6 +33,9 @@ contract ReportingValidatorSet is IReportingValidatorSet {
 
     address[] public pools; // the list of current observers (pools)
     mapping(address => uint256) public poolIndex; // pool index in `pools` array
+
+    address[] public poolsInactive; // the list of pools which are inactive or banned
+    mapping(address => uint256) public poolInactiveIndex; // pool index in `poolsInactive` array
 
     mapping(address => address[]) public poolStakers; // the list of current stakers in the specified pool
     mapping(address => mapping(address => uint256)) public poolStakerIndex; // staker index in `poolStakers` array
@@ -142,11 +145,14 @@ contract ReportingValidatorSet is IReportingValidatorSet {
 
     // =============================================== Setters ========================================================
 
-    // TODO: add `pause` (or `exit`) function for a validator
-
     constructor(IBlockReward _blockReward) public {
         require(_blockReward != address(0));
         blockReward = _blockReward;
+    }
+
+    function exit() public {
+        require(isValidator(msg.sender));
+        _removeFromPools(msg.sender);
     }
 
     function finalizeChange() public onlySystem {
@@ -385,6 +391,15 @@ contract ReportingValidatorSet is IReportingValidatorSet {
             require(pools.length <= MAX_OBSERVERS);
             observersState[_who].isActive = true;
         }
+        _removeFromPoolsInactive(_who);
+    }
+
+    // Adds `_who` to the array of inactive pools
+    function _addToPoolsInactive(address _who) internal {
+        if (poolsInactive[poolInactiveIndex[_who]] != _who) {
+            poolInactiveIndex[_who] = poolsInactive.length;
+            poolsInactive.push(_who);
+        }
     }
 
     // Removes `_who` from the array of pools
@@ -396,6 +411,20 @@ contract ReportingValidatorSet is IReportingValidatorSet {
             pools.length--;
             delete poolIndex[_who];
             observersState[_who].isActive = false;
+            if (stakeAmountTotal[_who] != 0) {
+                _addToPoolsInactive(_who);
+            }
+        }
+    }
+
+    // Removes `_who` from the array of inactive pools
+    function _removeFromPoolsInactive(address _who) internal {
+        uint256 indexToRemove = poolsInactiveIndex[_who];
+        if (poolsInactive[indexToRemove] == _who) {
+            poolsInactive[indexToRemove] = poolsInactive[poolsInactive.length - 1];
+            poolsInactiveIndex[poolsInactive[indexToRemove]] = indexToRemove;
+            poolsInactive.length--;
+            delete poolsInactiveIndex[_who];
         }
     }
 
@@ -453,15 +482,12 @@ contract ReportingValidatorSet is IReportingValidatorSet {
     function _stake(address _observer, address _staker, uint256 _amount) internal {
         require(_observer != address(0));
         require(_amount != 0);
+        require(!isValidatorBanned(_observer));
 
         bool stakerIsObserver = _staker == _observer; // `staker` makes a stake for himself and becomes an observer
 
         if (stakerIsObserver) {
             require(observersState[_observer].publicKey.length != 0);
-        } else {
-            // The observer must firstly make a stake for himself
-            // and must be in the `pools` array
-            require(doesPoolExist(_observer));
         }
 
         uint256 newStakeAmount = stakeAmount[_observer][_staker].add(_amount);
@@ -472,9 +498,8 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         stakeAmountTotal[_observer] = stakeAmountTotal[_observer].add(_amount);
 
         if (stakerIsObserver) { // if the observer makes a stake for himself
-            if (!isValidatorBanned(_observer)) {
-                _addToPools(_observer); // add `_observer` to the array of pools
-            }
+            // Add `_observer` to the array of pools
+            _addToPools(_observer);
         } else if (newStakeAmount == _amount) { // if the stake is first
             // Add `_staker` to the array of observer's stakers
             poolStakerIndex[_observer][_staker] = poolStakers[_observer].length;
@@ -514,6 +539,10 @@ contract ReportingValidatorSet is IReportingValidatorSet {
                     indexToRemove;
                 poolStakers[_observer].length--;
                 delete poolStakerIndex[_observer][_staker];
+            }
+
+            if (stakeAmountTotal[_observer] == 0) {
+                _removeFromPoolsInactive(_observer);
             }
         }
     }
