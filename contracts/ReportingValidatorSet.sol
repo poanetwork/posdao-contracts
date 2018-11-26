@@ -13,17 +13,17 @@ contract ReportingValidatorSet is IReportingValidatorSet {
     struct ObserverState {
         uint256 validatorIndex; // index in the `currentValidators`
         bytes publicKey; // serialized public key of observer
-        bool isValidator; // is this observer a validator?
-        // TODO: add `bool isPool`
+        bool isValidator; // is this address a validator?
+        bool isActive; // is this address in the `pools` array?
     }
 
     // ================================================ Store =========================================================
 
-    bool public applyNewRewards; // a flag to initiate the saving of new reward distribution to BlockReward contract
     IBlockReward public blockReward;
 
     uint256 public stakingEpoch; // the internal serial number of staking epoch
     uint256 public changeRequestCount; // the serial number of validator set changing request
+    uint256 public validatorSetApplyBlock; // the block number when `finalizeChange` was called to apply set on hbbft
     
     address[] public currentValidators; // the current set of validators
     address[] public previousValidators; // the set of validators at the end of previous staking epoch
@@ -41,7 +41,10 @@ contract ReportingValidatorSet is IReportingValidatorSet {
     mapping(address => uint256) public stakeAmountTotal;
 
     mapping(address => ObserverState) public observersState;
-    mapping(address => ObserverState) public observersStatePreviousEpoch;
+    mapping(address => bool) public isValidatorOnPreviousEpoch;
+
+    mapping(address => mapping(uint256 => mapping(bytes32 => uint256))) public maliceProofCount;
+    mapping(address => mapping(uint256 => mapping(bytes32 => mapping(address => bool)))) public maliceReported;
 
     // Distribution of block reward for the current staking epoch
     mapping(address => mapping(address => uint256)) public rewardDistribution;
@@ -80,10 +83,12 @@ contract ReportingValidatorSet is IReportingValidatorSet {
     /// @param reporter Reporting validator.
     /// @param validator Reported validator.
     /// @param blockNumber The block on which the reported validator misbehaved.
+    /// @param proof Is a byte sequence of the proof.
     event MaliciousReported(
         address indexed reporter,
         address indexed validator,
-        uint256 indexed blockNumber
+        uint256 indexed blockNumber,
+        bytes proof
     );
 
     /// Emitted by `stake` function to signal that the staker made a stake of the specified
@@ -134,11 +139,6 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         _;
     }
 
-    modifier onlyValidator() {
-        require(isValidator(msg.sender));
-        _;
-    }
-
     // =============================================== Setters ========================================================
 
     // TODO: add `pause` (or `exit`) function for a validator
@@ -156,8 +156,8 @@ contract ReportingValidatorSet is IReportingValidatorSet {
 
         // Apply new reward distribution after `newValidatorSet()` is called,
         // not after `InitiateChange` event is emitted
-        if (applyNewRewards) {
-            applyNewRewards = false;
+        if (validatorSetApplyBlock == 0) {
+            validatorSetApplyBlock = block.number;
             blockReward.newDistribution(); // trigger setting of new reward distribution
         }
     }
@@ -169,14 +169,10 @@ contract ReportingValidatorSet is IReportingValidatorSet {
 
         // Save the previous validator set
         for (i = 0; i < previousValidators.length; i++) {
-            delete observersStatePreviousEpoch[previousValidators[i]];
+            isValidatorOnPreviousEpoch[previousValidators[i]] = false;
         }
         for (i = 0; i < currentValidators.length; i++) {
-            observersStatePreviousEpoch[currentValidators[i]] = ObserverState({
-                validatorIndex: i,
-                isValidator: true,
-                publicKey: observersState[currentValidators[i]].publicKey
-            });
+            isValidatorOnPreviousEpoch[currentValidators[i]] = true;
         }
         previousValidators = currentValidators;
 
@@ -228,32 +224,57 @@ contract ReportingValidatorSet is IReportingValidatorSet {
 
         // Calculate and save the new reward distribution
         _setRewardDistribution();
-        applyNewRewards = true;
+        validatorSetApplyBlock = 0;
 
         return currentValidators;
     }
 
-    function reportBenign(address _validator, uint256 _blockNumber)
-        public
-        onlyValidator
-    {
+    function reportBenign(address _validator, uint256 _blockNumber) public {
+        require(_isReportingValidatorValid());
         emit BenignReported(msg.sender, _validator, _blockNumber);
     }
 
-    function reportMalicious(address _validator, uint256 _blockNumber, bytes /*_proof*/)
-        public
-        onlyValidator
-    {
-        // TODO:
-        // if (majorityAchieved) {
-        //     ... remove `_validator` from `pools` ...
-        //     if (isValidator(_validator)) {
-        //         ... check `_proof` and remove `_validator` from `currentValidators`, `observersState` ...
-        //         changeRequestCount++;
-        //         emit InitiateChange(blockhash(block.number - 1), currentValidators);
-        //     }
-        // }
-        emit MaliciousReported(msg.sender, _validator, _blockNumber);
+    // Note: the calling validator must have enough balance for gas spending
+    function reportMalicious(address _validator, uint256 _blockNumber, bytes _proof) public {
+        require(_isReportingValidatorValid());
+
+        bytes32 proofHash = keccak256(_proof);
+
+        // Don't allow the validator to report the same more than once
+        require(!maliceReported[_validator][_blockNumber][proofHash][msg.sender]);
+        maliceReported[_validator][_blockNumber][proofHash][msg.sender] = true;
+
+        // If the `_proof` is the same for most validators
+        uint256 proofCount = ++maliceProofCount[_validator][_blockNumber][proofHash];
+        
+        bool majorityAchieved;
+        if (validatorSetApplyBlock == 0) {
+            majorityAchieved = proofCount > previousValidators.length / 2;
+        } else {
+            majorityAchieved = proofCount > currentValidators.length / 2;
+        }
+
+        if (majorityAchieved && !isValidatorBanned(_validator)) {
+            // Remove `_validator` from `pools`
+            _removeFromPools(_validator);
+
+            // TODO: ban the `_validator`
+
+            if (isValidator(_validator)) {
+                // Remove `_validator` from `currentValidators`
+                uint256 indexToRemove = observersState[_validator].validatorIndex;
+                currentValidators[indexToRemove] = currentValidators[currentValidators.length - 1];
+                observersState[currentValidators[indexToRemove]].validatorIndex = indexToRemove;
+                currentValidators.length--;
+                observersState[_validator].validatorIndex = 0;
+                observersState[_validator].isValidator = false;
+
+                changeRequestCount++;
+                emit InitiateChange(blockhash(block.number - 1), currentValidators);
+            }
+        }
+        
+        emit MaliciousReported(msg.sender, _validator, _blockNumber, _proof);
     }
 
     function savePublicKey(bytes _key) public {
@@ -300,8 +321,8 @@ contract ReportingValidatorSet is IReportingValidatorSet {
 
     // =============================================== Getters ========================================================
 
-    function doesPoolExist(address _observer) public view returns(bool) {
-        return stakeAmount[_observer][_observer] != 0;
+    function doesPoolExist(address _who) public view returns(bool) {
+        return observersState[_who].isActive;
     }
 
     function getPools() public view returns(address[]) {
@@ -316,6 +337,11 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         return observersState[_who].isValidator;
     }
 
+    function isValidatorBanned(address _validator) public view returns(bool) {
+        // TODO: implement
+        return false;
+    } 
+
     function maxWithdrawAllowed(address _observer, address _staker) public view returns(uint256) {
         bool observerIsValidator = isValidator(_observer);
 
@@ -329,7 +355,7 @@ contract ReportingValidatorSet is IReportingValidatorSet {
             return stakeAmount[_observer][_staker];
         }
 
-        if (observersStatePreviousEpoch[_observer].isValidator) {
+        if (isValidatorOnPreviousEpoch[_observer]) {
             // The observer was also a validator on the previous staking epoch, so
             // the staker can't withdraw amount staked on the previous staking epoch
             return stakeAmount[_observer][_staker].sub(
@@ -343,6 +369,16 @@ contract ReportingValidatorSet is IReportingValidatorSet {
     }
 
     // =============================================== Private ========================================================
+
+    // Removes `_who` from the array of pools
+    function _removeFromPools(address _who) internal {
+        uint256 indexToRemove = poolIndex[_who];
+        pools[indexToRemove] = pools[pools.length - 1];
+        poolIndex[pools[indexToRemove]] = indexToRemove;
+        pools.length--;
+        delete poolIndex[_who];
+        observersState[_who].isActive = false;
+    }
 
     function _setRewardDistribution() internal {
         uint256 i;
@@ -421,6 +457,7 @@ contract ReportingValidatorSet is IReportingValidatorSet {
                 poolIndex[_observer] = pools.length;
                 pools.push(_observer);
                 require(pools.length <= MAX_OBSERVERS);
+                observersState[_observer].isActive = true;
             } else {
                 // Add `_staker` to the array of observer's stakers
                 poolStakerIndex[_observer][_staker] = poolStakers[_observer].length;
@@ -449,17 +486,12 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         stakeAmountTotal[_observer] = stakeAmountTotal[_observer].sub(_amount);
 
         if (newStakeAmount == 0) { // the whole amount has been withdrawn
-            uint256 indexToRemove;
             if (_staker == _observer) {
                 // Remove `_observer` from the array of pools
-                indexToRemove = poolIndex[_observer];
-                pools[indexToRemove] = pools[pools.length - 1];
-                poolIndex[pools[indexToRemove]] = indexToRemove;
-                pools.length--;
-                delete poolIndex[_observer];
+                _removeFromPools(_observer);
             } else {
                 // Remove `_staker` from the array of observer's stakers
-                indexToRemove = poolStakerIndex[_observer][_staker];
+                uint256 indexToRemove = poolStakerIndex[_observer][_staker];
                 poolStakers[_observer][indexToRemove] =
                     poolStakers[_observer][poolStakers[_observer].length];
                 poolStakerIndex[_observer][poolStakers[_observer][indexToRemove]] =
@@ -468,6 +500,29 @@ contract ReportingValidatorSet is IReportingValidatorSet {
                 delete poolStakerIndex[_observer][_staker];
             }
         }
+    }
+
+    function _isReportingValidatorValid() internal view returns(bool) {
+        if (validatorSetApplyBlock == 0) {
+            // The current validator set is not applied on hbbft yet,
+            // so let the validators from previous staking epoch
+            // report malicious validator
+            if (!isValidatorOnPreviousEpoch[msg.sender]) {
+                return false;
+            }
+            if (isValidatorBanned(msg.sender)) {
+                return false;
+            }
+        } else if (block.number - validatorSetApplyBlock <= 3) {
+            // The current validator set is applied on hbbft,
+            // but we should let the previous validators finish
+            // reporting malicious validator within a few blocks
+            bool previousEpochValidator = isValidatorOnPreviousEpoch[msg.sender] && !isValidatorBanned(msg.sender);
+            return isValidator(msg.sender) || previousEpochValidator;
+        } else {
+            return isValidator(msg.sender);
+        }
+        return true;
     }
 
     function _getRandomIndex(uint256[] _likelihood, uint256 _likelihoodSum, uint256 _randomNumber)
