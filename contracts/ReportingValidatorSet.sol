@@ -47,8 +47,7 @@ contract ReportingValidatorSet is IReportingValidatorSet {
     mapping(address => ObserverState) public observersState;
     mapping(address => bool) public isValidatorOnPreviousEpoch;
 
-    mapping(address => mapping(uint256 => uint256)) public maliceReportCount;
-    mapping(address => mapping(uint256 => mapping(address => bool))) public maliceReported;
+    mapping(address => address[]) public maliceReported;
 
     // Distribution of block reward for the current staking epoch
     mapping(address => mapping(address => uint256)) public rewardDistribution;
@@ -64,16 +63,6 @@ contract ReportingValidatorSet is IReportingValidatorSet {
 
     // ================================================ Events ========================================================
     
-    /*
-    /// Emitted by `reportMalicious` function to signal a desired change in validator set.
-    /// @param parentHash Should be the parent block hash.
-    /// @param newSet New set of validators (without malicious validator).
-    event InitiateChange(
-        bytes32 indexed parentHash,
-        address[] newSet
-    );
-    */
-
     /// Emitted by `reportBenign` function to signal that the validator doesn't take part
     /// in the consensus process.
     /// @param reporter Reporting validator.
@@ -85,19 +74,17 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         uint256 indexed blockNumber
     );
 
-    /*
     /// Emitted by `reportMalicious` function to signal that the validator misbehaves.
     /// @param reporter Reporting validator.
     /// @param validator Reported validator.
     /// @param blockNumber The block on which the reported validator misbehaved.
-    /// @param proofHash keccak256 hash of the proof bytes sequence.
+    /// @param proof The bytes sequence of proof.
     event MaliciousReported(
         address indexed reporter,
         address indexed validator,
         uint256 indexed blockNumber,
-        bytes32 proofHash
+        bytes proof
     );
-    */
 
     /// Emitted by `stake` function to signal that the staker made a stake of the specified
     /// amount for the specified observer during the specified staking epoch.
@@ -246,79 +233,42 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         emit BenignReported(msg.sender, _validator, _blockNumber);
     }
 
-    /*
     // Note: the calling validator must have enough balance for gas spending
     function reportMalicious(address _validator, uint256 _blockNumber, bytes _proof) public {
-        require(_isReportingValidatorValid());
-
-        bytes32 proofHash = keccak256(_proof);
-
-        // Don't allow the validator to report the same more than once
-        require(!maliceReported[_validator][_blockNumber][proofHash][msg.sender]);
-        maliceReported[_validator][_blockNumber][proofHash][msg.sender] = true;
-
-        // If the `_proof` is the same for most validators
-        uint256 proofCount = ++maliceProofCount[_validator][_blockNumber][proofHash];
-        
-        bool majorityAchieved;
-        if (validatorSetApplyBlock == 0) {
-            majorityAchieved = proofCount > previousValidators.length / 2;
-        } else {
-            majorityAchieved = proofCount > currentValidators.length / 2;
-        }
-
-        if (majorityAchieved && !isValidatorBanned(_validator)) {
-            // Remove `_validator` from `pools`
-            _removeFromPools(_validator);
-
-            // Ban the `_validator` for the next 3 months
-            observersState[_validator].bannedUntil = now + 90 days;
-
-            if (isValidator(_validator)) {
-                // Remove `_validator` from `currentValidators`
-                uint256 indexToRemove = observersState[_validator].validatorIndex;
-                currentValidators[indexToRemove] = currentValidators[currentValidators.length - 1];
-                observersState[currentValidators[indexToRemove]].validatorIndex = indexToRemove;
-                currentValidators.length--;
-                observersState[_validator].validatorIndex = 0;
-                observersState[_validator].isValidator = false;
-
-                changeRequestCount++;
-                emit InitiateChange(blockhash(block.number - 1), currentValidators);
-            }
-        }
-        
-        emit MaliciousReported(msg.sender, _validator, _blockNumber, proofHash);
+        require(_isReportingValidatorValid(msg.sender));
+        emit MaliciousReported(msg.sender, _validator, _blockNumber, _proof);
     }
-    */
 
-    function reportMaliciousSystem(
-        address _validator,
-        uint256 _blockNumber,
-        address _reportingValidator
-    )
+    function reportMaliciousValidator(address _validator, address _reportingValidator)
         public
         onlySystem
         returns(address[])
     {
         require(_isReportingValidatorValid(_reportingValidator));
 
-        // Don't allow the validator to report the same more than once
-        require(!maliceReported[_validator][_blockNumber][_reportingValidator]);
-        maliceReported[_validator][_blockNumber][_reportingValidator] = true;
+        // Don't allow `_reportingValidator` to report `_validator` more than once
+        for (uint256 i = 0; i < maliceReported[_validator].length; i++) {
+            if (maliceReported[_validator][i] == _reportingValidator) {
+                revert();
+            }
+        }
 
-        // If more than 50% of validators reported about the same
-        // malicious `_validator` for the same `_blockNumber`
-        uint256 reportCount = ++maliceReportCount[_validator][_blockNumber];
+        maliceReported[_validator].push(_reportingValidator);
+
+        if (isValidatorBanned(_validator)) {
+            // The `_validator` is already banned
+            return new address[](0); // return empty array
+        }
+
+        uint256 reportCount = maliceReported[_validator].length;
         
         uint256 validatorsLength = currentValidators.length;
         if (validatorSetApplyBlock == 0) {
             validatorsLength = previousValidators.length;
         }
 
-        bool majorityAchieved = reportCount > validatorsLength / 2;
-
-        if (majorityAchieved && !isValidatorBanned(_validator)) {
+        // If more than 1/3 of validators reported about malicious `_validator`
+        if (reportCount.mul(3) > validatorsLength) {
             // Remove malicious `_validator` from `pools`
             _removeFromPools(_validator);
 
@@ -335,13 +285,11 @@ contract ReportingValidatorSet is IReportingValidatorSet {
                 observersState[_validator].isValidator = false;
 
                 changeRequestCount++;
-                return currentValidators;
+                return currentValidators; // return the new validator set
             }
         }
 
-        address[] memory emptyArray = new address[](0);
-
-        return emptyArray;
+        return new address[](0); // return empty array
     }
 
     function savePublicKey(bytes _key) public {
@@ -454,6 +402,7 @@ contract ReportingValidatorSet is IReportingValidatorSet {
             observersState[_who].isActive = true;
         }
         _removeFromPoolsInactive(_who);
+        delete maliceReported[_who];
     }
 
     // Adds `_who` to the array of inactive pools
