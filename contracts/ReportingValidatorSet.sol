@@ -288,8 +288,12 @@ contract ReportingValidatorSet is IReportingValidatorSet {
 
     function savePublicKey(bytes _key) public {
         require(_key.length == 48); // https://github.com/poanetwork/threshold_crypto/issues/63
+        require(stakeAmount[msg.sender][msg.sender] != 0);
         observersState[msg.sender].publicKey = _key;
-        // TODO: allow calling this function only after observer makes a stake for himself
+
+        if (!isValidatorBanned(msg.sender)) {
+            _addToPools(msg.sender);
+        }
     }
 
     function storeRandom(uint64[] _random) public onlySystem {
@@ -484,12 +488,6 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         require(_amount != 0);
         require(!isValidatorBanned(_observer));
 
-        bool stakerIsObserver = _staker == _observer; // `staker` makes a stake for himself and becomes an observer
-
-        if (stakerIsObserver) {
-            require(observersState[_observer].publicKey.length != 0);
-        }
-
         uint256 newStakeAmount = stakeAmount[_observer][_staker].add(_amount);
         require(newStakeAmount >= MIN_STAKE); // the staked amount must be at least MIN_STAKE
         stakeAmount[_observer][_staker] = newStakeAmount;
@@ -497,9 +495,11 @@ contract ReportingValidatorSet is IReportingValidatorSet {
             stakeAmountByEpoch[_observer][_staker][stakingEpoch].add(_amount);
         stakeAmountTotal[_observer] = stakeAmountTotal[_observer].add(_amount);
 
-        if (stakerIsObserver) { // if the observer makes a stake for himself
-            // Add `_observer` to the array of pools
-            _addToPools(_observer);
+        if (_staker == _observer) { // `staker` makes a stake for himself and becomes an observer
+            if (observersState[_observer].publicKey.length != 0) {
+                // Add `_observer` to the array of pools
+                _addToPools(_observer);
+            }
         } else if (newStakeAmount == _amount) { // if the stake is first
             // Add `_staker` to the array of observer's stakers
             poolStakerIndex[_observer][_staker] = poolStakers[_observer].length;
