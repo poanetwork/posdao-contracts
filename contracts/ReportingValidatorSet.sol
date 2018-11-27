@@ -141,8 +141,12 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         blockReward = _blockReward;
     }
 
-    function exit() public {
-        require(isValidator(msg.sender));
+    function addPool(bytes _publicKey) public payable {
+        stake(msg.sender);
+        savePublicKey(_publicKey);
+    }
+
+    function removePool() public {
         _removeFromPools(msg.sender);
     }
 
@@ -153,7 +157,7 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         }
 
         // Apply new reward distribution after `newValidatorSet()` is called,
-        // not after `InitiateChange` event is emitted
+        // not after `reportMaliciousValidator` function is called
         if (validatorSetApplyBlock == 0) {
             validatorSetApplyBlock = block.number;
             blockReward.newDistribution(); // trigger setting of new reward distribution
