@@ -285,8 +285,8 @@ contract ReportingValidatorSet is IReportingValidatorSet {
             validatorsLength = previousValidators.length;
         }
 
-        // If more than 1/3 of validators reported about malicious `_validator`
-        if (reportCount.mul(3) > validatorsLength) {
+        // If at least 1/3 of validators reported about malicious `_validator`
+        if (reportCount.mul(3) >= validatorsLength) {
             // Remove malicious `_validator` from `pools`
             _removeFromPools(_validator);
 
