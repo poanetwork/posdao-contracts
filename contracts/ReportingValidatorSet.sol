@@ -20,7 +20,10 @@ contract ReportingValidatorSet is IReportingValidatorSet {
 
     // ================================================ Store =========================================================
 
+    address public owner;
+
     IBlockReward public blockReward;
+    uint256 public poolReward; // pool reward for the current staking epoch
 
     uint256 public stakingEpoch; // the internal serial number of staking epoch
     uint256 public changeRequestCount; // the serial number of validator set changing request
@@ -86,6 +89,11 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         bytes proof
     );
 
+    event OwnershipTransferred(
+        address indexed previousOwner,
+        address indexed newOwner
+    );
+
     /// Emitted by `stake` function to signal that the staker made a stake of the specified
     /// amount for the specified observer during the specified staking epoch.
     /// @param toObserver The observer for whom the `staker` made the stake.
@@ -129,6 +137,11 @@ contract ReportingValidatorSet is IReportingValidatorSet {
 
     // ============================================== Modifiers =======================================================
 
+    modifier onlyOwner() {
+        require(msg.sender == owner);
+        _;
+    }
+
     modifier onlySystem() {
         require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
         _;
@@ -136,9 +149,8 @@ contract ReportingValidatorSet is IReportingValidatorSet {
 
     // =============================================== Setters ========================================================
 
-    constructor(IBlockReward _blockReward) public {
-        require(_blockReward != address(0));
-        blockReward = _blockReward;
+    constructor() public {
+        owner = msg.sender;
     }
 
     function addPool(bytes _publicKey) public payable {
@@ -160,7 +172,8 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         // not after `reportMaliciousValidator` function is called
         if (validatorSetApplyBlock == 0) {
             validatorSetApplyBlock = block.number;
-            blockReward.newDistribution(); // trigger setting of new reward distribution
+            // Set the new reward distribution inside the BlockReward contract
+            blockReward.setRewardDistribution(poolReward, rewardDistributionValidators);
         }
     }
 
@@ -232,6 +245,7 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         return currentValidators;
     }
 
+    // Note: the calling validator must have enough balance for gas spending
     function reportBenign(address _validator, uint256 _blockNumber) public {
         require(_isReportingValidatorValid(msg.sender));
         emit BenignReported(msg.sender, _validator, _blockNumber);
@@ -342,6 +356,22 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         }
     }
 
+    function setBlockRewardContract(IBlockReward _blockReward) public onlyOwner {
+        require(blockReward == address(0));
+        require(_blockReward != address(0));
+        blockReward = _blockReward;
+    }
+
+    /**
+     * @dev Allows the current owner to transfer control of the contract to a _newOwner.
+     * @param _newOwner The address to transfer ownership to.
+     */
+    function transferOwnership(address _newOwner) public onlyOwner {
+        require(_newOwner != address(0));
+        emit OwnershipTransferred(owner, _newOwner);
+        owner = _newOwner;
+    }
+
     // =============================================== Getters ========================================================
 
     function doesPoolExist(address _who) public view returns(bool) {
@@ -444,10 +474,10 @@ contract ReportingValidatorSet is IReportingValidatorSet {
     }
 
     function _setRewardDistribution() internal {
-        uint256 i;
-        uint256 s;
         address validator;
         address staker;
+        uint256 i;
+        uint256 s;
 
         // Clear the previous distribution
         for (i = 0; i < rewardDistributionValidators.length; i++) {
@@ -461,7 +491,7 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         }
 
         // Set a new distribution
-        uint256 poolReward = blockReward.BLOCK_REWARD() / currentValidators.length;
+        poolReward = blockReward.BLOCK_REWARD() / currentValidators.length;
         
         rewardDistributionValidators = currentValidators;
         for (i = 0; i < currentValidators.length; i++) {
