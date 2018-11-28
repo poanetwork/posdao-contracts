@@ -383,7 +383,27 @@ contract ReportingValidatorSet is IReportingValidatorSet {
     }
 
     function getValidators() public view returns(address[]) {
+        if (stakingEpoch == 0) {
+            // Return initial validator set
+            uint256 initialValidatorsLength = initialValidators().length;
+            address[] memory validators = new address[](initialValidatorsLength);
+
+            for (uint256 i = 0; i < initialValidatorsLength; i++) {
+                validators[i] = initialValidators()[i];
+            }
+
+            return validators;
+        }
         return currentValidators;
+    }
+
+    function initialValidators() public pure returns(address[3]) {
+        // These values must be changed before deploy
+        return([
+            address(0x1000000000000000000000000000000000000000),
+            address(0x2000000000000000000000000000000000000000),
+            address(0x3000000000000000000000000000000000000000)
+        ]);
     }
 
     function isValidator(address _who) public view returns(bool) {

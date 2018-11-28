@@ -110,23 +110,25 @@ contract BlockReward is EternalStorage, IBlockReward {
 
         // Mint ERC20 tokens for each staker of each active validator
         IERC20Token erc20Contract = IERC20Token(ERC20_TOKEN_CONTRACT);
-        for (i = 0; i < benefactors.length; i++) {
-            uint256 s;
-            address[] memory stakers = rewardDistributionStakers(benefactors[i]);
-            address[] memory erc20Receivers = new address[](stakers.length.add(1));
-            uint256[] memory erc20Rewards = new uint256[](erc20Receivers.length);
+        if (erc20Contract != address(0)) {
+            for (i = 0; i < benefactors.length; i++) {
+                uint256 s;
+                address[] memory stakers = rewardDistributionStakers(benefactors[i]);
+                address[] memory erc20Receivers = new address[](stakers.length.add(1));
+                uint256[] memory erc20Rewards = new uint256[](erc20Receivers.length);
 
-            for (s = 0; s < stakers.length; s++) {
-                erc20Receivers[s] = stakers[s];
-                erc20Rewards[s] = rewardDistribution(benefactors[i], stakers[s]);
+                for (s = 0; s < stakers.length; s++) {
+                    erc20Receivers[s] = stakers[s];
+                    erc20Rewards[s] = rewardDistribution(benefactors[i], stakers[s]);
+                }
+
+                erc20Receivers[s] = benefactors[i];
+                erc20Rewards[s] = rewardDistribution(benefactors[i], benefactors[i]);
+
+                erc20Contract.mintReward(erc20Receivers, erc20Rewards);
+                
+                emit RewardedERC20(erc20Receivers, erc20Rewards);
             }
-
-            erc20Receivers[s] = benefactors[i];
-            erc20Rewards[s] = rewardDistribution(benefactors[i], benefactors[i]);
-
-            erc20Contract.mintReward(erc20Receivers, erc20Rewards);
-            
-            emit RewardedERC20(erc20Receivers, erc20Rewards);
         }
     
         return (receivers, rewards);

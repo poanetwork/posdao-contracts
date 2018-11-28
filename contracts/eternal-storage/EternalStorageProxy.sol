@@ -27,10 +27,16 @@ contract EternalStorageProxy is EternalStorage, IEternalStorageProxy {
         _;
     }
 
-    constructor(address _implementationAddress) public {
-        require(_implementationAddress != address(0));
-        _implementation = _implementationAddress;
-        _setOwner(msg.sender);
+    constructor(address _implementationAddress, address _owner) public {
+        if (_implementationAddress != address(0)) {
+            require(_isContract(_implementationAddress));
+            _implementation = _implementationAddress;
+        }
+        if (_owner != address(0)) {
+            _setOwner(_owner);
+        } else {
+            _setOwner(msg.sender);
+        }
     }
 
     /**
@@ -87,19 +93,20 @@ contract EternalStorageProxy is EternalStorage, IEternalStorageProxy {
 
     /**
      * @dev Allows owner to upgrade the current implementation.
-     * @param newImplementation representing the address of the new implementation to be set.
+     * @param _newImplementation representing the address of the new implementation to be set.
      */
-    function upgradeTo(address newImplementation) public onlyOwner returns(bool) {
-        if (newImplementation == address(0)) return false;
-        if (_implementation == newImplementation) return false;
+    function upgradeTo(address _newImplementation) public onlyOwner returns(bool) {
+        if (_newImplementation == address(0)) return false;
+        if (_implementation == _newImplementation) return false;
+        if (!_isContract(_newImplementation)) return false;
 
         uint256 newVersion = _version + 1;
         if (newVersion <= _version) return false;
 
         _version = newVersion;
-        _implementation = newImplementation;
+        _implementation = _newImplementation;
 
-        emit Upgraded(newVersion, newImplementation);
+        emit Upgraded(newVersion, _newImplementation);
         return true;
     }
 
@@ -113,5 +120,11 @@ contract EternalStorageProxy is EternalStorage, IEternalStorageProxy {
 
     function _setOwner(address _owner) private {
         addressStorage[OWNER] = _owner;
+    }
+
+    function _isContract(address _addr) private view returns(bool) {
+        uint256 size;
+        assembly { size := extcodesize(_addr) }
+        return size != 0;
     }
 }
