@@ -257,57 +257,79 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         emit MaliciousReported(msg.sender, _validator, _blockNumber, _proof);
     }
 
-    function reportMaliciousValidator(address _validator, address _reportingValidator)
+    function reportMaliciousValidator(address[] _validators, address[] _reportingValidators)
         public
         onlySystem
         returns(address[])
     {
-        require(_isReportingValidatorValid(_reportingValidator));
+        require(_validators.length == _reportingValidators.length);
 
-        // Don't allow `_reportingValidator` to report `_validator` more than once
-        for (uint256 i = 0; i < maliceReported[_validator].length; i++) {
-            if (maliceReported[_validator][i] == _reportingValidator) {
-                revert();
-            }
-        }
+        bool validatorSetChanged = false;
 
-        maliceReported[_validator].push(_reportingValidator);
-
-        if (isValidatorBanned(_validator)) {
-            // The `_validator` is already banned
-            return new address[](0); // return empty array
-        }
-
-        uint256 reportCount = maliceReported[_validator].length;
-        
         uint256 validatorsLength = currentValidators.length;
         if (validatorSetApplyBlock == 0) {
             validatorsLength = previousValidators.length;
         }
 
-        // If at least 1/3 of validators reported about malicious `_validator`
-        if (reportCount.mul(3) >= validatorsLength) {
-            // Remove malicious `_validator` from `pools`
-            _removeFromPools(_validator);
+        // Handle each perpetrator-reporter pair
+        for (uint256 i = 0; i < _validators.length; i++) {
+            address maliciousValidator = _validators[i];
+            address reportingValidator = _reportingValidators[i];
 
-            // Ban the `_validator` for the next 3 months
-            observersState[_validator].bannedUntil = now + 90 days;
+            if (!_isReportingValidatorValid(reportingValidator)) {
+                continue;
+            }
 
-            if (isValidator(_validator)) {
-                // Remove the `_validator` from `currentValidators`
-                uint256 indexToRemove = observersState[_validator].validatorIndex;
-                currentValidators[indexToRemove] = currentValidators[currentValidators.length - 1];
-                observersState[currentValidators[indexToRemove]].validatorIndex = indexToRemove;
-                currentValidators.length--;
-                observersState[_validator].validatorIndex = 0;
-                observersState[_validator].isValidator = false;
+            bool alreadyReported = false;
 
-                changeRequestCount++;
-                return currentValidators; // return the new validator set
+            // Don't allow `reportingValidator` to report about `maliciousValidator` more than once
+            for (uint256 m = 0; m < maliceReported[maliciousValidator].length; m++) {
+                if (maliceReported[maliciousValidator][m] == reportingValidator) {
+                    alreadyReported = true;
+                    break;
+                }
+            }
+
+            if (alreadyReported) {
+                continue;
+            } else {
+                maliceReported[maliciousValidator].push(reportingValidator);
+            }
+
+            if (isValidatorBanned(maliciousValidator)) {
+                // The `maliciousValidator` is already banned
+                continue;
+            }
+
+            uint256 reportCount = maliceReported[maliciousValidator].length;
+
+            // If at least 1/3 of validators reported about `maliciousValidator`
+            if (reportCount.mul(3) >= validatorsLength) {
+                // Remove `maliciousValidator` from `pools`
+                _removeFromPools(maliciousValidator);
+
+                // Ban the `maliciousValidator` for the next 3 months
+                observersState[maliciousValidator].bannedUntil = now + 90 days;
+
+                if (isValidator(maliciousValidator)) {
+                    // Remove the `maliciousValidator` from `currentValidators`
+                    uint256 indexToRemove = observersState[maliciousValidator].validatorIndex;
+                    currentValidators[indexToRemove] = currentValidators[currentValidators.length - 1];
+                    observersState[currentValidators[indexToRemove]].validatorIndex = indexToRemove;
+                    currentValidators.length--;
+                    observersState[maliciousValidator].validatorIndex = 0;
+                    observersState[maliciousValidator].isValidator = false;
+                    validatorSetChanged = true;
+                }
             }
         }
 
-        return new address[](0); // return empty array
+        if (validatorSetChanged) {
+            changeRequestCount++;
+            return currentValidators; // return the new validator set
+        } else {
+            return new address[](0); // return empty array
+        }
     }
 
     function savePublicKey(bytes _key) public {
