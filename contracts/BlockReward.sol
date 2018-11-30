@@ -10,20 +10,6 @@ import "./libs/SafeMath.sol";
 contract BlockReward is EternalStorage, IBlockReward {
     using SafeMath for uint256;
 
-    bytes32 internal constant EXTRA_RECEIVERS = keccak256("extraReceivers");
-    bytes32 internal constant POOL_REWARD = keccak256("poolReward");
-    bytes32 internal constant MINTED_TOTALLY = keccak256("mintedTotally");
-    bytes32 internal constant REWARD_DISTRIBUTION_VALIDATORS = keccak256("rewardDistributionValidators");
-
-    bytes32 internal constant BRIDGE_AMOUNT = "bridgeAmount";
-    bytes32 internal constant EXTRA_RECEIVER_AMOUNT = "extraReceiverAmount";
-    bytes32 internal constant MINTED_FOR_ACCOUNT = "mintedForAccount";
-    bytes32 internal constant MINTED_FOR_ACCOUNT_IN_BLOCK = "mintedForAccountInBlock";
-    bytes32 internal constant MINTED_IN_BLOCK = "mintedInBlock";
-    bytes32 internal constant MINTED_TOTALLY_BY_BRIDGE = "mintedTotallyByBridge";
-    bytes32 internal constant REWARD_DISTRIBUTION = "rewardDistribution";
-    bytes32 internal constant REWARD_DISTRIBUTION_STAKERS = "rewardDistributionStakers";
-
     // ============================================== Constants =======================================================
 
     // These value must be changed before deploy
@@ -256,6 +242,20 @@ contract BlockReward is EternalStorage, IBlockReward {
     }
 
     // =============================================== Private ========================================================
+
+    bytes32 internal constant EXTRA_RECEIVERS = keccak256("extraReceivers");
+    bytes32 internal constant POOL_REWARD = keccak256("poolReward");
+    bytes32 internal constant MINTED_TOTALLY = keccak256("mintedTotally");
+    bytes32 internal constant REWARD_DISTRIBUTION_VALIDATORS = keccak256("rewardDistributionValidators");
+
+    bytes32 internal constant BRIDGE_AMOUNT = "bridgeAmount";
+    bytes32 internal constant EXTRA_RECEIVER_AMOUNT = "extraReceiverAmount";
+    bytes32 internal constant MINTED_FOR_ACCOUNT = "mintedForAccount";
+    bytes32 internal constant MINTED_FOR_ACCOUNT_IN_BLOCK = "mintedForAccountInBlock";
+    bytes32 internal constant MINTED_IN_BLOCK = "mintedInBlock";
+    bytes32 internal constant MINTED_TOTALLY_BY_BRIDGE = "mintedTotallyByBridge";
+    bytes32 internal constant REWARD_DISTRIBUTION = "rewardDistribution";
+    bytes32 internal constant REWARD_DISTRIBUTION_STAKERS = "rewardDistributionStakers";
 
     function _addExtraReceiver(address _receiver) private {
         addressArrayStorage[EXTRA_RECEIVERS].push(_receiver);

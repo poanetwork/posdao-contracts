@@ -8,13 +8,6 @@ import "./libs/SafeMath.sol";
 contract KeyGenHistory is EternalStorage {
     using SafeMath for uint256;
 
-    bytes32 internal constant OWNER = keccak256("owner");
-    bytes32 internal constant VALIDATOR_SET = keccak256("validatorSet");
-
-    bytes32 internal constant PART_ACKS = "partAcks";
-    bytes32 internal constant PART_ACK_EXISTS = "partAckExists";
-    bytes32 internal constant VALIDATOR_PART = "validatorPart";
-
     // ================================================ Events ========================================================
 
     event PartWritten(
@@ -135,6 +128,13 @@ contract KeyGenHistory is EternalStorage {
     }
 
     // =============================================== Private ========================================================
+
+    bytes32 internal constant OWNER = keccak256("owner");
+    bytes32 internal constant VALIDATOR_SET = keccak256("validatorSet");
+
+    bytes32 internal constant PART_ACKS = "partAcks";
+    bytes32 internal constant PART_ACK_EXISTS = "partAckExists";
+    bytes32 internal constant VALIDATOR_PART = "validatorPart";
 
     function _pushPartAck(uint256 _changeRequestCount, bytes32 _hashOfPart, bytes32 _hashOfAck) internal {
         bytes32ArrayStorage[
