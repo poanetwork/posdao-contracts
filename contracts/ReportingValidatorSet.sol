@@ -2,60 +2,16 @@ pragma solidity 0.4.25;
 
 import "./interfaces/IBlockReward.sol";
 import "./interfaces/IReportingValidatorSet.sol";
+import "./eternal-storage/EternalStorage.sol";
 import "./libs/SafeMath.sol";
 
 
-contract ReportingValidatorSet is IReportingValidatorSet {
+contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
     using SafeMath for uint256;
 
+    // TODO: `validatorIndex`, `publicKey`, and `isValidator` must return info about initial validators
+
     // TODO: add a description for each function
-
-    struct ObserverState {
-        uint256 validatorIndex; // index in the `currentValidators`
-        uint256 bannedUntil; // unix timestamp from which the address will be unbanned
-        bytes publicKey; // serialized public key of observer/ validator
-        bool isValidator; // is this address in the `currentValidators` array?
-        bool isActive; // is this address in the `pools` array?
-    }
-
-    // ================================================ Store =========================================================
-
-    address public owner;
-
-    IBlockReward public blockReward;
-    uint256 public poolReward; // pool reward for the current staking epoch
-
-    uint256 public stakingEpoch; // the internal serial number of staking epoch
-    uint256 public changeRequestCount; // the serial number of validator set changing request
-    uint256 public validatorSetApplyBlock; // the block number when `finalizeChange` was called to apply set on hbbft
-    
-    address[] public currentValidators; // the current set of validators
-    address[] public previousValidators; // the set of validators at the end of previous staking epoch
-
-    uint64[] public currentRandom;
-
-    address[] public pools; // the list of current observers (pools)
-    mapping(address => uint256) public poolIndex; // pool index in `pools` array
-
-    address[] public poolsInactive; // the list of pools which are inactive or banned
-    mapping(address => uint256) public poolInactiveIndex; // pool index in `poolsInactive` array
-
-    mapping(address => address[]) public poolStakers; // the list of current stakers in the specified pool
-    mapping(address => mapping(address => uint256)) public poolStakerIndex; // staker index in `poolStakers` array
-
-    mapping(address => mapping(address => uint256)) public stakeAmount;
-    mapping(address => mapping(address => mapping(uint256 => uint256))) public stakeAmountByEpoch;
-    mapping(address => uint256) public stakeAmountTotal;
-
-    mapping(address => ObserverState) public observersState;
-    mapping(address => bool) public isValidatorOnPreviousEpoch;
-
-    mapping(address => address[]) public maliceReported;
-
-    // Distribution of block reward for the current staking epoch
-    mapping(address => mapping(address => uint256)) public rewardDistribution;
-    mapping(address => address[]) public rewardDistributionStakers;
-    address[] public rewardDistributionValidators;
 
     // ============================================== Constants =======================================================
 
@@ -87,11 +43,6 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         address indexed validator,
         uint256 indexed blockNumber,
         bytes proof
-    );
-
-    event OwnershipTransferred(
-        address indexed previousOwner,
-        address indexed newOwner
     );
 
     /// Emitted by `stake` function to signal that the staker made a stake of the specified
@@ -138,7 +89,7 @@ contract ReportingValidatorSet is IReportingValidatorSet {
     // ============================================== Modifiers =======================================================
 
     modifier onlyOwner() {
-        require(msg.sender == owner);
+        require(msg.sender == addressStorage[OWNER]);
         _;
     }
 
@@ -148,10 +99,6 @@ contract ReportingValidatorSet is IReportingValidatorSet {
     }
 
     // =============================================== Setters ========================================================
-
-    constructor() public {
-        owner = msg.sender;
-    }
 
     function addPool(bytes _publicKey) public payable {
         stake(msg.sender);
@@ -163,60 +110,66 @@ contract ReportingValidatorSet is IReportingValidatorSet {
     }
 
     function finalizeChange() public onlySystem {
-        if (stakingEpoch == 0) {
+        if (stakingEpoch() == 0) {
             // Ignore invocations if `newValidatorSet()` has never been called
             return;
         }
 
         // Apply new reward distribution after `newValidatorSet()` is called,
         // not after `reportMaliciousValidator` function is called
-        if (validatorSetApplyBlock == 0) {
-            validatorSetApplyBlock = block.number;
+        if (validatorSetApplyBlock() == 0) {
+            _setValidatorSetApplyBlock(block.number);
             // Set the new reward distribution inside the BlockReward contract
-            blockReward.setRewardDistribution(poolReward, rewardDistributionValidators);
+            blockReward().setRewardDistribution(poolReward(), rewardDistributionValidators());
         }
     }
 
     function newValidatorSet() public onlySystem returns(address[]) {
-        require(pools.length != 0);
+        address[] memory pools = getPools();
+        require(pools.length > 0);
 
         uint256 i;
+        address[] memory previousValidators = getPreviousValidators();
+        address[] memory currentValidators = getValidators();
 
         // Save the previous validator set
         for (i = 0; i < previousValidators.length; i++) {
-            isValidatorOnPreviousEpoch[previousValidators[i]] = false;
+            _setIsValidatorOnPreviousEpoch(previousValidators[i], false);
         }
         for (i = 0; i < currentValidators.length; i++) {
-            isValidatorOnPreviousEpoch[currentValidators[i]] = true;
+            _setIsValidatorOnPreviousEpoch(currentValidators[i], true);
         }
-        previousValidators = currentValidators;
+        _setPreviousValidators(currentValidators);
 
         // Clear `ObserverState` for current validator set
         for (i = 0; i < currentValidators.length; i++) {
-            observersState[currentValidators[i]].validatorIndex = 0;
-            observersState[currentValidators[i]].isValidator = false;
+            _setValidatorIndex(currentValidators[i], 0);
+            _setIsValidator(currentValidators[i], false);
         }
 
         // Choose new validators
         if (pools.length <= MAX_VALIDATORS) {
             currentValidators = pools;
         } else {
-            require(currentRandom.length == MAX_VALIDATORS);
+            uint256[] memory randomNumbers = currentRandom();
 
-            uint256[] memory likelihood = new uint256[](pools.length);
+            require(randomNumbers.length == MAX_VALIDATORS);
+
             address[] memory poolsLocal = pools;
+            uint256 poolsLocalLength = poolsLocal.length;
+
+            uint256[] memory likelihood = new uint256[](poolsLocalLength);
             address[] memory newValidators = new address[](MAX_VALIDATORS);
 
             uint256 likelihoodSum = 0;
-            uint256 poolsLocalLength = poolsLocal.length;
 
-            for (i = 0; i < pools.length; i++) {
-               likelihood[i] = stakeAmountTotal[pools[i]].mul(100).div(STAKE_UNIT);
+            for (i = 0; i < poolsLocalLength; i++) {
+               likelihood[i] = stakeAmountTotal(poolsLocal[i]).mul(100).div(STAKE_UNIT);
                likelihoodSum = likelihoodSum.add(likelihood[i]);
             }
 
             for (i = 0; i < MAX_VALIDATORS; i++) {
-                uint256 observerIndex = _getRandomIndex(likelihood, likelihoodSum, currentRandom[i]);
+                uint256 observerIndex = _getRandomIndex(likelihood, likelihoodSum, randomNumbers[i]);
                 newValidators[i] = poolsLocal[observerIndex];
                 likelihoodSum -= likelihood[observerIndex];
                 poolsLocalLength--;
@@ -227,33 +180,35 @@ contract ReportingValidatorSet is IReportingValidatorSet {
             currentValidators = newValidators;
         }
 
+        _setCurrentValidators(currentValidators);
+
         // Set `ObserverState` for new validator set
         for (i = 0; i < currentValidators.length; i++) {
-            observersState[currentValidators[i]].validatorIndex = i;
-            observersState[currentValidators[i]].isValidator = true;
+            _setValidatorIndex(currentValidators[i], i);
+            _setIsValidator(currentValidators[i], true);
         }
 
         // Increment counters
-        changeRequestCount++;
-        stakingEpoch++;
+        _incrementChangeRequestCount();
+        _incrementStakingEpoch();
 
         // Calculate and save the new reward distribution
-        _setRewardDistribution();
+        _setRewardDistribution(currentValidators);
 
-        validatorSetApplyBlock = 0;
+        _setValidatorSetApplyBlock(0);
 
         return currentValidators;
     }
 
     // Note: the calling validator must have enough balance for gas spending
     function reportBenign(address _validator, uint256 _blockNumber) public {
-        require(_isReportingValidatorValid(msg.sender));
+        require(stakingEpoch() == 0 || _isReportingValidatorValid(msg.sender));
         emit BenignReported(msg.sender, _validator, _blockNumber);
     }
 
     // Note: the calling validator must have enough balance for gas spending
     function reportMalicious(address _validator, uint256 _blockNumber, bytes _proof) public {
-        require(_isReportingValidatorValid(msg.sender));
+        require(stakingEpoch() == 0 || _isReportingValidatorValid(msg.sender));
         emit MaliciousReported(msg.sender, _validator, _blockNumber, _proof);
     }
 
@@ -263,12 +218,13 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         returns(address[])
     {
         require(_validators.length == _reportingValidators.length);
+        require(stakingEpoch() > 0);
 
         bool validatorSetChanged = false;
 
-        uint256 validatorsLength = currentValidators.length;
-        if (validatorSetApplyBlock == 0) {
-            validatorsLength = previousValidators.length;
+        uint256 validatorsLength = getValidators().length;
+        if (validatorSetApplyBlock() == 0) {
+            validatorsLength = getPreviousValidators().length;
         }
 
         // Handle each perpetrator-reporter pair
@@ -282,9 +238,12 @@ contract ReportingValidatorSet is IReportingValidatorSet {
 
             bool alreadyReported = false;
 
+            address[] storage reportedValidators =
+                addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED, maliciousValidator))];
+
             // Don't allow `reportingValidator` to report about `maliciousValidator` more than once
-            for (uint256 m = 0; m < maliceReported[maliciousValidator].length; m++) {
-                if (maliceReported[maliciousValidator][m] == reportingValidator) {
+            for (uint256 m = 0; m < reportedValidators.length; m++) {
+                if (reportedValidators[m] == reportingValidator) {
                     alreadyReported = true;
                     break;
                 }
@@ -293,7 +252,7 @@ contract ReportingValidatorSet is IReportingValidatorSet {
             if (alreadyReported) {
                 continue;
             } else {
-                maliceReported[maliciousValidator].push(reportingValidator);
+                reportedValidators.push(reportingValidator);
             }
 
             if (isValidatorBanned(maliciousValidator)) {
@@ -301,7 +260,7 @@ contract ReportingValidatorSet is IReportingValidatorSet {
                 continue;
             }
 
-            uint256 reportCount = maliceReported[maliciousValidator].length;
+            uint256 reportCount = reportedValidators.length;
 
             // If at least 1/3 of validators reported about `maliciousValidator`
             if (reportCount.mul(3) >= validatorsLength) {
@@ -309,24 +268,19 @@ contract ReportingValidatorSet is IReportingValidatorSet {
                 _removeFromPools(maliciousValidator);
 
                 // Ban the `maliciousValidator` for the next 3 months
-                observersState[maliciousValidator].bannedUntil = now + 90 days;
+                _banValidator(maliciousValidator, now + 90 days);
 
                 if (isValidator(maliciousValidator)) {
                     // Remove the `maliciousValidator` from `currentValidators`
-                    uint256 indexToRemove = observersState[maliciousValidator].validatorIndex;
-                    currentValidators[indexToRemove] = currentValidators[currentValidators.length - 1];
-                    observersState[currentValidators[indexToRemove]].validatorIndex = indexToRemove;
-                    currentValidators.length--;
-                    observersState[maliciousValidator].validatorIndex = 0;
-                    observersState[maliciousValidator].isValidator = false;
+                    _removeValidator(maliciousValidator);
                     validatorSetChanged = true;
                 }
             }
         }
 
         if (validatorSetChanged) {
-            changeRequestCount++;
-            return currentValidators; // return the new validator set
+            _incrementChangeRequestCount();
+            return getValidators(); // return the new validator set
         } else {
             return new address[](0); // return empty array
         }
@@ -334,19 +288,19 @@ contract ReportingValidatorSet is IReportingValidatorSet {
 
     function savePublicKey(bytes _key) public {
         require(_key.length == 48); // https://github.com/poanetwork/threshold_crypto/issues/63
-        require(stakeAmount[msg.sender][msg.sender] != 0);
-        observersState[msg.sender].publicKey = _key;
+        require(stakeAmount(msg.sender, msg.sender) != 0);
+        bytesStorage[keccak256(abi.encode(PUBLIC_KEY, msg.sender))] = _key;
 
         if (!isValidatorBanned(msg.sender)) {
             _addToPools(msg.sender);
         }
     }
 
-    function storeRandom(uint64[] _random) public onlySystem {
+    function storeRandom(uint256[] _random) public onlySystem {
         require(_random.length == MAX_VALIDATORS);
-        currentRandom.length = 0;
+        delete uintArrayStorage[CURRENT_RANDOM];
         for (uint256 i = 0; i < _random.length; i++) {
-            currentRandom.push(_random[i]);
+            uintArrayStorage[CURRENT_RANDOM].push(_random[i]);
         }
     }
 
@@ -355,57 +309,78 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         address staker = msg.sender;
         _withdraw(_fromObserver, staker, _amount);
         _stake(_toObserver, staker, _amount);
-        emit StakeMoved(_fromObserver, _toObserver, staker, stakingEpoch, _amount);
+        emit StakeMoved(_fromObserver, _toObserver, staker, stakingEpoch(), _amount);
     }
 
     function stake(address _toObserver) public payable {
         address staker = msg.sender;
         _stake(_toObserver, staker, msg.value);
-        emit Staked(_toObserver, staker, stakingEpoch, msg.value);
+        emit Staked(_toObserver, staker, stakingEpoch(), msg.value);
     }
 
     function withdraw(address _fromObserver, uint256 _amount) public {
         address staker = msg.sender;
         _withdraw(_fromObserver, staker, _amount);
         staker.transfer(_amount);
-        emit Withdrawn(_fromObserver, staker, stakingEpoch, _amount);
+        emit Withdrawn(_fromObserver, staker, stakingEpoch(), _amount);
     }
 
     function clearStakeHistory(address _observer, address[] _staker, uint256 _stakingEpoch) public onlySystem {
-        require(_stakingEpoch <= stakingEpoch.sub(2));
+        require(_stakingEpoch <= stakingEpoch().sub(2));
         for (uint256 i = 0; i < _staker.length; i++) {
-            delete stakeAmountByEpoch[_observer][_staker[i]][_stakingEpoch];
+            _setStakeAmountByEpoch(_observer, _staker[i], _stakingEpoch, 0);
         }
     }
 
     function setBlockRewardContract(IBlockReward _blockReward) public onlyOwner {
-        require(blockReward == address(0));
+        require(blockReward() == address(0));
         require(_blockReward != address(0));
-        blockReward = _blockReward;
-    }
-
-    /**
-     * @dev Allows the current owner to transfer control of the contract to a _newOwner.
-     * @param _newOwner The address to transfer ownership to.
-     */
-    function transferOwnership(address _newOwner) public onlyOwner {
-        require(_newOwner != address(0));
-        emit OwnershipTransferred(owner, _newOwner);
-        owner = _newOwner;
+        addressStorage[BLOCK_REWARD] = _blockReward;
     }
 
     // =============================================== Getters ========================================================
 
-    function doesPoolExist(address _who) public view returns(bool) {
-        return observersState[_who].isActive;
+    // Returns the unix timestamp from which the address will be unbanned
+    function bannedUntil(address _who) public view returns(uint256) {
+        return uintStorage[
+            keccak256(abi.encode(BANNED_UNTIL, _who))
+        ];
     }
 
+    function blockReward() public view returns(IBlockReward) {
+        return IBlockReward(addressStorage[BLOCK_REWARD]);
+    }
+
+    // Returns the serial number of validator set changing request
+    function changeRequestCount() public view returns(uint256) {
+        return uintStorage[CHANGE_REQUEST_COUNT];
+    }
+
+    function currentRandom() public view returns(uint256[]) {
+        return uintArrayStorage[CURRENT_RANDOM];
+    }
+
+    function doesPoolExist(address _who) public view returns(bool) {
+        return isPoolActive(_who);
+    }
+
+    // Returns the list of current observers (pools)
     function getPools() public view returns(address[]) {
-        return pools;
+        return addressArrayStorage[POOLS];
+    }
+
+    // Returns the list of pools which are inactive or banned
+    function getPoolsInactive() public view returns(address[]) {
+        return addressArrayStorage[POOLS_INACTIVE];
+    }
+
+    // Returns the set of validators at the end of previous staking epoch
+    function getPreviousValidators() public view returns(address[]) {
+        return addressArrayStorage[PREVIOUS_VALIDATORS];
     }
 
     function getValidators() public view returns(address[]) {
-        if (stakingEpoch == 0) {
+        if (stakingEpoch() == 0) {
             // Return initial validator set
             uint256 initialValidatorsLength = initialValidators().length;
             address[] memory validators = new address[](initialValidatorsLength);
@@ -416,7 +391,7 @@ contract ReportingValidatorSet is IReportingValidatorSet {
 
             return validators;
         }
-        return currentValidators;
+        return addressArrayStorage[CURRENT_VALIDATORS];
     }
 
     function initialValidators() public pure returns(address[3]) {
@@ -428,13 +403,27 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         ]);
     }
 
+    // Returns the flag whether the address in the `pools` array
+    function isPoolActive(address _who) public view returns(bool) {
+        return boolStorage[keccak256(abi.encode(IS_POOL_ACTIVE, _who))];
+    }
+
+    // Returns the flag whether the address in the `currentValidators` array
     function isValidator(address _who) public view returns(bool) {
-        return observersState[_who].isValidator;
+        return boolStorage[keccak256(abi.encode(IS_VALIDATOR, _who))];
+    }
+
+    function isValidatorOnPreviousEpoch(address _who) public view returns(bool) {
+        return boolStorage[keccak256(abi.encode(IS_VALIDATOR_ON_PREVIOUS_EPOCH, _who))];
     }
 
     function isValidatorBanned(address _validator) public view returns(bool) {
-        return now < observersState[_validator].bannedUntil;
-    } 
+        return now < bannedUntil(_validator);
+    }
+
+    function maliceReported(address _validator) public view returns(address[]) {
+        return addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED, _validator))];
+    }
 
     function maxWithdrawAllowed(address _observer, address _staker) public view returns(uint256) {
         bool observerIsValidator = isValidator(_observer);
@@ -451,54 +440,178 @@ contract ReportingValidatorSet is IReportingValidatorSet {
 
         if (!observerIsValidator) {
             // The whole amount can be withdrawn if observer is not a validator
-            return stakeAmount[_observer][_staker];
+            return stakeAmount(_observer, _staker);
         }
 
-        if (isValidatorOnPreviousEpoch[_observer]) {
+        if (isValidatorOnPreviousEpoch(_observer)) {
             // The observer was also a validator on the previous staking epoch, so
             // the staker can't withdraw amount staked on the previous staking epoch
-            return stakeAmount[_observer][_staker].sub(
-                stakeAmountByEpoch[_observer][_staker][stakingEpoch.sub(1)] // stakingEpoch is always > 0 here
+            return stakeAmount(_observer, _staker).sub(
+                stakeAmountByEpoch(_observer, _staker, stakingEpoch().sub(1)) // stakingEpoch is always > 0 here
             );
         } else {
             // The observer wasn't a validator on the previous staking epoch, so
             // the staker can only withdraw amount staked on the current staking epoch
-            return stakeAmountByEpoch[_observer][_staker][stakingEpoch];
+            return stakeAmountByEpoch(_observer, _staker, stakingEpoch());
         }
+    }
+
+    // Returns index of the pool in the `pools` array
+    function poolIndex(address _who) public view returns(uint256) {
+        return uintStorage[
+            keccak256(abi.encode(POOL_INDEX, _who))
+        ];
+    }
+
+    // Returns index of the pool in the `poolsInactive` array
+    function poolInactiveIndex(address _who) public view returns(uint256) {
+        return uintStorage[
+            keccak256(abi.encode(POOL_INACTIVE_INDEX, _who))
+        ];
+    }
+
+    // Returns the pool reward for the current staking epoch
+    function poolReward() public view returns(uint256) {
+        return uintStorage[POOL_REWARD];
+    }
+
+    // Returns the list of current stakers in the specified pool
+    function poolStakers(address _pool) public view returns(address[]) {
+        return addressArrayStorage[
+            keccak256(abi.encode(POOL_STAKERS, _pool))
+        ];
+    }
+
+    // Returns staker index in `poolStakers` array
+    function poolStakerIndex(address _pool, address _staker) public view returns(uint256) {
+        return uintStorage[
+            keccak256(abi.encode(POOL_STAKER_INDEX, _pool, _staker))
+        ];
+    }
+
+    // Returns the serialized public key of observer/ validator
+    function publicKey(address _who) public view returns(bytes) {
+        return bytesStorage[
+            keccak256(abi.encode(PUBLIC_KEY, _who))
+        ];
+    }
+
+    function rewardDistribution(address _validator, address _staker) public view returns(uint256) {
+        return uintStorage[
+            keccak256(abi.encode(REWARD_DISTRIBUTION, _validator, _staker))
+        ];
+    }
+
+    function rewardDistributionStakers(address _validator) public view returns(address[]) {
+        return addressArrayStorage[
+            keccak256(abi.encode(REWARD_DISTRIBUTION_STAKERS, _validator))
+        ];
+    }
+
+    function rewardDistributionValidators() public view returns(address[]) {
+        return addressArrayStorage[REWARD_DISTRIBUTION_VALIDATORS];
+    }
+
+    function stakeAmount(address _observer, address _staker) public view returns(uint256) {
+        return uintStorage[
+            keccak256(abi.encode(STAKE_AMOUNT, _observer, _staker))
+        ];
+    }
+
+    function stakeAmountByEpoch(address _observer, address _staker, uint256 _stakingEpoch) public view returns(uint256) {
+        return uintStorage[
+            keccak256(abi.encode(STAKE_AMOUNT_BY_EPOCH, _observer, _staker, _stakingEpoch))
+        ];
+    }
+
+    function stakeAmountTotal(address _pool) public view returns(uint256) {
+        return uintStorage[
+            keccak256(abi.encode(STAKE_AMOUNT_TOTAL, _pool))
+        ];
+    }
+
+    // Returns the internal serial number of staking epoch
+    function stakingEpoch() public view returns(uint256) {
+        return uintStorage[STAKING_EPOCH];
+    }
+
+    // Returns the index of validator in the `currentValidators`
+    function validatorIndex(address _validator) public view returns(uint256) {
+        return uintStorage[
+            keccak256(abi.encode(VALIDATOR_INDEX, _validator))
+        ];
+    }
+
+    // Returns the block number when `finalizeChange` was called to apply the set in hbbft
+    function validatorSetApplyBlock() public view returns(uint256) {
+        return uintStorage[VALIDATOR_SET_APPLY_BLOCK];
     }
 
     // =============================================== Private ========================================================
 
+    bytes32 internal constant BLOCK_REWARD = keccak256("blockReward");
+    bytes32 internal constant CHANGE_REQUEST_COUNT = keccak256("changeRequestCount");
+    bytes32 internal constant CURRENT_RANDOM = keccak256("currentRandom");
+    bytes32 internal constant CURRENT_VALIDATORS = keccak256("currentValidators");
+    bytes32 internal constant OWNER = keccak256("owner");
+    bytes32 internal constant POOL_REWARD = keccak256("poolReward");
+    bytes32 internal constant POOLS = keccak256("pools");
+    bytes32 internal constant POOLS_INACTIVE = keccak256("poolsInactive");
+    bytes32 internal constant PREVIOUS_VALIDATORS = keccak256("previousValidators");
+    bytes32 internal constant REWARD_DISTRIBUTION_VALIDATORS = keccak256("rewardDistributionValidators");
+    bytes32 internal constant STAKING_EPOCH = keccak256("stakingEpoch");
+    bytes32 internal constant VALIDATOR_SET_APPLY_BLOCK = keccak256("validatorSetApplyBlock");
+
+    bytes32 internal constant BANNED_UNTIL = "bannedUntil";
+    bytes32 internal constant IS_POOL_ACTIVE = "isPoolActive";
+    bytes32 internal constant IS_VALIDATOR = "isValidator";
+    bytes32 internal constant IS_VALIDATOR_ON_PREVIOUS_EPOCH = "isValidatorOnPreviousEpoch";
+    bytes32 internal constant MALICE_REPORTED = "maliceReported";
+    bytes32 internal constant POOL_INDEX = "poolIndex";
+    bytes32 internal constant POOL_INACTIVE_INDEX = "poolInactiveIndex";
+    bytes32 internal constant POOL_STAKERS = "poolStakers";
+    bytes32 internal constant POOL_STAKER_INDEX = "poolStakerIndex";
+    bytes32 internal constant PUBLIC_KEY = "publicKey";
+    bytes32 internal constant REWARD_DISTRIBUTION = "rewardDistribution";
+    bytes32 internal constant REWARD_DISTRIBUTION_STAKERS = "rewardDistributionStakers";
+    bytes32 internal constant STAKE_AMOUNT = "stakeAmount";
+    bytes32 internal constant STAKE_AMOUNT_BY_EPOCH = "stakeAmountByEpoch";
+    bytes32 internal constant STAKE_AMOUNT_TOTAL = "stakeAmountTotal";
+    bytes32 internal constant VALIDATOR_INDEX = "validatorIndex";
+
     // Adds `_who` to the array of pools
     function _addToPools(address _who) internal {
         if (!doesPoolExist(_who)) {
-            poolIndex[_who] = pools.length;
+            address[] storage pools = addressArrayStorage[POOLS];
+            _setPoolIndex(_who, pools.length);
             pools.push(_who);
             require(pools.length <= MAX_OBSERVERS);
-            observersState[_who].isActive = true;
+            _setIsPoolActive(_who, true);
         }
         _removeFromPoolsInactive(_who);
-        delete maliceReported[_who];
+        delete addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED, _who))];
     }
 
     // Adds `_who` to the array of inactive pools
     function _addToPoolsInactive(address _who) internal {
-        if (poolsInactive[poolInactiveIndex[_who]] != _who) {
-            poolInactiveIndex[_who] = poolsInactive.length;
+        address[] storage poolsInactive = addressArrayStorage[POOLS_INACTIVE];
+        if (poolsInactive[poolInactiveIndex(_who)] != _who) {
+            _setPoolInactiveIndex(_who, poolsInactive.length);
             poolsInactive.push(_who);
         }
     }
 
     // Removes `_who` from the array of pools
     function _removeFromPools(address _who) internal {
-        uint256 indexToRemove = poolIndex[_who];
+        uint256 indexToRemove = poolIndex(_who);
+        address[] storage pools = addressArrayStorage[POOLS];
         if (pools[indexToRemove] == _who) {
             pools[indexToRemove] = pools[pools.length - 1];
-            poolIndex[pools[indexToRemove]] = indexToRemove;
+            _setPoolIndex(pools[indexToRemove], indexToRemove);
             pools.length--;
-            delete poolIndex[_who];
-            observersState[_who].isActive = false;
-            if (stakeAmountTotal[_who] != 0) {
+            _setPoolIndex(_who, 0);
+            _setIsPoolActive(_who, false);
+            if (stakeAmountTotal(_who) != 0) {
                 _addToPoolsInactive(_who);
             }
         }
@@ -506,64 +619,197 @@ contract ReportingValidatorSet is IReportingValidatorSet {
 
     // Removes `_who` from the array of inactive pools
     function _removeFromPoolsInactive(address _who) internal {
-        uint256 indexToRemove = poolInactiveIndex[_who];
+        address[] storage poolsInactive = addressArrayStorage[POOLS_INACTIVE];
+        uint256 indexToRemove = poolInactiveIndex(_who);
         if (poolsInactive[indexToRemove] == _who) {
             poolsInactive[indexToRemove] = poolsInactive[poolsInactive.length - 1];
-            poolInactiveIndex[poolsInactive[indexToRemove]] = indexToRemove;
+            _setPoolInactiveIndex(poolsInactive[indexToRemove], indexToRemove);
             poolsInactive.length--;
-            delete poolInactiveIndex[_who];
+            _setPoolInactiveIndex(_who, 0);
         }
     }
 
-    function _setRewardDistribution() internal {
+    function _banValidator(address _validator, uint256 _bannedUntil) internal {
+        uintStorage[
+            keccak256(abi.encode(BANNED_UNTIL, _validator))
+        ] = _bannedUntil;
+    }
+
+    function _incrementChangeRequestCount() internal {
+        uintStorage[CHANGE_REQUEST_COUNT]++;
+    }
+
+    function _incrementStakingEpoch() internal {
+        uintStorage[STAKING_EPOCH]++;
+    }
+
+    function _removeValidator(address _validator) internal {
+        uint256 indexToRemove = validatorIndex(_validator);
+        address[] storage validators = addressArrayStorage[CURRENT_VALIDATORS];
+        validators[indexToRemove] = validators[validators.length - 1];
+        _setValidatorIndex(validators[indexToRemove], indexToRemove);
+        validators.length--;
+        _setValidatorIndex(_validator, 0);
+        _setIsValidator(_validator, false);
+    }
+
+    function _setCurrentValidators(address[] _validators) internal {
+        addressArrayStorage[CURRENT_VALIDATORS] = _validators;
+    }
+
+    function _setIsPoolActive(address _who, bool _isPoolActive) internal {
+        boolStorage[keccak256(abi.encode(IS_POOL_ACTIVE, _who))] = _isPoolActive;
+    }
+
+    function _setIsValidator(address _who, bool _isValidator) internal {
+        boolStorage[keccak256(abi.encode(IS_VALIDATOR, _who))] = _isValidator;
+    }
+
+    function _setIsValidatorOnPreviousEpoch(address _who, bool _isValidator) internal {
+        boolStorage[keccak256(abi.encode(IS_VALIDATOR_ON_PREVIOUS_EPOCH, _who))] = _isValidator;
+    }
+
+    function _setPoolIndex(address _who, uint256 _index) internal {
+        uintStorage[
+            keccak256(abi.encode(POOL_INDEX, _who))
+        ] = _index;
+    }
+
+    function _setPoolInactiveIndex(address _who, uint256 _index) internal {
+        uintStorage[
+            keccak256(abi.encode(POOL_INACTIVE_INDEX, _who))
+        ] = _index;
+    }
+
+    function _setPoolStakerIndex(address _pool, address _staker, uint256 _index) internal {
+        uintStorage[keccak256(abi.encode(POOL_STAKER_INDEX, _pool, _staker))] = _index;
+    }
+
+    // Add `_staker` to the array of observer's stakers
+    function _addPoolStaker(address _pool, address _staker) internal {
+        address[] storage stakers = addressArrayStorage[
+            keccak256(abi.encode(POOL_STAKERS, _pool))
+        ];
+        _setPoolStakerIndex(_pool, _staker, stakers.length);
+        stakers.push(_staker);
+    }
+
+    // Remove `_staker` from the array of observer's stakers
+    function _removePoolStaker(address _pool, address _staker) internal {
+        address[] storage stakers = addressArrayStorage[
+            keccak256(abi.encode(POOL_STAKERS, _pool))
+        ];
+        uint256 indexToRemove = poolStakerIndex(_pool, _staker);
+        stakers[indexToRemove] = stakers[stakers.length - 1];
+        _setPoolStakerIndex(_pool, stakers[indexToRemove], indexToRemove);
+        stakers.length--;
+        _setPoolStakerIndex(_pool, _staker, 0);
+    }
+
+    function _setPreviousValidators(address[] _validators) internal {
+        addressArrayStorage[PREVIOUS_VALIDATORS] = _validators;
+    }
+
+    function _setRewardDistribution(address _validator, address _staker, uint256 _amount) internal {
+        uintStorage[
+            keccak256(abi.encode(REWARD_DISTRIBUTION, _validator, _staker))
+        ] = _amount;
+    }
+
+    function _setRewardDistribution(address[] _newValidators) internal {
         address validator;
         address staker;
         uint256 i;
         uint256 s;
 
+        address[] storage distributionValidators = addressArrayStorage[REWARD_DISTRIBUTION_VALIDATORS];
+
         // Clear the previous distribution
-        for (i = 0; i < rewardDistributionValidators.length; i++) {
-            validator = rewardDistributionValidators[i];
-            rewardDistribution[validator][validator] = 0;
-            for (s = 0; s < rewardDistributionStakers[validator].length; s++) {
-                staker = rewardDistributionStakers[validator][s];
-                rewardDistribution[validator][staker] = 0;
+        for (i = 0; i < distributionValidators.length; i++) {
+            validator = distributionValidators[i];
+            _setRewardDistribution(validator, validator, 0);
+
+            address[] storage distributionStakers = addressArrayStorage[
+                keccak256(abi.encode(REWARD_DISTRIBUTION_STAKERS, validator))
+            ];
+
+            for (s = 0; s < distributionStakers.length; s++) {
+                staker = distributionStakers[s];
+                _setRewardDistribution(validator, staker, 0);
             }
-            delete rewardDistributionStakers[validator];
+
+            distributionStakers.length = 0;
         }
 
         // Set a new distribution
-        poolReward = blockReward.BLOCK_REWARD() / currentValidators.length;
-        
-        rewardDistributionValidators = currentValidators;
-        for (i = 0; i < currentValidators.length; i++) {
-            validator = currentValidators[i];
+        uintStorage[POOL_REWARD] = blockReward().BLOCK_REWARD() / _newValidators.length;
 
-            uint256 validatorStake = stakeAmount[validator][validator];
-            uint256 totalAmount = stakeAmountTotal[validator];
+        addressArrayStorage[REWARD_DISTRIBUTION_VALIDATORS] = _newValidators;
+        for (i = 0; i < _newValidators.length; i++) {
+            validator = _newValidators[i];
+
+            uint256 validatorStake = stakeAmount(validator, validator);
+            uint256 totalAmount = stakeAmountTotal(validator);
             uint256 stakersAmount = totalAmount - validatorStake;
             bool validatorDominates = validatorStake > stakersAmount;
 
             uint256 reward;
             if (validatorDominates) {
-                reward = poolReward.mul(validatorStake).div(totalAmount);
+                reward = poolReward().mul(validatorStake).div(totalAmount);
             } else {
-                reward = poolReward.mul(3).div(10);
+                reward = poolReward().mul(3).div(10);
             }
-            rewardDistribution[validator][validator] = reward;
+            _setRewardDistribution(validator, validator, reward);
 
-            for (s = 0; s < poolStakers[validator].length; s++) {
-                staker = poolStakers[validator][s];
-                uint256 stakerStake = stakeAmount[validator][staker];
+            address[] memory stakers = poolStakers(validator);
+
+            for (s = 0; s < stakers.length; s++) {
+                staker = stakers[s];
+                uint256 stakerStake = stakeAmount(validator, staker);
                 if (validatorDominates) {
-                    reward = poolReward.mul(stakerStake).div(totalAmount);
+                    reward = poolReward().mul(stakerStake).div(totalAmount);
                 } else {
-                    reward = poolReward.mul(stakerStake).mul(7).div(stakersAmount.mul(10));
+                    reward = poolReward().mul(stakerStake).mul(7).div(stakersAmount.mul(10));
                 }
-                rewardDistribution[validator][staker] = reward;
-                rewardDistributionStakers[validator].push(staker);
+                _setRewardDistribution(validator, staker, reward);
+                addressArrayStorage[
+                    keccak256(abi.encode(REWARD_DISTRIBUTION_STAKERS, validator))
+                ].push(staker);
             }
         }
+    }
+
+    function _setStakeAmount(address _observer, address _staker, uint256 _amount) internal {
+        uintStorage[
+            keccak256(abi.encode(STAKE_AMOUNT, _observer, _staker))
+        ] = _amount;
+    }
+
+    function _setStakeAmountByEpoch(
+        address _observer,
+        address _staker,
+        uint256 _stakingEpoch,
+        uint256 _amount
+    ) internal {
+        uintStorage[
+            keccak256(abi.encode(STAKE_AMOUNT_BY_EPOCH, _observer, _staker, _stakingEpoch))
+        ] = _amount;
+    }
+
+    function _setStakeAmountTotal(address _pool, uint256 _amount) internal {
+        uintStorage[
+            keccak256(abi.encode(STAKE_AMOUNT_TOTAL, _pool))
+        ] = _amount;
+    }
+
+    function _setValidatorIndex(address _validator, uint256 _index) internal {
+        uintStorage[
+            keccak256(abi.encode(VALIDATOR_INDEX, _validator))
+        ] = _index;
+    }
+
+    function _setValidatorSetApplyBlock(uint256 _blockNumber) internal {
+        uintStorage[VALIDATOR_SET_APPLY_BLOCK] = _blockNumber;
     }
 
     function _stake(address _observer, address _staker, uint256 _amount) internal {
@@ -571,22 +817,22 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         require(_amount != 0);
         require(!isValidatorBanned(_observer));
 
-        uint256 newStakeAmount = stakeAmount[_observer][_staker].add(_amount);
+        uint256 epoch = stakingEpoch();
+
+        uint256 newStakeAmount = stakeAmount(_observer, _staker).add(_amount);
         require(newStakeAmount >= MIN_STAKE); // the staked amount must be at least MIN_STAKE
-        stakeAmount[_observer][_staker] = newStakeAmount;
-        stakeAmountByEpoch[_observer][_staker][stakingEpoch] =
-            stakeAmountByEpoch[_observer][_staker][stakingEpoch].add(_amount);
-        stakeAmountTotal[_observer] = stakeAmountTotal[_observer].add(_amount);
+        _setStakeAmount(_observer, _staker, newStakeAmount);
+        _setStakeAmountByEpoch(_observer, _staker, epoch, stakeAmountByEpoch(_observer, _staker, epoch).add(_amount));
+        _setStakeAmountTotal(_observer, stakeAmountTotal(_observer).add(_amount));
 
         if (_staker == _observer) { // `staker` makes a stake for himself and becomes an observer
-            if (observersState[_observer].publicKey.length != 0) {
+            if (publicKey(_observer).length != 0) {
                 // Add `_observer` to the array of pools
                 _addToPools(_observer);
             }
         } else if (newStakeAmount == _amount) { // if the stake is first
             // Add `_staker` to the array of observer's stakers
-            poolStakerIndex[_observer][_staker] = poolStakers[_observer].length;
-            poolStakers[_observer].push(_staker);
+            _addPoolStaker(_observer, _staker);
         }
     }
 
@@ -597,17 +843,20 @@ contract ReportingValidatorSet is IReportingValidatorSet {
         // How much can `staker` withdraw from `_observer` pool at the moment?
         require(_amount <= maxWithdrawAllowed(_observer, _staker));
 
+        uint256 epoch = stakingEpoch();
+
         // The amount to be withdrawn must be the whole staked amount or
         // must not exceed the diff between the entire amount and MIN_STAKE
-        uint256 newStakeAmount = stakeAmount[_observer][_staker].sub(_amount);
+        uint256 newStakeAmount = stakeAmount(_observer, _staker).sub(_amount);
         require(newStakeAmount == 0 || newStakeAmount >= MIN_STAKE);
-        stakeAmount[_observer][_staker] = newStakeAmount;
-        if (_amount <= stakeAmountByEpoch[_observer][_staker][stakingEpoch]) {
-            stakeAmountByEpoch[_observer][_staker][stakingEpoch] -= _amount;
+        _setStakeAmount(_observer, _staker, newStakeAmount);
+        uint256 amountByEpoch = stakeAmountByEpoch(_observer, _staker, epoch);
+        if (_amount <= amountByEpoch) {
+            _setStakeAmountByEpoch(_observer, _staker, epoch, amountByEpoch - _amount);
         } else {
-            stakeAmountByEpoch[_observer][_staker][stakingEpoch] = 0;
+            _setStakeAmountByEpoch(_observer, _staker, epoch, 0);
         }
-        stakeAmountTotal[_observer] = stakeAmountTotal[_observer].sub(_amount);
+        _setStakeAmountTotal(_observer, stakeAmountTotal(_observer).sub(_amount));
 
         if (newStakeAmount == 0) { // the whole amount has been withdrawn
             if (_staker == _observer) {
@@ -615,38 +864,32 @@ contract ReportingValidatorSet is IReportingValidatorSet {
                 _removeFromPools(_observer);
             } else {
                 // Remove `_staker` from the array of observer's stakers
-                uint256 indexToRemove = poolStakerIndex[_observer][_staker];
-                poolStakers[_observer][indexToRemove] =
-                    poolStakers[_observer][poolStakers[_observer].length];
-                poolStakerIndex[_observer][poolStakers[_observer][indexToRemove]] =
-                    indexToRemove;
-                poolStakers[_observer].length--;
-                delete poolStakerIndex[_observer][_staker];
+                _removePoolStaker(_observer, _staker);
             }
 
-            if (stakeAmountTotal[_observer] == 0) {
+            if (stakeAmountTotal(_observer) == 0) {
                 _removeFromPoolsInactive(_observer);
             }
         }
     }
 
     function _isReportingValidatorValid(address _reportingValidator) internal view returns(bool) {
-        if (validatorSetApplyBlock == 0) {
+        if (validatorSetApplyBlock() == 0) {
             // The current validator set is not applied on hbbft yet,
             // so let the validators from previous staking epoch
             // report malicious validator
-            if (!isValidatorOnPreviousEpoch[_reportingValidator]) {
+            if (!isValidatorOnPreviousEpoch(_reportingValidator)) {
                 return false;
             }
             if (isValidatorBanned(_reportingValidator)) {
                 return false;
             }
-        } else if (block.number - validatorSetApplyBlock <= 3) {
+        } else if (block.number - validatorSetApplyBlock() <= 3) {
             // The current validator set is applied on hbbft,
             // but we should let the previous validators finish
             // reporting malicious validator within a few blocks
             bool previousEpochValidator =
-                isValidatorOnPreviousEpoch[_reportingValidator] && !isValidatorBanned(_reportingValidator);
+                isValidatorOnPreviousEpoch(_reportingValidator) && !isValidatorBanned(_reportingValidator);
             return isValidator(_reportingValidator) || previousEpochValidator;
         } else {
             return isValidator(_reportingValidator);
