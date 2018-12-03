@@ -9,8 +9,6 @@ import "./libs/SafeMath.sol";
 contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
     using SafeMath for uint256;
 
-    // TODO: `validatorIndex`, `publicKey`, and `isValidator` must return info about initial validators
-
     // TODO: add a description for each function
 
     // ============================================== Constants =======================================================
@@ -99,6 +97,23 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
     }
 
     // =============================================== Setters ========================================================
+
+    /// Creates an initial set of validators at the starting of the network.
+    /// Must be called by the constructor of `Initializer` contract on genesis block.
+    function initialize(address[] _initialValidators) external {
+        address[] storage currentValidators = addressArrayStorage[CURRENT_VALIDATORS];
+
+        require(block.number == 0);
+        require(_initialValidators.length > 0);
+        require(currentValidators.length == 0);
+        
+        // Add initial validators to the `currentValidators` array
+        for (uint256 i = 0; i < _initialValidators.length; i++) {
+            currentValidators.push(_initialValidators[i]);
+            _setValidatorIndex(_initialValidators[i], i);
+            _setIsValidator(_initialValidators[i], true);
+        }
+    }
 
     function addPool(bytes _publicKey) public payable {
         stake(msg.sender);
@@ -202,13 +217,13 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
 
     // Note: the calling validator must have enough balance for gas spending
     function reportBenign(address _validator, uint256 _blockNumber) public {
-        require(stakingEpoch() == 0 || _isReportingValidatorValid(msg.sender));
+        require(_isReportingValidatorValid(msg.sender));
         emit BenignReported(msg.sender, _validator, _blockNumber);
     }
 
     // Note: the calling validator must have enough balance for gas spending
     function reportMalicious(address _validator, uint256 _blockNumber, bytes _proof) public {
-        require(stakingEpoch() == 0 || _isReportingValidatorValid(msg.sender));
+        require(_isReportingValidatorValid(msg.sender));
         emit MaliciousReported(msg.sender, _validator, _blockNumber, _proof);
     }
 
@@ -218,12 +233,11 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
         returns(address[])
     {
         require(_validators.length == _reportingValidators.length);
-        require(stakingEpoch() > 0);
 
         bool validatorSetChanged = false;
 
         uint256 validatorsLength = getValidators().length;
-        if (validatorSetApplyBlock() == 0) {
+        if (validatorSetApplyBlock() == 0 && stakingEpoch() > 0) {
             validatorsLength = getPreviousValidators().length;
         }
 
@@ -380,27 +394,7 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
     }
 
     function getValidators() public view returns(address[]) {
-        if (stakingEpoch() == 0) {
-            // Return initial validator set
-            uint256 initialValidatorsLength = initialValidators().length;
-            address[] memory validators = new address[](initialValidatorsLength);
-
-            for (uint256 i = 0; i < initialValidatorsLength; i++) {
-                validators[i] = initialValidators()[i];
-            }
-
-            return validators;
-        }
         return addressArrayStorage[CURRENT_VALIDATORS];
-    }
-
-    function initialValidators() public pure returns(address[3]) {
-        // These values must be changed before deploy
-        return([
-            address(0x1000000000000000000000000000000000000000),
-            address(0x2000000000000000000000000000000000000000),
-            address(0x3000000000000000000000000000000000000000)
-        ]);
     }
 
     // Returns the flag whether the address in the `pools` array
@@ -874,6 +868,9 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
     }
 
     function _isReportingValidatorValid(address _reportingValidator) internal view returns(bool) {
+        if (stakingEpoch() == 0) {
+            return isValidator(_reportingValidator);
+        }
         if (validatorSetApplyBlock() == 0) {
             // The current validator set is not applied on hbbft yet,
             // so let the validators from previous staking epoch
