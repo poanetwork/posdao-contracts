@@ -15,7 +15,8 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
 
     uint256 public constant MAX_OBSERVERS = 2000;
     uint256 public constant MAX_VALIDATORS = 20;
-    uint256 public constant MIN_STAKE = 1 * STAKE_UNIT; // must be specified before network launching
+    uint256 public constant VALIDATOR_MIN_STAKE = 1 * STAKE_UNIT; // must be specified before network launching
+    uint256 public constant STAKER_MIN_STAKE = 1 * STAKE_UNIT; // must be specified before network launching
     uint256 public constant STAKE_UNIT = 1 ether;
 
     // ================================================ Events ========================================================
@@ -814,7 +815,11 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
         uint256 epoch = stakingEpoch();
 
         uint256 newStakeAmount = stakeAmount(_observer, _staker).add(_amount);
-        require(newStakeAmount >= MIN_STAKE); // the staked amount must be at least MIN_STAKE
+        if (_staker == _observer) {
+            require(newStakeAmount >= VALIDATOR_MIN_STAKE); // the staked amount must be at least MIN_STAKE_VALIDATOR
+        } else {
+            require(newStakeAmount >= STAKER_MIN_STAKE); // the staked amount must be at least STAKER_MIN_STAKE
+        }
         _setStakeAmount(_observer, _staker, newStakeAmount);
         _setStakeAmountByEpoch(_observer, _staker, epoch, stakeAmountByEpoch(_observer, _staker, epoch).add(_amount));
         _setStakeAmountTotal(_observer, stakeAmountTotal(_observer).add(_amount));
@@ -842,7 +847,11 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
         // The amount to be withdrawn must be the whole staked amount or
         // must not exceed the diff between the entire amount and MIN_STAKE
         uint256 newStakeAmount = stakeAmount(_observer, _staker).sub(_amount);
-        require(newStakeAmount == 0 || newStakeAmount >= MIN_STAKE);
+        if (_staker == _observer) {
+            require(newStakeAmount == 0 || newStakeAmount >= VALIDATOR_MIN_STAKE);
+        } else {
+            require(newStakeAmount == 0 || newStakeAmount >= STAKER_MIN_STAKE);
+        }
         _setStakeAmount(_observer, _staker, newStakeAmount);
         uint256 amountByEpoch = stakeAmountByEpoch(_observer, _staker, epoch);
         if (_amount <= amountByEpoch) {
