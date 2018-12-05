@@ -32,6 +32,21 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
         uint256 indexed blockNumber
     );
 
+    /// Emitted by `newValidatorSet` and `reportMaliciousValidator` to signal
+    /// a desired change in validator set. This will not lead to a change in
+    /// active validator set until `finalizeChange` is called.
+    ///
+    /// Only the last log event of any block can take effect.
+    /// If a signal is issued while another is being finalized it may never
+    /// take effect.
+    /// 
+    /// @param parentHash Should be the parent block hash.
+    /// @param newSet New set of validators.
+    event InitiateChange(
+        bytes32 indexed parentHash,
+        address[] newSet
+    );
+
     /// Emitted by `reportMalicious` function to signal that the validator misbehaves.
     /// @param reporter Reporting validator.
     /// @param validator Reported validator.
@@ -140,7 +155,7 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
         }
     }
 
-    function newValidatorSet() public onlySystem returns(address[]) {
+    function newValidatorSet() public onlySystem {
         address[] memory pools = getPools();
         require(pools.length > 0);
 
@@ -157,7 +172,7 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
         }
         _setPreviousValidators(currentValidators);
 
-        // Clear `ObserverState` for current validator set
+        // Clear indexes for current validator set
         for (i = 0; i < currentValidators.length; i++) {
             _setValidatorIndex(currentValidators[i], 0);
             _setIsValidator(currentValidators[i], false);
@@ -198,7 +213,7 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
 
         _setCurrentValidators(currentValidators);
 
-        // Set `ObserverState` for new validator set
+        // Set indexes for new validator set
         for (i = 0; i < currentValidators.length; i++) {
             _setValidatorIndex(currentValidators[i], i);
             _setIsValidator(currentValidators[i], true);
@@ -213,7 +228,7 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
 
         _setValidatorSetApplyBlock(0);
 
-        return currentValidators;
+        emit InitiateChange(blockhash(block.number - 1), currentValidators);
     }
 
     // Note: the calling validator must have enough balance for gas spending
@@ -228,10 +243,10 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
         emit MaliciousReported(msg.sender, _validator, _blockNumber, _proof);
     }
 
+    // Note: this implementation is only for hbbft
     function reportMaliciousValidator(address[] _validators, address[] _reportingValidators)
         public
         onlySystem
-        returns(address[])
     {
         require(_validators.length == _reportingValidators.length);
 
@@ -295,9 +310,7 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
 
         if (validatorSetChanged) {
             _incrementChangeRequestCount();
-            return getValidators(); // return the new validator set
-        } else {
-            return new address[](0); // return empty array
+            emit InitiateChange(blockhash(block.number - 1), getValidators());
         }
     }
 
@@ -847,10 +860,12 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
         // The amount to be withdrawn must be the whole staked amount or
         // must not exceed the diff between the entire amount and MIN_STAKE
         uint256 newStakeAmount = stakeAmount(_observer, _staker).sub(_amount);
-        if (_staker == _observer) {
-            require(newStakeAmount == 0 || newStakeAmount >= VALIDATOR_MIN_STAKE);
-        } else {
-            require(newStakeAmount == 0 || newStakeAmount >= STAKER_MIN_STAKE);
+        if (newStakeAmount > 0) {
+            if (_staker == _observer) {
+                require(newStakeAmount >= VALIDATOR_MIN_STAKE);
+            } else {
+                require(newStakeAmount >= STAKER_MIN_STAKE);
+            }
         }
         _setStakeAmount(_observer, _staker, newStakeAmount);
         uint256 amountByEpoch = stakeAmountByEpoch(_observer, _staker, epoch);
