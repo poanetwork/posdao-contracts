@@ -243,6 +243,48 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
         emit MaliciousReported(msg.sender, _validator, _blockNumber, _proof);
     }
 
+    // Note: this implementation is only for AuRA
+    function reportMaliciousValidator(address _validator, uint256 _blockNumber, address _reportingValidator)
+        public
+        onlySystem
+    {
+        require(_isReportingValidatorValid(_reportingValidator));
+
+        bool validatorSetChanged = false;
+
+        uint256 validatorsLength = _getValidatorsLength();
+
+        address[] storage reportedValidators =
+            addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED_FOR_BLOCK, _validator, _blockNumber))];
+
+        // Don't allow reporting validator to report about malicious validator more than once
+        for (uint256 m = 0; m < reportedValidators.length; m++) {
+            if (reportedValidators[m] == _reportingValidator) {
+                return;
+            }
+        }
+
+        reportedValidators.push(_reportingValidator);
+
+        if (isValidatorBanned(_validator)) {
+            // The malicious validator is already banned
+            return;
+        }
+
+        uint256 reportCount = reportedValidators.length;
+
+        // If more than 1/2 of validators reported about malicious validator
+        // for _blockNumber
+        if (reportCount.mul(2) > validatorsLength) {
+            validatorSetChanged = _removeMaliciousValidator(_validator);
+        }
+
+        if (validatorSetChanged) {
+            _incrementChangeRequestCount();
+            emit InitiateChange(blockhash(block.number - 1), getValidators());
+        }
+    }
+
     // Note: this implementation is only for hbbft
     function reportMaliciousValidator(address[] _validators, address[] _reportingValidators)
         public
@@ -252,10 +294,7 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
 
         bool validatorSetChanged = false;
 
-        uint256 validatorsLength = getValidators().length;
-        if (validatorSetApplyBlock() == 0 && stakingEpoch() > 0) {
-            validatorsLength = getPreviousValidators().length;
-        }
+        uint256 validatorsLength = _getValidatorsLength();
 
         // Handle each perpetrator-reporter pair
         for (uint256 i = 0; i < _validators.length; i++) {
@@ -294,15 +333,7 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
 
             // If at least 1/3 of validators reported about `maliciousValidator`
             if (reportCount.mul(3) >= validatorsLength) {
-                // Remove `maliciousValidator` from `pools`
-                _removeFromPools(maliciousValidator);
-
-                // Ban the `maliciousValidator` for the next 3 months
-                _banValidator(maliciousValidator, now + 90 days);
-
-                if (isValidator(maliciousValidator)) {
-                    // Remove the `maliciousValidator` from `currentValidators`
-                    _removeValidator(maliciousValidator);
+                if (_removeMaliciousValidator(maliciousValidator)) {
                     validatorSetChanged = true;
                 }
             }
@@ -431,6 +462,10 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
 
     function maliceReported(address _validator) public view returns(address[]) {
         return addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED, _validator))];
+    }
+
+    function maliceReportedForBlock(address _validator, uint256 _blockNumber) public view returns(address[]) {
+        return addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED_FOR_BLOCK, _validator, _blockNumber))];
     }
 
     function maxWithdrawAllowed(address _observer, address _staker) public view returns(uint256) {
@@ -575,6 +610,7 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
     bytes32 internal constant IS_VALIDATOR = "isValidator";
     bytes32 internal constant IS_VALIDATOR_ON_PREVIOUS_EPOCH = "isValidatorOnPreviousEpoch";
     bytes32 internal constant MALICE_REPORTED = "maliceReported";
+    bytes32 internal constant MALICE_REPORTED_FOR_BLOCK = "maliceReportedForBlock";
     bytes32 internal constant POOL_INDEX = "poolIndex";
     bytes32 internal constant POOL_INACTIVE_INDEX = "poolInactiveIndex";
     bytes32 internal constant POOL_STAKERS = "poolStakers";
@@ -649,6 +685,22 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
 
     function _incrementStakingEpoch() internal {
         uintStorage[STAKING_EPOCH]++;
+    }
+
+    function _removeMaliciousValidator(address _validator) internal returns(bool) {
+        // Remove malicious validator from `pools`
+        _removeFromPools(_validator);
+
+        // Ban the malicious validator for the next 3 months
+        _banValidator(_validator, now + 90 days);
+
+        if (isValidator(_validator)) {
+            // Remove the malicious validator from `currentValidators`
+            _removeValidator(_validator);
+            return true;
+        }
+
+        return false;
     }
 
     function _removeValidator(address _validator) internal {
@@ -871,12 +923,20 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
         }
     }
 
+    function _getValidatorsLength() internal view returns(uint256) {
+        uint256 validatorsLength = getValidators().length;
+        if (validatorSetApplyBlock() == 0 && stakingEpoch() > 0) {
+            validatorsLength = getPreviousValidators().length;
+        }
+        return validatorsLength;
+    }
+
     function _isReportingValidatorValid(address _reportingValidator) internal view returns(bool) {
         if (stakingEpoch() == 0) {
             return isValidator(_reportingValidator);
         }
         if (validatorSetApplyBlock() == 0) {
-            // The current validator set is not applied on hbbft yet,
+            // The current validator set is not applied on nodes yet,
             // so let the validators from previous staking epoch
             // report malicious validator
             if (!isValidatorOnPreviousEpoch(_reportingValidator)) {
