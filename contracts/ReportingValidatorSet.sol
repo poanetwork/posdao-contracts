@@ -286,7 +286,7 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
     }
 
     // Note: this implementation is only for hbbft
-    function reportMaliciousValidator(address[] _validators, address[] _reportingValidators)
+    function reportMaliciousValidators(address[] _validators, address[] _reportingValidators)
         public
         onlySystem
     {
