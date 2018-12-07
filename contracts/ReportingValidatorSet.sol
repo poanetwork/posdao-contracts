@@ -20,44 +20,6 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
     uint256 public constant STAKE_UNIT = 1 ether;
 
     // ================================================ Events ========================================================
-    
-    /// Emitted by `reportBenign` function to signal that the validator doesn't take part
-    /// in the consensus process.
-    /// @param reporter Reporting validator.
-    /// @param validator Reported validator.
-    /// @param blockNumber The block on which the reported validator didn't take part in consensus.
-    event BenignReported(
-        address indexed reporter,
-        address indexed validator,
-        uint256 indexed blockNumber
-    );
-
-    /// Emitted by `newValidatorSet` and `reportMaliciousValidator` to signal
-    /// a desired change in validator set. This will not lead to a change in
-    /// active validator set until `finalizeChange` is called.
-    ///
-    /// Only the last log event of any block can take effect.
-    /// If a signal is issued while another is being finalized it may never
-    /// take effect.
-    /// 
-    /// @param parentHash Should be the parent block hash.
-    /// @param newSet New set of validators.
-    event InitiateChange(
-        bytes32 indexed parentHash,
-        address[] newSet
-    );
-
-    /// Emitted by `reportMalicious` function to signal that the validator misbehaves.
-    /// @param reporter Reporting validator.
-    /// @param validator Reported validator.
-    /// @param blockNumber The block on which the reported validator misbehaved.
-    /// @param proof The bytes sequence of proof.
-    event MaliciousReported(
-        address indexed reporter,
-        address indexed validator,
-        uint256 indexed blockNumber,
-        bytes proof
-    );
 
     /// Emitted by `stake` function to signal that the staker made a stake of the specified
     /// amount for the specified observer during the specified staking epoch.
@@ -228,19 +190,7 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
 
         _setValidatorSetApplyBlock(0);
 
-        emit InitiateChange(blockhash(block.number - 1), currentValidators);
-    }
-
-    // Note: the calling validator must have enough balance for gas spending
-    function reportBenign(address _validator, uint256 _blockNumber) public {
-        require(_isReportingValidatorValid(msg.sender));
-        emit BenignReported(msg.sender, _validator, _blockNumber);
-    }
-
-    // Note: the calling validator must have enough balance for gas spending
-    function reportMalicious(address _validator, uint256 _blockNumber, bytes _proof) public {
-        require(_isReportingValidatorValid(msg.sender));
-        emit MaliciousReported(msg.sender, _validator, _blockNumber, _proof);
+        // From this moment `getValidators()` will return the new validator set
     }
 
     // Note: this implementation is only for AuRA
@@ -281,7 +231,7 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
 
         if (validatorSetChanged) {
             _incrementChangeRequestCount();
-            emit InitiateChange(blockhash(block.number - 1), getValidators());
+            // From this moment `getValidators()` will return the new validator set
         }
     }
 
@@ -341,7 +291,7 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
 
         if (validatorSetChanged) {
             _incrementChangeRequestCount();
-            emit InitiateChange(blockhash(block.number - 1), getValidators());
+            // From this moment `getValidators()` will return the new validator set
         }
     }
 
