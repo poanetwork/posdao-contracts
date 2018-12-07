@@ -1,6 +1,7 @@
 pragma solidity 0.4.25;
 
 import "./interfaces/IBlockReward.sol";
+import "./interfaces/IRandom.sol";
 import "./interfaces/IReportingValidatorSet.sol";
 import "./eternal-storage/EternalStorage.sol";
 import "./libs/SafeMath.sol";
@@ -113,7 +114,7 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
         if (validatorSetApplyBlock() == 0) {
             _setValidatorSetApplyBlock(block.number);
             // Copy the new snapshot into the BlockReward contract
-            blockReward().setSnapshot(snapshotPoolBlockReward(), snapshotValidators());
+            blockRewardContract().setSnapshot(snapshotPoolBlockReward(), snapshotValidators());
         }
     }
 
@@ -144,7 +145,7 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
         if (pools.length <= MAX_VALIDATORS) {
             currentValidators = pools;
         } else {
-            uint256[] memory randomNumbers = currentRandom();
+            uint256[] memory randomNumbers = randomContract().currentRandom();
 
             require(randomNumbers.length == MAX_VALIDATORS);
 
@@ -305,14 +306,6 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
         }
     }
 
-    function storeRandom(uint256[] _random) public onlySystem {
-        require(_random.length == MAX_VALIDATORS);
-        delete uintArrayStorage[CURRENT_RANDOM];
-        for (uint256 i = 0; i < _random.length; i++) {
-            uintArrayStorage[CURRENT_RANDOM].push(_random[i]);
-        }
-    }
-
     function moveStake(address _fromObserver, address _toObserver, uint256 _amount) public {
         require(_fromObserver != _toObserver);
         address staker = msg.sender;
@@ -341,10 +334,16 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
         }
     }
 
-    function setBlockRewardContract(IBlockReward _blockReward) public onlyOwner {
-        require(blockReward() == address(0));
-        require(_blockReward != address(0));
-        addressStorage[BLOCK_REWARD] = _blockReward;
+    function setBlockRewardContract(IBlockReward _blockRewardContract) public onlyOwner {
+        require(blockRewardContract() == address(0));
+        require(_blockRewardContract != address(0));
+        addressStorage[BLOCK_REWARD_CONTRACT] = _blockRewardContract;
+    }
+
+    function setRandomContract(IRandom _randomContract) public onlyOwner {
+        require(randomContract() == address(0));
+        require(_randomContract != address(0));
+        addressStorage[RANDOM_CONTRACT] = _randomContract;
     }
 
     // =============================================== Getters ========================================================
@@ -356,17 +355,13 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
         ];
     }
 
-    function blockReward() public view returns(IBlockReward) {
-        return IBlockReward(addressStorage[BLOCK_REWARD]);
+    function blockRewardContract() public view returns(IBlockReward) {
+        return IBlockReward(addressStorage[BLOCK_REWARD_CONTRACT]);
     }
 
     // Returns the serial number of validator set changing request
     function changeRequestCount() public view returns(uint256) {
         return uintStorage[CHANGE_REQUEST_COUNT];
-    }
-
-    function currentRandom() public view returns(uint256[]) {
-        return uintArrayStorage[CURRENT_RANDOM];
     }
 
     function doesPoolExist(address _who) public view returns(bool) {
@@ -484,6 +479,10 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
         ];
     }
 
+    function randomContract() public view returns(IRandom) {
+        return IRandom(addressStorage[RANDOM_CONTRACT]);
+    }
+
     // Returns the pool block reward for the current staking epoch
     function snapshotPoolBlockReward() public view returns(uint256) {
         return uintStorage[SNAPSHOT_POOL_BLOCK_REWARD];
@@ -542,14 +541,14 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
 
     // =============================================== Private ========================================================
 
-    bytes32 internal constant BLOCK_REWARD = keccak256("blockReward");
+    bytes32 internal constant BLOCK_REWARD_CONTRACT = keccak256("blockRewardContract");
     bytes32 internal constant CHANGE_REQUEST_COUNT = keccak256("changeRequestCount");
-    bytes32 internal constant CURRENT_RANDOM = keccak256("currentRandom");
     bytes32 internal constant CURRENT_VALIDATORS = keccak256("currentValidators");
     bytes32 internal constant OWNER = keccak256("owner");
     bytes32 internal constant POOLS = keccak256("pools");
     bytes32 internal constant POOLS_INACTIVE = keccak256("poolsInactive");
     bytes32 internal constant PREVIOUS_VALIDATORS = keccak256("previousValidators");
+    bytes32 internal constant RANDOM_CONTRACT = keccak256("randomContract");
     bytes32 internal constant SNAPSHOT_POOL_BLOCK_REWARD = keccak256("snapshotPoolBlockReward");
     bytes32 internal constant SNAPSHOT_VALIDATORS = keccak256("snapshotValidators");
     bytes32 internal constant STAKING_EPOCH = keccak256("stakingEpoch");
@@ -744,7 +743,7 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
         }
 
         // Make a new snapshot
-        uintStorage[SNAPSHOT_POOL_BLOCK_REWARD] = blockReward().BLOCK_REWARD() / _newValidators.length;
+        uintStorage[SNAPSHOT_POOL_BLOCK_REWARD] = blockRewardContract().BLOCK_REWARD() / _newValidators.length;
 
         addressArrayStorage[SNAPSHOT_VALIDATORS] = _newValidators;
         for (i = 0; i < _newValidators.length; i++) {
