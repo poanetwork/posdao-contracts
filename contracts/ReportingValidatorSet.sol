@@ -195,29 +195,37 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
     }
 
     // Note: this implementation is only for AuRA
-    function reportMaliciousValidator(address _validator, uint256 _blockNumber, address _reportingValidator)
+    function reportMaliciousValidator(bytes _message, bytes _signature)
         public
         onlySystem
     {
-        require(_isReportingValidatorValid(_reportingValidator));
+        address maliciousValidator;
+        uint256 blockNumber;
+        assembly {
+            maliciousValidator := and(mload(add(_message, 20)), 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF)
+            blockNumber := mload(add(_message, 52))
+        }
+        address reportingValidator = _recoverAddressFromSignedMessage(_message, _signature);
+
+        require(_isReportingValidatorValid(reportingValidator));
 
         bool validatorSetChanged = false;
 
         uint256 validatorsLength = _getValidatorsLength();
 
         address[] storage reportedValidators =
-            addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED_FOR_BLOCK, _validator, _blockNumber))];
+            addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED_FOR_BLOCK, maliciousValidator, blockNumber))];
 
         // Don't allow reporting validator to report about malicious validator more than once
         for (uint256 m = 0; m < reportedValidators.length; m++) {
-            if (reportedValidators[m] == _reportingValidator) {
+            if (reportedValidators[m] == reportingValidator) {
                 return;
             }
         }
 
-        reportedValidators.push(_reportingValidator);
+        reportedValidators.push(reportingValidator);
 
-        if (isValidatorBanned(_validator)) {
+        if (isValidatorBanned(maliciousValidator)) {
             // The malicious validator is already banned
             return;
         }
@@ -227,7 +235,7 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
         // If more than 1/2 of validators reported about malicious validator
         // for _blockNumber
         if (reportCount.mul(2) > validatorsLength) {
-            validatorSetChanged = _removeMaliciousValidator(_validator);
+            validatorSetChanged = _removeMaliciousValidator(maliciousValidator);
         }
 
         if (validatorSetChanged) {
@@ -918,5 +926,26 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
             r -= int256(_likelihood[uint256(++index)]);
         } while (r > 0);
         return uint256(index);
+    }
+
+    function _recoverAddressFromSignedMessage(bytes _message, bytes _signature)
+        internal
+        pure
+        returns(address)
+    {
+        require(_signature.length == 65);
+        bytes32 r;
+        bytes32 s;
+        bytes1 v;
+        assembly {
+            r := mload(add(_signature, 0x20))
+            s := mload(add(_signature, 0x40))
+            v := mload(add(_signature, 0x60))
+        }
+        bytes memory prefix = "\x19Ethereum Signed Message:\n";
+        string memory msgLength = "52";
+        require(_message.length == 52);
+        bytes32 messageHash = keccak256(abi.encodePacked(prefix, msgLength, _message));
+        return ecrecover(messageHash, uint8(v), r, s);
     }
 }
