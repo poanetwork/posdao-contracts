@@ -1,24 +1,16 @@
 pragma solidity 0.4.25;
 
-import "./interfaces/IRandom.sol";
-import "./interfaces/IReportingValidatorSet.sol";
-import "./libs/SafeMath.sol";
+import "./abstracts/RandomBase.sol";
 
 
-contract Random is IRandom {
-    using SafeMath for uint256;
+contract RandomAuRa is RandomBase {
 
     // ============================================== Constants =======================================================
 
     uint256 public constant COLLECT_ROUND_LENGTH = 200; // blocks
     uint256 public constant COMMIT_PHASE_LENGTH = COLLECT_ROUND_LENGTH / 2; // blocks
 
-    enum ConsensusMode { Invalid, AuRa, HBBFT }
-
     // =============================================== Storage ========================================================
-
-    IReportingValidatorSet public validatorSetContract;
-    ConsensusMode public consensusMode;
 
     mapping(uint256 => mapping(address => bytes32)) public commits;
     mapping(uint256 => address[]) public committedValidators;
@@ -26,36 +18,10 @@ contract Random is IRandom {
     mapping(uint256 => uint256) public revealsCount;
     
     uint256 private _currentSecret;
-    uint256[] private _randomArray;
-
-    // ============================================== Modifiers =======================================================
-
-    modifier onlySystem() {
-        require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
-        _;
-    }
-
-    modifier onlyAuRa() {
-        require(consensusMode == ConsensusMode.AuRa);
-        _;
-    }
-
-    modifier onlyHBBFT() {
-        require(consensusMode == ConsensusMode.HBBFT);
-        _;
-    }
 
     // =============================================== Setters ========================================================
 
-    constructor(IReportingValidatorSet _validatorSetContract, ConsensusMode _consensusMode) public {
-        require(_validatorSetContract != address(0));
-        require(_consensusMode != ConsensusMode.Invalid);
-        validatorSetContract = _validatorSetContract;
-        consensusMode = _consensusMode;
-    }
-
-    // This function is for AuRa
-    function commitHash(bytes32 _secretHash, bytes _signature) public onlySystem onlyAuRa {
+    function commitHash(bytes32 _secretHash, bytes _signature) public onlySystem {
         require(isCommitPhase()); // must only be called in commit phase
         require(_secretHash != bytes32(0));
 
@@ -75,8 +41,7 @@ contract Random is IRandom {
         committedValidators[collectRound].push(validator);
     }
 
-    // This function is for AuRa
-    function revealSecret(uint256 _secret, bytes _signature) public onlySystem onlyAuRa {
+    function revealSecret(uint256 _secret, bytes _signature) public onlySystem {
         require(isRevealPhase()); // must only be called in reveal phase
 
         bytes32 secretHash = keccak256(abi.encodePacked(_secret));
@@ -99,31 +64,16 @@ contract Random is IRandom {
         }
     }
 
-    // This function is for hbbft
-    function storeRandom(uint256[] _random) public onlySystem onlyHBBFT {
-        require(_random.length == validatorSetContract.MAX_VALIDATORS());
-        _randomArray = _random;
-    }
-
     // =============================================== Getters ========================================================
 
-    // This function is for AuRa
     function currentCollectRound() public view returns(uint256) {
         return block.number / COLLECT_ROUND_LENGTH;
     }
 
-    // This function is called by ReportingValidatorSet.
-    // May be used both by AuRa and hbbft.
-    function currentRandom() public view returns(uint256[]) {
-        return _randomArray;
-    }
-
-    // This function is for AuRa
     function isCommitPhase() public view returns(bool) {
         return (block.number % COLLECT_ROUND_LENGTH) < COMMIT_PHASE_LENGTH;
     }
 
-    // This function is for AuRa
     function isRevealPhase() public view returns(bool) {
         return !isCommitPhase();
     }

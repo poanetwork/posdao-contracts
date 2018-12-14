@@ -2,7 +2,7 @@ pragma solidity 0.4.25;
 
 import "./interfaces/IBlockReward.sol";
 import "./interfaces/IERC20Token.sol";
-import "./interfaces/IReportingValidatorSet.sol";
+import "./interfaces/IValidatorSet.sol";
 import "./eternal-storage/EternalStorage.sol";
 import "./libs/SafeMath.sol";
 
@@ -68,7 +68,7 @@ contract BlockReward is EternalStorage, IBlockReward {
     }
 
     function setSnapshot(uint256 _poolBlockReward, address[] _validators) external onlyValidatorSet {
-        IReportingValidatorSet validatorSet = IReportingValidatorSet(VALIDATOR_SET_CONTRACT);
+        IValidatorSet validatorSet = IValidatorSet(VALIDATOR_SET_CONTRACT);
         address validator;
         address[] memory stakers;
         uint256 i;

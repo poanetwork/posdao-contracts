@@ -1,7 +1,7 @@
 pragma solidity 0.4.25;
 
 
-interface IReportingValidatorSet {
+interface IValidatorSet {
     function initialize(address[]) external;
     function changeRequestCount() external view returns(uint256);
     function getValidators() external view returns(address[]);

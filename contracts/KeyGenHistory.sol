@@ -1,6 +1,6 @@
 pragma solidity 0.4.25;
 
-import "./interfaces/IReportingValidatorSet.sol";
+import "./interfaces/IValidatorSet.sol";
 import "./eternal-storage/EternalStorage.sol";
 import "./libs/SafeMath.sol";
 
@@ -38,7 +38,7 @@ contract KeyGenHistory is EternalStorage {
 
     // =============================================== Setters ========================================================
 
-    function setValidatorSetContract(IReportingValidatorSet _validatorSet) public onlyOwner {
+    function setValidatorSetContract(IValidatorSet _validatorSet) public onlyOwner {
         require(validatorSet() == address(0));
         require(_validatorSet != address(0));
         addressStorage[VALIDATOR_SET] = _validatorSet;
@@ -51,7 +51,7 @@ contract KeyGenHistory is EternalStorage {
 
         _setValidatorWrotePart(changeRequestCount, msg.sender);
 
-        IReportingValidatorSet validatorSetContract = validatorSet();
+        IValidatorSet validatorSetContract = validatorSet();
 
         uint256 stakingEpoch = validatorSetContract.stakingEpoch();
         uint256 changeRequestCount = validatorSetContract.changeRequestCount();
@@ -62,7 +62,7 @@ contract KeyGenHistory is EternalStorage {
     // Note: since this is non-system transaction, the calling validator
     // should have enough balance to call this function.
     function writeAck(bytes _ack) public onlyValidator {
-        IReportingValidatorSet validatorSetContract = validatorSet();
+        IValidatorSet validatorSetContract = validatorSet();
 
         uint256 stakingEpoch = validatorSetContract.stakingEpoch();
         uint256 changeRequestCount = validatorSetContract.changeRequestCount();
@@ -72,8 +72,8 @@ contract KeyGenHistory is EternalStorage {
 
     // =============================================== Getters ========================================================
 
-    function validatorSet() public view returns(IReportingValidatorSet) {
-        return IReportingValidatorSet(addressStorage[VALIDATOR_SET]);
+    function validatorSet() public view returns(IValidatorSet) {
+        return IValidatorSet(addressStorage[VALIDATOR_SET]);
     }
 
     function validatorWrotePart(uint256 _changeRequestCount, address _validator) public view returns(bool) {
