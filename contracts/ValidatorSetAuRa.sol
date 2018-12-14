@@ -12,13 +12,6 @@ contract ValidatorSetAuRa is ValidatorSetBase {
     uint256 public constant STAKING_EPOCH_DURATION = 1 weeks;
     uint256 public constant STAKE_WITHDRAW_DISALLOW_PERIOD = 6 hours; // the last hours of staking epoch
 
-    // ============================================== Modifiers =======================================================
-
-    modifier stakeWithdrawAllowed() {
-        require(now - uintStorage[STAKING_EPOCH_TIMESTAMP] <= STAKING_EPOCH_DURATION - STAKE_WITHDRAW_DISALLOW_PERIOD);
-        _;
-    }
-
     // =============================================== Setters ========================================================
 
     function addPool() public payable {
@@ -75,8 +68,8 @@ contract ValidatorSetAuRa is ValidatorSetBase {
 
         uint256 reportCount = reportedValidators.length;
 
-        // If more than 1/2 of validators reported about malicious validator
-        // for _blockNumber
+        // If more than 50% of validators reported about malicious validator
+        // for the same `blockNumber`
         if (reportCount.mul(2) > validatorsLength) {
             validatorSetChanged = _removeMaliciousValidator(maliciousValidator);
         }
@@ -100,6 +93,10 @@ contract ValidatorSetAuRa is ValidatorSetBase {
 
     function _setStakingEpochTimestamp(uint256 _timestamp) internal {
         uintStorage[STAKING_EPOCH_TIMESTAMP] = _timestamp;
+    }
+
+    function _areStakeAndWithdrawAllowed() internal view returns(bool) {
+        return now - uintStorage[STAKING_EPOCH_TIMESTAMP] <= STAKING_EPOCH_DURATION - STAKE_WITHDRAW_DISALLOW_PERIOD;
     }
 
     function _recoverAddressFromSignedMessage(bytes _message, bytes _signature)

@@ -75,10 +75,6 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         _;
     }
 
-    modifier stakeWithdrawAllowed() { // should be overridden by child contract if needed
-        _;
-    }
-
     // =============================================== Setters ========================================================
 
     function removePool() public {
@@ -211,6 +207,10 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
 
         if (isValidatorBanned(_observer)) {
             // No one can withdraw from `_observer` until the ban is expired
+            return 0;
+        }
+
+        if (!_areStakeAndWithdrawAllowed()) {
             return 0;
         }
 
@@ -673,10 +673,11 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         uintStorage[VALIDATOR_SET_APPLY_BLOCK] = _blockNumber;
     }
 
-    function _stake(address _observer, address _staker, uint256 _amount) internal stakeWithdrawAllowed {
+    function _stake(address _observer, address _staker, uint256 _amount) internal {
         require(_observer != address(0));
         require(_amount != 0);
         require(!isValidatorBanned(_observer));
+        require(_areStakeAndWithdrawAllowed());
 
         uint256 epoch = stakingEpoch();
 
@@ -699,7 +700,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         }
     }
 
-    function _withdraw(address _observer, address _staker, uint256 _amount) internal stakeWithdrawAllowed {
+    function _withdraw(address _observer, address _staker, uint256 _amount) internal {
         require(_observer != address(0));
         require(_amount != 0);
 
@@ -741,6 +742,8 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
             }
         }
     }
+
+    function _areStakeAndWithdrawAllowed() internal view returns(bool);
 
     function _getValidatorsLength() internal view returns(uint256) {
         uint256 validatorsLength = getValidators().length;

@@ -120,4 +120,8 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
         super._addToPools(_who);
         delete addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED, _who))];
     }
+
+    function _areStakeAndWithdrawAllowed() internal view returns(bool) {
+        return true;
+    }
 }
