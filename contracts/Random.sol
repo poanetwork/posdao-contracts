@@ -21,7 +21,7 @@ contract Random is IRandom {
     ConsensusMode public consensusMode;
 
     mapping(uint256 => mapping(address => bytes32)) public commits;
-    mapping(uint256 => address[]) public comittedValidators;
+    mapping(uint256 => address[]) public committedValidators;
     mapping(uint256 => mapping(address => bool)) public reveals;
     mapping(uint256 => uint256) public revealsCount;
     
@@ -56,45 +56,46 @@ contract Random is IRandom {
 
     // This function is for AuRa
     function commitHash(bytes32 _secretHash, bytes _signature) public onlySystem onlyAuRa {
+        require(isCommitPhase()); // must only be called in commit phase
         require(_secretHash != bytes32(0));
+
         address validator = _recoverAddressFromSignedMessage(_secretHash, _signature);
         require(validatorSetContract.isValidator(validator));
-        require(isCommitPhase()); // must only be called in commit phase
-        
+
         uint256 collectRound = currentCollectRound();
 
         require(commits[collectRound][validator] == bytes32(0)); // cannot commit more than once
 
-        if (comittedValidators[collectRound].length == 0) {
+        if (committedValidators[collectRound].length == 0) {
             // Clear info about previous collection round
             _clear();
         }
 
         commits[collectRound][validator] = _secretHash;
-        comittedValidators[collectRound].push(validator);
+        committedValidators[collectRound].push(validator);
     }
 
     // This function is for AuRa
     function revealSecret(uint256 _secret, bytes _signature) public onlySystem onlyAuRa {
-        bytes32 secretHash = keccak256(abi.encodePacked(_secret));
+        require(isRevealPhase()); // must only be called in reveal phase
 
+        bytes32 secretHash = keccak256(abi.encodePacked(_secret));
         require(secretHash != bytes32(0));
+
         address validator = _recoverAddressFromSignedMessage(bytes32(_secret), _signature);
         require(validatorSetContract.isValidator(validator));
-        require(isRevealPhase()); // must only be called in reveal phase
 
         uint256 collectRound = currentCollectRound();
 
         require(!reveals[collectRound][validator]); // cannot reveal more than once
+        require(secretHash == commits[collectRound][validator]); // the hash must be commited
 
-        if (secretHash == commits[collectRound][validator]) {
-            _currentSecret ^= _secret;
-            reveals[collectRound][validator] = true;
-            revealsCount[collectRound] = revealsCount[collectRound].add(1);
+        _currentSecret ^= _secret;
+        reveals[collectRound][validator] = true;
+        revealsCount[collectRound] = revealsCount[collectRound].add(1);
 
-            if (revealsCount[collectRound] == validatorSetContract.getValidators().length) {
-                _publishSecret();
-            }
+        if (revealsCount[collectRound] == committedValidators[collectRound].length) {
+            _publishSecret();
         }
     }
 
@@ -124,7 +125,7 @@ contract Random is IRandom {
 
     // This function is for AuRa
     function isRevealPhase() public view returns(bool) {
-        return (block.number % COLLECT_ROUND_LENGTH) >= COMMIT_PHASE_LENGTH;
+        return !isCommitPhase();
     }
 
     // =============================================== Private ========================================================
@@ -139,7 +140,7 @@ contract Random is IRandom {
 
         collectRound--;
 
-        address[] storage validators = comittedValidators[collectRound];
+        address[] storage validators = committedValidators[collectRound];
 
         for (uint256 i = 0; i < validators.length; i++) {
             commits[collectRound][validators[i]] = bytes32(0);
