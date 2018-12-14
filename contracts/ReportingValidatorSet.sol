@@ -19,6 +19,8 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
     uint256 public constant VALIDATOR_MIN_STAKE = 1 * STAKE_UNIT; // must be specified before network launching
     uint256 public constant STAKER_MIN_STAKE = 1 * STAKE_UNIT; // must be specified before network launching
     uint256 public constant STAKE_UNIT = 1 ether;
+    uint256 public constant STAKING_EPOCH_DURATION = 1 weeks;
+    uint256 public constant STAKE_WITHDRAW_DISALLOW_PERIOD = 6 hours; // the last hours of staking epoch
 
     // ================================================ Events ========================================================
 
@@ -75,9 +77,14 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
         _;
     }
 
+    modifier stakeWithdrawAllowed() {
+        require(now - uintStorage[STAKING_EPOCH_TIMESTAMP] <= STAKING_EPOCH_DURATION - STAKE_WITHDRAW_DISALLOW_PERIOD);
+        _;
+    }
+
     // =============================================== Setters ========================================================
 
-    /// Creates an initial set of validators at the starting of the network.
+    /// Creates an initial set of validators at the start of the network.
     /// Must be called by the constructor of `Initializer` contract on genesis block.
     function initialize(address[] _initialValidators) external {
         address[] storage currentValidators = addressArrayStorage[CURRENT_VALIDATORS];
@@ -92,8 +99,11 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
             _setValidatorIndex(_initialValidators[i], i);
             _setIsValidator(_initialValidators[i], true);
         }
+
+        _setStakingEpochTimestamp(now);
     }
 
+    // TODO: the `_publicKey` param is only required for hbbft
     function addPool(bytes _publicKey) public payable {
         stake(msg.sender);
         savePublicKey(_publicKey);
@@ -190,6 +200,7 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
         _setSnapshot(currentValidators);
 
         _setValidatorSetApplyBlock(0);
+        _setStakingEpochTimestamp(now);
 
         // From this moment `getValidators()` will return the new validator set
     }
@@ -244,7 +255,7 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
         }
     }
 
-    // Note: this implementation is only for hbbft
+    // Note: this function is only for hbbft
     function reportMaliciousValidators(address[] _validators, address[] _reportingValidators)
         public
         onlySystem
@@ -304,6 +315,7 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
         }
     }
 
+    // Note: this function is only for hbbft
     function savePublicKey(bytes _key) public {
         require(_key.length == 48); // https://github.com/poanetwork/threshold_crypto/issues/63
         require(stakeAmount(msg.sender, msg.sender) != 0);
@@ -386,11 +398,12 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
         return addressArrayStorage[POOLS_INACTIVE];
     }
 
-    // Returns the set of validators at the end of previous staking epoch
+    // Returns the set of validators which was actual at the end of previous staking epoch
     function getPreviousValidators() public view returns(address[]) {
         return addressArrayStorage[PREVIOUS_VALIDATORS];
     }
 
+    // Returns the current set of validators
     function getValidators() public view returns(address[]) {
         return addressArrayStorage[CURRENT_VALIDATORS];
     }
@@ -405,6 +418,7 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
         return boolStorage[keccak256(abi.encode(IS_VALIDATOR, _who))];
     }
 
+    // Returns the flag whether the address was a validator at the end of previous staking epoch
     function isValidatorOnPreviousEpoch(address _who) public view returns(bool) {
         return boolStorage[keccak256(abi.encode(IS_VALIDATOR_ON_PREVIOUS_EPOCH, _who))];
     }
@@ -413,10 +427,12 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
         return now < bannedUntil(_validator);
     }
 
+    // Note: this function is only for hbbft
     function maliceReported(address _validator) public view returns(address[]) {
         return addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED, _validator))];
     }
 
+    // Note: this function is only for AuRa
     function maliceReportedForBlock(address _validator, uint256 _blockNumber) public view returns(address[]) {
         return addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED_FOR_BLOCK, _validator, _blockNumber))];
     }
@@ -452,14 +468,14 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
         }
     }
 
-    // Returns index of the pool in the `pools` array
+    // Returns an index of the pool in the `pools` array
     function poolIndex(address _who) public view returns(uint256) {
         return uintStorage[
             keccak256(abi.encode(POOL_INDEX, _who))
         ];
     }
 
-    // Returns index of the pool in the `poolsInactive` array
+    // Returns an index of the pool in the `poolsInactive` array
     function poolInactiveIndex(address _who) public view returns(uint256) {
         return uintStorage[
             keccak256(abi.encode(POOL_INACTIVE_INDEX, _who))
@@ -481,6 +497,7 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
     }
 
     // Returns the serialized public key of observer/ validator
+    // Note: this function is only for hbbft
     function publicKey(address _who) public view returns(bytes) {
         return bytesStorage[
             keccak256(abi.encode(PUBLIC_KEY, _who))
@@ -542,7 +559,7 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
         ];
     }
 
-    // Returns the block number when `finalizeChange` was called to apply the set in hbbft
+    // Returns the block number when `finalizeChange` was called to apply the validator set
     function validatorSetApplyBlock() public view returns(uint256) {
         return uintStorage[VALIDATOR_SET_APPLY_BLOCK];
     }
@@ -560,6 +577,7 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
     bytes32 internal constant SNAPSHOT_POOL_BLOCK_REWARD = keccak256("snapshotPoolBlockReward");
     bytes32 internal constant SNAPSHOT_VALIDATORS = keccak256("snapshotValidators");
     bytes32 internal constant STAKING_EPOCH = keccak256("stakingEpoch");
+    bytes32 internal constant STAKING_EPOCH_TIMESTAMP = keccak256("stakingEpochTimestamp");
     bytes32 internal constant VALIDATOR_SET_APPLY_BLOCK = keccak256("validatorSetApplyBlock");
 
     bytes32 internal constant BANNED_UNTIL = "bannedUntil";
@@ -799,6 +817,10 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
         ] = _amount;
     }
 
+    function _setStakingEpochTimestamp(uint256 _timestamp) internal {
+        uintStorage[STAKING_EPOCH_TIMESTAMP] = _timestamp;
+    }
+
     function _setValidatorIndex(address _validator, uint256 _index) internal {
         uintStorage[
             keccak256(abi.encode(VALIDATOR_INDEX, _validator))
@@ -809,7 +831,7 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
         uintStorage[VALIDATOR_SET_APPLY_BLOCK] = _blockNumber;
     }
 
-    function _stake(address _observer, address _staker, uint256 _amount) internal {
+    function _stake(address _observer, address _staker, uint256 _amount) internal stakeWithdrawAllowed {
         require(_observer != address(0));
         require(_amount != 0);
         require(!isValidatorBanned(_observer));
@@ -837,7 +859,7 @@ contract ReportingValidatorSet is EternalStorage, IReportingValidatorSet {
         }
     }
 
-    function _withdraw(address _observer, address _staker, uint256 _amount) internal {
+    function _withdraw(address _observer, address _staker, uint256 _amount) internal stakeWithdrawAllowed {
         require(_observer != address(0));
         require(_amount != 0);
 
