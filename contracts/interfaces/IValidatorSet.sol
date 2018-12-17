@@ -7,8 +7,7 @@ interface IValidatorSet {
     function getValidators() external view returns(address[]);
     function isValidator(address) external view returns(bool);
     function MAX_VALIDATORS() external pure returns(uint256);
-    function snapshotPoolBlockReward() external view returns(uint256);
-    function snapshotStakers(address) external view returns(address[]);
-    function snapshotStakeAmount(address, address) external view returns(uint256);
+    function poolStakers(address) external view returns(address[]);
+    function stakeAmount(address, address) external view returns(uint256);
     function stakingEpoch() external view returns(uint256);
 }

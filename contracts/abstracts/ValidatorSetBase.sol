@@ -109,9 +109,8 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
             _applyPendingValidators();
             _setValidatorSetApplyBlock(block.number);
 
-            // Copy the new snapshot into the BlockReward contract
-            _setSnapshot();
-            blockRewardContract().setSnapshot(snapshotPoolBlockReward(), snapshotValidators());
+            // Set a new snapshot inside BlockReward contract
+            blockRewardContract().setSnapshot();
         } else {
             // Apply new validator set after `reportMaliciousValidator` is called
             _applyPendingValidators();
@@ -291,27 +290,6 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         return IRandom(addressStorage[RANDOM_CONTRACT]);
     }
 
-    // Returns the pool block reward for the current staking epoch
-    function snapshotPoolBlockReward() public view returns(uint256) {
-        return uintStorage[SNAPSHOT_POOL_BLOCK_REWARD];
-    }
-
-    function snapshotStakers(address _validator) public view returns(address[]) {
-        return addressArrayStorage[
-            keccak256(abi.encode(SNAPSHOT_STAKERS, _validator))
-        ];
-    }
-
-    function snapshotStakeAmount(address _validator, address _staker) public view returns(uint256) {
-        return uintStorage[
-            keccak256(abi.encode(SNAPSHOT_STAKE_AMOUNT, _validator, _staker))
-        ];
-    }
-
-    function snapshotValidators() public view returns(address[]) {
-        return addressArrayStorage[SNAPSHOT_VALIDATORS];
-    }
-
     function stakeAmount(address _observer, address _staker) public view returns(uint256) {
         return uintStorage[
             keccak256(abi.encode(STAKE_AMOUNT, _observer, _staker))
@@ -358,8 +336,6 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     bytes32 internal constant POOLS_INACTIVE = keccak256("poolsInactive");
     bytes32 internal constant PREVIOUS_VALIDATORS = keccak256("previousValidators");
     bytes32 internal constant RANDOM_CONTRACT = keccak256("randomContract");
-    bytes32 internal constant SNAPSHOT_POOL_BLOCK_REWARD = keccak256("snapshotPoolBlockReward");
-    bytes32 internal constant SNAPSHOT_VALIDATORS = keccak256("snapshotValidators");
     bytes32 internal constant STAKING_EPOCH = keccak256("stakingEpoch");
     bytes32 internal constant VALIDATOR_SET_APPLY_BLOCK = keccak256("validatorSetApplyBlock");
 
@@ -371,8 +347,6 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     bytes32 internal constant POOL_INACTIVE_INDEX = "poolInactiveIndex";
     bytes32 internal constant POOL_STAKERS = "poolStakers";
     bytes32 internal constant POOL_STAKER_INDEX = "poolStakerIndex";
-    bytes32 internal constant SNAPSHOT_STAKERS = "snapshotStakers";
-    bytes32 internal constant SNAPSHOT_STAKE_AMOUNT = "snapshotStakeAmount";
     bytes32 internal constant STAKE_AMOUNT = "stakeAmount";
     bytes32 internal constant STAKE_AMOUNT_BY_EPOCH = "stakeAmountByEpoch";
     bytes32 internal constant STAKE_AMOUNT_TOTAL = "stakeAmountTotal";
@@ -620,52 +594,6 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         addressArrayStorage[PREVIOUS_VALIDATORS] = _validators;
     }
 
-    function _setSnapshot() internal {
-        address validator;
-        uint256 i;
-        uint256 s;
-
-        address[] storage validators = addressArrayStorage[SNAPSHOT_VALIDATORS];
-
-        // Clear the previous snapshot
-        for (i = 0; i < validators.length; i++) {
-            validator = validators[i];
-            _setSnapshotStakeAmount(validator, validator, 0);
-
-            address[] storage validatorStakers = addressArrayStorage[
-                keccak256(abi.encode(SNAPSHOT_STAKERS, validator))
-            ];
-
-            for (s = 0; s < validatorStakers.length; s++) {
-                _setSnapshotStakeAmount(validator, validatorStakers[s], 0);
-            }
-
-            validatorStakers.length = 0;
-        }
-
-        // Make a new snapshot
-        address[] memory newValidators = getValidators();
-
-        uintStorage[SNAPSHOT_POOL_BLOCK_REWARD] = blockRewardContract().BLOCK_REWARD() / newValidators.length;
-        
-        addressArrayStorage[SNAPSHOT_VALIDATORS] = newValidators;
-
-        for (i = 0; i < newValidators.length; i++) {
-            validator = newValidators[i];
-            _setSnapshotStakeAmount(validator, validator, stakeAmount(validator, validator));
-
-            address[] memory stakers = poolStakers(validator);
-
-            for (s = 0; s < stakers.length; s++) {
-                _setSnapshotStakeAmount(validator, stakers[s], stakeAmount(validator, stakers[s]));
-            }
-
-            addressArrayStorage[
-                keccak256(abi.encode(SNAPSHOT_STAKERS, validator))
-            ] = stakers;
-        }
-    }
-
     function _setStakeAmount(address _observer, address _staker, uint256 _amount) internal {
         uintStorage[
             keccak256(abi.encode(STAKE_AMOUNT, _observer, _staker))
@@ -686,12 +614,6 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     function _setStakeAmountTotal(address _pool, uint256 _amount) internal {
         uintStorage[
             keccak256(abi.encode(STAKE_AMOUNT_TOTAL, _pool))
-        ] = _amount;
-    }
-
-    function _setSnapshotStakeAmount(address _validator, address _staker, uint256 _amount) internal {
-        uintStorage[
-            keccak256(abi.encode(SNAPSHOT_STAKE_AMOUNT, _validator, _staker))
         ] = _amount;
     }
 

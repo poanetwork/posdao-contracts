@@ -63,19 +63,21 @@ contract BlockReward is EternalStorage, IBlockReward {
         onlySystem
         returns (address[], uint256[])
     {
-        _mintTokensForStakers(benefactors);
-        return _mintCoinsByBridge();
+        _mintTokensForHBBFTStakers(benefactors);
+        return _mintNativeCoinsByBridge();
     }
 
-    function setSnapshot(uint256 _poolBlockReward, address[] _validators) external onlyValidatorSet {
+    function setSnapshot() external onlyValidatorSet {
         IValidatorSet validatorSet = IValidatorSet(VALIDATOR_SET_CONTRACT);
+
         address validator;
+        address[] memory validators;
         address[] memory stakers;
         uint256 i;
         uint256 s;
 
         // Clear the previous snapshot
-        address[] memory validators = snapshotValidators();
+        validators = snapshotValidators();
         for (i = 0; i < validators.length; i++) {
             validator = validators[i];
             _setSnapshotStakeAmount(validator, validator, 0);
@@ -87,17 +89,16 @@ contract BlockReward is EternalStorage, IBlockReward {
         }
 
         // Set a new snapshot
-        _setSnapshotPoolBlockReward(_poolBlockReward);
+        validators = validatorSet.getValidators();
+        _setSnapshotValidators(validators);
+        for (i = 0; i < validators.length; i++) {
+            validator = validators[i];
 
-        _setSnapshotValidators(_validators);
-        for (i = 0; i < _validators.length; i++) {
-            validator = _validators[i];
+            _setSnapshotStakeAmount(validator, validator, validatorSet.stakeAmount(validator, validator));
 
-            _setSnapshotStakeAmount(validator, validator, validatorSet.snapshotStakeAmount(validator, validator));
-
-            stakers = validatorSet.snapshotStakers(validator);
+            stakers = validatorSet.poolStakers(validator);
             for (s = 0; s < stakers.length; s++) {
-                _setSnapshotStakeAmount(validator, stakers[s], validatorSet.snapshotStakeAmount(validator, stakers[s]));
+                _setSnapshotStakeAmount(validator, stakers[s], validatorSet.stakeAmount(validator, stakers[s]));
             }
             _setSnapshotStakers(validator, stakers);
         }
@@ -168,10 +169,6 @@ contract BlockReward is EternalStorage, IBlockReward {
         ];
     }
 
-    function snapshotPoolBlockReward() public view returns(uint256) {
-        return uintStorage[SNAPSHOT_POOL_BLOCK_REWARD];
-    }
-
     function snapshotStakeAmount(address _validator, address _staker) public view returns(uint256) {
         return uintStorage[
             keccak256(abi.encode(SNAPSHOT_STAKE_AMOUNT, _validator, _staker))
@@ -192,7 +189,6 @@ contract BlockReward is EternalStorage, IBlockReward {
 
     bytes32 internal constant EXTRA_RECEIVERS = keccak256("extraReceivers");
     bytes32 internal constant MINTED_TOTALLY = keccak256("mintedTotally");
-    bytes32 internal constant SNAPSHOT_POOL_BLOCK_REWARD = keccak256("snapshotPoolBlockReward");
     bytes32 internal constant SNAPSHOT_VALIDATORS = keccak256("snapshotValidators");
 
     bytes32 internal constant BRIDGE_AMOUNT = "bridgeAmount";
@@ -224,7 +220,7 @@ contract BlockReward is EternalStorage, IBlockReward {
     }
 
     // Accrue native coins to bridge's receivers if any
-    function _mintCoinsByBridge() internal returns(address[], uint256[]) {
+    function _mintNativeCoinsByBridge() internal returns(address[], uint256[]) {
         uint256 extraLength = extraReceiversLength();
 
         address[] memory receivers = new address[](extraLength);
@@ -259,14 +255,15 @@ contract BlockReward is EternalStorage, IBlockReward {
     }
 
     // Mint ERC20 tokens for each staker of each active validator
-    function _mintTokensForStakers(address[] benefactors) internal {
+    // Note: this function is only for HBBFT
+    function _mintTokensForHBBFTStakers(address[] benefactors) internal {
         IERC20Token erc20Contract = IERC20Token(ERC20_TOKEN_CONTRACT);
 
         if (erc20Contract == address(0)) {
             return;
         }
 
-        uint256 poolReward = snapshotPoolBlockReward();
+        uint256 poolReward = BLOCK_REWARD / snapshotValidators().length;
 
         for (uint256 i = 0; i < benefactors.length; i++) {
             uint256 s;
@@ -282,23 +279,22 @@ contract BlockReward is EternalStorage, IBlockReward {
             }
 
             uint256 totalAmount = validatorStake + stakersAmount;
-            bool validatorDominates = validatorStake > stakersAmount;
 
             // Calculate reward for each staker
             for (s = 0; s < stakers.length; s++) {
                 uint256 stakerStake = snapshotStakeAmount(benefactors[i], stakers[s]);
 
                 erc20Receivers[s] = stakers[s];
-                if (validatorDominates) {
+                if (validatorStake > stakersAmount) {
                     erc20Rewards[s] = poolReward.mul(stakerStake).div(totalAmount);
                 } else {
                     erc20Rewards[s] = poolReward.mul(stakerStake).mul(7).div(stakersAmount.mul(10));
                 }
             }
 
-            // Calculate reward for each validator
+            // Calculate reward for validator
             erc20Receivers[s] = benefactors[i];
-            if (validatorDominates) {
+            if (validatorStake > stakersAmount) {
                 erc20Rewards[s] = poolReward.mul(validatorStake).div(totalAmount);
             } else {
                 erc20Rewards[s] = poolReward.mul(3).div(10);
@@ -336,10 +332,6 @@ contract BlockReward is EternalStorage, IBlockReward {
 
         hash = MINTED_TOTALLY;
         uintStorage[hash] = uintStorage[hash].add(_amount);
-    }
-
-    function _setSnapshotPoolBlockReward(uint256 _reward) private {
-        uintStorage[SNAPSHOT_POOL_BLOCK_REWARD] = _reward;
     }
 
     function _setSnapshotStakeAmount(address _validator, address _staker, uint256 _amount) private {
