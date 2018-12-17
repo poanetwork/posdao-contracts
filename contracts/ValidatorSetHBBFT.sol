@@ -33,7 +33,7 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
 
         bool validatorSetChanged = false;
 
-        uint256 validatorsLength = _getValidatorsLength();
+        uint256 validatorsLength = getValidators().length;
 
         // Handle each perpetrator-reporter pair
         for (uint256 i = 0; i < _validators.length; i++) {
@@ -80,7 +80,7 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
 
         if (validatorSetChanged) {
             _incrementChangeRequestCount();
-            // From this moment `getValidators()` will return the new validator set
+            // From this moment `getPendingValidators()` will return the new validator set
         }
     }
 
@@ -122,6 +122,7 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
     }
 
     function _areStakeAndWithdrawAllowed() internal view returns(bool) {
-        return true;
+        uint256 applyBlock = validatorSetApplyBlock();
+        return applyBlock != 0 && block.number > applyBlock;
     }
 }

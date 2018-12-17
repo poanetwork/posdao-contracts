@@ -78,6 +78,9 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     // =============================================== Setters ========================================================
 
     function removePool() public {
+        if (stakingEpoch() == 0 && isValidator(msg.sender)) {
+            revert(); // initial validator cannot remove his pool during the initial staking epoch
+        }
         _removeFromPools(msg.sender);
     }
 
@@ -87,12 +90,31 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
             return;
         }
 
-        // Apply new snapshot after `newValidatorSet()` is called,
-        // not after `reportMaliciousValidator` function is called
         if (validatorSetApplyBlock() == 0) {
+            // Apply new validator set after `newValidatorSet()` is called
+
+            address[] memory previousValidators = getPreviousValidators();
+            address[] memory currentValidators = getValidators();
+            uint256 i;
+
+            // Save the previous validator set
+            for (i = 0; i < previousValidators.length; i++) {
+                _setIsValidatorOnPreviousEpoch(previousValidators[i], false);
+            }
+            for (i = 0; i < currentValidators.length; i++) {
+                _setIsValidatorOnPreviousEpoch(currentValidators[i], true);
+            }
+            _setPreviousValidators(currentValidators);
+
+            _applyPendingValidators();
             _setValidatorSetApplyBlock(block.number);
+
             // Copy the new snapshot into the BlockReward contract
+            _setSnapshot();
             blockRewardContract().setSnapshot(snapshotPoolBlockReward(), snapshotValidators());
+        } else {
+            // Apply new validator set after `reportMaliciousValidator` is called
+            _applyPendingValidators();
         }
     }
 
@@ -173,7 +195,12 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         return addressArrayStorage[PREVIOUS_VALIDATORS];
     }
 
-    // Returns the current set of validators
+    // Returns the set of validators to be finalized in engine
+    function getPendingValidators() public view returns(address[]) {
+        return addressArrayStorage[PENDING_VALIDATORS];
+    }
+
+    // Returns the current set of validators (the same as in the engine)
     function getValidators() public view returns(address[]) {
         return addressArrayStorage[CURRENT_VALIDATORS];
     }
@@ -326,6 +353,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     bytes32 internal constant CHANGE_REQUEST_COUNT = keccak256("changeRequestCount");
     bytes32 internal constant CURRENT_VALIDATORS = keccak256("currentValidators");
     bytes32 internal constant OWNER = keccak256("owner");
+    bytes32 internal constant PENDING_VALIDATORS = keccak256("pendingValidators");
     bytes32 internal constant POOLS = keccak256("pools");
     bytes32 internal constant POOLS_INACTIVE = keccak256("poolsInactive");
     bytes32 internal constant PREVIOUS_VALIDATORS = keccak256("previousValidators");
@@ -399,6 +427,26 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         }
     }
 
+    function _applyPendingValidators() internal {
+        address[] memory validators = getValidators();
+        uint256 i;
+
+        // Clear indexes for old validator set
+        for (i = 0; i < validators.length; i++) {
+            _setValidatorIndex(validators[i], 0);
+            _setIsValidator(validators[i], false);
+        }
+
+        validators = getPendingValidators();
+        _setCurrentValidators(validators);
+
+        // Set indexes for new validator set
+        for (i = 0; i < validators.length; i++) {
+            _setValidatorIndex(validators[i], i);
+            _setIsValidator(validators[i], true);
+        }
+    }
+
     function _banValidator(address _validator, uint256 _bannedUntil) internal {
         uintStorage[
             keccak256(abi.encode(BANNED_UNTIL, _validator))
@@ -415,45 +463,31 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
 
     function _initialize(address[] _initialValidators) internal {
         address[] storage currentValidators = addressArrayStorage[CURRENT_VALIDATORS];
+        address[] storage pendingValidators = addressArrayStorage[PENDING_VALIDATORS];
 
-        require(block.number == 0);
+        require(block.number == 0); // initialization must be done on genesis block
         require(_initialValidators.length > 0);
         require(currentValidators.length == 0);
         
         // Add initial validators to the `currentValidators` array
         for (uint256 i = 0; i < _initialValidators.length; i++) {
             currentValidators.push(_initialValidators[i]);
+            pendingValidators.push(_initialValidators[i]);
             _setValidatorIndex(_initialValidators[i], i);
             _setIsValidator(_initialValidators[i], true);
+            _addToPools(_initialValidators[i]);
         }
+
+        _setValidatorSetApplyBlock(1);
     }
 
     function _newValidatorSet() internal {
         address[] memory pools = getPools();
         require(pools.length > 0);
 
-        uint256 i;
-        address[] memory previousValidators = getPreviousValidators();
-        address[] memory currentValidators = getValidators();
-
-        // Save the previous validator set
-        for (i = 0; i < previousValidators.length; i++) {
-            _setIsValidatorOnPreviousEpoch(previousValidators[i], false);
-        }
-        for (i = 0; i < currentValidators.length; i++) {
-            _setIsValidatorOnPreviousEpoch(currentValidators[i], true);
-        }
-        _setPreviousValidators(currentValidators);
-
-        // Clear indexes for current validator set
-        for (i = 0; i < currentValidators.length; i++) {
-            _setValidatorIndex(currentValidators[i], 0);
-            _setIsValidator(currentValidators[i], false);
-        }
-
         // Choose new validators
         if (pools.length <= MAX_VALIDATORS) {
-            currentValidators = pools;
+            _setPendingValidators(pools);
         } else {
             uint256[] memory randomNumbers = randomContract().currentRandom();
 
@@ -466,6 +500,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
             address[] memory newValidators = new address[](MAX_VALIDATORS);
 
             uint256 likelihoodSum = 0;
+            uint256 i;
 
             for (i = 0; i < poolsLocalLength; i++) {
                likelihood[i] = stakeAmountTotal(poolsLocal[i]).mul(100).div(STAKE_UNIT);
@@ -485,27 +520,16 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
                 likelihood[observerIndex] = likelihood[poolsLocalLength];
             }
 
-            currentValidators = newValidators;
+            _setPendingValidators(newValidators);
         }
 
-        _setCurrentValidators(currentValidators);
-
-        // Set indexes for new validator set
-        for (i = 0; i < currentValidators.length; i++) {
-            _setValidatorIndex(currentValidators[i], i);
-            _setIsValidator(currentValidators[i], true);
-        }
+        // From this moment `getPendingValidators()` will return the new validator set
 
         // Increment counters
         _incrementChangeRequestCount();
         _incrementStakingEpoch();
 
-        // Save stakes' snapshot
-        _setSnapshot(currentValidators);
-
         _setValidatorSetApplyBlock(0);
-
-        // From this moment `getValidators()` will return the new validator set
     }
 
     function _removeMaliciousValidator(address _validator) internal returns(bool) {
@@ -515,23 +539,24 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         // Ban the malicious validator for the next 3 months
         _banValidator(_validator, now + 90 days);
 
-        if (isValidator(_validator)) {
-            // Remove the malicious validator from `currentValidators`
-            _removeValidator(_validator);
+        address[] storage validators = addressArrayStorage[PENDING_VALIDATORS];
+        bool isPendingValidator = false;
+        uint256 i;
+
+        for (i = 0; i < validators.length; i++) {
+            if (validators[i] == _validator) {
+                isPendingValidator = true;
+                break;
+            }
+        }
+
+        if (isPendingValidator) {
+            // Remove the malicious validator from `pendingValidators`
+            validators[i] = validators[--validators.length];
             return true;
         }
 
         return false;
-    }
-
-    function _removeValidator(address _validator) internal {
-        uint256 indexToRemove = validatorIndex(_validator);
-        address[] storage validators = addressArrayStorage[CURRENT_VALIDATORS];
-        validators[indexToRemove] = validators[validators.length - 1];
-        _setValidatorIndex(validators[indexToRemove], indexToRemove);
-        validators.length--;
-        _setValidatorIndex(_validator, 0);
-        _setIsValidator(_validator, false);
     }
 
     function _setCurrentValidators(address[] _validators) internal {
@@ -548,6 +573,10 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
 
     function _setIsValidatorOnPreviousEpoch(address _who, bool _isValidator) internal {
         boolStorage[keccak256(abi.encode(IS_VALIDATOR_ON_PREVIOUS_EPOCH, _who))] = _isValidator;
+    }
+
+    function _setPendingValidators(address[] _validators) internal {
+        addressArrayStorage[PENDING_VALIDATORS] = _validators;
     }
 
     function _setPoolIndex(address _who, uint256 _index) internal {
@@ -591,7 +620,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         addressArrayStorage[PREVIOUS_VALIDATORS] = _validators;
     }
 
-    function _setSnapshot(address[] _newValidators) internal {
+    function _setSnapshot() internal {
         address validator;
         uint256 i;
         uint256 s;
@@ -615,11 +644,14 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         }
 
         // Make a new snapshot
-        uintStorage[SNAPSHOT_POOL_BLOCK_REWARD] = blockRewardContract().BLOCK_REWARD() / _newValidators.length;
+        address[] memory newValidators = getValidators();
 
-        addressArrayStorage[SNAPSHOT_VALIDATORS] = _newValidators;
-        for (i = 0; i < _newValidators.length; i++) {
-            validator = _newValidators[i];
+        uintStorage[SNAPSHOT_POOL_BLOCK_REWARD] = blockRewardContract().BLOCK_REWARD() / newValidators.length;
+        
+        addressArrayStorage[SNAPSHOT_VALIDATORS] = newValidators;
+
+        for (i = 0; i < newValidators.length; i++) {
+            validator = newValidators[i];
             _setSnapshotStakeAmount(validator, validator, stakeAmount(validator, validator));
 
             address[] memory stakers = poolStakers(validator);
@@ -745,39 +777,20 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
 
     function _areStakeAndWithdrawAllowed() internal view returns(bool);
 
-    function _getValidatorsLength() internal view returns(uint256) {
-        uint256 validatorsLength = getValidators().length;
-        if (validatorSetApplyBlock() == 0 && stakingEpoch() > 0) {
-            validatorsLength = getPreviousValidators().length;
-        }
-        return validatorsLength;
-    }
-
     function _isReportingValidatorValid(address _reportingValidator) internal view returns(bool) {
-        if (stakingEpoch() == 0) {
-            return isValidator(_reportingValidator);
+        bool isValid = isValidator(_reportingValidator) && !isValidatorBanned(_reportingValidator);
+        if (stakingEpoch() == 0 || validatorSetApplyBlock() == 0) {
+            return isValid;
         }
-        if (validatorSetApplyBlock() == 0) {
-            // The current validator set is not applied on nodes yet,
-            // so let the validators from previous staking epoch
-            // report malicious validator
-            if (!isValidatorOnPreviousEpoch(_reportingValidator)) {
-                return false;
-            }
-            if (isValidatorBanned(_reportingValidator)) {
-                return false;
-            }
-        } else if (block.number - validatorSetApplyBlock() <= 3) {
+        if (block.number - validatorSetApplyBlock() <= 3) {
             // The current validator set was applied in engine,
             // but we should let the previous validators finish
             // reporting malicious validator within a few blocks
             bool previousEpochValidator =
                 isValidatorOnPreviousEpoch(_reportingValidator) && !isValidatorBanned(_reportingValidator);
-            return isValidator(_reportingValidator) || previousEpochValidator;
-        } else {
-            return isValidator(_reportingValidator);
+            return isValid || previousEpochValidator;
         }
-        return true;
+        return isValid;
     }
 
     function _getRandomIndex(uint256[] _likelihood, uint256 _likelihoodSum, uint256 _randomNumber)
