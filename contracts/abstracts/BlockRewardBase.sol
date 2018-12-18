@@ -11,8 +11,8 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
 
     // ============================================== Constants =======================================================
 
-    // These value must be changed before deploy
-    uint256 public constant BRIDGES_ALLOWED_LENGTH = 1;
+    // These value must be set before deploy
+    uint256 public constant BRIDGES_ALLOWED_LENGTH = 1; // see also the `bridgesAllowed()` getter
     address public constant VALIDATOR_SET_CONTRACT = address(0);
 
     // ================================================ Events ========================================================
@@ -39,10 +39,28 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
 
     // =============================================== Setters ========================================================
 
-    function addExtraReceiver(uint256 _amount, address _receiver)
-        external
-        onlyBridgeContract
-    {
+    function addBridgeFeeReceivers(uint256 _amount) external onlyBridgeContract {
+        require(_amount != 0);
+
+        uint256 stakingEpoch = _getStakingEpoch();
+
+        // ...
+        // This should be implemented in a separate function to save a gas:
+        // if (stakingEpoch == 0) {
+        //     uint256 poolReward = _amount / getPendingValidators().length;
+        //     for (uint256 i = 0; i < getPendingValidators().length; i++) {
+        //         ...
+        //     }
+        // } else {
+        //     uint256 poolReward = _amount / snapshotValidators(stakingEpoch).length;
+        //     for (uint256 i = 0; i < getPendingValidators().length; i++) {
+        //         ...
+        //     }
+        // }
+        // ...
+    }
+
+    function addExtraReceiver(uint256 _amount, address _receiver) external onlyBridgeContract {
         require(_amount != 0);
         require(_receiver != address(0));
         uint256 oldAmount = extraReceiverAmount(_receiver);
@@ -63,36 +81,52 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
         uint256 i;
         uint256 s;
 
-        // Clear the previous snapshot
-        validators = snapshotValidators();
-        for (i = 0; i < validators.length; i++) {
-            validator = validators[i];
-            _setSnapshotStakeAmount(validator, validator, 0);
-            stakers = snapshotStakers(validator);
-            for (s = 0; s < stakers.length; s++) {
-                _setSnapshotStakeAmount(validator, stakers[s], 0);
+        uint256 stakingEpoch = validatorSet.stakingEpoch();
+
+        // Clear the snapshot of the staking epoch before last
+        if (stakingEpoch >= 2) {
+            uint256 stakingEpochBeforeLast = stakingEpoch - 2;
+
+            validators = snapshotValidators(stakingEpochBeforeLast);
+            for (i = 0; i < validators.length; i++) {
+                validator = validators[i];
+                _setSnapshotStakeAmount(stakingEpochBeforeLast, validator, validator, 0);
+                stakers = snapshotStakers(stakingEpochBeforeLast, validator);
+                for (s = 0; s < stakers.length; s++) {
+                    _setSnapshotStakeAmount(stakingEpochBeforeLast, validator, stakers[s], 0);
+                }
+                _clearSnapshotStakers(stakingEpochBeforeLast, validator);
             }
-            _clearSnapshotStakers(validator);
         }
 
-        // Set a new snapshot
+        // Set a new snapshot of the current staking epoch
         validators = validatorSet.getValidators();
-        _setSnapshotValidators(validators);
+        _setSnapshotValidators(stakingEpoch, validators);
         for (i = 0; i < validators.length; i++) {
             validator = validators[i];
-            _setSnapshotStakeAmount(validator, validator, validatorSet.stakeAmount(validator, validator));
+            _setSnapshotStakeAmount(
+                stakingEpoch,
+                validator,
+                validator,
+                validatorSet.stakeAmount(validator, validator)
+            );
             stakers = validatorSet.poolStakers(validator);
             for (s = 0; s < stakers.length; s++) {
-                _setSnapshotStakeAmount(validator, stakers[s], validatorSet.stakeAmount(validator, stakers[s]));
+                _setSnapshotStakeAmount(
+                    stakingEpoch,
+                    validator,
+                    stakers[s],
+                    validatorSet.stakeAmount(validator, stakers[s])
+                );
             }
-            _setSnapshotStakers(validator, stakers);
+            _setSnapshotStakers(stakingEpoch, validator, stakers);
         }
     }
 
     // =============================================== Getters ========================================================
 
     function bridgesAllowed() public pure returns(address[BRIDGES_ALLOWED_LENGTH]) {
-        // These values must be changed before deploy
+        // These addresses must be set before deploy
         return([
             address(0)
         ]);
@@ -154,27 +188,32 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
         ];
     }
 
-    function snapshotStakeAmount(address _validator, address _staker) public view returns(uint256) {
+    function snapshotStakeAmount(
+        uint256 _stakingEpoch,
+        address _validator,
+        address _staker
+    ) public view returns(uint256) {
         return uintStorage[
-            keccak256(abi.encode(SNAPSHOT_STAKE_AMOUNT, _validator, _staker))
+            keccak256(abi.encode(SNAPSHOT_STAKE_AMOUNT, _stakingEpoch, _validator, _staker))
         ];
     }
 
-    function snapshotStakers(address _validator) public view returns(address[]) {
+    function snapshotStakers(uint256 _stakingEpoch, address _validator) public view returns(address[]) {
         return addressArrayStorage[
-            keccak256(abi.encode(SNAPSHOT_STAKERS, _validator))
+            keccak256(abi.encode(SNAPSHOT_STAKERS, _stakingEpoch, _validator))
         ];
     }
 
-    function snapshotValidators() public view returns(address[]) {
-        return addressArrayStorage[SNAPSHOT_VALIDATORS];
+    function snapshotValidators(uint256 _stakingEpoch) public view returns(address[]) {
+        return addressArrayStorage[
+            keccak256(abi.encode(SNAPSHOT_VALIDATORS, _stakingEpoch))
+        ];
     }
 
     // =============================================== Private ========================================================
 
     bytes32 internal constant EXTRA_RECEIVERS = keccak256("extraReceivers");
     bytes32 internal constant MINTED_TOTALLY = keccak256("mintedTotally");
-    bytes32 internal constant SNAPSHOT_VALIDATORS = keccak256("snapshotValidators");
 
     bytes32 internal constant BRIDGE_AMOUNT = "bridgeAmount";
     bytes32 internal constant EXTRA_RECEIVER_AMOUNT = "extraReceiverAmount";
@@ -184,6 +223,7 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
     bytes32 internal constant MINTED_TOTALLY_BY_BRIDGE = "mintedTotallyByBridge";
     bytes32 internal constant SNAPSHOT_STAKERS = "snapshotStakers";
     bytes32 internal constant SNAPSHOT_STAKE_AMOUNT = "snapshotStakeAmount";
+    bytes32 internal constant SNAPSHOT_VALIDATORS = "snapshotValidators";
 
     function _addExtraReceiver(address _receiver) internal {
         addressArrayStorage[EXTRA_RECEIVERS].push(_receiver);
@@ -198,9 +238,9 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
         addressArrayStorage[EXTRA_RECEIVERS].length = 0;
     }
 
-    function _clearSnapshotStakers(address _validator) internal {
+    function _clearSnapshotStakers(uint256 _stakingEpoch, address _validator) internal {
         delete addressArrayStorage[
-            keccak256(abi.encode(SNAPSHOT_STAKERS, _validator))
+            keccak256(abi.encode(SNAPSHOT_STAKERS, _stakingEpoch, _validator))
         ];
     }
 
@@ -267,20 +307,43 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
         uintStorage[hash] = uintStorage[hash].add(_amount);
     }
 
-    function _setSnapshotStakeAmount(address _validator, address _staker, uint256 _amount) internal {
+    function _setSnapshotStakeAmount(
+        uint256 _stakingEpoch,
+        address _validator,
+        address _staker,
+        uint256 _amount
+    ) internal {
         uintStorage[
-            keccak256(abi.encode(SNAPSHOT_STAKE_AMOUNT, _validator, _staker))
+            keccak256(abi.encode(SNAPSHOT_STAKE_AMOUNT, _stakingEpoch, _validator, _staker))
         ] = _amount;
     }
 
-    function _setSnapshotStakers(address _validator, address[] _stakers) internal {
+    function _setSnapshotStakers(uint256 _stakingEpoch, address _validator, address[] _stakers) internal {
         addressArrayStorage[
-            keccak256(abi.encode(SNAPSHOT_STAKERS, _validator))
+            keccak256(abi.encode(SNAPSHOT_STAKERS, _stakingEpoch, _validator))
         ] = _stakers;
     }
 
-    function _setSnapshotValidators(address[] _validators) internal {
-        addressArrayStorage[SNAPSHOT_VALIDATORS] = _validators;
+    function _setSnapshotValidators(uint256 _stakingEpoch, address[] _validators) internal {
+        addressArrayStorage[
+            keccak256(abi.encode(SNAPSHOT_VALIDATORS, _stakingEpoch))
+        ] = _validators;
+    }
+
+    function _getStakingEpoch() internal view returns(uint256) {
+        IValidatorSet validatorSetContract = IValidatorSet(VALIDATOR_SET_CONTRACT);
+
+        uint256 stakingEpoch = validatorSetContract.stakingEpoch();
+
+        if (stakingEpoch == 0) {
+            return 0;
+        }
+
+        if (validatorSetContract.validatorSetApplyBlock() == 0) {
+            stakingEpoch--; // use the previous staking epoch because the current one is not applied yet
+        }
+
+        return stakingEpoch;
     }
 
     function _isBridgeContract(address _addr) internal pure returns(bool) {

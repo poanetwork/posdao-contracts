@@ -5,16 +5,6 @@ import "./abstracts/BlockRewardBase.sol";
 
 contract BlockRewardAuRa is BlockRewardBase {
 
-    // ============================================== Constants =======================================================
-
-    // ...
-
-    // ================================================ Events ========================================================
-
-    // ...
-
-    // =============================================== Setters ========================================================
-
     function reward(address[] benefactors, uint16[] kind)
         external
         onlySystem
@@ -24,16 +14,10 @@ contract BlockRewardAuRa is BlockRewardBase {
         require(benefactors.length == 1);
         require(kind[0] == 0);
 
-        // ...
-
+        // We don't accrue any block reward in native coins to validator here.
+        // We just mint native coins by bridge if needed,
+        // including the case of bridge's fee accrual.
         return _mintNativeCoinsByBridge();
     }
 
-    // =============================================== Getters ========================================================
-
-    // ...
-
-    // =============================================== Private ========================================================
-
-    // ...
 }
