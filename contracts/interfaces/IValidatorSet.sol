@@ -4,6 +4,8 @@ pragma solidity 0.4.25;
 interface IValidatorSet {
     function initialize(address[]) external;
     function changeRequestCount() external view returns(uint256);
+    function getPendingValidators() external view returns(address[]);
+    function getPreviousValidators() external view returns(address[]);
     function getValidators() external view returns(address[]);
     function isValidator(address) external view returns(bool);
     function MAX_VALIDATORS() external pure returns(uint256);

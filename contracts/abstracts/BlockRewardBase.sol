@@ -18,7 +18,7 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
     // ================================================ Events ========================================================
 
     event AddedReceiver(uint256 amount, address indexed receiver, address indexed bridge);
-    event RewardedByBlock(address[] receivers, uint256[] rewards);
+    event MintedByBridge(address[] receivers, uint256[] rewards);
 
     // ============================================== Modifiers =======================================================
 
@@ -41,23 +41,7 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
 
     function addBridgeFeeReceivers(uint256 _amount) external onlyBridgeContract {
         require(_amount != 0);
-
-        uint256 stakingEpoch = _getStakingEpoch();
-
-        // ...
-        // This should be implemented in a separate function to save a gas:
-        // if (stakingEpoch == 0) {
-        //     uint256 poolReward = _amount / getPendingValidators().length;
-        //     for (uint256 i = 0; i < getPendingValidators().length; i++) {
-        //         ...
-        //     }
-        // } else {
-        //     uint256 poolReward = _amount / snapshotValidators(stakingEpoch).length;
-        //     for (uint256 i = 0; i < getPendingValidators().length; i++) {
-        //         ...
-        //     }
-        // }
-        // ...
+        _addBridgeFee(_getStakingEpoch(), _amount);
     }
 
     function addExtraReceiver(uint256 _amount, address _receiver) external onlyBridgeContract {
@@ -216,6 +200,7 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
     bytes32 internal constant MINTED_TOTALLY = keccak256("mintedTotally");
 
     bytes32 internal constant BRIDGE_AMOUNT = "bridgeAmount";
+    bytes32 internal constant BRIDGE_FEE = "bridgeFee";
     bytes32 internal constant EXTRA_RECEIVER_AMOUNT = "extraReceiverAmount";
     bytes32 internal constant MINTED_FOR_ACCOUNT = "mintedForAccount";
     bytes32 internal constant MINTED_FOR_ACCOUNT_IN_BLOCK = "mintedForAccountInBlock";
@@ -225,6 +210,11 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
     bytes32 internal constant SNAPSHOT_STAKE_AMOUNT = "snapshotStakeAmount";
     bytes32 internal constant SNAPSHOT_VALIDATORS = "snapshotValidators";
 
+    function _addBridgeFee(uint256 _stakingEpoch, uint256 _amount) internal {
+        bytes32 hash = keccak256(abi.encode(BRIDGE_FEE, _stakingEpoch));
+        uintStorage[hash] = uintStorage[hash].add(_amount);
+    }
+
     function _addExtraReceiver(address _receiver) internal {
         addressArrayStorage[EXTRA_RECEIVERS].push(_receiver);
     }
@@ -232,6 +222,12 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
     function _addMintedTotallyByBridge(uint256 _amount, address _bridge) internal {
         bytes32 hash = keccak256(abi.encode(MINTED_TOTALLY_BY_BRIDGE, _bridge));
         uintStorage[hash] = uintStorage[hash].add(_amount);
+    }
+
+    function _clearBridgeFee(uint256 _stakingEpoch) internal {
+        uintStorage[
+            keccak256(abi.encode(BRIDGE_FEE, _stakingEpoch))
+        ] = 0;
     }
 
     function _clearExtraReceivers() internal {
@@ -274,7 +270,7 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
 
         _clearExtraReceivers();
 
-        emit RewardedByBlock(receivers, rewards);
+        emit MintedByBridge(receivers, rewards);
 
         return (receivers, rewards);
     }
@@ -328,6 +324,49 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
         addressArrayStorage[
             keccak256(abi.encode(SNAPSHOT_VALIDATORS, _stakingEpoch))
         ] = _validators;
+    }
+
+    function _distributePoolReward(
+        uint256 _stakingEpoch,
+        address _validator,
+        uint256 _poolReward
+    ) internal view returns(address[], uint256[]) {
+        uint256 s;
+        address[] memory stakers = snapshotStakers(_stakingEpoch, _validator);
+        address[] memory receivers = new address[](stakers.length.add(1));
+        uint256[] memory rewards = new uint256[](receivers.length);
+
+        uint256 validatorStake = snapshotStakeAmount(_stakingEpoch, _validator, _validator);
+        uint256 stakersAmount = 0;
+
+        for (s = 0; s < stakers.length; s++) {
+            stakersAmount += snapshotStakeAmount(_stakingEpoch, _validator, stakers[s]);
+        }
+
+        // Calculate reward for each staker
+        for (s = 0; s < stakers.length; s++) {
+            uint256 stakerStake = snapshotStakeAmount(_stakingEpoch, _validator, stakers[s]);
+            receivers[s] = stakers[s];
+            if (validatorStake > stakersAmount) {
+                rewards[s] = _poolReward.mul(stakerStake).div(validatorStake + stakersAmount);
+            } else {
+                rewards[s] = _poolReward.mul(stakerStake).mul(7).div(stakersAmount.mul(10));
+            }
+        }
+
+        // Calculate reward for validator
+        receivers[s] = _validator;
+        if (validatorStake > stakersAmount) {
+            rewards[s] = _poolReward.mul(validatorStake).div(validatorStake + stakersAmount);
+        } else {
+            rewards[s] = _poolReward.mul(3).div(10);
+        }
+
+        return (receivers, rewards);
+    }
+
+    function _getBridgeFee(uint256 _stakingEpoch) internal view returns(uint256) {
+        return uintStorage[keccak256(abi.encode(BRIDGE_FEE, _stakingEpoch))];
     }
 
     function _getStakingEpoch() internal view returns(uint256) {

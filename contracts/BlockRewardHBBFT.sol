@@ -30,8 +30,7 @@ contract BlockRewardHBBFT is BlockRewardBase {
         _mintTokensForStakers(benefactors);
 
         // We don't accrue any block reward in native coins to validator here.
-        // We just mint native coins by bridge if needed,
-        // including the case of bridge's fee accrual.
+        // We just mint native coins by bridge if needed.
         return _mintNativeCoinsByBridge();
     }
 
@@ -51,43 +50,14 @@ contract BlockRewardHBBFT is BlockRewardBase {
         uint256 poolReward = BLOCK_REWARD / snapshotValidators(stakingEpoch).length;
 
         for (uint256 i = 0; i < benefactors.length; i++) {
-            uint256 s;
-            address[] memory stakers = snapshotStakers(stakingEpoch, benefactors[i]);
-            address[] memory erc20Receivers = new address[](stakers.length.add(1));
-            uint256[] memory erc20Rewards = new uint256[](erc20Receivers.length);
+            (
+                address[] memory receivers,
+                uint256[] memory rewards
+            ) = _distributePoolReward(stakingEpoch, benefactors[i], poolReward);
 
-            uint256 validatorStake = snapshotStakeAmount(stakingEpoch, benefactors[i], benefactors[i]);
-            uint256 stakersAmount = 0;
-
-            for (s = 0; s < stakers.length; s++) {
-                stakersAmount += snapshotStakeAmount(stakingEpoch, benefactors[i], stakers[s]);
-            }
-
-            uint256 totalAmount = validatorStake + stakersAmount;
-
-            // Calculate reward for each staker
-            for (s = 0; s < stakers.length; s++) {
-                uint256 stakerStake = snapshotStakeAmount(stakingEpoch, benefactors[i], stakers[s]);
-
-                erc20Receivers[s] = stakers[s];
-                if (validatorStake > stakersAmount) {
-                    erc20Rewards[s] = poolReward.mul(stakerStake).div(totalAmount);
-                } else {
-                    erc20Rewards[s] = poolReward.mul(stakerStake).mul(7).div(stakersAmount.mul(10));
-                }
-            }
-
-            // Calculate reward for validator
-            erc20Receivers[s] = benefactors[i];
-            if (validatorStake > stakersAmount) {
-                erc20Rewards[s] = poolReward.mul(validatorStake).div(totalAmount);
-            } else {
-                erc20Rewards[s] = poolReward.mul(3).div(10);
-            }
-
-            IERC20Token(ERC20_TOKEN_CONTRACT).mintReward(erc20Receivers, erc20Rewards);
+            IERC20Token(ERC20_TOKEN_CONTRACT).mintReward(receivers, rewards);
             
-            emit RewardedERC20ByBlock(erc20Receivers, erc20Rewards);
+            emit RewardedERC20ByBlock(receivers, rewards);
         }
     }
 }
