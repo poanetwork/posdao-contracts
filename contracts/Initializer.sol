@@ -4,9 +4,22 @@ import "./interfaces/IValidatorSet.sol";
 
 
 contract Initializer {
-    constructor(IValidatorSet _validatorSetContract, address[] _validators) public {
-        require(block.number == 0);
-        _validatorSetContract.initialize(_validators);
-        selfdestruct(0x0000000000000000000000000000000000000000);
+    constructor(
+        IValidatorSet _validatorSetContract,
+        address _blockRewardContract,
+        address _randomContract,
+        address[] _validators,
+        uint256 _stakerMinStake,
+        uint256 _validatorMinStake
+    ) public {
+        require(_validatorSetContract != address(0));
+        _validatorSetContract.initialize(
+            _blockRewardContract,
+            _randomContract,
+            _validators,
+            _stakerMinStake,
+            _validatorMinStake
+        );
+        selfdestruct(address(0));
     }
 }

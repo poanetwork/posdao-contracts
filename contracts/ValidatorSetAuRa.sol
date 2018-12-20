@@ -21,8 +21,20 @@ contract ValidatorSetAuRa is ValidatorSetBase {
     /// Creates an initial set of validators at the start of the network.
     /// Must be called by the constructor of `Initializer` contract on genesis block.
     /// This is used instead of `constructor()` because this contract is upgradable.
-    function initialize(address[] _initialValidators) external {
-        super._initialize(_initialValidators);
+    function initialize(
+        address _blockRewardContract,
+        address _randomContract,
+        address[] _initialValidators,
+        uint256 _stakerMinStake,
+        uint256 _validatorMinStake
+    ) external {
+        super._initialize(
+            _blockRewardContract,
+            _randomContract,
+            _initialValidators,
+            _stakerMinStake,
+            _validatorMinStake
+        );
         _setStakingEpochStartBlock(block.number);
     }
 

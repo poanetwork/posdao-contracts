@@ -16,8 +16,6 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
 
     uint256 public constant MAX_OBSERVERS = 2000;
     uint256 public constant MAX_VALIDATORS = 20;
-    uint256 public constant VALIDATOR_MIN_STAKE = 1 * STAKE_UNIT; // must be specified before network launching
-    uint256 public constant STAKER_MIN_STAKE = 1 * STAKE_UNIT; // must be specified before network launching
     uint256 public constant STAKE_UNIT = 1 ether;
 
     // ================================================ Events ========================================================
@@ -145,16 +143,12 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         }
     }
 
-    function setBlockRewardContract(IBlockReward _blockRewardContract) public onlyOwner {
-        require(blockRewardContract() == address(0));
-        require(_blockRewardContract != address(0));
-        addressStorage[BLOCK_REWARD_CONTRACT] = _blockRewardContract;
+    function setStakerMinStake(uint256 _minStake) public onlyOwner {
+        _setStakerMinStake(_minStake);
     }
 
-    function setRandomContract(IRandom _randomContract) public onlyOwner {
-        require(randomContract() == address(0));
-        require(_randomContract != address(0));
-        addressStorage[RANDOM_CONTRACT] = _randomContract;
+    function setValidatorMinStake(uint256 _minStake) public onlyOwner {
+        _setValidatorMinStake(_minStake);
     }
 
     // =============================================== Getters ========================================================
@@ -197,6 +191,14 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     // Returns the set of validators to be finalized in engine
     function getPendingValidators() public view returns(address[]) {
         return addressArrayStorage[PENDING_VALIDATORS];
+    }
+
+    function getStakerMinStake() public view returns(uint256) {
+        return uintStorage[STAKER_MIN_STAKE];
+    }
+
+    function getValidatorMinStake() public view returns(uint256) {
+        return uintStorage[VALIDATOR_MIN_STAKE];
     }
 
     // Returns the current set of validators (the same as in the engine)
@@ -336,7 +338,9 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     bytes32 internal constant POOLS_INACTIVE = keccak256("poolsInactive");
     bytes32 internal constant PREVIOUS_VALIDATORS = keccak256("previousValidators");
     bytes32 internal constant RANDOM_CONTRACT = keccak256("randomContract");
+    bytes32 internal constant STAKER_MIN_STAKE = keccak256("stakerMinStake");
     bytes32 internal constant STAKING_EPOCH = keccak256("stakingEpoch");
+    bytes32 internal constant VALIDATOR_MIN_STAKE = keccak256("validatorMinStake");
     bytes32 internal constant VALIDATOR_SET_APPLY_BLOCK = keccak256("validatorSetApplyBlock");
 
     bytes32 internal constant BANNED_UNTIL = "bannedUntil";
@@ -435,12 +439,26 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         uintStorage[STAKING_EPOCH]++;
     }
 
-    function _initialize(address[] _initialValidators) internal {
+    function _initialize(
+        address _blockRewardContract,
+        address _randomContract,
+        address[] _initialValidators,
+        uint256 _stakerMinStake,
+        uint256 _validatorMinStake
+    ) internal {
+        require(_blockRewardContract != address(0));
+        require(_randomContract != address(0));
+        require(_initialValidators.length > 0);
+        require(_stakerMinStake != 0);
+        require(_validatorMinStake != 0);
+
+        addressStorage[BLOCK_REWARD_CONTRACT] = _blockRewardContract;
+        addressStorage[RANDOM_CONTRACT] = _randomContract;
+
         address[] storage currentValidators = addressArrayStorage[CURRENT_VALIDATORS];
         address[] storage pendingValidators = addressArrayStorage[PENDING_VALIDATORS];
 
         require(block.number == 0); // initialization must be done on genesis block
-        require(_initialValidators.length > 0);
         require(currentValidators.length == 0);
         
         // Add initial validators to the `currentValidators` array
@@ -451,6 +469,9 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
             _setIsValidator(_initialValidators[i], true);
             _addToPools(_initialValidators[i]);
         }
+
+        _setStakerMinStake(_stakerMinStake);
+        _setValidatorMinStake(_validatorMinStake);
 
         _setValidatorSetApplyBlock(1);
     }
@@ -617,6 +638,14 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         ] = _amount;
     }
 
+    function _setStakerMinStake(uint256 _minStake) internal {
+        uintStorage[STAKER_MIN_STAKE] = _minStake * STAKE_UNIT;
+    }
+
+    function _setValidatorMinStake(uint256 _minStake) internal {
+        uintStorage[VALIDATOR_MIN_STAKE] = _minStake * STAKE_UNIT;
+    }
+
     function _setValidatorIndex(address _validator, uint256 _index) internal {
         uintStorage[
             keccak256(abi.encode(VALIDATOR_INDEX, _validator))
@@ -637,9 +666,9 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
 
         uint256 newStakeAmount = stakeAmount(_observer, _staker).add(_amount);
         if (_staker == _observer) {
-            require(newStakeAmount >= VALIDATOR_MIN_STAKE); // the staked amount must be at least MIN_STAKE_VALIDATOR
+            require(newStakeAmount >= getValidatorMinStake()); // the staked amount must be at least VALIDATOR_MIN_STAKE
         } else {
-            require(newStakeAmount >= STAKER_MIN_STAKE); // the staked amount must be at least STAKER_MIN_STAKE
+            require(newStakeAmount >= getStakerMinStake()); // the staked amount must be at least STAKER_MIN_STAKE
         }
         _setStakeAmount(_observer, _staker, newStakeAmount);
         _setStakeAmountByEpoch(_observer, _staker, epoch, stakeAmountByEpoch(_observer, _staker, epoch).add(_amount));
@@ -668,9 +697,9 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         uint256 newStakeAmount = stakeAmount(_observer, _staker).sub(_amount);
         if (newStakeAmount > 0) {
             if (_staker == _observer) {
-                require(newStakeAmount >= VALIDATOR_MIN_STAKE);
+                require(newStakeAmount >= getValidatorMinStake());
             } else {
-                require(newStakeAmount >= STAKER_MIN_STAKE);
+                require(newStakeAmount >= getStakerMinStake());
             }
         }
         _setStakeAmount(_observer, _staker, newStakeAmount);
