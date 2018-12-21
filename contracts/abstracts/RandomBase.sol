@@ -2,17 +2,17 @@ pragma solidity 0.4.25;
 
 import "../interfaces/IRandom.sol";
 import "../interfaces/IValidatorSet.sol";
+import "../eternal-storage/EternalStorage.sol";
 import "../libs/SafeMath.sol";
 
 
-contract RandomBase is IRandom {
+contract RandomBase is EternalStorage, IRandom {
     using SafeMath for uint256;
 
-    // =============================================== Storage ========================================================
+    // ============================================== Constants =======================================================
 
-    IValidatorSet public validatorSetContract;
-
-    uint256[] internal _randomArray;
+    // This address must be set before deploy
+    address public constant VALIDATOR_SET_CONTRACT = address(0);
 
     // ============================================== Modifiers =======================================================
 
@@ -21,18 +21,15 @@ contract RandomBase is IRandom {
         _;
     }
 
-    // =============================================== Setters ========================================================
-
-    constructor(IValidatorSet _validatorSetContract) public {
-        require(_validatorSetContract != address(0));
-        validatorSetContract = _validatorSetContract;
-    }
-
     // =============================================== Getters ========================================================
 
     // This function is called by ValidatorSet contract.
     function currentRandom() public view returns(uint256[]) {
-        return _randomArray;
+        return uintArrayStorage[RANDOM_ARRAY];
     }
+
+    // =============================================== Private ========================================================
+
+    bytes32 internal constant RANDOM_ARRAY = keccak256("randomArray");
 
 }

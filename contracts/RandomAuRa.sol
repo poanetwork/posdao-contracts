@@ -10,64 +10,74 @@ contract RandomAuRa is RandomBase {
     uint256 public constant COLLECT_ROUND_LENGTH = 200; // blocks
     uint256 public constant COMMIT_PHASE_LENGTH = COLLECT_ROUND_LENGTH / 2; // blocks
 
-    // =============================================== Storage ========================================================
+    // ============================================== Modifiers =======================================================
 
-    mapping(uint256 => mapping(address => bytes32)) public commits;
-    mapping(uint256 => address[]) public committedValidators;
-    mapping(uint256 => mapping(address => bool)) public reveals;
-    mapping(uint256 => uint256) public revealsCount;
-    
-    uint256 private _currentSecret;
+    modifier onlyOwner() {
+        require(msg.sender == addressStorage[OWNER]);
+        _;
+    }
 
     // =============================================== Setters ========================================================
 
     function commitHash(bytes32 _secretHash, bytes _signature) public onlySystem {
-        require(isCommitPhase()); // must only be called in commit phase
+        require(isCommitPhase()); // must only be called in commits phase
         require(_secretHash != bytes32(0));
 
         address validator = _recoverAddressFromSignedMessage(_secretHash, _signature);
-        require(validatorSetContract.isValidator(validator));
+        require(IValidatorSet(VALIDATOR_SET_CONTRACT).isValidator(validator));
 
         uint256 collectRound = currentCollectRound();
 
-        require(commits[collectRound][validator] == bytes32(0)); // cannot commit more than once
+        require(getCommit(collectRound, validator) == bytes32(0)); // cannot commit more than once
 
-        if (committedValidators[collectRound].length == 0) {
+        if (committedValidators(collectRound).length == 0) {
             // Clear info about previous collection round
             _clear();
         }
 
-        commits[collectRound][validator] = _secretHash;
-        committedValidators[collectRound].push(validator);
+        _setCommit(collectRound, validator, _secretHash);
+        _addCommittedValidator(collectRound, validator);
     }
 
     function revealSecret(uint256 _secret, bytes _signature) public onlySystem {
-        require(isRevealPhase()); // must only be called in reveal phase
+        require(isRevealPhase()); // must only be called in reveals phase
 
         bytes32 secretHash = keccak256(abi.encodePacked(_secret));
         require(secretHash != bytes32(0));
 
         address validator = _recoverAddressFromSignedMessage(bytes32(_secret), _signature);
-        require(validatorSetContract.isValidator(validator));
+        require(IValidatorSet(VALIDATOR_SET_CONTRACT).isValidator(validator));
 
         uint256 collectRound = currentCollectRound();
 
-        require(!reveals[collectRound][validator]); // cannot reveal more than once
-        require(secretHash == commits[collectRound][validator]); // the hash must be commited
+        require(!sentReveal(collectRound, validator)); // cannot reveal more than once during the same collection round
+        require(secretHash == getCommit(collectRound, validator)); // the hash must be commited
 
-        _currentSecret ^= _secret;
-        reveals[collectRound][validator] = true;
-        revealsCount[collectRound] = revealsCount[collectRound].add(1);
+        _setCurrentSecret(_getCurrentSecret() ^ _secret);
+        _setSentReveal(collectRound, validator, true);
+        _setRevealsCount(collectRound, revealsCount(collectRound).add(1));
 
-        if (revealsCount[collectRound] == committedValidators[collectRound].length) {
+        if (revealsCount(collectRound) == committedValidators(collectRound).length) {
             _publishSecret();
         }
     }
 
     // =============================================== Getters ========================================================
 
+    function committedValidators(uint256 _collectRound) public view returns(address[]) {
+        return addressArrayStorage[keccak256(abi.encode(COMMITTED_VALIDATORS, _collectRound))];
+    }
+
     function currentCollectRound() public view returns(uint256) {
         return block.number / COLLECT_ROUND_LENGTH;
+    }
+
+    function getCommit(uint256 _collectRound, address _validator) public view returns(bytes32) {
+        return bytes32Storage[keccak256(abi.encode(COMMITS, _collectRound, _validator))];
+    }
+
+    function getCurrentSecret() public onlyOwner view returns(uint256) {
+        return _getCurrentSecret();
     }
 
     function isCommitPhase() public view returns(bool) {
@@ -78,7 +88,27 @@ contract RandomAuRa is RandomBase {
         return !isCommitPhase();
     }
 
+    function revealsCount(uint256 _collectRound) public view returns(uint256) {
+        return uintStorage[keccak256(abi.encode(REVEALS_COUNT, _collectRound))];
+    }
+
+    function sentReveal(uint256 _collectRound, address _validator) public view returns(bool) {
+        return boolStorage[keccak256(abi.encode(SENT_REVEAL, _collectRound, _validator))];
+    }
+
     // =============================================== Private ========================================================
+
+    bytes32 internal constant CURRENT_SECRET = keccak256("currentSecret");
+    bytes32 internal constant OWNER = keccak256("owner");
+
+    bytes32 internal constant COMMITS = "commits";
+    bytes32 internal constant COMMITTED_VALIDATORS = "committedValidators";
+    bytes32 internal constant REVEALS_COUNT = "revealsCount";
+    bytes32 internal constant SENT_REVEAL = "sentReveal";
+
+    function _addCommittedValidator(uint256 _collectRound, address _validator) private {
+        addressArrayStorage[keccak256(abi.encode(COMMITTED_VALIDATORS, _collectRound))].push(_validator);
+    }
 
     // Removes garbage
     function _clear() private {
@@ -90,28 +120,54 @@ contract RandomAuRa is RandomBase {
 
         collectRound--;
 
-        address[] storage validators = committedValidators[collectRound];
+        address[] memory validators = committedValidators(collectRound);
 
         for (uint256 i = 0; i < validators.length; i++) {
-            commits[collectRound][validators[i]] = bytes32(0);
-            reveals[collectRound][validators[i]] = false;
+            _setCommit(collectRound, validators[i], bytes32(0));
+            _setSentReveal(collectRound, validators[i], false);
         }
 
-        revealsCount[collectRound] = 0;
-        validators.length = 0;
+        _setRevealsCount(collectRound, 0);
+        _clearCommittedValidators(collectRound);
+    }
+
+    function _clearCommittedValidators(uint256 _collectRound) private {
+        delete addressArrayStorage[keccak256(abi.encode(COMMITTED_VALIDATORS, _collectRound))];
     }
 
     function _publishSecret() private {
-        _randomArray.push(_currentSecret);
+        uint256[] storage randomArray = uintArrayStorage[RANDOM_ARRAY];
 
-        if (_randomArray.length > validatorSetContract.MAX_VALIDATORS()) {
+        randomArray.push(_getCurrentSecret());
+
+        if (randomArray.length > IValidatorSet(VALIDATOR_SET_CONTRACT).MAX_VALIDATORS()) {
             // Shift random array to remove the first item
-            uint256 length = _randomArray.length.sub(1);
+            uint256 length = randomArray.length.sub(1);
             for (uint256 i = 0; i < length; i++) {
-                _randomArray[i] = _randomArray[i + 1];
+                randomArray[i] = randomArray[i + 1];
             }
-            _randomArray.length = length;
+            randomArray.length = length;
         }
+    }
+
+    function _setCommit(uint256 _collectRound, address _validator, bytes32 _secretHash) private {
+        bytes32Storage[keccak256(abi.encode(COMMITS, _collectRound, _validator))] = _secretHash;
+    }
+
+    function _setCurrentSecret(uint256 _secret) private {
+        uintStorage[CURRENT_SECRET] = _secret;
+    }
+
+    function _setRevealsCount(uint256 _collectRound, uint256 _count) private {
+        uintStorage[keccak256(abi.encode(REVEALS_COUNT, _collectRound))] = _count;
+    }
+
+    function _setSentReveal(uint256 _collectRound, address _validator, bool _sent) private {
+        boolStorage[keccak256(abi.encode(SENT_REVEAL, _collectRound, _validator))] = _sent;
+    }
+
+    function _getCurrentSecret() private view returns(uint256) {
+        return uintStorage[CURRENT_SECRET];
     }
 
     function _recoverAddressFromSignedMessage(bytes32 _message, bytes _signature)

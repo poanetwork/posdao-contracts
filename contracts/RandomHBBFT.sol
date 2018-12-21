@@ -6,8 +6,8 @@ import "./abstracts/RandomBase.sol";
 contract RandomHBBFT is RandomBase {
 
     function storeRandom(uint256[] _random) public onlySystem {
-        require(_random.length == validatorSetContract.MAX_VALIDATORS());
-        _randomArray = _random;
+        require(_random.length == IValidatorSet(VALIDATOR_SET_CONTRACT).MAX_VALIDATORS());
+        uintArrayStorage[RANDOM_ARRAY] = _random;
     }
 
 }
