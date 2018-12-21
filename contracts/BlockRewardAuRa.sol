@@ -1,6 +1,7 @@
 pragma solidity 0.4.25;
 
 import "./abstracts/BlockRewardBase.sol";
+import "./interfaces/IRandomAuRa.sol";
 
 
 contract BlockRewardAuRa is BlockRewardBase {
@@ -49,6 +50,11 @@ contract BlockRewardAuRa is BlockRewardBase {
 
         delete addressArrayStorage[REWARD_TEMPORARY_ARRAY];
         delete uintArrayStorage[REWARD_TEMPORARY_ARRAY];
+
+        // Mark that the current validator produced a block during the current phase.
+        // Publish current random number at the end of the current collection round.
+        // Check if current validators participated in the current collection round.
+        IRandomAuRa(IValidatorSet(VALIDATOR_SET_CONTRACT).randomContract()).onBlockClose(benefactors[0]);
 
         return (receivers, rewards);
     }

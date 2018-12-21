@@ -1,9 +1,10 @@
 pragma solidity 0.4.25;
 
 import "./abstracts/RandomBase.sol";
+import "./interfaces/IRandomAuRa.sol";
 
 
-contract RandomAuRa is RandomBase {
+contract RandomAuRa is RandomBase, IRandomAuRa {
 
     // ============================================== Constants =======================================================
 
@@ -11,6 +12,11 @@ contract RandomAuRa is RandomBase {
     uint256 public constant COMMIT_PHASE_LENGTH = COLLECT_ROUND_LENGTH / 2; // blocks
 
     // ============================================== Modifiers =======================================================
+
+    modifier onlyBlockReward() {
+        require(msg.sender == IValidatorSet(VALIDATOR_SET_CONTRACT).blockRewardContract());
+        _;
+    }
 
     modifier onlyOwner() {
         require(msg.sender == addressStorage[OWNER]);
@@ -58,7 +64,47 @@ contract RandomAuRa is RandomBase {
         _setRevealsCount(collectRound, revealsCount(collectRound).add(1));
 
         if (revealsCount(collectRound) == committedValidators(collectRound).length) {
-            _publishSecret();
+            _allowPublishSecret();
+        }
+    }
+
+    function onBlockClose(address _currentValidator) external onlyBlockReward {
+        // if (isCommitPhase()) {
+        //     createdBlockOnCommitsPhase[currentCollectRound()][_currentValidator] = true;
+        // } else {
+        //     createdBlockOnRevealsPhase[currentCollectRound()][_currentValidator] = true;
+        // }
+
+        if (block.number % COLLECT_ROUND_LENGTH == COLLECT_ROUND_LENGTH - 1) {
+            // This is the last block of the current collection round
+
+            if (boolStorage[ALLOW_PUBLISH_SECRET]) {
+                _publishSecret(); // publish new secret if reveals phase fully completed
+            }
+
+            uint256 applyBlock = IValidatorSet(VALIDATOR_SET_CONTRACT).validatorSetApplyBlock();
+
+            if (applyBlock != 0 && block.number > applyBlock + COLLECT_ROUND_LENGTH * 2 || applyBlock == 0) {
+                // Check each validator whether he created at least one block
+                // during commits phase and at least one block during reveals phase
+                // but didn't reveal his secret during reveals phase
+
+                // mapping(collectRound => mapping(validator => bool)) public createdBlockOnCommitsPhase;
+                // mapping(collectRound => mapping(validator => bool)) public createdBlockOnRevealsPhase;
+
+                // address[] memory validators = IValidatorSet(VALIDATOR_SET_CONTRACT).getValidators();
+                // for (uint256 i = 0; i < validators.length; i++) {
+                //     address validator = validators[i];
+                //     if (
+                //         createdBlockOnCommitsPhase[currentCollectRound()][validator] &&
+                //         createdBlockOnRevealsPhase[currentCollectRound()][validator] &&
+                //         !sentReveal(currentCollectRound(), validator)
+                //     ) {
+                //         // Remove validator from validator set as malicious
+                //         // ...
+                //     }
+                // }
+            }
         }
     }
 
@@ -68,6 +114,7 @@ contract RandomAuRa is RandomBase {
         return addressArrayStorage[keccak256(abi.encode(COMMITTED_VALIDATORS, _collectRound))];
     }
 
+    // Returns the number of collection round for the current block
     function currentCollectRound() public view returns(uint256) {
         return block.number / COLLECT_ROUND_LENGTH;
     }
@@ -98,6 +145,7 @@ contract RandomAuRa is RandomBase {
 
     // =============================================== Private ========================================================
 
+    bytes32 internal constant ALLOW_PUBLISH_SECRET = keccak256("allowPublishSecret");
     bytes32 internal constant CURRENT_SECRET = keccak256("currentSecret");
     bytes32 internal constant OWNER = keccak256("owner");
 
@@ -108,6 +156,14 @@ contract RandomAuRa is RandomBase {
 
     function _addCommittedValidator(uint256 _collectRound, address _validator) private {
         addressArrayStorage[keccak256(abi.encode(COMMITTED_VALIDATORS, _collectRound))].push(_validator);
+    }
+
+    function _allowPublishSecret() private {
+        boolStorage[ALLOW_PUBLISH_SECRET] = true;
+    }
+
+    function _denyPublishSecret() private {
+        boolStorage[ALLOW_PUBLISH_SECRET] = false;
     }
 
     // Removes garbage
@@ -129,6 +185,7 @@ contract RandomAuRa is RandomBase {
 
         _setRevealsCount(collectRound, 0);
         _clearCommittedValidators(collectRound);
+        _denyPublishSecret();
     }
 
     function _clearCommittedValidators(uint256 _collectRound) private {
@@ -148,6 +205,8 @@ contract RandomAuRa is RandomBase {
             }
             randomArray.length = length;
         }
+
+        _denyPublishSecret();
     }
 
     function _setCommit(uint256 _collectRound, address _validator, bytes32 _secretHash) private {
