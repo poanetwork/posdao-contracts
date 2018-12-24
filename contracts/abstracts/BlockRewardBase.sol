@@ -13,6 +13,7 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
 
     // These value must be set before deploy
     uint256 public constant BRIDGES_ALLOWED_LENGTH = 1; // see also the `bridgesAllowed()` getter
+    address public constant ERC20_TOKEN_CONTRACT = address(0);
     address public constant VALIDATOR_SET_CONTRACT = address(0);
 
     // ================================================ Events ========================================================
@@ -39,9 +40,14 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
 
     // =============================================== Setters ========================================================
 
-    function addBridgeFeeReceivers(uint256 _amount) external onlyBridgeContract {
+    function addBridgeNativeFeeReceivers(uint256 _amount) external onlyBridgeContract {
         require(_amount != 0);
-        _addBridgeFee(_getStakingEpoch(), _amount);
+        _addBridgeNativeFee(_getStakingEpoch(), _amount);
+    }
+
+    function addBridgeTokenFeeReceivers(uint256 _amount) external onlyBridgeContract {
+        require(_amount != 0);
+        _addBridgeTokenFee(_getStakingEpoch(), _amount);
     }
 
     function addExtraReceiver(uint256 _amount, address _receiver) external onlyBridgeContract {
@@ -200,7 +206,8 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
     bytes32 internal constant MINTED_TOTALLY = keccak256("mintedTotally");
 
     bytes32 internal constant BRIDGE_AMOUNT = "bridgeAmount";
-    bytes32 internal constant BRIDGE_FEE = "bridgeFee";
+    bytes32 internal constant BRIDGE_NATIVE_FEE = "bridgeNativeFee";
+    bytes32 internal constant BRIDGE_TOKEN_FEE = "bridgeTokenFee";
     bytes32 internal constant EXTRA_RECEIVER_AMOUNT = "extraReceiverAmount";
     bytes32 internal constant MINTED_FOR_ACCOUNT = "mintedForAccount";
     bytes32 internal constant MINTED_FOR_ACCOUNT_IN_BLOCK = "mintedForAccountInBlock";
@@ -210,8 +217,13 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
     bytes32 internal constant SNAPSHOT_STAKE_AMOUNT = "snapshotStakeAmount";
     bytes32 internal constant SNAPSHOT_VALIDATORS = "snapshotValidators";
 
-    function _addBridgeFee(uint256 _stakingEpoch, uint256 _amount) internal {
-        bytes32 hash = keccak256(abi.encode(BRIDGE_FEE, _stakingEpoch));
+    function _addBridgeNativeFee(uint256 _stakingEpoch, uint256 _amount) internal {
+        bytes32 hash = keccak256(abi.encode(BRIDGE_NATIVE_FEE, _stakingEpoch));
+        uintStorage[hash] = uintStorage[hash].add(_amount);
+    }
+
+    function _addBridgeTokenFee(uint256 _stakingEpoch, uint256 _amount) internal {
+        bytes32 hash = keccak256(abi.encode(BRIDGE_TOKEN_FEE, _stakingEpoch));
         uintStorage[hash] = uintStorage[hash].add(_amount);
     }
 
@@ -224,9 +236,15 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
         uintStorage[hash] = uintStorage[hash].add(_amount);
     }
 
-    function _clearBridgeFee(uint256 _stakingEpoch) internal {
+    function _clearBridgeNativeFee(uint256 _stakingEpoch) internal {
         uintStorage[
-            keccak256(abi.encode(BRIDGE_FEE, _stakingEpoch))
+            keccak256(abi.encode(BRIDGE_NATIVE_FEE, _stakingEpoch))
+        ] = 0;
+    }
+
+    function _clearBridgeTokenFee(uint256 _stakingEpoch) internal {
+        uintStorage[
+            keccak256(abi.encode(BRIDGE_TOKEN_FEE, _stakingEpoch))
         ] = 0;
     }
 
@@ -362,11 +380,21 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
             rewards[s] = _poolReward.mul(3).div(10);
         }
 
+        // Give remainder to validator
+        for (s = 0; s < rewards.length; s++) {
+            _poolReward -= rewards[s];
+        }
+        rewards[s - 1] += _poolReward;
+
         return (receivers, rewards);
     }
 
-    function _getBridgeFee(uint256 _stakingEpoch) internal view returns(uint256) {
-        return uintStorage[keccak256(abi.encode(BRIDGE_FEE, _stakingEpoch))];
+    function _getBridgeNativeFee(uint256 _stakingEpoch) internal view returns(uint256) {
+        return uintStorage[keccak256(abi.encode(BRIDGE_NATIVE_FEE, _stakingEpoch))];
+    }
+
+    function _getBridgeTokenFee(uint256 _stakingEpoch) internal view returns(uint256) {
+        return uintStorage[keccak256(abi.encode(BRIDGE_TOKEN_FEE, _stakingEpoch))];
     }
 
     function _getStakingEpoch() internal view returns(uint256) {

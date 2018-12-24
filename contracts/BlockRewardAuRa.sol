@@ -1,6 +1,7 @@
 pragma solidity 0.4.25;
 
 import "./abstracts/BlockRewardBase.sol";
+import "./interfaces/IERC20Minting.sol";
 import "./interfaces/IRandomAuRa.sol";
 
 
@@ -19,21 +20,33 @@ contract BlockRewardAuRa is BlockRewardBase {
         uint256[] memory rewards;
         uint256 i;
 
-        // Distribute bridge's fee
         uint256 stakingEpoch = _getStakingEpoch();
-        
-        (receivers, rewards) = _distributeBridgeFee(stakingEpoch, false);
+
+        // Distribute bridge's native fee
+        (receivers, rewards) = _distributeBridgeFee(stakingEpoch, false, true);
         for (i = 0; i < receivers.length; i++) {
             addressArrayStorage[REWARD_TEMPORARY_ARRAY].push(receivers[i]);
             uintArrayStorage[REWARD_TEMPORARY_ARRAY].push(rewards[i]);
         }
-
         if (stakingEpoch > 0) {
             // Handle previous staking epoch as well
-            (receivers, rewards) = _distributeBridgeFee(stakingEpoch - 1, true);
+            (receivers, rewards) = _distributeBridgeFee(stakingEpoch - 1, true, true);
             for (i = 0; i < receivers.length; i++) {
                 addressArrayStorage[REWARD_TEMPORARY_ARRAY].push(receivers[i]);
                 uintArrayStorage[REWARD_TEMPORARY_ARRAY].push(rewards[i]);
+            }
+        }
+
+        // Distribute bridge's token fee
+        (receivers, rewards) = _distributeBridgeFee(stakingEpoch, false, false);
+        if (receivers.length > 0) {
+            IERC20Minting(ERC20_TOKEN_CONTRACT).mintReward(receivers, rewards);
+        }
+        if (stakingEpoch > 0) {
+            // Handle previous staking epoch as well
+            (receivers, rewards) = _distributeBridgeFee(stakingEpoch - 1, true, false);
+            if (receivers.length > 0) {
+                IERC20Minting(ERC20_TOKEN_CONTRACT).mintReward(receivers, rewards);
             }
         }
 
@@ -59,18 +72,31 @@ contract BlockRewardAuRa is BlockRewardBase {
         return (receivers, rewards);
     }
 
-    function _distributeBridgeFee(uint256 _stakingEpoch, bool _previousEpoch)
+    function _distributeBridgeFee(uint256 _stakingEpoch, bool _previousEpoch, bool _native)
         internal
         returns(address[], uint256[])
     {
+        uint256 bridgeFeeAmount;
+
+        if (_native) {
+            bridgeFeeAmount = _getBridgeNativeFee(_stakingEpoch);
+            _clearBridgeNativeFee(_stakingEpoch);
+        } else {
+            bridgeFeeAmount = _getBridgeTokenFee(_stakingEpoch);
+            _clearBridgeTokenFee(_stakingEpoch);
+        }
+
+        if (bridgeFeeAmount == 0) {
+            return (new address[](0), new uint256[](0));
+        }
+
         IValidatorSet validatorSetContract = IValidatorSet(VALIDATOR_SET_CONTRACT);
-        uint256 bridgeFeeAmount = _getBridgeFee(_stakingEpoch);
         address[] memory validators;
+        address[] memory receivers;
         uint256[] memory rewards;
         uint256 poolReward;
+        uint256 remainder;
         uint256 i;
-
-        _clearBridgeFee(_stakingEpoch);
 
         if (!_previousEpoch) {
             validators = validatorSetContract.getValidators();
@@ -81,31 +107,38 @@ contract BlockRewardAuRa is BlockRewardBase {
             // On initial staking epoch only initial validators get reward
 
             poolReward = bridgeFeeAmount / validators.length;
+            remainder = bridgeFeeAmount % validators.length;
 
             rewards = new uint256[](validators.length);
 
             for (i = 0; i < validators.length; i++) {
                 rewards[i] = poolReward;
             }
+            rewards[0] += remainder;
 
             return (validators, rewards);
         } else {
             poolReward = bridgeFeeAmount / snapshotValidators(_stakingEpoch).length;
+            remainder = bridgeFeeAmount % snapshotValidators(_stakingEpoch).length;
 
             for (i = 0; i < validators.length; i++) {
                 // Distribute the reward among validators and their stakers
                 (
-                    address[] memory poolReceivers,
-                    uint256[] memory poolRewards
-                ) = _distributePoolReward(_stakingEpoch, validators[i], poolReward);
+                    receivers,
+                    rewards
+                ) = _distributePoolReward(
+                    _stakingEpoch,
+                    validators[i],
+                    i == 0 ? poolReward + remainder : poolReward
+                );
 
-                for (uint256 r = 0; r < poolReceivers.length; r++) {
-                    addressArrayStorage[DISTRIBUTE_TEMPORARY_ARRAY].push(poolReceivers[r]);
-                    uintArrayStorage[DISTRIBUTE_TEMPORARY_ARRAY].push(poolRewards[r]);
+                for (uint256 r = 0; r < receivers.length; r++) {
+                    addressArrayStorage[DISTRIBUTE_TEMPORARY_ARRAY].push(receivers[r]);
+                    uintArrayStorage[DISTRIBUTE_TEMPORARY_ARRAY].push(rewards[r]);
                 }
             }
 
-            address[] memory receivers = addressArrayStorage[DISTRIBUTE_TEMPORARY_ARRAY];
+            receivers = addressArrayStorage[DISTRIBUTE_TEMPORARY_ARRAY];
             rewards = uintArrayStorage[DISTRIBUTE_TEMPORARY_ARRAY];
 
             delete addressArrayStorage[DISTRIBUTE_TEMPORARY_ARRAY];

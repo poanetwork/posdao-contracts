@@ -1,16 +1,15 @@
 pragma solidity 0.4.25;
 
 import "./abstracts/BlockRewardBase.sol";
-import "./interfaces/IERC20Token.sol";
+import "./interfaces/IERC20Minting.sol";
 
 
 contract BlockRewardHBBFT is BlockRewardBase {
 
     // ============================================== Constants =======================================================
 
-    // These value must be changed before deploy
+    // This value must be changed before deploy
     uint256 public constant BLOCK_REWARD = 0 ether; // in ERC20 tokens
-    address public constant ERC20_TOKEN_CONTRACT = address(0);
 
     // ================================================ Events ========================================================
 
@@ -48,14 +47,15 @@ contract BlockRewardHBBFT is BlockRewardBase {
         }
 
         uint256 poolReward = BLOCK_REWARD / snapshotValidators(stakingEpoch).length;
+        uint256 remainder = BLOCK_REWARD % snapshotValidators(stakingEpoch).length;
 
         for (uint256 i = 0; i < benefactors.length; i++) {
             (
                 address[] memory receivers,
                 uint256[] memory rewards
-            ) = _distributePoolReward(stakingEpoch, benefactors[i], poolReward);
+            ) = _distributePoolReward(stakingEpoch, benefactors[i], i == 0 ? poolReward + remainder : poolReward);
 
-            IERC20Token(ERC20_TOKEN_CONTRACT).mintReward(receivers, rewards);
+            IERC20Minting(ERC20_TOKEN_CONTRACT).mintReward(receivers, rewards);
             
             emit RewardedERC20ByBlock(receivers, rewards);
         }
