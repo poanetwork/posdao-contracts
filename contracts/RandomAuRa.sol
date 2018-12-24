@@ -34,7 +34,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
         uint256 collectRound = currentCollectRound();
 
-        require(getCommit(collectRound, validator) == bytes32(0)); // cannot commit more than once
+        require(!isCommitted(collectRound, validator)); // cannot commit more than once
 
         if (committedValidators(collectRound).length == 0) {
             // Clear info about previous collection round
@@ -125,6 +125,10 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
     function getCurrentSecret() public onlyOwner view returns(uint256) {
         return _getCurrentSecret();
+    }
+
+    function isCommitted(uint256 _collectRound, address _validator) public view returns(bool) {
+        return getCommit(_collectRound, _validator) != bytes32(0);
     }
 
     function isCommitPhase() public view returns(bool) {
