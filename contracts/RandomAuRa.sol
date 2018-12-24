@@ -2,6 +2,7 @@ pragma solidity 0.4.25;
 
 import "./abstracts/RandomBase.sol";
 import "./interfaces/IRandomAuRa.sol";
+import "./interfaces/IValidatorSetAuRa.sol";
 
 
 contract RandomAuRa is RandomBase, IRandomAuRa {
@@ -36,11 +37,6 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
         require(!isCommitted(collectRound, validator)); // cannot commit more than once
 
-        if (committedValidators(collectRound).length == 0) {
-            // Clear info about previous collection round
-            _clear();
-        }
-
         _setCommit(collectRound, validator, _secretHash);
         _addCommittedValidator(collectRound, validator);
     }
@@ -69,11 +65,25 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     }
 
     function onBlockClose(address _currentValidator) external onlyBlockReward {
-        // if (isCommitPhase()) {
-        //     createdBlockOnCommitsPhase[currentCollectRound()][_currentValidator] = true;
-        // } else {
-        //     createdBlockOnRevealsPhase[currentCollectRound()][_currentValidator] = true;
-        // }
+        uint256 currentRound = currentCollectRound();
+
+        if (isCommitPhase()) {
+            // Remember that the current validator produced the current block
+            // during the `commits phase` of the current collection round
+            if (!createdBlockOnCommitsPhase(currentRound, _currentValidator)) {
+                _setCreatedBlockOnCommitsPhase(currentRound, _currentValidator, true);
+                _addBlockProducer(currentRound, _currentValidator);
+            }
+        } else {
+            // Remember that the current validator produced the current block
+            // during the `reveals phase` of the current collection round
+            if (!createdBlockOnRevealsPhase(currentRound, _currentValidator)) {
+                _setCreatedBlockOnRevealsPhase(currentRound, _currentValidator, true);
+                if (!createdBlockOnCommitsPhase(currentRound, _currentValidator)) {
+                    _addBlockProducer(currentRound, _currentValidator);
+                }
+            }
+        }
 
         if (block.number % COLLECT_ROUND_LENGTH == COLLECT_ROUND_LENGTH - 1) {
             // This is the last block of the current collection round
@@ -89,29 +99,42 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
                 // during commits phase and at least one block during reveals phase
                 // but didn't reveal his secret during reveals phase
 
-                // mapping(collectRound => mapping(validator => bool)) public createdBlockOnCommitsPhase;
-                // mapping(collectRound => mapping(validator => bool)) public createdBlockOnRevealsPhase;
-
-                // address[] memory validators = IValidatorSet(VALIDATOR_SET_CONTRACT).getValidators();
-                // for (uint256 i = 0; i < validators.length; i++) {
-                //     address validator = validators[i];
-                //     if (
-                //         createdBlockOnCommitsPhase[currentCollectRound()][validator] &&
-                //         createdBlockOnRevealsPhase[currentCollectRound()][validator] &&
-                //         !sentReveal(currentCollectRound(), validator)
-                //     ) {
-                //         // Remove validator from validator set as malicious
-                //         // ...
-                //     }
-                // }
+                address[] memory validators = IValidatorSet(VALIDATOR_SET_CONTRACT).getValidators();
+                for (uint256 i = 0; i < validators.length; i++) {
+                    address validator = validators[i];
+                    if (
+                        createdBlockOnCommitsPhase(currentRound, validator) &&
+                        createdBlockOnRevealsPhase(currentRound, validator) &&
+                        !sentReveal(currentRound, validator)
+                    ) {
+                        // The validator produced the blocks but didn't reveal his secret during
+                        // the current collection round, so remove him from validator set as malicious
+                        IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).removeMaliciousValidator(validator);
+                    }
+                }
             }
+
+            // Clear info about previous collection round
+            _clear(currentRound);
         }
     }
 
     // =============================================== Getters ========================================================
 
+    function blocksProducers(uint256 _collectRound) public view returns(address[]) {
+        return addressArrayStorage[keccak256(abi.encode(BLOCKS_PRODUCERS, _collectRound))];
+    }
+
     function committedValidators(uint256 _collectRound) public view returns(address[]) {
         return addressArrayStorage[keccak256(abi.encode(COMMITTED_VALIDATORS, _collectRound))];
+    }
+
+    function createdBlockOnCommitsPhase(uint256 _collectRound, address _validator) public view returns(bool) {
+        return boolStorage[keccak256(abi.encode(CREATED_BLOCK_ON_COMMITS_PHASE, _collectRound, _validator))];
+    }
+
+    function createdBlockOnRevealsPhase(uint256 _collectRound, address _validator) public view returns(bool) {
+        return boolStorage[keccak256(abi.encode(CREATED_BLOCK_ON_REVEALS_PHASE, _collectRound, _validator))];
     }
 
     // Returns the number of collection round for the current block
@@ -153,10 +176,19 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     bytes32 internal constant CURRENT_SECRET = keccak256("currentSecret");
     bytes32 internal constant OWNER = keccak256("owner");
 
+    bytes32 internal constant BLOCKS_PRODUCERS = "blocksProducers";
     bytes32 internal constant COMMITS = "commits";
     bytes32 internal constant COMMITTED_VALIDATORS = "committedValidators";
+    bytes32 internal constant CREATED_BLOCK_ON_COMMITS_PHASE = "createdBlockOnCommitsPhase";
+    bytes32 internal constant CREATED_BLOCK_ON_REVEALS_PHASE = "createdBlockOnRevealsPhase";
     bytes32 internal constant REVEALS_COUNT = "revealsCount";
     bytes32 internal constant SENT_REVEAL = "sentReveal";
+
+    function _addBlockProducer(uint256 _collectRound, address _validator) private {
+        addressArrayStorage[
+            keccak256(abi.encode(BLOCKS_PRODUCERS, _collectRound))
+        ].push(_validator);
+    }
 
     function _addCommittedValidator(uint256 _collectRound, address _validator) private {
         addressArrayStorage[keccak256(abi.encode(COMMITTED_VALIDATORS, _collectRound))].push(_validator);
@@ -166,29 +198,39 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         boolStorage[ALLOW_PUBLISH_SECRET] = true;
     }
 
+    function _clearBlocksProducers(uint256 _collectRound) private {
+        delete addressArrayStorage[keccak256(abi.encode(BLOCKS_PRODUCERS, _collectRound))];
+    }
+
     function _denyPublishSecret() private {
         boolStorage[ALLOW_PUBLISH_SECRET] = false;
     }
 
     // Removes garbage
-    function _clear() private {
-        uint256 collectRound = currentCollectRound();
-
-        if (collectRound == 0) {
+    function _clear(uint256 _currentCollectRound) private {
+        if (_currentCollectRound == 0) {
             return;
         }
 
-        collectRound--;
+        uint256 collectRound = _currentCollectRound - 1;
+        address[] memory validators;
+        uint256 i;
 
-        address[] memory validators = committedValidators(collectRound);
-
-        for (uint256 i = 0; i < validators.length; i++) {
+        validators = committedValidators(collectRound);
+        for (i = 0; i < validators.length; i++) {
             _setCommit(collectRound, validators[i], bytes32(0));
             _setSentReveal(collectRound, validators[i], false);
         }
+        _clearCommittedValidators(collectRound);
+
+        validators = blocksProducers(collectRound);
+        for (i = 0; i < validators.length; i++) {
+            _setCreatedBlockOnCommitsPhase(collectRound, validators[i], false);
+            _setCreatedBlockOnRevealsPhase(collectRound, validators[i], false);
+        }
+        _clearBlocksProducers(collectRound);
 
         _setRevealsCount(collectRound, 0);
-        _clearCommittedValidators(collectRound);
         _denyPublishSecret();
     }
 
@@ -215,6 +257,18 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
     function _setCommit(uint256 _collectRound, address _validator, bytes32 _secretHash) private {
         bytes32Storage[keccak256(abi.encode(COMMITS, _collectRound, _validator))] = _secretHash;
+    }
+
+    function _setCreatedBlockOnCommitsPhase(uint256 _collectRound, address _validator, bool _flag) private {
+        boolStorage[
+            keccak256(abi.encode(CREATED_BLOCK_ON_COMMITS_PHASE, _collectRound, _validator))
+        ] = _flag;
+    }
+
+    function _setCreatedBlockOnRevealsPhase(uint256 _collectRound, address _validator, bool _flag) private {
+        boolStorage[
+            keccak256(abi.encode(CREATED_BLOCK_ON_REVEALS_PHASE, _collectRound, _validator))
+        ] = _flag;
     }
 
     function _setCurrentSecret(uint256 _secret) private {

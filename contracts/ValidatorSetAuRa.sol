@@ -12,6 +12,13 @@ contract ValidatorSetAuRa is ValidatorSetBase {
     uint256 public constant STAKING_EPOCH_DURATION = 120960; // 1 week in blocks (5 seconds per block)
     uint256 public constant STAKE_WITHDRAW_DISALLOW_PERIOD = 4320; // 6 hours in blocks (staking epoch last blocks)
 
+    // ============================================== Modifiers =======================================================
+
+    modifier onlyRandomContract() {
+        require(msg.sender == address(randomContract()));
+        _;
+    }
+
     // =============================================== Setters ========================================================
 
     function addPool() public payable {
@@ -44,6 +51,10 @@ contract ValidatorSetAuRa is ValidatorSetBase {
         _setStakingEpochStartBlock(block.number);
     }
 
+    function removeMaliciousValidator(address _validator) external onlyRandomContract {
+        _removeMaliciousValidatorAuRa(_validator);
+    }
+
     function reportMaliciousValidator(bytes _message, bytes _signature)
         public
         onlySystem
@@ -70,20 +81,10 @@ contract ValidatorSetAuRa is ValidatorSetBase {
 
         reportedValidators.push(reportingValidator);
 
-        if (isValidatorBanned(maliciousValidator)) {
-            // The malicious validator is already banned
-            return;
-        }
-
-        uint256 reportCount = reportedValidators.length;
-
         // If more than 50% of validators reported about malicious validator
         // for the same `blockNumber`
-        if (reportCount.mul(2) > getValidators().length) {
-            if (_removeMaliciousValidator(maliciousValidator)) {
-                // From this moment `getPendingValidators()` will return the new validator set
-                _incrementChangeRequestCount();
-            }
+        if (reportedValidators.length.mul(2) > getValidators().length) {
+            _removeMaliciousValidatorAuRa(maliciousValidator);
         }
     }
 
@@ -105,6 +106,18 @@ contract ValidatorSetAuRa is ValidatorSetBase {
 
     bytes32 internal constant STAKING_EPOCH_START_BLOCK = keccak256("stakingEpochStartBlock");
     bytes32 internal constant MALICE_REPORTED_FOR_BLOCK = "maliceReportedForBlock";
+
+    function _removeMaliciousValidatorAuRa(address _validator) internal {
+        if (isValidatorBanned(_validator)) {
+            // The malicious validator is already banned
+            return;
+        }
+
+        if (_removeMaliciousValidator(_validator)) {
+            // From this moment `getPendingValidators()` will return the new validator set
+            _incrementChangeRequestCount();
+        }
+    }
 
     function _setStakingEpochStartBlock(uint256 _blockNumber) internal {
         uintStorage[STAKING_EPOCH_START_BLOCK] = _blockNumber;
