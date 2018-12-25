@@ -11,9 +11,8 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
 
     // ============================================== Constants =======================================================
 
-    // These value must be set before deploy
+    // These values must be set before deploy
     uint256 public constant BRIDGES_ALLOWED_LENGTH = 1; // see also the `bridgesAllowed()` getter
-    address public constant ERC20_TOKEN_CONTRACT = address(0);
     address public constant VALIDATOR_SET_CONTRACT = address(0);
 
     // ================================================ Events ========================================================

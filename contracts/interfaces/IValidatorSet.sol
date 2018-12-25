@@ -2,9 +2,10 @@ pragma solidity 0.4.25;
 
 
 interface IValidatorSet {
-    function initialize(address, address, address[], uint256, uint256) external;
+    function initialize(address, address, address, address[], uint256, uint256) external;
     function blockRewardContract() external view returns(address);
     function changeRequestCount() external view returns(uint256);
+    function erc20TokenContract() external view returns(address);
     function getPendingValidators() external view returns(address[]);
     function getPreviousValidators() external view returns(address[]);
     function getValidators() external view returns(address[]);

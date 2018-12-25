@@ -25,7 +25,7 @@ contract BlockRewardHBBFT is BlockRewardBase {
         // Mint ERC20 tokens to validators and their stakers as block reward.
         // This is not bridge's fee distribution.
         // This call makes sense only if `BLOCK_REWARD` and `ERC20_TOKEN_CONTRACT`
-        // constants above are not equal to zero.
+        // constants are not equal to zero.
         _mintTokensForStakers(benefactors);
 
         // We don't accrue any block reward in native coins to validator here.
@@ -37,8 +37,10 @@ contract BlockRewardHBBFT is BlockRewardBase {
 
     // Mint ERC20 tokens for each staker of each active validator
     function _mintTokensForStakers(address[] benefactors) internal {
+        IERC20Minting erc20Contract = IERC20Minting(IValidatorSet(VALIDATOR_SET_CONTRACT).erc20TokenContract());
+
         if (BLOCK_REWARD == 0) return;
-        if (ERC20_TOKEN_CONTRACT == 0) return;
+        if (erc20Contract == address(0)) return;
 
         uint256 stakingEpoch = _getStakingEpoch();
 
@@ -55,7 +57,7 @@ contract BlockRewardHBBFT is BlockRewardBase {
                 uint256[] memory rewards
             ) = _distributePoolReward(stakingEpoch, benefactors[i], i == 0 ? poolReward + remainder : poolReward);
 
-            IERC20Minting(ERC20_TOKEN_CONTRACT).mintReward(receivers, rewards);
+            erc20Contract.mintReward(receivers, rewards);
             
             emit RewardedERC20ByBlock(receivers, rewards);
         }

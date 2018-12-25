@@ -21,8 +21,8 @@ contract ValidatorSetAuRa is ValidatorSetBase {
 
     // =============================================== Setters ========================================================
 
-    function addPool() public payable {
-        stake(msg.sender);
+    function addPool(uint256 _amount) public {
+        stake(msg.sender, _amount);
     }
 
     /// Creates an initial set of validators at the start of the network.
@@ -31,13 +31,16 @@ contract ValidatorSetAuRa is ValidatorSetBase {
     function initialize(
         address _blockRewardContract,
         address _randomContract,
+        address _erc20TokenContract,
         address[] _initialValidators,
         uint256 _stakerMinStake,
         uint256 _validatorMinStake
     ) external {
+        require(_erc20TokenContract != address(0));
         super._initialize(
             _blockRewardContract,
             _randomContract,
+            _erc20TokenContract,
             _initialValidators,
             _stakerMinStake,
             _validatorMinStake

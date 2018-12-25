@@ -1,6 +1,7 @@
 pragma solidity 0.4.25;
 
 import "../interfaces/IBlockReward.sol";
+import "../interfaces/IERC20Minting.sol";
 import "../interfaces/IRandom.sol";
 import "../interfaces/IValidatorSet.sol";
 import "../eternal-storage/EternalStorage.sol";
@@ -14,6 +15,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
 
     // ============================================== Constants =======================================================
 
+    // These values must be set before deploy
     uint256 public constant MAX_OBSERVERS = 2000;
     uint256 public constant MAX_VALIDATORS = 20;
     uint256 public constant STAKE_UNIT = 1 ether;
@@ -123,16 +125,17 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         emit StakeMoved(_fromObserver, _toObserver, staker, stakingEpoch(), _amount);
     }
 
-    function stake(address _toObserver) public payable {
+    function stake(address _toObserver, uint256 _amount) public {
         address staker = msg.sender;
-        _stake(_toObserver, staker, msg.value);
-        emit Staked(_toObserver, staker, stakingEpoch(), msg.value);
+        erc20TokenContract().stake(staker, _amount);
+        _stake(_toObserver, staker, _amount);
+        emit Staked(_toObserver, staker, stakingEpoch(), _amount);
     }
 
     function withdraw(address _fromObserver, uint256 _amount) public {
         address staker = msg.sender;
+        erc20TokenContract().withdraw(staker, _amount);
         _withdraw(_fromObserver, staker, _amount);
-        staker.transfer(_amount);
         emit Withdrawn(_fromObserver, staker, stakingEpoch(), _amount);
     }
 
@@ -171,6 +174,10 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
 
     function doesPoolExist(address _who) public view returns(bool) {
         return isPoolActive(_who);
+    }
+
+    function erc20TokenContract() public view returns(IERC20Minting) {
+        return IERC20Minting(addressStorage[ERC20_TOKEN_CONTRACT]);
     }
 
     // Returns the list of current observers (pools)
@@ -332,6 +339,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     bytes32 internal constant BLOCK_REWARD_CONTRACT = keccak256("blockRewardContract");
     bytes32 internal constant CHANGE_REQUEST_COUNT = keccak256("changeRequestCount");
     bytes32 internal constant CURRENT_VALIDATORS = keccak256("currentValidators");
+    bytes32 internal constant ERC20_TOKEN_CONTRACT = keccak256("erc20TokenContract");
     bytes32 internal constant OWNER = keccak256("owner");
     bytes32 internal constant PENDING_VALIDATORS = keccak256("pendingValidators");
     bytes32 internal constant POOLS = keccak256("pools");
@@ -442,6 +450,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     function _initialize(
         address _blockRewardContract,
         address _randomContract,
+        address _erc20TokenContract,
         address[] _initialValidators,
         uint256 _stakerMinStake,
         uint256 _validatorMinStake
@@ -454,6 +463,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
 
         addressStorage[BLOCK_REWARD_CONTRACT] = _blockRewardContract;
         addressStorage[RANDOM_CONTRACT] = _randomContract;
+        addressStorage[ERC20_TOKEN_CONTRACT] = _erc20TokenContract;
 
         address[] storage currentValidators = addressArrayStorage[CURRENT_VALIDATORS];
         address[] storage pendingValidators = addressArrayStorage[PENDING_VALIDATORS];

@@ -9,8 +9,8 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
 
     // =============================================== Setters ========================================================
 
-    function addPool(bytes _publicKey) public payable {
-        stake(msg.sender);
+    function addPool(bytes _publicKey, uint256 _amount) public {
+        stake(msg.sender, _amount);
         savePublicKey(_publicKey);
     }
 
@@ -20,6 +20,7 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
     function initialize(
         address _blockRewardContract,
         address _randomContract,
+        address _erc20TokenContract,
         address[] _initialValidators,
         uint256 _stakerMinStake,
         uint256 _validatorMinStake
@@ -27,6 +28,7 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
         super._initialize(
             _blockRewardContract,
             _randomContract,
+            _erc20TokenContract,
             _initialValidators,
             _stakerMinStake,
             _validatorMinStake

@@ -40,13 +40,17 @@ contract BlockRewardAuRa is BlockRewardBase {
         // Distribute bridge's token fee
         (receivers, rewards) = _distributeBridgeFee(stakingEpoch, false, false);
         if (receivers.length > 0) {
-            IERC20Minting(ERC20_TOKEN_CONTRACT).mintReward(receivers, rewards);
+            IERC20Minting(
+                IValidatorSet(VALIDATOR_SET_CONTRACT).erc20TokenContract()
+            ).mintReward(receivers, rewards);
         }
         if (stakingEpoch > 0) {
             // Handle previous staking epoch as well
             (receivers, rewards) = _distributeBridgeFee(stakingEpoch - 1, true, false);
             if (receivers.length > 0) {
-                IERC20Minting(ERC20_TOKEN_CONTRACT).mintReward(receivers, rewards);
+                IERC20Minting(
+                    IValidatorSet(VALIDATOR_SET_CONTRACT).erc20TokenContract()
+                ).mintReward(receivers, rewards);
             }
         }
 
