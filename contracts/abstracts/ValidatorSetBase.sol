@@ -129,8 +129,8 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         IERC20Minting tokenContract = erc20TokenContract();
         require(tokenContract != address(0));
         address staker = msg.sender;
-        tokenContract.stake(staker, _amount);
         _stake(_toObserver, staker, _amount);
+        tokenContract.stake(staker, _amount);
         emit Staked(_toObserver, staker, stakingEpoch(), _amount);
     }
 
@@ -138,8 +138,8 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         IERC20Minting tokenContract = erc20TokenContract();
         require(tokenContract != address(0));
         address staker = msg.sender;
-        tokenContract.withdraw(staker, _amount);
         _withdraw(_fromObserver, staker, _amount);
+        tokenContract.withdraw(staker, _amount);
         emit Withdrawn(_fromObserver, staker, stakingEpoch(), _amount);
     }
 
