@@ -36,7 +36,6 @@ contract ValidatorSetAuRa is ValidatorSetBase {
         uint256 _stakerMinStake,
         uint256 _validatorMinStake
     ) external {
-        require(_erc20TokenContract != address(0));
         super._initialize(
             _blockRewardContract,
             _randomContract,

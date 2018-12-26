@@ -126,15 +126,19 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     }
 
     function stake(address _toObserver, uint256 _amount) public {
+        IERC20Minting tokenContract = erc20TokenContract();
+        require(tokenContract != address(0));
         address staker = msg.sender;
-        erc20TokenContract().stake(staker, _amount);
+        tokenContract.stake(staker, _amount);
         _stake(_toObserver, staker, _amount);
         emit Staked(_toObserver, staker, stakingEpoch(), _amount);
     }
 
     function withdraw(address _fromObserver, uint256 _amount) public {
+        IERC20Minting tokenContract = erc20TokenContract();
+        require(tokenContract != address(0));
         address staker = msg.sender;
-        erc20TokenContract().withdraw(staker, _amount);
+        tokenContract.withdraw(staker, _amount);
         _withdraw(_fromObserver, staker, _amount);
         emit Withdrawn(_fromObserver, staker, stakingEpoch(), _amount);
     }
@@ -144,6 +148,11 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         for (uint256 i = 0; i < _staker.length; i++) {
             _setStakeAmountByEpoch(_observer, _staker[i], _stakingEpoch, 0);
         }
+    }
+
+    function setErc20TokenContract(address _erc20TokenContract) public onlyOwner {
+        require(_erc20TokenContract != address(0));
+        addressStorage[ERC20_TOKEN_CONTRACT] = _erc20TokenContract;
     }
 
     function setStakerMinStake(uint256 _minStake) public onlyOwner {
