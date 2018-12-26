@@ -11,8 +11,7 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
 
     // ============================================== Constants =======================================================
 
-    // These values must be set before deploy
-    uint256 public constant BRIDGES_ALLOWED_LENGTH = 1; // see also the `bridgesAllowed()` getter
+    // This address must be set before deploy
     address public constant VALIDATOR_SET_CONTRACT = address(0);
 
     // ================================================ Events ========================================================
@@ -22,8 +21,18 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
 
     // ============================================== Modifiers =======================================================
 
-    modifier onlyBridgeContract {
-        require(_isBridgeContract(msg.sender));
+    modifier onlyErcToNativeBridge {
+        require(_isErcToNativeBridge(msg.sender));
+        _;
+    }
+
+    modifier onlyNativeToErcBridge {
+        require(_isNativeToErcBridge(msg.sender));
+        _;
+    }
+
+    modifier onlyOwner() {
+        require(msg.sender == addressStorage[OWNER]);
         _;
     }
 
@@ -39,17 +48,17 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
 
     // =============================================== Setters ========================================================
 
-    function addBridgeNativeFeeReceivers(uint256 _amount) external onlyBridgeContract {
+    function addBridgeNativeFeeReceivers(uint256 _amount) external onlyErcToNativeBridge {
         require(_amount != 0);
         _addBridgeNativeFee(_getStakingEpoch(), _amount);
     }
 
-    function addBridgeTokenFeeReceivers(uint256 _amount) external onlyBridgeContract {
+    function addBridgeTokenFeeReceivers(uint256 _amount) external onlyNativeToErcBridge {
         require(_amount != 0);
         _addBridgeTokenFee(_getStakingEpoch(), _amount);
     }
 
-    function addExtraReceiver(uint256 _amount, address _receiver) external onlyBridgeContract {
+    function addExtraReceiver(uint256 _amount, address _receiver) external onlyErcToNativeBridge {
         require(_amount != 0);
         require(_receiver != address(0));
         uint256 oldAmount = extraReceiverAmount(_receiver);
@@ -59,6 +68,14 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
         _setExtraReceiverAmount(oldAmount.add(_amount), _receiver);
         _setBridgeAmount(bridgeAmount(msg.sender).add(_amount), msg.sender);
         emit AddedReceiver(_amount, _receiver, msg.sender);
+    }
+
+    function setErcToNativeBridgesAllowed(address[] _bridgesAllowed) public onlyOwner {
+        addressArrayStorage[ERC_TO_NATIVE_BRIDGES_ALLOWED] = _bridgesAllowed;
+    }
+
+    function setNativeToErcBridgesAllowed(address[] _bridgesAllowed) public onlyOwner {
+        addressArrayStorage[NATIVE_TO_ERC_BRIDGES_ALLOWED] = _bridgesAllowed;
     }
 
     function setSnapshot() external onlyValidatorSet {
@@ -114,17 +131,14 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
 
     // =============================================== Getters ========================================================
 
-    function bridgesAllowed() public pure returns(address[BRIDGES_ALLOWED_LENGTH]) {
-        // These addresses must be set before deploy
-        return([
-            address(0)
-        ]);
-    }
-
     function bridgeAmount(address _bridge) public view returns(uint256) {
         return uintStorage[
             keccak256(abi.encode(BRIDGE_AMOUNT, _bridge))
         ];
+    }
+
+    function ercToNativeBridgesAllowed() public view returns(address[]) {
+        return addressArrayStorage[ERC_TO_NATIVE_BRIDGES_ALLOWED];
     }
 
     function extraReceiverByIndex(uint256 _index) public view returns(address) {
@@ -177,6 +191,10 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
         ];
     }
 
+    function nativeToErcBridgesAllowed() public view returns(address[]) {
+        return addressArrayStorage[NATIVE_TO_ERC_BRIDGES_ALLOWED];
+    }
+
     function snapshotStakeAmount(
         uint256 _stakingEpoch,
         address _validator,
@@ -201,8 +219,11 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
 
     // =============================================== Private ========================================================
 
+    bytes32 internal constant ERC_TO_NATIVE_BRIDGES_ALLOWED = keccak256("ercToNativeBridgesAllowed");
     bytes32 internal constant EXTRA_RECEIVERS = keccak256("extraReceivers");
     bytes32 internal constant MINTED_TOTALLY = keccak256("mintedTotally");
+    bytes32 internal constant NATIVE_TO_ERC_BRIDGES_ALLOWED = keccak256("nativeToErcBridgesAllowed");
+    bytes32 internal constant OWNER = keccak256("owner");
 
     bytes32 internal constant BRIDGE_AMOUNT = "bridgeAmount";
     bytes32 internal constant BRIDGE_NATIVE_FEE = "bridgeNativeFee";
@@ -258,7 +279,7 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
     }
 
     // Accrue native coins to bridge's receivers if any
-    function _mintNativeCoinsByBridge() internal returns(address[], uint256[]) {
+    function _mintNativeCoinsByErcToNativeBridge() internal returns(address[], uint256[]) {
         uint256 extraLength = extraReceiversLength();
 
         address[] memory receivers = new address[](extraLength);
@@ -275,8 +296,9 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
             _setMinted(extraAmount, extraAddress);
         }
 
-        for (i = 0; i < BRIDGES_ALLOWED_LENGTH; i++) {
-            address bridgeAddress = bridgesAllowed()[i];
+        address[] memory bridgesAllowed = ercToNativeBridgesAllowed();
+        for (i = 0; i < bridgesAllowed.length; i++) {
+            address bridgeAddress = bridgesAllowed[i];
             uint256 bridgeAmountForBlock = bridgeAmount(bridgeAddress);
 
             if (bridgeAmountForBlock > 0) {
@@ -412,8 +434,20 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
         return stakingEpoch;
     }
 
-    function _isBridgeContract(address _addr) internal pure returns(bool) {
-        address[BRIDGES_ALLOWED_LENGTH] memory bridges = bridgesAllowed();
+    function _isErcToNativeBridge(address _addr) internal view returns(bool) {
+        address[] memory bridges = ercToNativeBridgesAllowed();
+        
+        for (uint256 i = 0; i < bridges.length; i++) {
+            if (_addr == bridges[i]) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    function _isNativeToErcBridge(address _addr) internal view returns(bool) {
+        address[] memory bridges = nativeToErcBridgesAllowed();
         
         for (uint256 i = 0; i < bridges.length; i++) {
             if (_addr == bridges[i]) {

@@ -30,7 +30,7 @@ contract BlockRewardHBBFT is BlockRewardBase {
 
         // We don't accrue any block reward in native coins to validator here.
         // We just mint native coins by bridge if needed.
-        return _mintNativeCoinsByBridge();
+        return _mintNativeCoinsByErcToNativeBridge();
     }
 
     // =============================================== Private ========================================================

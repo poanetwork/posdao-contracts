@@ -57,7 +57,7 @@ contract BlockRewardAuRa is BlockRewardBase {
 
         // We don't accrue any block reward in native coins to validator here.
         // We just mint native coins by bridge if needed.
-        (receivers, rewards) = _mintNativeCoinsByBridge();
+        (receivers, rewards) = _mintNativeCoinsByErcToNativeBridge();
         for (i = 0; i < receivers.length; i++) {
             addressArrayStorage[REWARD_TEMPORARY_ARRAY].push(receivers[i]);
             uintArrayStorage[REWARD_TEMPORARY_ARRAY].push(rewards[i]);
