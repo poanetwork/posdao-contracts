@@ -16,6 +16,29 @@ contract BlockRewardAuRa is BlockRewardBase {
         require(benefactors.length == 1);
         require(kind[0] == 0);
 
+        if (benefactors[0] == address(0)) {
+            // Return empty arrays for zero input address
+            // https://github.com/paritytech/parity-ethereum/issues/9764
+            return (new address[](0), new uint256[](0));
+        }
+
+        IValidatorSet validatorSetContract = IValidatorSet(VALIDATOR_SET_CONTRACT);
+
+        // Check if the validator is existed
+        if (validatorSetContract.validatorSetApplyBlock() == block.number) {
+            // If `finalizeChange` was called in this block
+            require(
+                validatorSetContract.isValidator(benefactors[0]) ||
+                validatorSetContract.isValidatorOnPreviousEpoch(benefactors[0])
+            );
+        } else {
+            require(validatorSetContract.isValidator(benefactors[0]));
+        }
+
+        // Start new staking epoch every `STAKING_EPOCH_DURATION` blocks
+        validatorSetContract.newValidatorSet();
+
+        // Distribute fees
         address[] memory receivers;
         uint256[] memory rewards;
         uint256 i;
@@ -29,7 +52,7 @@ contract BlockRewardAuRa is BlockRewardBase {
             uintArrayStorage[REWARD_TEMPORARY_ARRAY].push(rewards[i]);
         }
         if (stakingEpoch > 0) {
-            // Handle previous staking epoch as well
+            // Handle previous staking epoch as well (just in case)
             (receivers, rewards) = _distributeBridgeFee(stakingEpoch - 1, true, true);
             for (i = 0; i < receivers.length; i++) {
                 addressArrayStorage[REWARD_TEMPORARY_ARRAY].push(receivers[i]);
@@ -39,7 +62,7 @@ contract BlockRewardAuRa is BlockRewardBase {
 
         // Distribute bridge's token fee
         IERC20Minting erc20TokenContract = IERC20Minting(
-            IValidatorSet(VALIDATOR_SET_CONTRACT).erc20TokenContract()
+            validatorSetContract.erc20TokenContract()
         );
         if (erc20TokenContract != address(0)) {
             (receivers, rewards) = _distributeBridgeFee(stakingEpoch, false, false);
@@ -47,7 +70,7 @@ contract BlockRewardAuRa is BlockRewardBase {
                 erc20TokenContract.mintReward(receivers, rewards);
             }
             if (stakingEpoch > 0) {
-                // Handle previous staking epoch as well
+                // Handle previous staking epoch as well (just in case)
                 (receivers, rewards) = _distributeBridgeFee(stakingEpoch - 1, true, false);
                 if (receivers.length > 0) {
                     erc20TokenContract.mintReward(receivers, rewards);
@@ -63,6 +86,7 @@ contract BlockRewardAuRa is BlockRewardBase {
             uintArrayStorage[REWARD_TEMPORARY_ARRAY].push(rewards[i]);
         }
 
+        // Move the arrays of receivers and their rewards from storage to memory
         receivers = addressArrayStorage[REWARD_TEMPORARY_ARRAY];
         rewards = uintArrayStorage[REWARD_TEMPORARY_ARRAY];
 
@@ -72,7 +96,7 @@ contract BlockRewardAuRa is BlockRewardBase {
         // Mark that the current validator produced a block during the current phase.
         // Publish current random number at the end of the current collection round.
         // Check if current validators participated in the current collection round.
-        IRandomAuRa(IValidatorSet(VALIDATOR_SET_CONTRACT).randomContract()).onBlockClose(benefactors[0]);
+        IRandomAuRa(validatorSetContract.randomContract()).onBlockClose(benefactors[0]);
 
         return (receivers, rewards);
     }

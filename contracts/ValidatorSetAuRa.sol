@@ -14,6 +14,11 @@ contract ValidatorSetAuRa is ValidatorSetBase {
 
     // ============================================== Modifiers =======================================================
 
+    modifier onlyBlockRewardContract() {
+        require(msg.sender == address(blockRewardContract()));
+        _;
+    }
+
     modifier onlyRandomContract() {
         require(msg.sender == address(randomContract()));
         _;
@@ -47,8 +52,8 @@ contract ValidatorSetAuRa is ValidatorSetBase {
         _setStakingEpochStartBlock(block.number);
     }
 
-    function newValidatorSet() public onlySystem {
-        require(newValidatorSetCallable());
+    function newValidatorSet() external onlyBlockRewardContract {
+        if (!_newValidatorSetCallable()) return;
         super._newValidatorSet();
         _setStakingEpochStartBlock(block.number);
     }
@@ -96,10 +101,6 @@ contract ValidatorSetAuRa is ValidatorSetBase {
         return addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED_FOR_BLOCK, _validator, _blockNumber))];
     }
 
-    function newValidatorSetCallable() public view returns(bool) {
-        return block.number.sub(stakingEpochStartBlock()) > STAKING_EPOCH_DURATION;
-    }
-
     function stakingEpochStartBlock() public view returns(uint256) {
         return uintStorage[STAKING_EPOCH_START_BLOCK];
     }
@@ -130,6 +131,10 @@ contract ValidatorSetAuRa is ValidatorSetBase {
         uint256 applyBlock = validatorSetApplyBlock();
         bool afterValidatorSetApplied = applyBlock != 0 && block.number > applyBlock;
         return afterValidatorSetApplied && block.number.sub(stakingEpochStartBlock()) <= allowedDuration;
+    }
+
+    function _newValidatorSetCallable() internal view returns(bool) {
+        return block.number.sub(stakingEpochStartBlock()) > STAKING_EPOCH_DURATION;
     }
 
     function _recoverAddressFromSignedMessage(bytes _message, bytes _signature)
