@@ -89,19 +89,24 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
             // This is the last block of the current collection round
 
             if (boolStorage[ALLOW_PUBLISH_SECRET]) {
-                _publishSecret(); // publish new secret if reveals phase fully completed
+                _publishSecret(); // publish new secret if `reveals phase` fully completed
             }
 
-            uint256 applyBlock = IValidatorSet(VALIDATOR_SET_CONTRACT).validatorSetApplyBlock();
+            address[] memory validators;
+            address validator;
+            uint256 blockNumber;
+            uint256 i;
 
-            if (applyBlock != 0 && block.number > applyBlock + COLLECT_ROUND_LENGTH * 2 || applyBlock == 0) {
+            blockNumber = IValidatorSet(VALIDATOR_SET_CONTRACT).validatorSetApplyBlock();
+
+            if (blockNumber != 0 && block.number > blockNumber + COLLECT_ROUND_LENGTH * 2 || blockNumber == 0) {
                 // Check each validator whether he created at least one block
                 // during commits phase and at least one block during reveals phase
                 // but didn't reveal his secret during reveals phase
 
-                address[] memory validators = IValidatorSet(VALIDATOR_SET_CONTRACT).getValidators();
-                for (uint256 i = 0; i < validators.length; i++) {
-                    address validator = validators[i];
+                validators = IValidatorSet(VALIDATOR_SET_CONTRACT).getValidators();
+                for (i = 0; i < validators.length; i++) {
+                    validator = validators[i];
                     if (
                         createdBlockOnCommitsPhase(currentRound, validator) &&
                         createdBlockOnRevealsPhase(currentRound, validator) &&
@@ -109,6 +114,26 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
                     ) {
                         // The validator produced the blocks but didn't reveal his secret during
                         // the current collection round, so remove him from validator set as malicious
+                        IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).removeMaliciousValidator(validator);
+                    }
+                }
+            }
+
+            blockNumber = IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).stakingEpochStartBlock();
+
+            // If this is the last collection round in the current staking epoch
+            if (
+                blockNumber == block.number ||
+                block.number + COLLECT_ROUND_LENGTH >
+                blockNumber + IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).STAKING_EPOCH_DURATION() - 1
+            ) {
+                // Check each validator whether he didn't reveal
+                // his secret during the last full `reveals phase`
+                validators = IValidatorSet(VALIDATOR_SET_CONTRACT).getValidators();
+                for (i = 0; i < validators.length; i++) {
+                    validator = validators[i];
+                    if (!sentReveal(currentRound, validator)) {
+                        // Remove the validator as malicious
                         IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).removeMaliciousValidator(validator);
                     }
                 }

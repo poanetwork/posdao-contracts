@@ -134,7 +134,7 @@ contract ValidatorSetAuRa is ValidatorSetBase {
     }
 
     function _newValidatorSetCallable() internal view returns(bool) {
-        return block.number.sub(stakingEpochStartBlock()) > STAKING_EPOCH_DURATION;
+        return block.number.sub(stakingEpochStartBlock()) >= STAKING_EPOCH_DURATION - 1;
     }
 
     function _recoverAddressFromSignedMessage(bytes _message, bytes _signature)
