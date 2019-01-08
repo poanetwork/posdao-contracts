@@ -26,11 +26,11 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
     // =============================================== Setters ========================================================
 
-    function commitHash(bytes32 _secretHash, bytes _signature) public onlySystem {
+    function commitHash(bytes32 _secretHash) public {
         require(isCommitPhase()); // must only be called in commits phase
         require(_secretHash != bytes32(0));
 
-        address validator = _recoverAddressFromSignedMessage(_secretHash, _signature);
+        address validator = msg.sender;
         require(IValidatorSet(VALIDATOR_SET_CONTRACT).isValidator(validator));
 
         uint256 collectRound = currentCollectRound();
@@ -41,13 +41,13 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         _addCommittedValidator(collectRound, validator);
     }
 
-    function revealSecret(uint256 _secret, bytes _signature) public onlySystem {
+    function revealSecret(uint256 _secret) public {
         require(isRevealPhase()); // must only be called in reveals phase
 
         bytes32 secretHash = keccak256(abi.encodePacked(_secret));
         require(secretHash != bytes32(0));
 
-        address validator = _recoverAddressFromSignedMessage(bytes32(_secret), _signature);
+        address validator = msg.sender;
         require(IValidatorSet(VALIDATOR_SET_CONTRACT).isValidator(validator));
 
         uint256 collectRound = currentCollectRound();
@@ -310,25 +310,5 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
     function _getCurrentSecret() private view returns(uint256) {
         return uintStorage[CURRENT_SECRET];
-    }
-
-    function _recoverAddressFromSignedMessage(bytes32 _message, bytes _signature)
-        private
-        pure
-        returns(address)
-    {
-        require(_signature.length == 65);
-        bytes32 r;
-        bytes32 s;
-        bytes1 v;
-        assembly {
-            r := mload(add(_signature, 0x20))
-            s := mload(add(_signature, 0x40))
-            v := mload(add(_signature, 0x60))
-        }
-        bytes memory prefix = "\x19Ethereum Signed Message:\n";
-        string memory msgLength = "32";
-        bytes32 messageHash = keccak256(abi.encodePacked(prefix, msgLength, _message));
-        return ecrecover(messageHash, uint8(v), r, s);
     }
 }
