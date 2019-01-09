@@ -62,22 +62,16 @@ contract ValidatorSetAuRa is ValidatorSetBase {
         _removeMaliciousValidatorAuRa(_validator);
     }
 
-    function reportMaliciousValidator(bytes _message, bytes _signature)
-        public
-        onlySystem
-    {
-        address maliciousValidator;
-        uint256 blockNumber;
-        assembly {
-            maliciousValidator := and(mload(add(_message, 20)), 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF)
-            blockNumber := mload(add(_message, 52))
-        }
-        address reportingValidator = _recoverAddressFromSignedMessage(_message, _signature);
+    function reportBenign(address, uint256) public {
+    }
+
+    function reportMalicious(address _maliciousValidator, uint256 _blockNumber, bytes) public {
+        address reportingValidator = msg.sender;
 
         require(_isReportingValidatorValid(reportingValidator));
 
         address[] storage reportedValidators =
-            addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED_FOR_BLOCK, maliciousValidator, blockNumber))];
+            addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED_FOR_BLOCK, _maliciousValidator, _blockNumber))];
 
         // Don't allow reporting validator to report about malicious validator more than once
         for (uint256 m = 0; m < reportedValidators.length; m++) {
@@ -91,7 +85,7 @@ contract ValidatorSetAuRa is ValidatorSetBase {
         // If more than 50% of validators reported about malicious validator
         // for the same `blockNumber`
         if (reportedValidators.length.mul(2) > getValidators().length) {
-            _removeMaliciousValidatorAuRa(maliciousValidator);
+            _removeMaliciousValidatorAuRa(_maliciousValidator);
         }
     }
 
@@ -135,26 +129,5 @@ contract ValidatorSetAuRa is ValidatorSetBase {
 
     function _newValidatorSetCallable() internal view returns(bool) {
         return block.number.sub(stakingEpochStartBlock()) >= STAKING_EPOCH_DURATION - 1;
-    }
-
-    function _recoverAddressFromSignedMessage(bytes _message, bytes _signature)
-        internal
-        pure
-        returns(address)
-    {
-        require(_signature.length == 65);
-        bytes32 r;
-        bytes32 s;
-        bytes1 v;
-        assembly {
-            r := mload(add(_signature, 0x20))
-            s := mload(add(_signature, 0x40))
-            v := mload(add(_signature, 0x60))
-        }
-        bytes memory prefix = "\x19Ethereum Signed Message:\n";
-        string memory msgLength = "52";
-        require(_message.length == 52);
-        bytes32 messageHash = keccak256(abi.encodePacked(prefix, msgLength, _message));
-        return ecrecover(messageHash, uint8(v), r, s);
     }
 }
