@@ -62,21 +62,16 @@ contract ValidatorSetAuRa is ValidatorSetBase {
         _removeMaliciousValidatorAuRa(_validator);
     }
 
-    function reportMaliciousValidator(bytes _message)
-        public
-    {
-        address maliciousValidator;
-        uint256 blockNumber;
-        assembly {
-            maliciousValidator := and(mload(add(_message, 20)), 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF)
-            blockNumber := mload(add(_message, 52))
-        }
+    function reportBenign(address, uint256) public {
+    }
+
+    function reportMalicious(address _maliciousValidator, uint256 _blockNumber, bytes) public {
         address reportingValidator = msg.sender;
 
         require(_isReportingValidatorValid(reportingValidator));
 
         address[] storage reportedValidators =
-            addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED_FOR_BLOCK, maliciousValidator, blockNumber))];
+            addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED_FOR_BLOCK, _maliciousValidator, _blockNumber))];
 
         // Don't allow reporting validator to report about malicious validator more than once
         for (uint256 m = 0; m < reportedValidators.length; m++) {
@@ -90,7 +85,7 @@ contract ValidatorSetAuRa is ValidatorSetBase {
         // If more than 50% of validators reported about malicious validator
         // for the same `blockNumber`
         if (reportedValidators.length.mul(2) > getValidators().length) {
-            _removeMaliciousValidatorAuRa(maliciousValidator);
+            _removeMaliciousValidatorAuRa(_maliciousValidator);
         }
     }
 
