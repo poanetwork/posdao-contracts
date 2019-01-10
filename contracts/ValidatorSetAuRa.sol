@@ -12,6 +12,10 @@ contract ValidatorSetAuRa is ValidatorSetBase {
     uint256 public constant STAKING_EPOCH_DURATION = 120960; // 1 week in blocks (5 seconds per block)
     uint256 public constant STAKE_WITHDRAW_DISALLOW_PERIOD = 4320; // 6 hours in blocks (staking epoch last blocks)
 
+    // ================================================ Events ========================================================
+
+    event ReportedMalicious(address reportingValidator, address maliciousValidator, uint256 blockNumber);
+
     // ============================================== Modifiers =======================================================
 
     modifier onlyBlockRewardContract() {
@@ -63,12 +67,15 @@ contract ValidatorSetAuRa is ValidatorSetBase {
     }
 
     function reportBenign(address, uint256) public {
+        // does nothing
     }
 
     function reportMalicious(address _maliciousValidator, uint256 _blockNumber, bytes) public {
         address reportingValidator = msg.sender;
 
-        require(_isReportingValidatorValid(reportingValidator));
+        require(_isReportValidatorValid(_maliciousValidator));
+        require(_blockNumber <= block.number); // avoid reporting about future blocks
+        require(_isReportValidatorValid(reportingValidator));
 
         address[] storage reportedValidators =
             addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED_FOR_BLOCK, _maliciousValidator, _blockNumber))];
@@ -76,11 +83,13 @@ contract ValidatorSetAuRa is ValidatorSetBase {
         // Don't allow reporting validator to report about malicious validator more than once
         for (uint256 m = 0; m < reportedValidators.length; m++) {
             if (reportedValidators[m] == reportingValidator) {
-                return;
+                revert();
             }
         }
 
         reportedValidators.push(reportingValidator);
+
+        emit ReportedMalicious(reportingValidator, _maliciousValidator, _blockNumber);
 
         // If more than 50% of validators reported about malicious validator
         // for the same `blockNumber`

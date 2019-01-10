@@ -747,8 +747,8 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
 
     function _areStakeAndWithdrawAllowed() internal view returns(bool);
 
-    function _isReportingValidatorValid(address _reportingValidator) internal view returns(bool) {
-        bool isValid = isValidator(_reportingValidator) && !isValidatorBanned(_reportingValidator);
+    function _isReportValidatorValid(address _validator) internal view returns(bool) {
+        bool isValid = isValidator(_validator) && !isValidatorBanned(_validator);
         if (stakingEpoch() == 0 || validatorSetApplyBlock() == 0) {
             return isValid;
         }
@@ -757,7 +757,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
             // but we should let the previous validators finish
             // reporting malicious validator within a few blocks
             bool previousEpochValidator =
-                isValidatorOnPreviousEpoch(_reportingValidator) && !isValidatorBanned(_reportingValidator);
+                isValidatorOnPreviousEpoch(_validator) && !isValidatorBanned(_validator);
             return isValid || previousEpochValidator;
         }
         return isValid;
