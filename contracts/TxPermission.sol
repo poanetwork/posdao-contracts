@@ -61,7 +61,7 @@ contract TxPermission is EternalStorage {
     
     /// Contract version
     function contractVersion() public pure returns(uint256) {
-        return 3;
+        return 0xfffffffffffffffe;
     }
 
     function allowedSenders() public view returns(address[]) {
