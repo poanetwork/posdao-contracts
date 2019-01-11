@@ -112,7 +112,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
             // Set a new snapshot inside BlockReward contract
             blockRewardContract().setSnapshot();
         } else {
-            // Apply new validator set after `reportMaliciousValidator` is called
+            // Apply new validator set after `reportMalicious` is called
             _applyPendingValidators();
         }
     }
@@ -225,6 +225,22 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     // Returns the flag whether the address in the `pools` array
     function isPoolActive(address _who) public view returns(bool) {
         return boolStorage[keccak256(abi.encode(IS_POOL_ACTIVE, _who))];
+    }
+
+    function isReportValidatorValid(address _validator) public view returns(bool) {
+        bool isValid = isValidator(_validator) && !isValidatorBanned(_validator);
+        if (stakingEpoch() == 0 || validatorSetApplyBlock() == 0) {
+            return isValid;
+        }
+        if (block.number - validatorSetApplyBlock() <= 3) {
+            // The current validator set was applied in engine,
+            // but we should let the previous validators finish
+            // reporting malicious validator within a few blocks
+            bool previousEpochValidator =
+                isValidatorOnPreviousEpoch(_validator) && !isValidatorBanned(_validator);
+            return isValid || previousEpochValidator;
+        }
+        return isValid;
     }
 
     // Returns the flag whether the address in the `currentValidators` array
@@ -746,22 +762,6 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     }
 
     function _areStakeAndWithdrawAllowed() internal view returns(bool);
-
-    function _isReportValidatorValid(address _validator) internal view returns(bool) {
-        bool isValid = isValidator(_validator) && !isValidatorBanned(_validator);
-        if (stakingEpoch() == 0 || validatorSetApplyBlock() == 0) {
-            return isValid;
-        }
-        if (block.number - validatorSetApplyBlock() <= 3) {
-            // The current validator set was applied in engine,
-            // but we should let the previous validators finish
-            // reporting malicious validator within a few blocks
-            bool previousEpochValidator =
-                isValidatorOnPreviousEpoch(_validator) && !isValidatorBanned(_validator);
-            return isValid || previousEpochValidator;
-        }
-        return isValid;
-    }
 
     function _getRandomIndex(uint256[] _likelihood, uint256 _likelihoodSum, uint256 _randomNumber)
         internal

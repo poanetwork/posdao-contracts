@@ -9,6 +9,7 @@ interface IValidatorSet {
     function getPendingValidators() external view returns(address[]);
     function getPreviousValidators() external view returns(address[]);
     function getValidators() external view returns(address[]);
+    function isReportValidatorValid(address) external view returns(bool);
     function isValidator(address) external view returns(bool);
     function isValidatorOnPreviousEpoch(address) external view returns(bool);
     function MAX_VALIDATORS() external pure returns(uint256);

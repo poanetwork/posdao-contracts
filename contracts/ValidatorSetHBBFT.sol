@@ -54,7 +54,7 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
             address maliciousValidator = _validators[i];
             address reportingValidator = _reportingValidators[i];
 
-            if (!_isReportValidatorValid(reportingValidator)) {
+            if (!isReportValidatorValid(reportingValidator)) {
                 continue;
             }
 

@@ -73,9 +73,9 @@ contract ValidatorSetAuRa is ValidatorSetBase {
     function reportMalicious(address _maliciousValidator, uint256 _blockNumber, bytes) public {
         address reportingValidator = msg.sender;
 
-        require(_isReportValidatorValid(_maliciousValidator));
+        require(isReportValidatorValid(_maliciousValidator));
         require(_blockNumber <= block.number); // avoid reporting about future blocks
-        require(_isReportValidatorValid(reportingValidator));
+        require(isReportValidatorValid(reportingValidator));
 
         address[] storage reportedValidators =
             addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED_FOR_BLOCK, _maliciousValidator, _blockNumber))];
