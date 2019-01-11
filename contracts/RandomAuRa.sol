@@ -27,7 +27,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     // =============================================== Setters ========================================================
 
     function commitHash(bytes32 _secretHash) public {
-        require(isCommitPhase()); // must only be called in commits phase
+        require(isCommitPhase()); // must only be called in `commits phase`
         require(_secretHash != bytes32(0));
 
         address validator = msg.sender;
@@ -35,14 +35,14 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
         uint256 collectRound = currentCollectRound();
 
-        require(!isCommitted(collectRound, validator)); // cannot commit more than once
+        if (isCommitted(collectRound, validator)) return; // cannot commit more than once
 
         _setCommit(collectRound, validator, _secretHash);
         _addCommittedValidator(collectRound, validator);
     }
 
     function revealSecret(uint256 _secret) public {
-        require(isRevealPhase()); // must only be called in reveals phase
+        require(isRevealPhase()); // must only be called in `reveals phase`
 
         bytes32 secretHash = keccak256(abi.encodePacked(_secret));
         require(secretHash != bytes32(0));
@@ -52,8 +52,9 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
         uint256 collectRound = currentCollectRound();
 
-        require(!sentReveal(collectRound, validator)); // cannot reveal more than once during the same collection round
-        require(secretHash == getCommit(collectRound, validator)); // the hash must be commited
+        if (sentReveal(collectRound, validator)) return; // cannot reveal more than once during the same collectRound
+        
+        if (secretHash != getCommit(collectRound, validator)) return; // the hash must be commited
 
         _setCurrentSecret(_getCurrentSecret() ^ _secret);
         _setSentReveal(collectRound, validator, true);
