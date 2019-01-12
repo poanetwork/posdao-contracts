@@ -5,7 +5,7 @@ import "./eternal-storage/EternalStorage.sol";
 
 
 contract TxPermission is EternalStorage {
-    
+
     // ============================================== Constants =======================================================
 
     /// Allowed transaction types mask
@@ -48,17 +48,17 @@ contract TxPermission is EternalStorage {
     }
 
     // =============================================== Getters ========================================================
-    
+
     /// Contract name
     function contractName() public pure returns(string memory) {
         return "TX_PERMISSION_CONTRACT";
     }
-    
+
     /// Contract name hash
     function contractNameHash() public pure returns(bytes32) {
         return keccak256(abi.encodePacked(contractName()));
     }
-    
+
     /// Contract version
     function contractVersion() public pure returns(uint256) {
         return 0xfffffffffffffffe;
@@ -70,15 +70,15 @@ contract TxPermission is EternalStorage {
 
     /*
      * Allowed transaction types
-     * 
+     *
      * Returns:
      *  - uint32 - set of allowed transactions for #'sender' depending on tx #'to' address
      *    and value in wei.
-     *  - bool - if true is returned the same permissions will be applied from the same #'sender' 
+     *  - bool - if true is returned the same permissions will be applied from the same #'sender'
      *    without calling this contract again.
      *
      * In case of contract creation #'to' address equals to zero-address
-     * 
+     *
      * Result is represented as set of flags:
      *  - 0x01 - basic transaction (e.g. ether transferring to user wallet)
      *  - 0x02 - contract call
@@ -89,7 +89,7 @@ contract TxPermission is EternalStorage {
      * @param _to Transaction recepient address
      * @param _value Value in wei for transaction
      * @param _gasPrice Gas price in wei for transaction
-     * 
+     *
      */
     function allowedTxTypes(address _sender, address _to, uint256 /*_value*/, uint256 _gasPrice)
         public
