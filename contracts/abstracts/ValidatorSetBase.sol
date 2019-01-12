@@ -1,4 +1,4 @@
-pragma solidity 0.4.25;
+pragma solidity 0.5.2;
 
 import "../interfaces/IBlockReward.sol";
 import "../interfaces/IERC20Minting.sol";
@@ -21,7 +21,6 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     uint256 public constant STAKE_UNIT = 1 ether;
 
     // ================================================ Events ========================================================
-
     /// Emitted by `stake` function to signal that the staker made a stake of the specified
     /// amount for the specified observer during the specified staking epoch.
     /// @param toObserver The observer for whom the `staker` made the stake.
@@ -64,7 +63,6 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     );
 
     // ============================================== Modifiers =======================================================
-
     modifier onlyOwner() {
         require(msg.sender == addressStorage[OWNER]);
         _;
@@ -76,7 +74,6 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     }
 
     // =============================================== Setters ========================================================
-
     function removePool() public {
         if (stakingEpoch() == 0 && isValidator(msg.sender)) {
             revert(); // initial validator cannot remove his pool during the initial staking epoch
@@ -110,7 +107,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
             _setValidatorSetApplyBlock(block.number);
 
             // Set a new snapshot inside BlockReward contract
-            blockRewardContract().setSnapshot();
+            IBlockReward(blockRewardContract()).setSnapshot();
         } else {
             // Apply new validator set after `reportMalicious` is called
             _applyPendingValidators();
@@ -126,8 +123,8 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     }
 
     function stake(address _toObserver, uint256 _amount) public {
-        IERC20Minting tokenContract = erc20TokenContract();
-        require(tokenContract != address(0));
+        IERC20Minting tokenContract = IERC20Minting(erc20TokenContract());
+        require(address(tokenContract) != address(0));
         address staker = msg.sender;
         _stake(_toObserver, staker, _amount);
         tokenContract.stake(staker, _amount);
@@ -135,15 +132,15 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     }
 
     function withdraw(address _fromObserver, uint256 _amount) public {
-        IERC20Minting tokenContract = erc20TokenContract();
-        require(tokenContract != address(0));
+        IERC20Minting tokenContract = IERC20Minting(erc20TokenContract());
+        require(address(tokenContract) != address(0));
         address staker = msg.sender;
         _withdraw(_fromObserver, staker, _amount);
         tokenContract.withdraw(staker, _amount);
         emit Withdrawn(_fromObserver, staker, stakingEpoch(), _amount);
     }
 
-    function clearStakeHistory(address _observer, address[] _staker, uint256 _stakingEpoch) public onlySystem {
+    function clearStakeHistory(address _observer, address[] memory _staker, uint256 _stakingEpoch) public onlySystem {
         require(_stakingEpoch <= stakingEpoch().sub(2));
         for (uint256 i = 0; i < _staker.length; i++) {
             _setStakeAmountByEpoch(_observer, _staker[i], _stakingEpoch, 0);
@@ -164,7 +161,6 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     }
 
     // =============================================== Getters ========================================================
-
     // Returns the unix timestamp from which the address will be unbanned
     function bannedUntil(address _who) public view returns(uint256) {
         return uintStorage[
@@ -172,8 +168,8 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         ];
     }
 
-    function blockRewardContract() public view returns(IBlockReward) {
-        return IBlockReward(addressStorage[BLOCK_REWARD_CONTRACT]);
+    function blockRewardContract() public view returns(address) {
+        return addressStorage[BLOCK_REWARD_CONTRACT];
     }
 
     // Returns the serial number of validator set changing request
@@ -185,27 +181,27 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         return isPoolActive(_who);
     }
 
-    function erc20TokenContract() public view returns(IERC20Minting) {
-        return IERC20Minting(addressStorage[ERC20_TOKEN_CONTRACT]);
+    function erc20TokenContract() public view returns(address) {
+        return addressStorage[ERC20_TOKEN_CONTRACT];
     }
 
     // Returns the list of current observers (pools)
-    function getPools() public view returns(address[]) {
+    function getPools() public view returns(address[] memory) {
         return addressArrayStorage[POOLS];
     }
 
     // Returns the list of pools which are inactive or banned
-    function getPoolsInactive() public view returns(address[]) {
+    function getPoolsInactive() public view returns(address[] memory) {
         return addressArrayStorage[POOLS_INACTIVE];
     }
 
     // Returns the set of validators which was actual at the end of previous staking epoch
-    function getPreviousValidators() public view returns(address[]) {
+    function getPreviousValidators() public view returns(address[] memory) {
         return addressArrayStorage[PREVIOUS_VALIDATORS];
     }
 
     // Returns the set of validators to be finalized in engine
-    function getPendingValidators() public view returns(address[]) {
+    function getPendingValidators() public view returns(address[] memory) {
         return addressArrayStorage[PENDING_VALIDATORS];
     }
 
@@ -218,7 +214,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     }
 
     // Returns the current set of validators (the same as in the engine)
-    function getValidators() public view returns(address[]) {
+    function getValidators() public view returns(address[] memory) {
         return addressArrayStorage[CURRENT_VALIDATORS];
     }
 
@@ -307,7 +303,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     }
 
     // Returns the list of current stakers in the specified pool
-    function poolStakers(address _pool) public view returns(address[]) {
+    function poolStakers(address _pool) public view returns(address[] memory) {
         return addressArrayStorage[
             keccak256(abi.encode(POOL_STAKERS, _pool))
         ];
@@ -320,8 +316,8 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         ];
     }
 
-    function randomContract() public view returns(IRandom) {
-        return IRandom(addressStorage[RANDOM_CONTRACT]);
+    function randomContract() public view returns(address) {
+        return addressStorage[RANDOM_CONTRACT];
     }
 
     function stakeAmount(address _observer, address _staker) public view returns(uint256) {
@@ -360,7 +356,6 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     }
 
     // =============================================== Private ========================================================
-
     bytes32 internal constant BLOCK_REWARD_CONTRACT = keccak256("blockRewardContract");
     bytes32 internal constant CHANGE_REQUEST_COUNT = keccak256("changeRequestCount");
     bytes32 internal constant CURRENT_VALIDATORS = keccak256("currentValidators");
@@ -476,7 +471,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         address _blockRewardContract,
         address _randomContract,
         address _erc20TokenContract,
-        address[] _initialValidators,
+        address[] memory _initialValidators,
         uint256 _stakerMinStake,
         uint256 _validatorMinStake
     ) internal {
@@ -519,7 +514,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         if (pools.length <= MAX_VALIDATORS) {
             _setPendingValidators(pools);
         } else {
-            uint256[] memory randomNumbers = randomContract().currentRandom();
+            uint256[] memory randomNumbers = IRandom(randomContract()).currentRandom();
 
             require(randomNumbers.length == MAX_VALIDATORS);
 
@@ -533,8 +528,8 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
             uint256 i;
 
             for (i = 0; i < poolsLocalLength; i++) {
-               likelihood[i] = stakeAmountTotal(poolsLocal[i]).mul(100).div(STAKE_UNIT);
-               likelihoodSum = likelihoodSum.add(likelihood[i]);
+                likelihood[i] = stakeAmountTotal(poolsLocal[i]).mul(100).div(STAKE_UNIT);
+                likelihoodSum = likelihoodSum.add(likelihood[i]);
             }
 
             for (i = 0; i < MAX_VALIDATORS; i++) {
@@ -589,7 +584,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         return false;
     }
 
-    function _setCurrentValidators(address[] _validators) internal {
+    function _setCurrentValidators(address[] memory _validators) internal {
         addressArrayStorage[CURRENT_VALIDATORS] = _validators;
     }
 
@@ -605,7 +600,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         boolStorage[keccak256(abi.encode(IS_VALIDATOR_ON_PREVIOUS_EPOCH, _who))] = _isValidator;
     }
 
-    function _setPendingValidators(address[] _validators) internal {
+    function _setPendingValidators(address[] memory _validators) internal {
         addressArrayStorage[PENDING_VALIDATORS] = _validators;
     }
 
@@ -646,7 +641,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         _setPoolStakerIndex(_pool, _staker, 0);
     }
 
-    function _setPreviousValidators(address[] _validators) internal {
+    function _setPreviousValidators(address[] memory _validators) internal {
         addressArrayStorage[PREVIOUS_VALIDATORS] = _validators;
     }
 
@@ -763,7 +758,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
 
     function _areStakeAndWithdrawAllowed() internal view returns(bool);
 
-    function _getRandomIndex(uint256[] _likelihood, uint256 _likelihoodSum, uint256 _randomNumber)
+    function _getRandomIndex(uint256[] memory _likelihood, uint256 _likelihoodSum, uint256 _randomNumber)
         internal
         pure
         returns(uint256)

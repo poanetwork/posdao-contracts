@@ -1,4 +1,4 @@
-pragma solidity 0.4.25;
+pragma solidity 0.5.2;
 
 import "./abstracts/ValidatorSetBase.sol";
 
@@ -17,7 +17,6 @@ contract ValidatorSetAuRa is ValidatorSetBase {
     event ReportedMalicious(address reportingValidator, address maliciousValidator, uint256 blockNumber);
 
     // ============================================== Modifiers =======================================================
-
     modifier onlyBlockRewardContract() {
         require(msg.sender == address(blockRewardContract()));
         _;
@@ -29,8 +28,7 @@ contract ValidatorSetAuRa is ValidatorSetBase {
     }
 
     // =============================================== Setters ========================================================
-
-    function addPool(uint256 _amount) public {
+    function addPool(uint256 _amount) external {
         stake(msg.sender, _amount);
     }
 
@@ -41,7 +39,7 @@ contract ValidatorSetAuRa is ValidatorSetBase {
         address _blockRewardContract,
         address _randomContract,
         address _erc20TokenContract,
-        address[] _initialValidators,
+        address[] calldata _initialValidators,
         uint256 _stakerMinStake,
         uint256 _validatorMinStake
     ) external {
@@ -70,7 +68,7 @@ contract ValidatorSetAuRa is ValidatorSetBase {
         // does nothing
     }
 
-    function reportMalicious(address _maliciousValidator, uint256 _blockNumber, bytes) public {
+    function reportMalicious(address _maliciousValidator, uint256 _blockNumber, bytes calldata) external {
         address reportingValidator = msg.sender;
 
         require(isReportValidatorValid(_maliciousValidator));
@@ -99,8 +97,7 @@ contract ValidatorSetAuRa is ValidatorSetBase {
     }
 
     // =============================================== Getters ========================================================
-
-    function maliceReportedForBlock(address _validator, uint256 _blockNumber) public view returns(address[]) {
+    function maliceReportedForBlock(address _validator, uint256 _blockNumber) external view returns(address[] memory) {
         return addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED_FOR_BLOCK, _validator, _blockNumber))];
     }
 
@@ -109,7 +106,6 @@ contract ValidatorSetAuRa is ValidatorSetBase {
     }
 
     // =============================================== Private ========================================================
-
     bytes32 internal constant STAKING_EPOCH_START_BLOCK = keccak256("stakingEpochStartBlock");
     bytes32 internal constant MALICE_REPORTED_FOR_BLOCK = "maliceReportedForBlock";
 

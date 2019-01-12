@@ -1,5 +1,4 @@
-pragma solidity 0.4.25;
-
+pragma solidity 0.5.2;
 import "./interfaces/IValidatorSet.sol";
 
 
@@ -9,11 +8,11 @@ contract Initializer {
         address _blockRewardContract,
         address _randomContract,
         address _erc20TokenContract,
-        address[] _validators,
+        address[] memory _validators,
         uint256 _stakerMinStake,
         uint256 _validatorMinStake
     ) public {
-        require(_validatorSetContract != address(0));
+        require(address(_validatorSetContract) != address(0));
         _validatorSetContract.initialize(
             _blockRewardContract,
             _randomContract,

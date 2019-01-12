@@ -1,4 +1,4 @@
-pragma solidity 0.4.25;
+pragma solidity 0.5.2;
 
 import "../interfaces/IBlockReward.sol";
 import "../interfaces/IValidatorSet.sol";
@@ -15,12 +15,11 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
     address public constant VALIDATOR_SET_CONTRACT = address(0);
 
     // ================================================ Events ========================================================
-
     event AddedReceiver(uint256 amount, address indexed receiver, address indexed bridge);
+
     event MintedByBridge(address[] receivers, uint256[] rewards);
 
     // ============================================== Modifiers =======================================================
-
     modifier onlyErcToNativeBridge {
         require(_isErcToNativeBridge(msg.sender));
         _;
@@ -47,7 +46,6 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
     }
 
     // =============================================== Setters ========================================================
-
     function addBridgeNativeFeeReceivers(uint256 _amount) external onlyErcToNativeBridge {
         require(_amount != 0);
         _addBridgeNativeFee(_getStakingEpoch(), _amount);
@@ -70,11 +68,11 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
         emit AddedReceiver(_amount, _receiver, msg.sender);
     }
 
-    function setErcToNativeBridgesAllowed(address[] _bridgesAllowed) public onlyOwner {
+    function setErcToNativeBridgesAllowed(address[] calldata _bridgesAllowed) external onlyOwner {
         addressArrayStorage[ERC_TO_NATIVE_BRIDGES_ALLOWED] = _bridgesAllowed;
     }
 
-    function setNativeToErcBridgesAllowed(address[] _bridgesAllowed) public onlyOwner {
+    function setNativeToErcBridgesAllowed(address[] calldata _bridgesAllowed) external onlyOwner {
         addressArrayStorage[NATIVE_TO_ERC_BRIDGES_ALLOWED] = _bridgesAllowed;
     }
 
@@ -129,15 +127,46 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
         }
     }
 
-    // =============================================== Getters ========================================================
+    function mintedForAccount(address _account)
+        external
+        view
+        returns(uint256)
+    {
+        return uintStorage[
+            keccak256(abi.encode(MINTED_FOR_ACCOUNT, _account))
+        ];
+    }
 
+    function mintedForAccountInBlock(address _account, uint256 _blockNumber)
+        external
+        view
+        returns(uint256)
+    {
+        return uintStorage[
+            keccak256(abi.encode(MINTED_FOR_ACCOUNT_IN_BLOCK, _account, _blockNumber))
+        ];
+    }
+
+    function mintedInBlock(uint256 _blockNumber) external view returns(uint256) {
+        return uintStorage[
+            keccak256(abi.encode(MINTED_IN_BLOCK, _blockNumber))
+        ];
+    }
+
+    function mintedTotallyByBridge(address _bridge) external view returns(uint256) {
+        return uintStorage[
+            keccak256(abi.encode(MINTED_TOTALLY_BY_BRIDGE, _bridge))
+        ];
+    }
+
+    // =============================================== Getters ========================================================
     function bridgeAmount(address _bridge) public view returns(uint256) {
         return uintStorage[
             keccak256(abi.encode(BRIDGE_AMOUNT, _bridge))
         ];
     }
 
-    function ercToNativeBridgesAllowed() public view returns(address[]) {
+    function ercToNativeBridgesAllowed() public view returns(address[] memory) {
         return addressArrayStorage[ERC_TO_NATIVE_BRIDGES_ALLOWED];
     }
 
@@ -155,43 +184,11 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
         return addressArrayStorage[EXTRA_RECEIVERS].length;
     }
 
-    function mintedForAccount(address _account)
-        public
-        view
-        returns(uint256)
-    {
-        return uintStorage[
-            keccak256(abi.encode(MINTED_FOR_ACCOUNT, _account))
-        ];
-    }
-
-    function mintedForAccountInBlock(address _account, uint256 _blockNumber)
-        public
-        view
-        returns(uint256)
-    {
-        return uintStorage[
-            keccak256(abi.encode(MINTED_FOR_ACCOUNT_IN_BLOCK, _account, _blockNumber))
-        ];
-    }
-
-    function mintedInBlock(uint256 _blockNumber) public view returns(uint256) {
-        return uintStorage[
-            keccak256(abi.encode(MINTED_IN_BLOCK, _blockNumber))
-        ];
-    }
-
     function mintedTotally() public view returns(uint256) {
         return uintStorage[MINTED_TOTALLY];
     }
 
-    function mintedTotallyByBridge(address _bridge) public view returns(uint256) {
-        return uintStorage[
-            keccak256(abi.encode(MINTED_TOTALLY_BY_BRIDGE, _bridge))
-        ];
-    }
-
-    function nativeToErcBridgesAllowed() public view returns(address[]) {
+    function nativeToErcBridgesAllowed() public view returns(address[] memory ) {
         return addressArrayStorage[NATIVE_TO_ERC_BRIDGES_ALLOWED];
     }
 
@@ -205,20 +202,19 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
         ];
     }
 
-    function snapshotStakers(uint256 _stakingEpoch, address _validator) public view returns(address[]) {
+    function snapshotStakers(uint256 _stakingEpoch, address _validator) public view returns(address[] memory) {
         return addressArrayStorage[
             keccak256(abi.encode(SNAPSHOT_STAKERS, _stakingEpoch, _validator))
         ];
     }
 
-    function snapshotValidators(uint256 _stakingEpoch) public view returns(address[]) {
+    function snapshotValidators(uint256 _stakingEpoch) public view returns(address[] memory) {
         return addressArrayStorage[
             keccak256(abi.encode(SNAPSHOT_VALIDATORS, _stakingEpoch))
         ];
     }
 
     // =============================================== Private ========================================================
-
     bytes32 internal constant ERC_TO_NATIVE_BRIDGES_ALLOWED = keccak256("ercToNativeBridgesAllowed");
     bytes32 internal constant EXTRA_RECEIVERS = keccak256("extraReceivers");
     bytes32 internal constant MINTED_TOTALLY = keccak256("mintedTotally");
@@ -279,11 +275,14 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
     }
 
     // Accrue native coins to bridge's receivers if any
-    function _mintNativeCoinsByErcToNativeBridge() internal returns(address[], uint256[]) {
+    function _mintNativeCoinsByErcToNativeBridge()
+        internal
+        returns(address[] memory receivers, uint256[] memory rewards)
+    {
         uint256 extraLength = extraReceiversLength();
 
-        address[] memory receivers = new address[](extraLength);
-        uint256[] memory rewards = new uint256[](extraLength);
+        receivers = new address[](extraLength);
+        rewards = new uint256[](extraLength);
 
         uint256 i;
         
@@ -353,13 +352,13 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
         ] = _amount;
     }
 
-    function _setSnapshotStakers(uint256 _stakingEpoch, address _validator, address[] _stakers) internal {
+    function _setSnapshotStakers(uint256 _stakingEpoch, address _validator, address[] memory _stakers) internal {
         addressArrayStorage[
             keccak256(abi.encode(SNAPSHOT_STAKERS, _stakingEpoch, _validator))
         ] = _stakers;
     }
 
-    function _setSnapshotValidators(uint256 _stakingEpoch, address[] _validators) internal {
+    function _setSnapshotValidators(uint256 _stakingEpoch, address[] memory _validators) internal {
         addressArrayStorage[
             keccak256(abi.encode(SNAPSHOT_VALIDATORS, _stakingEpoch))
         ] = _validators;
@@ -369,11 +368,11 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
         uint256 _stakingEpoch,
         address _validator,
         uint256 _poolReward
-    ) internal view returns(address[], uint256[]) {
+    ) internal view returns(address[] memory receivers, uint256[] memory rewards) {
         uint256 s;
         address[] memory stakers = snapshotStakers(_stakingEpoch, _validator);
-        address[] memory receivers = new address[](stakers.length.add(1));
-        uint256[] memory rewards = new uint256[](receivers.length);
+        receivers = new address[](stakers.length.add(1));
+        rewards = new uint256[](receivers.length);
 
         uint256 validatorStake = snapshotStakeAmount(_stakingEpoch, _validator, _validator);
         uint256 stakersAmount = 0;
@@ -406,8 +405,6 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
             _poolReward -= rewards[s];
         }
         rewards[s - 1] += _poolReward;
-
-        return (receivers, rewards);
     }
 
     function _getBridgeNativeFee(uint256 _stakingEpoch) internal view returns(uint256) {

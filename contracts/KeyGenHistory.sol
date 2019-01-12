@@ -1,4 +1,4 @@
-pragma solidity 0.4.25;
+pragma solidity 0.5.2;
 
 import "./interfaces/IValidatorSet.sol";
 import "./eternal-storage/EternalStorage.sol";
@@ -9,7 +9,6 @@ contract KeyGenHistory is EternalStorage {
     using SafeMath for uint256;
 
     // ================================================ Events ========================================================
-
     event PartWritten(
         address indexed validator,
         bytes part,
@@ -25,7 +24,6 @@ contract KeyGenHistory is EternalStorage {
     );
 
     // ============================================== Modifiers =======================================================
-
     modifier onlyOwner() {
         require(msg.sender == addressStorage[OWNER]);
         _;
@@ -37,31 +35,30 @@ contract KeyGenHistory is EternalStorage {
     }
 
     // =============================================== Setters ========================================================
-
     function setValidatorSetContract(IValidatorSet _validatorSet) public onlyOwner {
-        require(validatorSet() == address(0));
-        require(_validatorSet != address(0));
-        addressStorage[VALIDATOR_SET] = _validatorSet;
+        require(address(validatorSet()) == address(0));
+        require(address(_validatorSet) != address(0));
+        addressStorage[VALIDATOR_SET] = address(_validatorSet);
     }
 
     // Note: since this is non-system transaction, the calling validator
     // should have enough balance to call this function.
-    function writePart(bytes _part) public onlyValidator {
-        require(!validatorWrotePart(changeRequestCount, msg.sender));
-
-        _setValidatorWrotePart(changeRequestCount, msg.sender);
-
+    function writePart(bytes memory _part) public onlyValidator {
         IValidatorSet validatorSetContract = validatorSet();
 
         uint256 stakingEpoch = validatorSetContract.stakingEpoch();
         uint256 changeRequestCount = validatorSetContract.changeRequestCount();
+
+        require(!validatorWrotePart(changeRequestCount, msg.sender));
+
+        _setValidatorWrotePart(changeRequestCount, msg.sender);
 
         emit PartWritten(msg.sender, _part, stakingEpoch, changeRequestCount);
     }
 
     // Note: since this is non-system transaction, the calling validator
     // should have enough balance to call this function.
-    function writeAck(bytes _ack) public onlyValidator {
+    function writeAck(bytes memory _ack) public onlyValidator {
         IValidatorSet validatorSetContract = validatorSet();
 
         uint256 stakingEpoch = validatorSetContract.stakingEpoch();
@@ -71,7 +68,6 @@ contract KeyGenHistory is EternalStorage {
     }
 
     // =============================================== Getters ========================================================
-
     function validatorSet() public view returns(IValidatorSet) {
         return IValidatorSet(addressStorage[VALIDATOR_SET]);
     }
@@ -83,7 +79,6 @@ contract KeyGenHistory is EternalStorage {
     }
 
     // =============================================== Private ========================================================
-
     bytes32 internal constant OWNER = keccak256("owner");
     bytes32 internal constant VALIDATOR_SET = keccak256("validatorSet");
     bytes32 internal constant VALIDATOR_WROTE_PART = "validatorWrotePart";

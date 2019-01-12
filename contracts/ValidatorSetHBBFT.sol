@@ -1,4 +1,4 @@
-pragma solidity 0.4.25;
+pragma solidity 0.5.2;
 
 import "./abstracts/ValidatorSetBase.sol";
 
@@ -9,7 +9,7 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
 
     // =============================================== Setters ========================================================
 
-    function addPool(bytes _publicKey, uint256 _amount) public {
+    function addPool(bytes calldata _publicKey, uint256 _amount) external {
         stake(msg.sender, _amount);
         savePublicKey(_publicKey);
     }
@@ -21,7 +21,7 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
         address _blockRewardContract,
         address _randomContract,
         address _erc20TokenContract,
-        address[] _initialValidators,
+        address[] calldata _initialValidators,
         uint256 _stakerMinStake,
         uint256 _validatorMinStake
     ) external {
@@ -39,8 +39,8 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
         super._newValidatorSet();
     }
 
-    function reportMaliciousValidators(address[] _validators, address[] _reportingValidators)
-        public
+    function reportMaliciousValidators(address[] calldata _validators, address[] calldata _reportingValidators)
+        external
         onlySystem
     {
         require(_validators.length == _reportingValidators.length);
@@ -98,7 +98,7 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
         }
     }
 
-    function savePublicKey(bytes _key) public {
+    function savePublicKey(bytes memory _key) public {
         require(_key.length == 48); // https://github.com/poanetwork/threshold_crypto/issues/63
         require(stakeAmount(msg.sender, msg.sender) != 0);
         bytesStorage[keccak256(abi.encode(PUBLIC_KEY, msg.sender))] = _key;
@@ -109,20 +109,18 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
     }
 
     // =============================================== Getters ========================================================
-
-    function maliceReported(address _validator) public view returns(address[]) {
+    function maliceReported(address _validator) external view returns(address[] memory) {
         return addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED, _validator))];
     }
 
     // Returns the serialized public key of observer/ validator
-    function publicKey(address _who) public view returns(bytes) {
+    function publicKey(address _who) public view returns(bytes memory) {
         return bytesStorage[
             keccak256(abi.encode(PUBLIC_KEY, _who))
         ];
     }
 
     // =============================================== Private ========================================================
-
     bytes32 internal constant MALICE_REPORTED = "maliceReported";
     bytes32 internal constant PUBLIC_KEY = "publicKey";
 

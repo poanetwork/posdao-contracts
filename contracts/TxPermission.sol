@@ -1,4 +1,4 @@
-pragma solidity 0.4.25;
+pragma solidity 0.5.2;
 
 import "./interfaces/IValidatorSet.sol";
 import "./eternal-storage/EternalStorage.sol";
@@ -50,7 +50,7 @@ contract TxPermission is EternalStorage {
     // =============================================== Getters ========================================================
     
     /// Contract name
-    function contractName() public pure returns(string) {
+    function contractName() public pure returns(string memory) {
         return "TX_PERMISSION_CONTRACT";
     }
     
@@ -64,7 +64,7 @@ contract TxPermission is EternalStorage {
         return 0xfffffffffffffffe;
     }
 
-    function allowedSenders() public view returns(address[]) {
+    function allowedSenders() public view returns(address[] memory) {
         return addressArrayStorage[ALLOWED_SENDERS];
     }
 

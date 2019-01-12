@@ -1,4 +1,4 @@
-pragma solidity 0.4.25;
+pragma solidity 0.5.2;
 
 import "./abstracts/BlockRewardBase.sol";
 import "./interfaces/IERC20Minting.sol";
@@ -16,11 +16,10 @@ contract BlockRewardHBBFT is BlockRewardBase {
     event RewardedERC20ByBlock(address[] receivers, uint256[] rewards);
 
     // =============================================== Setters ========================================================
-
-    function reward(address[] benefactors, uint16[] /*kind*/)
+    function reward(address[] calldata benefactors, uint16[] calldata/*kind*/)
         external
         onlySystem
-        returns (address[], uint256[])
+        returns (address[] memory, uint256[] memory)
     {
         // Mint ERC20 tokens to validators and their stakers as block reward.
         // This is not bridge's fee distribution.
@@ -34,13 +33,12 @@ contract BlockRewardHBBFT is BlockRewardBase {
     }
 
     // =============================================== Private ========================================================
-
     // Mint ERC20 tokens for each staker of each active validator
-    function _mintTokensForStakers(address[] benefactors) internal {
+    function _mintTokensForStakers(address[] memory benefactors) internal {
         IERC20Minting erc20Contract = IERC20Minting(IValidatorSet(VALIDATOR_SET_CONTRACT).erc20TokenContract());
 
         if (BLOCK_REWARD == 0) return;
-        if (erc20Contract == address(0)) return;
+        if (address(erc20Contract) == address(0)) return;
 
         uint256 stakingEpoch = _getStakingEpoch();
 
