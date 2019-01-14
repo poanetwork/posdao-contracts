@@ -16,6 +16,7 @@ contract BlockRewardHBBFT is BlockRewardBase {
     event RewardedERC20ByBlock(address[] receivers, uint256[] rewards);
 
     // =============================================== Setters ========================================================
+
     function reward(address[] calldata benefactors, uint16[] calldata/*kind*/)
         external
         onlySystem
@@ -33,6 +34,7 @@ contract BlockRewardHBBFT is BlockRewardBase {
     }
 
     // =============================================== Private ========================================================
+
     // Mint ERC20 tokens for each staker of each active validator
     function _mintTokensForStakers(address[] memory benefactors) internal {
         IERC20Minting erc20Contract = IERC20Minting(IValidatorSet(VALIDATOR_SET_CONTRACT).erc20TokenContract());

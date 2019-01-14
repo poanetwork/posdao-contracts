@@ -17,6 +17,7 @@ contract ValidatorSetAuRa is ValidatorSetBase {
     event ReportedMalicious(address reportingValidator, address maliciousValidator, uint256 blockNumber);
 
     // ============================================== Modifiers =======================================================
+
     modifier onlyBlockRewardContract() {
         require(msg.sender == address(blockRewardContract()));
         _;
@@ -28,6 +29,7 @@ contract ValidatorSetAuRa is ValidatorSetBase {
     }
 
     // =============================================== Setters ========================================================
+
     function addPool(uint256 _amount) external {
         stake(msg.sender, _amount);
     }
@@ -64,9 +66,11 @@ contract ValidatorSetAuRa is ValidatorSetBase {
         _removeMaliciousValidatorAuRa(_validator);
     }
 
-    function reportBenign(address, uint256) public {
+    // solhint-disable no-empty-blocks
+    function reportBenign(address, uint256) external {
         // does nothing
     }
+    // solhint-enable no-empty-blocks
 
     function reportMalicious(address _maliciousValidator, uint256 _blockNumber, bytes calldata) external {
         address reportingValidator = msg.sender;
@@ -97,6 +101,7 @@ contract ValidatorSetAuRa is ValidatorSetBase {
     }
 
     // =============================================== Getters ========================================================
+
     function maliceReportedForBlock(address _validator, uint256 _blockNumber) external view returns(address[] memory) {
         return addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED_FOR_BLOCK, _validator, _blockNumber))];
     }
@@ -106,6 +111,7 @@ contract ValidatorSetAuRa is ValidatorSetBase {
     }
 
     // =============================================== Private ========================================================
+
     bytes32 internal constant STAKING_EPOCH_START_BLOCK = keccak256("stakingEpochStartBlock");
     bytes32 internal constant MALICE_REPORTED_FOR_BLOCK = "maliceReportedForBlock";
 

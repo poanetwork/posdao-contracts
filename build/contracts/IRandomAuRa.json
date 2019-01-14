@@ -1,0 +1,228 @@
+{
+  "contractName": "IRandomAuRa",
+  "abi": [
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "onBlockClose",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "sourceMap": "",
+  "deployedSourceMap": "",
+  "source": "pragma solidity 0.5.2;\n\n\ninterface IRandomAuRa {\n    function onBlockClose(address) external;\n}",
+  "sourcePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IRandomAuRa.sol",
+  "ast": {
+    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IRandomAuRa.sol",
+    "exportedSymbols": {
+      "IRandomAuRa": [
+        7907
+      ]
+    },
+    "id": 7908,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 7901,
+        "literals": [
+          "solidity",
+          "0.5",
+          ".2"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:22:20"
+      },
+      {
+        "baseContracts": [],
+        "contractDependencies": [],
+        "contractKind": "interface",
+        "documentation": null,
+        "fullyImplemented": false,
+        "id": 7907,
+        "linearizedBaseContracts": [
+          7907
+        ],
+        "name": "IRandomAuRa",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "body": null,
+            "documentation": null,
+            "id": 7906,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "onBlockClose",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7904,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7903,
+                  "name": "",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7906,
+                  "src": "75:7:20",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 7902,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "75:7:20",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "74:9:20"
+            },
+            "returnParameters": {
+              "id": 7905,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "92:0:20"
+            },
+            "scope": 7907,
+            "src": "53:40:20",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "external"
+          }
+        ],
+        "scope": 7908,
+        "src": "25:70:20"
+      }
+    ],
+    "src": "0:95:20"
+  },
+  "legacyAST": {
+    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IRandomAuRa.sol",
+    "exportedSymbols": {
+      "IRandomAuRa": [
+        7907
+      ]
+    },
+    "id": 7908,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 7901,
+        "literals": [
+          "solidity",
+          "0.5",
+          ".2"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:22:20"
+      },
+      {
+        "baseContracts": [],
+        "contractDependencies": [],
+        "contractKind": "interface",
+        "documentation": null,
+        "fullyImplemented": false,
+        "id": 7907,
+        "linearizedBaseContracts": [
+          7907
+        ],
+        "name": "IRandomAuRa",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "body": null,
+            "documentation": null,
+            "id": 7906,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "onBlockClose",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7904,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7903,
+                  "name": "",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7906,
+                  "src": "75:7:20",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 7902,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "75:7:20",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "74:9:20"
+            },
+            "returnParameters": {
+              "id": 7905,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "92:0:20"
+            },
+            "scope": 7907,
+            "src": "53:40:20",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "external"
+          }
+        ],
+        "scope": 7908,
+        "src": "25:70:20"
+      }
+    ],
+    "src": "0:95:20"
+  },
+  "compiler": {
+    "name": "solc",
+    "version": "0.5.2+commit.1df8f40c.Emscripten.clang"
+  },
+  "networks": {},
+  "schemaVersion": "3.0.1",
+  "updatedAt": "2019-01-14T07:16:48.183Z",
+  "devdoc": {
+    "methods": {}
+  },
+  "userdoc": {
+    "methods": {}
+  }
+}

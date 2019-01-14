@@ -124,7 +124,7 @@ contract EternalStorageProxy is EternalStorage, IEternalStorageProxy {
 
     function _isContract(address _addr) private view returns(bool) {
         uint256 size;
-        assembly { size := extcodesize(_addr) }
+        assembly { size := extcodesize(_addr) } // solhint-disable-line no-inline-assembly
         return size != 0;
     }
 }

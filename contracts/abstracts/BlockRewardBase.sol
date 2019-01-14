@@ -15,11 +15,12 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
     address public constant VALIDATOR_SET_CONTRACT = address(0);
 
     // ================================================ Events ========================================================
-    event AddedReceiver(uint256 amount, address indexed receiver, address indexed bridge);
 
+    event AddedReceiver(uint256 amount, address indexed receiver, address indexed bridge);
     event MintedByBridge(address[] receivers, uint256[] rewards);
 
     // ============================================== Modifiers =======================================================
+
     modifier onlyErcToNativeBridge {
         require(_isErcToNativeBridge(msg.sender));
         _;
@@ -46,6 +47,7 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
     }
 
     // =============================================== Setters ========================================================
+
     function addBridgeNativeFeeReceivers(uint256 _amount) external onlyErcToNativeBridge {
         require(_amount != 0);
         _addBridgeNativeFee(_getStakingEpoch(), _amount);
@@ -127,39 +129,8 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
         }
     }
 
-    function mintedForAccount(address _account)
-        external
-        view
-        returns(uint256)
-    {
-        return uintStorage[
-            keccak256(abi.encode(MINTED_FOR_ACCOUNT, _account))
-        ];
-    }
-
-    function mintedForAccountInBlock(address _account, uint256 _blockNumber)
-        external
-        view
-        returns(uint256)
-    {
-        return uintStorage[
-            keccak256(abi.encode(MINTED_FOR_ACCOUNT_IN_BLOCK, _account, _blockNumber))
-        ];
-    }
-
-    function mintedInBlock(uint256 _blockNumber) external view returns(uint256) {
-        return uintStorage[
-            keccak256(abi.encode(MINTED_IN_BLOCK, _blockNumber))
-        ];
-    }
-
-    function mintedTotallyByBridge(address _bridge) external view returns(uint256) {
-        return uintStorage[
-            keccak256(abi.encode(MINTED_TOTALLY_BY_BRIDGE, _bridge))
-        ];
-    }
-
     // =============================================== Getters ========================================================
+
     function bridgeAmount(address _bridge) public view returns(uint256) {
         return uintStorage[
             keccak256(abi.encode(BRIDGE_AMOUNT, _bridge))
@@ -182,6 +153,38 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
 
     function extraReceiversLength() public view returns(uint256) {
         return addressArrayStorage[EXTRA_RECEIVERS].length;
+    }
+
+    function mintedForAccount(address _account)
+        public
+        view
+        returns(uint256)
+    {
+        return uintStorage[
+            keccak256(abi.encode(MINTED_FOR_ACCOUNT, _account))
+        ];
+    }
+
+    function mintedForAccountInBlock(address _account, uint256 _blockNumber)
+        public
+        view
+        returns(uint256)
+    {
+        return uintStorage[
+            keccak256(abi.encode(MINTED_FOR_ACCOUNT_IN_BLOCK, _account, _blockNumber))
+        ];
+    }
+
+    function mintedInBlock(uint256 _blockNumber) public view returns(uint256) {
+        return uintStorage[
+            keccak256(abi.encode(MINTED_IN_BLOCK, _blockNumber))
+        ];
+    }
+
+    function mintedTotallyByBridge(address _bridge) public view returns(uint256) {
+        return uintStorage[
+            keccak256(abi.encode(MINTED_TOTALLY_BY_BRIDGE, _bridge))
+        ];
     }
 
     function mintedTotally() public view returns(uint256) {
@@ -215,6 +218,7 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
     }
 
     // =============================================== Private ========================================================
+
     bytes32 internal constant ERC_TO_NATIVE_BRIDGES_ALLOWED = keccak256("ercToNativeBridgesAllowed");
     bytes32 internal constant EXTRA_RECEIVERS = keccak256("extraReceivers");
     bytes32 internal constant MINTED_TOTALLY = keccak256("mintedTotally");

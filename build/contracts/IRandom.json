@@ -1,0 +1,246 @@
+{
+  "contractName": "IRandom",
+  "abi": [
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "currentRandom",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256[]"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "sourceMap": "",
+  "deployedSourceMap": "",
+  "source": "pragma solidity 0.5.2;\n\n\ninterface IRandom {\n    function currentRandom() external view returns(uint256[] memory);\n}",
+  "sourcePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IRandom.sol",
+  "ast": {
+    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IRandom.sol",
+    "exportedSymbols": {
+      "IRandom": [
+        7899
+      ]
+    },
+    "id": 7900,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 7892,
+        "literals": [
+          "solidity",
+          "0.5",
+          ".2"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:22:19"
+      },
+      {
+        "baseContracts": [],
+        "contractDependencies": [],
+        "contractKind": "interface",
+        "documentation": null,
+        "fullyImplemented": false,
+        "id": 7899,
+        "linearizedBaseContracts": [
+          7899
+        ],
+        "name": "IRandom",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "body": null,
+            "documentation": null,
+            "id": 7898,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "currentRandom",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7893,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "71:2:19"
+            },
+            "returnParameters": {
+              "id": 7897,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7896,
+                  "name": "",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7898,
+                  "src": "96:16:19",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_uint256_$dyn_memory_ptr",
+                    "typeString": "uint256[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 7894,
+                      "name": "uint256",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "96:7:19",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    },
+                    "id": 7895,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "96:9:19",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_uint256_$dyn_storage_ptr",
+                      "typeString": "uint256[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "95:18:19"
+            },
+            "scope": 7899,
+            "src": "49:65:19",
+            "stateMutability": "view",
+            "superFunction": null,
+            "visibility": "external"
+          }
+        ],
+        "scope": 7900,
+        "src": "25:91:19"
+      }
+    ],
+    "src": "0:116:19"
+  },
+  "legacyAST": {
+    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IRandom.sol",
+    "exportedSymbols": {
+      "IRandom": [
+        7899
+      ]
+    },
+    "id": 7900,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 7892,
+        "literals": [
+          "solidity",
+          "0.5",
+          ".2"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:22:19"
+      },
+      {
+        "baseContracts": [],
+        "contractDependencies": [],
+        "contractKind": "interface",
+        "documentation": null,
+        "fullyImplemented": false,
+        "id": 7899,
+        "linearizedBaseContracts": [
+          7899
+        ],
+        "name": "IRandom",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "body": null,
+            "documentation": null,
+            "id": 7898,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "currentRandom",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7893,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "71:2:19"
+            },
+            "returnParameters": {
+              "id": 7897,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7896,
+                  "name": "",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7898,
+                  "src": "96:16:19",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_array$_t_uint256_$dyn_memory_ptr",
+                    "typeString": "uint256[]"
+                  },
+                  "typeName": {
+                    "baseType": {
+                      "id": 7894,
+                      "name": "uint256",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "96:7:19",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    },
+                    "id": 7895,
+                    "length": null,
+                    "nodeType": "ArrayTypeName",
+                    "src": "96:9:19",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_array$_t_uint256_$dyn_storage_ptr",
+                      "typeString": "uint256[]"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "95:18:19"
+            },
+            "scope": 7899,
+            "src": "49:65:19",
+            "stateMutability": "view",
+            "superFunction": null,
+            "visibility": "external"
+          }
+        ],
+        "scope": 7900,
+        "src": "25:91:19"
+      }
+    ],
+    "src": "0:116:19"
+  },
+  "compiler": {
+    "name": "solc",
+    "version": "0.5.2+commit.1df8f40c.Emscripten.clang"
+  },
+  "networks": {},
+  "schemaVersion": "3.0.1",
+  "updatedAt": "2019-01-14T07:16:48.183Z",
+  "devdoc": {
+    "methods": {}
+  },
+  "userdoc": {
+    "methods": {}
+  }
+}

@@ -9,6 +9,7 @@ contract KeyGenHistory is EternalStorage {
     using SafeMath for uint256;
 
     // ================================================ Events ========================================================
+
     event PartWritten(
         address indexed validator,
         bytes part,
@@ -24,6 +25,7 @@ contract KeyGenHistory is EternalStorage {
     );
 
     // ============================================== Modifiers =======================================================
+
     modifier onlyOwner() {
         require(msg.sender == addressStorage[OWNER]);
         _;
@@ -35,6 +37,7 @@ contract KeyGenHistory is EternalStorage {
     }
 
     // =============================================== Setters ========================================================
+
     function setValidatorSetContract(IValidatorSet _validatorSet) public onlyOwner {
         require(address(validatorSet()) == address(0));
         require(address(_validatorSet) != address(0));
@@ -68,6 +71,7 @@ contract KeyGenHistory is EternalStorage {
     }
 
     // =============================================== Getters ========================================================
+
     function validatorSet() public view returns(IValidatorSet) {
         return IValidatorSet(addressStorage[VALIDATOR_SET]);
     }
@@ -79,6 +83,7 @@ contract KeyGenHistory is EternalStorage {
     }
 
     // =============================================== Private ========================================================
+
     bytes32 internal constant OWNER = keccak256("owner");
     bytes32 internal constant VALIDATOR_SET = keccak256("validatorSet");
     bytes32 internal constant VALIDATOR_WROTE_PART = "validatorWrotePart";

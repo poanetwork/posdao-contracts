@@ -1,0 +1,167 @@
+{
+  "contractName": "IBlockReward",
+  "abi": [
+    {
+      "constant": false,
+      "inputs": [],
+      "name": "setSnapshot",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "sourceMap": "",
+  "deployedSourceMap": "",
+  "source": "pragma solidity 0.5.2;\n\n\ninterface IBlockReward {\n    function setSnapshot() external;\n}",
+  "sourcePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IBlockReward.sol",
+  "ast": {
+    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IBlockReward.sol",
+    "exportedSymbols": {
+      "IBlockReward": [
+        7854
+      ]
+    },
+    "id": 7855,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 7850,
+        "literals": [
+          "solidity",
+          "0.5",
+          ".2"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:22:16"
+      },
+      {
+        "baseContracts": [],
+        "contractDependencies": [],
+        "contractKind": "interface",
+        "documentation": null,
+        "fullyImplemented": false,
+        "id": 7854,
+        "linearizedBaseContracts": [
+          7854
+        ],
+        "name": "IBlockReward",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "body": null,
+            "documentation": null,
+            "id": 7853,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "setSnapshot",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7851,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "74:2:16"
+            },
+            "returnParameters": {
+              "id": 7852,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "85:0:16"
+            },
+            "scope": 7854,
+            "src": "54:32:16",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "external"
+          }
+        ],
+        "scope": 7855,
+        "src": "25:63:16"
+      }
+    ],
+    "src": "0:88:16"
+  },
+  "legacyAST": {
+    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IBlockReward.sol",
+    "exportedSymbols": {
+      "IBlockReward": [
+        7854
+      ]
+    },
+    "id": 7855,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 7850,
+        "literals": [
+          "solidity",
+          "0.5",
+          ".2"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:22:16"
+      },
+      {
+        "baseContracts": [],
+        "contractDependencies": [],
+        "contractKind": "interface",
+        "documentation": null,
+        "fullyImplemented": false,
+        "id": 7854,
+        "linearizedBaseContracts": [
+          7854
+        ],
+        "name": "IBlockReward",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "body": null,
+            "documentation": null,
+            "id": 7853,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "setSnapshot",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7851,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "74:2:16"
+            },
+            "returnParameters": {
+              "id": 7852,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "85:0:16"
+            },
+            "scope": 7854,
+            "src": "54:32:16",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "external"
+          }
+        ],
+        "scope": 7855,
+        "src": "25:63:16"
+      }
+    ],
+    "src": "0:88:16"
+  },
+  "compiler": {
+    "name": "solc",
+    "version": "0.5.2+commit.1df8f40c.Emscripten.clang"
+  },
+  "networks": {},
+  "schemaVersion": "3.0.1",
+  "updatedAt": "2019-01-14T07:16:48.183Z",
+  "devdoc": {
+    "methods": {}
+  },
+  "userdoc": {
+    "methods": {}
+  }
+}

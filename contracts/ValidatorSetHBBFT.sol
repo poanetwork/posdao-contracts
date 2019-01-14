@@ -35,7 +35,7 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
         );
     }
 
-    function newValidatorSet() public onlySystem {
+    function newValidatorSet() external onlySystem {
         super._newValidatorSet();
     }
 
@@ -109,7 +109,8 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
     }
 
     // =============================================== Getters ========================================================
-    function maliceReported(address _validator) external view returns(address[] memory) {
+
+    function maliceReported(address _validator) public view returns(address[] memory) {
         return addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED, _validator))];
     }
 
@@ -121,6 +122,7 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
     }
 
     // =============================================== Private ========================================================
+
     bytes32 internal constant MALICE_REPORTED = "maliceReported";
     bytes32 internal constant PUBLIC_KEY = "publicKey";
 

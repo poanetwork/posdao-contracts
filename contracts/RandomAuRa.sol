@@ -13,6 +13,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     uint256 public constant COMMIT_PHASE_LENGTH = COLLECT_ROUND_LENGTH / 2; // blocks
 
     // ============================================== Modifiers =======================================================
+
     modifier onlyBlockReward() {
         require(msg.sender == IValidatorSet(VALIDATOR_SET_CONTRACT).blockRewardContract());
         _;
@@ -24,7 +25,8 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     }
 
     // =============================================== Setters ========================================================
-    function commitHash(bytes32 _secretHash) public {
+
+    function commitHash(bytes32 _secretHash) external {
         require(isCommitPhase()); // must only be called in `commits phase`
         require(_secretHash != bytes32(0));
 
@@ -39,7 +41,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         _addCommittedValidator(collectRound, validator);
     }
 
-    function revealSecret(uint256 _secret) public {
+    function revealSecret(uint256 _secret) external {
         require(isRevealPhase()); // must only be called in `reveals phase`
 
         bytes32 secretHash = keccak256(abi.encodePacked(_secret));
@@ -144,6 +146,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     }
 
     // =============================================== Getters ========================================================
+
     function blocksProducers(uint256 _collectRound) public view returns(address[] memory) {
         return addressArrayStorage[keccak256(abi.encode(BLOCKS_PRODUCERS, _collectRound))];
     }
@@ -194,6 +197,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     }
 
     // =============================================== Private ========================================================
+
     bytes32 internal constant ALLOW_PUBLISH_SECRET = keccak256("allowPublishSecret");
     bytes32 internal constant CURRENT_SECRET = keccak256("currentSecret");
     bytes32 internal constant OWNER = keccak256("owner");

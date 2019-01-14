@@ -15,18 +15,21 @@ contract RandomBase is EternalStorage, IRandom {
     address public constant VALIDATOR_SET_CONTRACT = address(0);
 
     // ============================================== Modifiers =======================================================
+
     modifier onlySystem() {
         require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
         _;
     }
 
     // =============================================== Getters ========================================================
+
     // This function is called by ValidatorSet contract.
     function currentRandom() public view returns(uint256[] memory) {
         return uintArrayStorage[RANDOM_ARRAY];
     }
 
     // =============================================== Private ========================================================
+
     bytes32 internal constant RANDOM_ARRAY = keccak256("randomArray");
 
 }

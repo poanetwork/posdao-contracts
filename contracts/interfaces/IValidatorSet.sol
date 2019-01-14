@@ -1,6 +1,5 @@
 pragma solidity 0.5.2;
-import "./IRandom.sol";
-import "./IBlockReward.sol";
+
 
 interface IValidatorSet {
     function newValidatorSet() external;

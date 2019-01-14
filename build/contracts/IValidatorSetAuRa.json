@@ -1,0 +1,472 @@
+{
+  "contractName": "IValidatorSetAuRa",
+  "abi": [
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "removeMaliciousValidator",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "stakingEpochStartBlock",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "STAKING_EPOCH_DURATION",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "pure",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "sourceMap": "",
+  "deployedSourceMap": "",
+  "source": "pragma solidity 0.5.2;\n\n\ninterface IValidatorSetAuRa {\n    function removeMaliciousValidator(address) external;\n    function stakingEpochStartBlock() external view returns(uint256);\n    function STAKING_EPOCH_DURATION() external pure returns(uint256);\n}",
+  "sourcePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IValidatorSetAuRa.sol",
+  "ast": {
+    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IValidatorSetAuRa.sol",
+    "exportedSymbols": {
+      "IValidatorSetAuRa": [
+        8038
+      ]
+    },
+    "id": 8039,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 8022,
+        "literals": [
+          "solidity",
+          "0.5",
+          ".2"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:22:22"
+      },
+      {
+        "baseContracts": [],
+        "contractDependencies": [],
+        "contractKind": "interface",
+        "documentation": null,
+        "fullyImplemented": false,
+        "id": 8038,
+        "linearizedBaseContracts": [
+          8038
+        ],
+        "name": "IValidatorSetAuRa",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "body": null,
+            "documentation": null,
+            "id": 8027,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "removeMaliciousValidator",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 8025,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 8024,
+                  "name": "",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 8027,
+                  "src": "93:7:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 8023,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "93:7:22",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "92:9:22"
+            },
+            "returnParameters": {
+              "id": 8026,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "110:0:22"
+            },
+            "scope": 8038,
+            "src": "59:52:22",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": null,
+            "id": 8032,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "stakingEpochStartBlock",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 8028,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "147:2:22"
+            },
+            "returnParameters": {
+              "id": 8031,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 8030,
+                  "name": "",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 8032,
+                  "src": "172:7:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 8029,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "172:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "171:9:22"
+            },
+            "scope": 8038,
+            "src": "116:65:22",
+            "stateMutability": "view",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": null,
+            "id": 8037,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "STAKING_EPOCH_DURATION",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 8033,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "217:2:22"
+            },
+            "returnParameters": {
+              "id": 8036,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 8035,
+                  "name": "",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 8037,
+                  "src": "242:7:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 8034,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "242:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "241:9:22"
+            },
+            "scope": 8038,
+            "src": "186:65:22",
+            "stateMutability": "pure",
+            "superFunction": null,
+            "visibility": "external"
+          }
+        ],
+        "scope": 8039,
+        "src": "25:228:22"
+      }
+    ],
+    "src": "0:253:22"
+  },
+  "legacyAST": {
+    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IValidatorSetAuRa.sol",
+    "exportedSymbols": {
+      "IValidatorSetAuRa": [
+        8038
+      ]
+    },
+    "id": 8039,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 8022,
+        "literals": [
+          "solidity",
+          "0.5",
+          ".2"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:22:22"
+      },
+      {
+        "baseContracts": [],
+        "contractDependencies": [],
+        "contractKind": "interface",
+        "documentation": null,
+        "fullyImplemented": false,
+        "id": 8038,
+        "linearizedBaseContracts": [
+          8038
+        ],
+        "name": "IValidatorSetAuRa",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "body": null,
+            "documentation": null,
+            "id": 8027,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "removeMaliciousValidator",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 8025,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 8024,
+                  "name": "",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 8027,
+                  "src": "93:7:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 8023,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "93:7:22",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "92:9:22"
+            },
+            "returnParameters": {
+              "id": 8026,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "110:0:22"
+            },
+            "scope": 8038,
+            "src": "59:52:22",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": null,
+            "id": 8032,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "stakingEpochStartBlock",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 8028,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "147:2:22"
+            },
+            "returnParameters": {
+              "id": 8031,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 8030,
+                  "name": "",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 8032,
+                  "src": "172:7:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 8029,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "172:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "171:9:22"
+            },
+            "scope": 8038,
+            "src": "116:65:22",
+            "stateMutability": "view",
+            "superFunction": null,
+            "visibility": "external"
+          },
+          {
+            "body": null,
+            "documentation": null,
+            "id": 8037,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "STAKING_EPOCH_DURATION",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 8033,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "217:2:22"
+            },
+            "returnParameters": {
+              "id": 8036,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 8035,
+                  "name": "",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 8037,
+                  "src": "242:7:22",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 8034,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "242:7:22",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "241:9:22"
+            },
+            "scope": 8038,
+            "src": "186:65:22",
+            "stateMutability": "pure",
+            "superFunction": null,
+            "visibility": "external"
+          }
+        ],
+        "scope": 8039,
+        "src": "25:228:22"
+      }
+    ],
+    "src": "0:253:22"
+  },
+  "compiler": {
+    "name": "solc",
+    "version": "0.5.2+commit.1df8f40c.Emscripten.clang"
+  },
+  "networks": {},
+  "schemaVersion": "3.0.1",
+  "updatedAt": "2019-01-14T07:16:48.184Z",
+  "devdoc": {
+    "methods": {}
+  },
+  "userdoc": {
+    "methods": {}
+  }
+}

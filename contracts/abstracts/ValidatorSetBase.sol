@@ -63,6 +63,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     );
 
     // ============================================== Modifiers =======================================================
+
     modifier onlyOwner() {
         require(msg.sender == addressStorage[OWNER]);
         _;
@@ -74,6 +75,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     }
 
     // =============================================== Setters ========================================================
+
     function removePool() public {
         if (stakingEpoch() == 0 && isValidator(msg.sender)) {
             revert(); // initial validator cannot remove his pool during the initial staking epoch
@@ -161,6 +163,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     }
 
     // =============================================== Getters ========================================================
+
     // Returns the unix timestamp from which the address will be unbanned
     function bannedUntil(address _who) public view returns(uint256) {
         return uintStorage[
@@ -326,7 +329,11 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         ];
     }
 
-    function stakeAmountByEpoch(address _observer, address _staker, uint256 _stakingEpoch) public view returns(uint256) {
+    function stakeAmountByEpoch(address _observer, address _staker, uint256 _stakingEpoch)
+        public
+        view
+        returns(uint256)
+    {
         return uintStorage[
             keccak256(abi.encode(STAKE_AMOUNT_BY_EPOCH, _observer, _staker, _stakingEpoch))
         ];
@@ -356,6 +363,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     }
 
     // =============================================== Private ========================================================
+
     bytes32 internal constant BLOCK_REWARD_CONTRACT = keccak256("blockRewardContract");
     bytes32 internal constant CHANGE_REQUEST_COUNT = keccak256("changeRequestCount");
     bytes32 internal constant CURRENT_VALIDATORS = keccak256("currentValidators");
