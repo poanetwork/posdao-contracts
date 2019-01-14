@@ -1,6 +1,6 @@
-pragma solidity 0.4.25;
+pragma solidity 0.5.2;
 
 
 interface IRandom {
-    function currentRandom() external view returns(uint256[]);
+    function currentRandom() external view returns(uint256[] memory);
 }

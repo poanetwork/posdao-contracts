@@ -1,4 +1,4 @@
-pragma solidity 0.4.25;
+pragma solidity 0.5.2;
 
 import "./abstracts/BlockRewardBase.sol";
 import "./interfaces/IERC20Minting.sol";
@@ -7,10 +7,10 @@ import "./interfaces/IRandomAuRa.sol";
 
 contract BlockRewardAuRa is BlockRewardBase {
 
-    function reward(address[] benefactors, uint16[] kind)
+    function reward(address[] calldata benefactors, uint16[] calldata kind)
         external
         onlySystem
-        returns(address[], uint256[])
+        returns(address[] memory, uint256[] memory)
     {
         require(benefactors.length == kind.length);
         require(benefactors.length == 1);
@@ -64,7 +64,7 @@ contract BlockRewardAuRa is BlockRewardBase {
         IERC20Minting erc20TokenContract = IERC20Minting(
             validatorSetContract.erc20TokenContract()
         );
-        if (erc20TokenContract != address(0)) {
+        if (address(erc20TokenContract) != address(0)) {
             (receivers, rewards) = _distributeBridgeFee(stakingEpoch, false, false);
             if (receivers.length > 0) {
                 erc20TokenContract.mintReward(receivers, rewards);
@@ -103,7 +103,7 @@ contract BlockRewardAuRa is BlockRewardBase {
 
     function _distributeBridgeFee(uint256 _stakingEpoch, bool _previousEpoch, bool _native)
         internal
-        returns(address[], uint256[])
+        returns(address[] memory receivers, uint256[] memory rewards)
     {
         uint256 bridgeFeeAmount;
 
@@ -121,8 +121,6 @@ contract BlockRewardAuRa is BlockRewardBase {
 
         IValidatorSet validatorSetContract = IValidatorSet(VALIDATOR_SET_CONTRACT);
         address[] memory validators;
-        address[] memory receivers;
-        uint256[] memory rewards;
         uint256 poolReward;
         uint256 remainder;
         uint256 i;
@@ -172,8 +170,6 @@ contract BlockRewardAuRa is BlockRewardBase {
 
             delete addressArrayStorage[DISTRIBUTE_TEMPORARY_ARRAY];
             delete uintArrayStorage[DISTRIBUTE_TEMPORARY_ARRAY];
-
-            return (receivers, rewards);
         }
     }
 
