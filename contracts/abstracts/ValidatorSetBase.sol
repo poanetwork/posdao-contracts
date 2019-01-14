@@ -496,7 +496,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         address[] storage currentValidators = addressArrayStorage[CURRENT_VALIDATORS];
         address[] storage pendingValidators = addressArrayStorage[PENDING_VALIDATORS];
 
-        require(block.number == 0); // initialization must be done on genesis block
+        require(block.number == 0, "Initialization must be done on genesis block");
         require(currentValidators.length == 0);
         
         // Add initial validators to the `currentValidators` array

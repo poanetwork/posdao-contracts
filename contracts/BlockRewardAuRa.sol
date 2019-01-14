@@ -22,21 +22,19 @@ contract BlockRewardAuRa is BlockRewardBase {
             return (new address[](0), new uint256[](0));
         }
 
-        IValidatorSet validatorSetContract = IValidatorSet(VALIDATOR_SET_CONTRACT);
-
         // Check if the validator is existed
-        if (validatorSetContract.validatorSetApplyBlock() == block.number) {
+        if (VALIDATOR_SET_CONTRACT.validatorSetApplyBlock() == block.number) {
             // If `finalizeChange` was called in this block
             require(
-                validatorSetContract.isValidator(benefactors[0]) ||
-                validatorSetContract.isValidatorOnPreviousEpoch(benefactors[0])
+                VALIDATOR_SET_CONTRACT.isValidator(benefactors[0]) ||
+                VALIDATOR_SET_CONTRACT.isValidatorOnPreviousEpoch(benefactors[0])
             );
         } else {
-            require(validatorSetContract.isValidator(benefactors[0]));
+            require(VALIDATOR_SET_CONTRACT.isValidator(benefactors[0]));
         }
 
         // Start new staking epoch every `STAKING_EPOCH_DURATION` blocks
-        validatorSetContract.newValidatorSet();
+        VALIDATOR_SET_CONTRACT.newValidatorSet();
 
         // Distribute fees
         address[] memory receivers;
@@ -62,7 +60,7 @@ contract BlockRewardAuRa is BlockRewardBase {
 
         // Distribute bridge's token fee
         IERC20Minting erc20TokenContract = IERC20Minting(
-            validatorSetContract.erc20TokenContract()
+            VALIDATOR_SET_CONTRACT.erc20TokenContract()
         );
         if (address(erc20TokenContract) != address(0)) {
             (receivers, rewards) = _distributeBridgeFee(stakingEpoch, false, false);
@@ -96,7 +94,7 @@ contract BlockRewardAuRa is BlockRewardBase {
         // Mark that the current validator produced a block during the current phase.
         // Publish current random number at the end of the current collection round.
         // Check if current validators participated in the current collection round.
-        IRandomAuRa(validatorSetContract.randomContract()).onBlockClose(benefactors[0]);
+        IRandomAuRa(VALIDATOR_SET_CONTRACT.randomContract()).onBlockClose(benefactors[0]);
 
         return (receivers, rewards);
     }

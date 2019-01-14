@@ -49,26 +49,26 @@
   "sourceMap": "",
   "deployedSourceMap": "",
   "source": "pragma solidity 0.5.2;\n\n\ninterface IValidatorSetAuRa {\n    function removeMaliciousValidator(address) external;\n    function stakingEpochStartBlock() external view returns(uint256);\n    function STAKING_EPOCH_DURATION() external pure returns(uint256);\n}",
-  "sourcePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IValidatorSetAuRa.sol",
+  "sourcePath": "/home/user/pos-contracts/contracts/interfaces/IValidatorSetAuRa.sol",
   "ast": {
-    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IValidatorSetAuRa.sol",
+    "absolutePath": "/home/user/pos-contracts/contracts/interfaces/IValidatorSetAuRa.sol",
     "exportedSymbols": {
       "IValidatorSetAuRa": [
-        8038
+        9095
       ]
     },
-    "id": 8039,
+    "id": 9096,
     "nodeType": "SourceUnit",
     "nodes": [
       {
-        "id": 8022,
+        "id": 9079,
         "literals": [
           "solidity",
           "0.5",
           ".2"
         ],
         "nodeType": "PragmaDirective",
-        "src": "0:22:22"
+        "src": "0:22:26"
       },
       {
         "baseContracts": [],
@@ -76,9 +76,9 @@
         "contractKind": "interface",
         "documentation": null,
         "fullyImplemented": false,
-        "id": 8038,
+        "id": 9095,
         "linearizedBaseContracts": [
-          8038
+          9095
         ],
         "name": "IValidatorSetAuRa",
         "nodeType": "ContractDefinition",
@@ -86,23 +86,23 @@
           {
             "body": null,
             "documentation": null,
-            "id": 8027,
+            "id": 9084,
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "removeMaliciousValidator",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 8025,
+              "id": 9082,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 8024,
+                  "id": 9081,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 8027,
-                  "src": "93:7:22",
+                  "scope": 9084,
+                  "src": "93:7:26",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -110,10 +110,10 @@
                     "typeString": "address"
                   },
                   "typeName": {
-                    "id": 8023,
+                    "id": 9080,
                     "name": "address",
                     "nodeType": "ElementaryTypeName",
-                    "src": "93:7:22",
+                    "src": "93:7:26",
                     "stateMutability": "nonpayable",
                     "typeDescriptions": {
                       "typeIdentifier": "t_address",
@@ -124,16 +124,16 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "92:9:22"
+              "src": "92:9:26"
             },
             "returnParameters": {
-              "id": 8026,
+              "id": 9083,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "110:0:22"
+              "src": "110:0:26"
             },
-            "scope": 8038,
-            "src": "59:52:22",
+            "scope": 9095,
+            "src": "59:52:26",
             "stateMutability": "nonpayable",
             "superFunction": null,
             "visibility": "external"
@@ -141,29 +141,29 @@
           {
             "body": null,
             "documentation": null,
-            "id": 8032,
+            "id": 9089,
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "stakingEpochStartBlock",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 8028,
+              "id": 9085,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "147:2:22"
+              "src": "147:2:26"
             },
             "returnParameters": {
-              "id": 8031,
+              "id": 9088,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 8030,
+                  "id": 9087,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 8032,
-                  "src": "172:7:22",
+                  "scope": 9089,
+                  "src": "172:7:26",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -171,10 +171,10 @@
                     "typeString": "uint256"
                   },
                   "typeName": {
-                    "id": 8029,
+                    "id": 9086,
                     "name": "uint256",
                     "nodeType": "ElementaryTypeName",
-                    "src": "172:7:22",
+                    "src": "172:7:26",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -184,10 +184,10 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "171:9:22"
+              "src": "171:9:26"
             },
-            "scope": 8038,
-            "src": "116:65:22",
+            "scope": 9095,
+            "src": "116:65:26",
             "stateMutability": "view",
             "superFunction": null,
             "visibility": "external"
@@ -195,29 +195,29 @@
           {
             "body": null,
             "documentation": null,
-            "id": 8037,
+            "id": 9094,
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "STAKING_EPOCH_DURATION",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 8033,
+              "id": 9090,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "217:2:22"
+              "src": "217:2:26"
             },
             "returnParameters": {
-              "id": 8036,
+              "id": 9093,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 8035,
+                  "id": 9092,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 8037,
-                  "src": "242:7:22",
+                  "scope": 9094,
+                  "src": "242:7:26",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -225,10 +225,10 @@
                     "typeString": "uint256"
                   },
                   "typeName": {
-                    "id": 8034,
+                    "id": 9091,
                     "name": "uint256",
                     "nodeType": "ElementaryTypeName",
-                    "src": "242:7:22",
+                    "src": "242:7:26",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -238,40 +238,40 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "241:9:22"
+              "src": "241:9:26"
             },
-            "scope": 8038,
-            "src": "186:65:22",
+            "scope": 9095,
+            "src": "186:65:26",
             "stateMutability": "pure",
             "superFunction": null,
             "visibility": "external"
           }
         ],
-        "scope": 8039,
-        "src": "25:228:22"
+        "scope": 9096,
+        "src": "25:228:26"
       }
     ],
-    "src": "0:253:22"
+    "src": "0:253:26"
   },
   "legacyAST": {
-    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IValidatorSetAuRa.sol",
+    "absolutePath": "/home/user/pos-contracts/contracts/interfaces/IValidatorSetAuRa.sol",
     "exportedSymbols": {
       "IValidatorSetAuRa": [
-        8038
+        9095
       ]
     },
-    "id": 8039,
+    "id": 9096,
     "nodeType": "SourceUnit",
     "nodes": [
       {
-        "id": 8022,
+        "id": 9079,
         "literals": [
           "solidity",
           "0.5",
           ".2"
         ],
         "nodeType": "PragmaDirective",
-        "src": "0:22:22"
+        "src": "0:22:26"
       },
       {
         "baseContracts": [],
@@ -279,9 +279,9 @@
         "contractKind": "interface",
         "documentation": null,
         "fullyImplemented": false,
-        "id": 8038,
+        "id": 9095,
         "linearizedBaseContracts": [
-          8038
+          9095
         ],
         "name": "IValidatorSetAuRa",
         "nodeType": "ContractDefinition",
@@ -289,23 +289,23 @@
           {
             "body": null,
             "documentation": null,
-            "id": 8027,
+            "id": 9084,
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "removeMaliciousValidator",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 8025,
+              "id": 9082,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 8024,
+                  "id": 9081,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 8027,
-                  "src": "93:7:22",
+                  "scope": 9084,
+                  "src": "93:7:26",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -313,10 +313,10 @@
                     "typeString": "address"
                   },
                   "typeName": {
-                    "id": 8023,
+                    "id": 9080,
                     "name": "address",
                     "nodeType": "ElementaryTypeName",
-                    "src": "93:7:22",
+                    "src": "93:7:26",
                     "stateMutability": "nonpayable",
                     "typeDescriptions": {
                       "typeIdentifier": "t_address",
@@ -327,16 +327,16 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "92:9:22"
+              "src": "92:9:26"
             },
             "returnParameters": {
-              "id": 8026,
+              "id": 9083,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "110:0:22"
+              "src": "110:0:26"
             },
-            "scope": 8038,
-            "src": "59:52:22",
+            "scope": 9095,
+            "src": "59:52:26",
             "stateMutability": "nonpayable",
             "superFunction": null,
             "visibility": "external"
@@ -344,29 +344,29 @@
           {
             "body": null,
             "documentation": null,
-            "id": 8032,
+            "id": 9089,
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "stakingEpochStartBlock",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 8028,
+              "id": 9085,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "147:2:22"
+              "src": "147:2:26"
             },
             "returnParameters": {
-              "id": 8031,
+              "id": 9088,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 8030,
+                  "id": 9087,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 8032,
-                  "src": "172:7:22",
+                  "scope": 9089,
+                  "src": "172:7:26",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -374,10 +374,10 @@
                     "typeString": "uint256"
                   },
                   "typeName": {
-                    "id": 8029,
+                    "id": 9086,
                     "name": "uint256",
                     "nodeType": "ElementaryTypeName",
-                    "src": "172:7:22",
+                    "src": "172:7:26",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -387,10 +387,10 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "171:9:22"
+              "src": "171:9:26"
             },
-            "scope": 8038,
-            "src": "116:65:22",
+            "scope": 9095,
+            "src": "116:65:26",
             "stateMutability": "view",
             "superFunction": null,
             "visibility": "external"
@@ -398,29 +398,29 @@
           {
             "body": null,
             "documentation": null,
-            "id": 8037,
+            "id": 9094,
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "STAKING_EPOCH_DURATION",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 8033,
+              "id": 9090,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "217:2:22"
+              "src": "217:2:26"
             },
             "returnParameters": {
-              "id": 8036,
+              "id": 9093,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 8035,
+                  "id": 9092,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 8037,
-                  "src": "242:7:22",
+                  "scope": 9094,
+                  "src": "242:7:26",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -428,10 +428,10 @@
                     "typeString": "uint256"
                   },
                   "typeName": {
-                    "id": 8034,
+                    "id": 9091,
                     "name": "uint256",
                     "nodeType": "ElementaryTypeName",
-                    "src": "242:7:22",
+                    "src": "242:7:26",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -441,20 +441,20 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "241:9:22"
+              "src": "241:9:26"
             },
-            "scope": 8038,
-            "src": "186:65:22",
+            "scope": 9095,
+            "src": "186:65:26",
             "stateMutability": "pure",
             "superFunction": null,
             "visibility": "external"
           }
         ],
-        "scope": 8039,
-        "src": "25:228:22"
+        "scope": 9096,
+        "src": "25:228:26"
       }
     ],
-    "src": "0:253:22"
+    "src": "0:253:26"
   },
   "compiler": {
     "name": "solc",
@@ -462,7 +462,7 @@
   },
   "networks": {},
   "schemaVersion": "3.0.1",
-  "updatedAt": "2019-01-14T07:16:48.184Z",
+  "updatedAt": "2019-01-14T22:40:32.314Z",
   "devdoc": {
     "methods": {}
   },

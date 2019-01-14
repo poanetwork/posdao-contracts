@@ -9,7 +9,7 @@ contract Certifier is EternalStorage {
     // ============================================== Constants =======================================================
 
     // This address must be set before deploy
-    address public constant VALIDATOR_SET_CONTRACT = address(0x1000000000000000000000000000000000000001);
+    IValidatorSet public constant VALIDATOR_SET_CONTRACT = IValidatorSet(0x1000000000000000000000000000000000000001);
 
     // ================================================ Events ========================================================
 
@@ -41,7 +41,7 @@ contract Certifier is EternalStorage {
         if (boolStorage[keccak256(abi.encode(CERTIFIED, _who))]) {
             return true;
         }
-        return IValidatorSet(VALIDATOR_SET_CONTRACT).isReportValidatorValid(_who);
+        return VALIDATOR_SET_CONTRACT.isReportValidatorValid(_who);
     }
 
     // =============================================== Private ========================================================

@@ -8,14 +8,14 @@ import "./interfaces/IValidatorSetAuRa.sol";
 contract RandomAuRa is RandomBase, IRandomAuRa {
 
     // ============================================== Constants =======================================================
-
-    uint256 public constant COLLECT_ROUND_LENGTH = 200; // blocks
-    uint256 public constant COMMIT_PHASE_LENGTH = COLLECT_ROUND_LENGTH / 2; // blocks
+    // returns the answer in *blocks*
+    function getCollectRoundLength() external view returns(uint256) {
+        return uintStorage[COLLECT_ROUND_LENGTH];
+    }
 
     // ============================================== Modifiers =======================================================
-
     modifier onlyBlockReward() {
-        require(msg.sender == IValidatorSet(VALIDATOR_SET_CONTRACT).blockRewardContract());
+        require(msg.sender == VALIDATOR_SET_CONTRACT.blockRewardContract());
         _;
     }
 
@@ -24,14 +24,20 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         _;
     }
 
-    // =============================================== Setters ========================================================
+    function initialize(uint256 collectRoundLength) external {
+        require(collectRoundLength % 2 == 0, "collectRoundLength must be even");
+        require(block.number == 0, "RandomAuRa.initialize can only be called on the genesis block");
+        uintStorage[COLLECT_ROUND_LENGTH] = collectRoundLength;
+        uintStorage[COMMIT_PHASE_LENGTH] = collectRoundLength/2;
+    }
 
+    // =============================================== Setters ========================================================
     function commitHash(bytes32 _secretHash) external {
         require(isCommitPhase()); // must only be called in `commits phase`
         require(_secretHash != bytes32(0));
 
         address validator = msg.sender;
-        require(IValidatorSet(VALIDATOR_SET_CONTRACT).isValidator(validator));
+        require(VALIDATOR_SET_CONTRACT.isValidator(validator));
 
         uint256 collectRound = currentCollectRound();
 
@@ -48,7 +54,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         require(secretHash != bytes32(0));
 
         address validator = msg.sender;
-        require(IValidatorSet(VALIDATOR_SET_CONTRACT).isValidator(validator));
+        require(VALIDATOR_SET_CONTRACT.isValidator(validator));
 
         uint256 collectRound = currentCollectRound();
 
@@ -86,7 +92,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
             }
         }
 
-        if (block.number % COLLECT_ROUND_LENGTH == COLLECT_ROUND_LENGTH - 1) {
+        if (block.number % uintStorage[COLLECT_ROUND_LENGTH] == uintStorage[COLLECT_ROUND_LENGTH] - 1) {
             // This is the last block of the current collection round
 
             if (boolStorage[ALLOW_PUBLISH_SECRET]) {
@@ -98,14 +104,17 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
             uint256 blockNumber;
             uint256 i;
 
-            blockNumber = IValidatorSet(VALIDATOR_SET_CONTRACT).validatorSetApplyBlock();
+            blockNumber = VALIDATOR_SET_CONTRACT.validatorSetApplyBlock();
 
-            if (blockNumber != 0 && block.number > blockNumber + COLLECT_ROUND_LENGTH * 2 || blockNumber == 0) {
+            // UNSAFE: this is OK because we *know* this is an IValidatorSetAuRa
+            IValidatorSetAuRa validatorSetContract = IValidatorSetAuRa(address(VALIDATOR_SET_CONTRACT));
+
+            if (blockNumber != 0 && block.number > blockNumber + uintStorage[COLLECT_ROUND_LENGTH]*2 || blockNumber == 0) {
                 // Check each validator whether he created at least one block
                 // during commits phase and at least one block during reveals phase
                 // but didn't reveal his secret during reveals phase
 
-                validators = IValidatorSet(VALIDATOR_SET_CONTRACT).getValidators();
+                validators = VALIDATOR_SET_CONTRACT.getValidators();
                 for (i = 0; i < validators.length; i++) {
                     validator = validators[i];
                     if (
@@ -115,27 +124,27 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
                     ) {
                         // The validator produced the blocks but didn't reveal his secret during
                         // the current collection round, so remove him from validator set as malicious
-                        IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).removeMaliciousValidator(validator);
+                        validatorSetContract.removeMaliciousValidator(validator);
                     }
                 }
             }
 
-            blockNumber = IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).stakingEpochStartBlock();
+            blockNumber = validatorSetContract.stakingEpochStartBlock();
 
             // If this is the last collection round in the current staking epoch
             if (
                 blockNumber == block.number ||
-                block.number + COLLECT_ROUND_LENGTH >
-                blockNumber + IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).STAKING_EPOCH_DURATION() - 1
+                block.number + uintStorage[COLLECT_ROUND_LENGTH] >
+                blockNumber + validatorSetContract.STAKING_EPOCH_DURATION() - 1
             ) {
                 // Check each validator whether he didn't reveal
                 // his secret during the last full `reveals phase`
-                validators = IValidatorSet(VALIDATOR_SET_CONTRACT).getValidators();
+                validators = VALIDATOR_SET_CONTRACT.getValidators();
                 for (i = 0; i < validators.length; i++) {
                     validator = validators[i];
                     if (!sentReveal(currentRound, validator)) {
                         // Remove the validator as malicious
-                        IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).removeMaliciousValidator(validator);
+                        validatorSetContract.removeMaliciousValidator(validator);
                     }
                 }
             }
@@ -165,7 +174,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
     // Returns the number of collection round for the current block
     function currentCollectRound() public view returns(uint256) {
-        return block.number / COLLECT_ROUND_LENGTH;
+        return block.number / uintStorage[COLLECT_ROUND_LENGTH];
     }
 
     function getCommit(uint256 _collectRound, address _validator) public view returns(bytes32) {
@@ -181,7 +190,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     }
 
     function isCommitPhase() public view returns(bool) {
-        return (block.number % COLLECT_ROUND_LENGTH) < COMMIT_PHASE_LENGTH;
+        return (block.number % uintStorage[COLLECT_ROUND_LENGTH]) < uintStorage[COMMIT_PHASE_LENGTH];
     }
 
     function isRevealPhase() public view returns(bool) {
@@ -201,7 +210,8 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     bytes32 internal constant ALLOW_PUBLISH_SECRET = keccak256("allowPublishSecret");
     bytes32 internal constant CURRENT_SECRET = keccak256("currentSecret");
     bytes32 internal constant OWNER = keccak256("owner");
-
+    bytes32 internal constant COMMIT_PHASE_LENGTH = keccak256("commitPhaseLength"); // blocks
+    bytes32 internal constant COLLECT_ROUND_LENGTH = keccak256("collectRoundLength"); // blocks
     bytes32 internal constant BLOCKS_PRODUCERS = "blocksProducers";
     bytes32 internal constant COMMITS = "commits";
     bytes32 internal constant COMMITTED_VALIDATORS = "committedValidators";
@@ -269,7 +279,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
         randomArray.push(_getCurrentSecret());
 
-        if (randomArray.length > IValidatorSet(VALIDATOR_SET_CONTRACT).MAX_VALIDATORS()) {
+        if (randomArray.length > VALIDATOR_SET_CONTRACT.MAX_VALIDATORS()) {
             // Shift random array to remove the first item
             uint256 length = randomArray.length.sub(1);
             for (uint256 i = 0; i < length; i++) {

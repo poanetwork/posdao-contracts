@@ -1,16 +1,15 @@
 pragma solidity 0.5.2;
 
 import "./abstracts/ValidatorSetBase.sol";
+import "./RandomAuRa.sol";
 
 
 contract ValidatorSetAuRa is ValidatorSetBase {
 
-    // TODO: add a description for each function
-
+    // TODO: add a description for each function)
     // ============================================== Constants =======================================================
-
-    uint256 public constant STAKING_EPOCH_DURATION = 120960; // 1 week in blocks (5 seconds per block)
-    uint256 public constant STAKE_WITHDRAW_DISALLOW_PERIOD = 4320; // 6 hours in blocks (staking epoch last blocks)
+    bytes32 constant private STAKE_WITHDRAW_DISALLOW_PERIOD = "stackWithdrawlDisallowPeriod";
+    bytes32 constant private STAKING_EPOCH_DURATION = "stakingEpochDuration";
 
     // ================================================ Events ========================================================
 
@@ -29,6 +28,14 @@ contract ValidatorSetAuRa is ValidatorSetBase {
     }
 
     // =============================================== Setters ========================================================
+    function _initialize(
+        uint256 _stakingEpochDuration,
+        uint256 _stakeWithdrawlDisallowPeriod
+    ) private {
+        require(block.number == 0, "ValidatorSetAuRa._initialize() can only be called from the genesis block");
+        uintStorage[STAKE_WITHDRAW_DISALLOW_PERIOD] = _stakeWithdrawlDisallowPeriod;
+        uintStorage[STAKING_EPOCH_DURATION] = _stakingEpochDuration;
+    }
 
     function addPool(uint256 _amount) external {
         stake(msg.sender, _amount);
@@ -39,21 +46,26 @@ contract ValidatorSetAuRa is ValidatorSetBase {
     /// This is used instead of `constructor()` because this contract is upgradable.
     function initialize(
         address _blockRewardContract,
-        address _randomContract,
+        RandomAuRa _randomContract,
         address _erc20TokenContract,
         address[] calldata _initialValidators,
         uint256 _stakerMinStake,
-        uint256 _validatorMinStake
+        uint256 _validatorMinStake,
+        uint256 _stakingEpochDuration,
+        uint256 _stakeWithdrawlDisallowPeriod,
+        uint256 _collectRoundLength
     ) external {
+        _initialize(_stakingEpochDuration, _stakeWithdrawlDisallowPeriod);
         super._initialize(
             _blockRewardContract,
-            _randomContract,
+            address(_randomContract),
             _erc20TokenContract,
             _initialValidators,
             _stakerMinStake,
             _validatorMinStake
         );
         _setStakingEpochStartBlock(block.number);
+        _randomContract.initialize(_collectRoundLength);
     }
 
     function newValidatorSet() external onlyBlockRewardContract {
@@ -110,6 +122,14 @@ contract ValidatorSetAuRa is ValidatorSetBase {
         return uintStorage[STAKING_EPOCH_START_BLOCK];
     }
 
+    function stakeWithdrawlDisallowPeriod() public view returns(uint256) {
+        return uintStorage[STAKE_WITHDRAW_DISALLOW_PERIOD];
+    }
+
+    function stakingEpochDuration() public view returns(uint256) {
+        return uintStorage[STAKING_EPOCH_DURATION];
+    }
+
     // =============================================== Private ========================================================
 
     bytes32 internal constant STAKING_EPOCH_START_BLOCK = keccak256("stakingEpochStartBlock");
@@ -132,13 +152,13 @@ contract ValidatorSetAuRa is ValidatorSetBase {
     }
 
     function _areStakeAndWithdrawAllowed() internal view returns(bool) {
-        uint256 allowedDuration = STAKING_EPOCH_DURATION - STAKE_WITHDRAW_DISALLOW_PERIOD;
+        uint256 allowedDuration = stakingEpochDuration() - stakeWithdrawlDisallowPeriod();
         uint256 applyBlock = validatorSetApplyBlock();
         bool afterValidatorSetApplied = applyBlock != 0 && block.number > applyBlock;
         return afterValidatorSetApplied && block.number.sub(stakingEpochStartBlock()) <= allowedDuration;
     }
 
     function _newValidatorSetCallable() internal view returns(bool) {
-        return block.number.sub(stakingEpochStartBlock()) >= STAKING_EPOCH_DURATION - 1;
+        return block.number.sub(stakingEpochStartBlock()) >= stakingEpochDuration() - 1;
     }
 }
