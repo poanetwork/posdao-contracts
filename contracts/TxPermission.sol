@@ -10,8 +10,8 @@ contract TxPermission is EternalStorage {
 
     /// Addresses of `Random` and `ValidatorSet` contracts.
     /// Must be set before deploy.
-    address public constant RANDOM_CONTRACT = address(0);
-    address public constant VALIDATOR_SET_CONTRACT = address(0);
+    address public constant RANDOM_CONTRACT = address(0x3000000000000000000000000000000000000001);
+    address public constant VALIDATOR_SET_CONTRACT = address(0x1000000000000000000000000000000000000001);
 
     // ============================================== Modifiers =======================================================
 

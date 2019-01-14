@@ -9,7 +9,7 @@ contract Certifier is EternalStorage {
     // ============================================== Constants =======================================================
 
     // This address must be set before deploy
-    address public constant VALIDATOR_SET_CONTRACT = address(0);
+    address public constant VALIDATOR_SET_CONTRACT = address(0x1000000000000000000000000000000000000001);
 
     // ================================================ Events ========================================================
 
