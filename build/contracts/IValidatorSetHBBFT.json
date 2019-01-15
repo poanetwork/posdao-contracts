@@ -41,9 +41,9 @@
   "sourceMap": "",
   "deployedSourceMap": "",
   "source": "pragma solidity 0.5.2;\n\n\ninterface IValidatorSetHBBFT {\n    function initialize(address, address, address, address[] calldata, uint256, uint256) external;\n}",
-  "sourcePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IValidatorSetHBBFT.sol",
+  "sourcePath": "/home/user/pos-contracts/contracts/interfaces/IValidatorSetHBBFT.sol",
   "ast": {
-    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IValidatorSetHBBFT.sol",
+    "absolutePath": "/home/user/pos-contracts/contracts/interfaces/IValidatorSetHBBFT.sol",
     "exportedSymbols": {
       "IValidatorSetHBBFT": [
         9153
@@ -281,7 +281,7 @@
     "src": "0:156:28"
   },
   "legacyAST": {
-    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IValidatorSetHBBFT.sol",
+    "absolutePath": "/home/user/pos-contracts/contracts/interfaces/IValidatorSetHBBFT.sol",
     "exportedSymbols": {
       "IValidatorSetHBBFT": [
         9153
@@ -524,7 +524,7 @@
   },
   "networks": {},
   "schemaVersion": "3.0.1",
-  "updatedAt": "2019-01-15T09:22:41.069Z",
+  "updatedAt": "2019-01-15T15:35:28.386Z",
   "devdoc": {
     "methods": {}
   },

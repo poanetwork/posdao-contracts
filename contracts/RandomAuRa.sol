@@ -66,7 +66,10 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     function initialize(
         uint256 _collectRoundLength // in blocks
     ) external {
+        require(block.number == 0);
         require(_collectRoundLength % 2 == 0);
+        require(_collectRoundLength > 0);
+        require(collectRoundLength() == 0);
         _setCollectRoundLength(_collectRoundLength);
     }
 

@@ -1,9 +1,10 @@
 pragma solidity 0.5.2;
 
 import "./abstracts/ValidatorSetBase.sol";
+import "./interfaces/IValidatorSetAuRa.sol";
 
 
-contract ValidatorSetAuRa is ValidatorSetBase {
+contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
 
     // TODO: add a description for each function
 

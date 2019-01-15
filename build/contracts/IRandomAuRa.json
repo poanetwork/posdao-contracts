@@ -35,9 +35,9 @@
   "sourceMap": "",
   "deployedSourceMap": "",
   "source": "pragma solidity 0.5.2;\n\n\ninterface IRandomAuRa {\n    function initialize(uint256) external;\n    function onBlockClose(address) external;\n}",
-  "sourcePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IRandomAuRa.sol",
+  "sourcePath": "/home/user/pos-contracts/contracts/interfaces/IRandomAuRa.sol",
   "ast": {
-    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IRandomAuRa.sol",
+    "absolutePath": "/home/user/pos-contracts/contracts/interfaces/IRandomAuRa.sol",
     "exportedSymbols": {
       "IRandomAuRa": [
         8958
@@ -186,7 +186,7 @@
     "src": "0:138:24"
   },
   "legacyAST": {
-    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IRandomAuRa.sol",
+    "absolutePath": "/home/user/pos-contracts/contracts/interfaces/IRandomAuRa.sol",
     "exportedSymbols": {
       "IRandomAuRa": [
         8958
@@ -340,7 +340,7 @@
   },
   "networks": {},
   "schemaVersion": "3.0.1",
-  "updatedAt": "2019-01-15T09:22:41.070Z",
+  "updatedAt": "2019-01-15T15:35:28.384Z",
   "devdoc": {
     "methods": {}
   },

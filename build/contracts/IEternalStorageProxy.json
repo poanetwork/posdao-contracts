@@ -26,26 +26,26 @@
   "sourceMap": "",
   "deployedSourceMap": "",
   "source": "pragma solidity 0.5.2;\n\n\ninterface IEternalStorageProxy {\n    function upgradeTo(address) external returns(bool);\n}",
-  "sourcePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IEternalStorageProxy.sol",
+  "sourcePath": "/home/user/pos-contracts/contracts/interfaces/IEternalStorageProxy.sol",
   "ast": {
-    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IEternalStorageProxy.sol",
+    "absolutePath": "/home/user/pos-contracts/contracts/interfaces/IEternalStorageProxy.sol",
     "exportedSymbols": {
       "IEternalStorageProxy": [
-        7890
+        8868
       ]
     },
-    "id": 7891,
+    "id": 8869,
     "nodeType": "SourceUnit",
     "nodes": [
       {
-        "id": 7882,
+        "id": 8860,
         "literals": [
           "solidity",
           "0.5",
           ".2"
         ],
         "nodeType": "PragmaDirective",
-        "src": "0:22:18"
+        "src": "0:22:20"
       },
       {
         "baseContracts": [],
@@ -53,9 +53,9 @@
         "contractKind": "interface",
         "documentation": null,
         "fullyImplemented": false,
-        "id": 7890,
+        "id": 8868,
         "linearizedBaseContracts": [
-          7890
+          8868
         ],
         "name": "IEternalStorageProxy",
         "nodeType": "ContractDefinition",
@@ -63,23 +63,23 @@
           {
             "body": null,
             "documentation": null,
-            "id": 7889,
+            "id": 8867,
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "upgradeTo",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 7885,
+              "id": 8863,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 7884,
+                  "id": 8862,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 7889,
-                  "src": "81:7:18",
+                  "scope": 8867,
+                  "src": "81:7:20",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -87,10 +87,10 @@
                     "typeString": "address"
                   },
                   "typeName": {
-                    "id": 7883,
+                    "id": 8861,
                     "name": "address",
                     "nodeType": "ElementaryTypeName",
-                    "src": "81:7:18",
+                    "src": "81:7:20",
                     "stateMutability": "nonpayable",
                     "typeDescriptions": {
                       "typeIdentifier": "t_address",
@@ -101,19 +101,19 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "80:9:18"
+              "src": "80:9:20"
             },
             "returnParameters": {
-              "id": 7888,
+              "id": 8866,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 7887,
+                  "id": 8865,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 7889,
-                  "src": "107:4:18",
+                  "scope": 8867,
+                  "src": "107:4:20",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -121,10 +121,10 @@
                     "typeString": "bool"
                   },
                   "typeName": {
-                    "id": 7886,
+                    "id": 8864,
                     "name": "bool",
                     "nodeType": "ElementaryTypeName",
-                    "src": "107:4:18",
+                    "src": "107:4:20",
                     "typeDescriptions": {
                       "typeIdentifier": "t_bool",
                       "typeString": "bool"
@@ -134,40 +134,40 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "106:6:18"
+              "src": "106:6:20"
             },
-            "scope": 7890,
-            "src": "62:51:18",
+            "scope": 8868,
+            "src": "62:51:20",
             "stateMutability": "nonpayable",
             "superFunction": null,
             "visibility": "external"
           }
         ],
-        "scope": 7891,
-        "src": "25:90:18"
+        "scope": 8869,
+        "src": "25:90:20"
       }
     ],
-    "src": "0:115:18"
+    "src": "0:115:20"
   },
   "legacyAST": {
-    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IEternalStorageProxy.sol",
+    "absolutePath": "/home/user/pos-contracts/contracts/interfaces/IEternalStorageProxy.sol",
     "exportedSymbols": {
       "IEternalStorageProxy": [
-        7890
+        8868
       ]
     },
-    "id": 7891,
+    "id": 8869,
     "nodeType": "SourceUnit",
     "nodes": [
       {
-        "id": 7882,
+        "id": 8860,
         "literals": [
           "solidity",
           "0.5",
           ".2"
         ],
         "nodeType": "PragmaDirective",
-        "src": "0:22:18"
+        "src": "0:22:20"
       },
       {
         "baseContracts": [],
@@ -175,9 +175,9 @@
         "contractKind": "interface",
         "documentation": null,
         "fullyImplemented": false,
-        "id": 7890,
+        "id": 8868,
         "linearizedBaseContracts": [
-          7890
+          8868
         ],
         "name": "IEternalStorageProxy",
         "nodeType": "ContractDefinition",
@@ -185,23 +185,23 @@
           {
             "body": null,
             "documentation": null,
-            "id": 7889,
+            "id": 8867,
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "upgradeTo",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 7885,
+              "id": 8863,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 7884,
+                  "id": 8862,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 7889,
-                  "src": "81:7:18",
+                  "scope": 8867,
+                  "src": "81:7:20",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -209,10 +209,10 @@
                     "typeString": "address"
                   },
                   "typeName": {
-                    "id": 7883,
+                    "id": 8861,
                     "name": "address",
                     "nodeType": "ElementaryTypeName",
-                    "src": "81:7:18",
+                    "src": "81:7:20",
                     "stateMutability": "nonpayable",
                     "typeDescriptions": {
                       "typeIdentifier": "t_address",
@@ -223,19 +223,19 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "80:9:18"
+              "src": "80:9:20"
             },
             "returnParameters": {
-              "id": 7888,
+              "id": 8866,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 7887,
+                  "id": 8865,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 7889,
-                  "src": "107:4:18",
+                  "scope": 8867,
+                  "src": "107:4:20",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -243,10 +243,10 @@
                     "typeString": "bool"
                   },
                   "typeName": {
-                    "id": 7886,
+                    "id": 8864,
                     "name": "bool",
                     "nodeType": "ElementaryTypeName",
-                    "src": "107:4:18",
+                    "src": "107:4:20",
                     "typeDescriptions": {
                       "typeIdentifier": "t_bool",
                       "typeString": "bool"
@@ -256,20 +256,20 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "106:6:18"
+              "src": "106:6:20"
             },
-            "scope": 7890,
-            "src": "62:51:18",
+            "scope": 8868,
+            "src": "62:51:20",
             "stateMutability": "nonpayable",
             "superFunction": null,
             "visibility": "external"
           }
         ],
-        "scope": 7891,
-        "src": "25:90:18"
+        "scope": 8869,
+        "src": "25:90:20"
       }
     ],
-    "src": "0:115:18"
+    "src": "0:115:20"
   },
   "compiler": {
     "name": "solc",
@@ -277,7 +277,7 @@
   },
   "networks": {},
   "schemaVersion": "3.0.1",
-  "updatedAt": "2019-01-14T07:16:48.183Z",
+  "updatedAt": "2019-01-15T15:35:28.383Z",
   "devdoc": {
     "methods": {}
   },

@@ -21,26 +21,26 @@
   "sourceMap": "",
   "deployedSourceMap": "",
   "source": "pragma solidity 0.5.2;\n\n\ninterface IRandom {\n    function currentRandom() external view returns(uint256[] memory);\n}",
-  "sourcePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IRandom.sol",
+  "sourcePath": "/home/user/pos-contracts/contracts/interfaces/IRandom.sol",
   "ast": {
-    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IRandom.sol",
+    "absolutePath": "/home/user/pos-contracts/contracts/interfaces/IRandom.sol",
     "exportedSymbols": {
       "IRandom": [
-        7899
+        8945
       ]
     },
-    "id": 7900,
+    "id": 8946,
     "nodeType": "SourceUnit",
     "nodes": [
       {
-        "id": 7892,
+        "id": 8938,
         "literals": [
           "solidity",
           "0.5",
           ".2"
         ],
         "nodeType": "PragmaDirective",
-        "src": "0:22:19"
+        "src": "0:22:23"
       },
       {
         "baseContracts": [],
@@ -48,9 +48,9 @@
         "contractKind": "interface",
         "documentation": null,
         "fullyImplemented": false,
-        "id": 7899,
+        "id": 8945,
         "linearizedBaseContracts": [
-          7899
+          8945
         ],
         "name": "IRandom",
         "nodeType": "ContractDefinition",
@@ -58,29 +58,29 @@
           {
             "body": null,
             "documentation": null,
-            "id": 7898,
+            "id": 8944,
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "currentRandom",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 7893,
+              "id": 8939,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "71:2:19"
+              "src": "71:2:23"
             },
             "returnParameters": {
-              "id": 7897,
+              "id": 8943,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 7896,
+                  "id": 8942,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 7898,
-                  "src": "96:16:19",
+                  "scope": 8944,
+                  "src": "96:16:23",
                   "stateVariable": false,
                   "storageLocation": "memory",
                   "typeDescriptions": {
@@ -89,19 +89,19 @@
                   },
                   "typeName": {
                     "baseType": {
-                      "id": 7894,
+                      "id": 8940,
                       "name": "uint256",
                       "nodeType": "ElementaryTypeName",
-                      "src": "96:7:19",
+                      "src": "96:7:23",
                       "typeDescriptions": {
                         "typeIdentifier": "t_uint256",
                         "typeString": "uint256"
                       }
                     },
-                    "id": 7895,
+                    "id": 8941,
                     "length": null,
                     "nodeType": "ArrayTypeName",
-                    "src": "96:9:19",
+                    "src": "96:9:23",
                     "typeDescriptions": {
                       "typeIdentifier": "t_array$_t_uint256_$dyn_storage_ptr",
                       "typeString": "uint256[]"
@@ -111,40 +111,40 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "95:18:19"
+              "src": "95:18:23"
             },
-            "scope": 7899,
-            "src": "49:65:19",
+            "scope": 8945,
+            "src": "49:65:23",
             "stateMutability": "view",
             "superFunction": null,
             "visibility": "external"
           }
         ],
-        "scope": 7900,
-        "src": "25:91:19"
+        "scope": 8946,
+        "src": "25:91:23"
       }
     ],
-    "src": "0:116:19"
+    "src": "0:116:23"
   },
   "legacyAST": {
-    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IRandom.sol",
+    "absolutePath": "/home/user/pos-contracts/contracts/interfaces/IRandom.sol",
     "exportedSymbols": {
       "IRandom": [
-        7899
+        8945
       ]
     },
-    "id": 7900,
+    "id": 8946,
     "nodeType": "SourceUnit",
     "nodes": [
       {
-        "id": 7892,
+        "id": 8938,
         "literals": [
           "solidity",
           "0.5",
           ".2"
         ],
         "nodeType": "PragmaDirective",
-        "src": "0:22:19"
+        "src": "0:22:23"
       },
       {
         "baseContracts": [],
@@ -152,9 +152,9 @@
         "contractKind": "interface",
         "documentation": null,
         "fullyImplemented": false,
-        "id": 7899,
+        "id": 8945,
         "linearizedBaseContracts": [
-          7899
+          8945
         ],
         "name": "IRandom",
         "nodeType": "ContractDefinition",
@@ -162,29 +162,29 @@
           {
             "body": null,
             "documentation": null,
-            "id": 7898,
+            "id": 8944,
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "currentRandom",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 7893,
+              "id": 8939,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "71:2:19"
+              "src": "71:2:23"
             },
             "returnParameters": {
-              "id": 7897,
+              "id": 8943,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 7896,
+                  "id": 8942,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 7898,
-                  "src": "96:16:19",
+                  "scope": 8944,
+                  "src": "96:16:23",
                   "stateVariable": false,
                   "storageLocation": "memory",
                   "typeDescriptions": {
@@ -193,19 +193,19 @@
                   },
                   "typeName": {
                     "baseType": {
-                      "id": 7894,
+                      "id": 8940,
                       "name": "uint256",
                       "nodeType": "ElementaryTypeName",
-                      "src": "96:7:19",
+                      "src": "96:7:23",
                       "typeDescriptions": {
                         "typeIdentifier": "t_uint256",
                         "typeString": "uint256"
                       }
                     },
-                    "id": 7895,
+                    "id": 8941,
                     "length": null,
                     "nodeType": "ArrayTypeName",
-                    "src": "96:9:19",
+                    "src": "96:9:23",
                     "typeDescriptions": {
                       "typeIdentifier": "t_array$_t_uint256_$dyn_storage_ptr",
                       "typeString": "uint256[]"
@@ -215,20 +215,20 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "95:18:19"
+              "src": "95:18:23"
             },
-            "scope": 7899,
-            "src": "49:65:19",
+            "scope": 8945,
+            "src": "49:65:23",
             "stateMutability": "view",
             "superFunction": null,
             "visibility": "external"
           }
         ],
-        "scope": 7900,
-        "src": "25:91:19"
+        "scope": 8946,
+        "src": "25:91:23"
       }
     ],
-    "src": "0:116:19"
+    "src": "0:116:23"
   },
   "compiler": {
     "name": "solc",
@@ -236,7 +236,7 @@
   },
   "networks": {},
   "schemaVersion": "3.0.1",
-  "updatedAt": "2019-01-14T07:16:48.183Z",
+  "updatedAt": "2019-01-15T15:35:28.384Z",
   "devdoc": {
     "methods": {}
   },

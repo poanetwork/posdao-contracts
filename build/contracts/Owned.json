@@ -47,14 +47,14 @@
       "type": "function"
     }
   ],
-  "bytecode": "0x608060405260008054600160a060020a0319163317905534801561002257600080fd5b506101ab806100326000396000f3fe608060405234801561001057600080fd5b5060043610610052577c0100000000000000000000000000000000000000000000000000000000600035046313af403581146100575780638da5cb5b1461008c575b600080fd5b61008a6004803603602081101561006d57600080fd5b503573ffffffffffffffffffffffffffffffffffffffff166100bd565b005b610094610163565b6040805173ffffffffffffffffffffffffffffffffffffffff9092168252519081900360200190f35b60005473ffffffffffffffffffffffffffffffffffffffff1633146100e157600080fd5b6000805460405173ffffffffffffffffffffffffffffffffffffffff808516939216917f70aea8d848e8a90fb7661b227dc522eb6395c3dac71b63cb59edd5c9899b236491a36000805473ffffffffffffffffffffffffffffffffffffffff191673ffffffffffffffffffffffffffffffffffffffff92909216919091179055565b60005473ffffffffffffffffffffffffffffffffffffffff168156fea165627a7a72305820b10d15703b082f09bcabf811816bb40274af529d83c48c037b632fe7e3cc985b0029",
-  "deployedBytecode": "0x608060405234801561001057600080fd5b5060043610610052577c0100000000000000000000000000000000000000000000000000000000600035046313af403581146100575780638da5cb5b1461008c575b600080fd5b61008a6004803603602081101561006d57600080fd5b503573ffffffffffffffffffffffffffffffffffffffff166100bd565b005b610094610163565b6040805173ffffffffffffffffffffffffffffffffffffffff9092168252519081900360200190f35b60005473ffffffffffffffffffffffffffffffffffffffff1633146100e157600080fd5b6000805460405173ffffffffffffffffffffffffffffffffffffffff808516939216917f70aea8d848e8a90fb7661b227dc522eb6395c3dac71b63cb59edd5c9899b236491a36000805473ffffffffffffffffffffffffffffffffffffffff191673ffffffffffffffffffffffffffffffffffffffff92909216919091179055565b60005473ffffffffffffffffffffffffffffffffffffffff168156fea165627a7a72305820b10d15703b082f09bcabf811816bb40274af529d83c48c037b632fe7e3cc985b0029",
+  "bytecode": "0x608060405260008054600160a060020a0319163317905534801561002257600080fd5b506101ab806100326000396000f3fe608060405234801561001057600080fd5b5060043610610052577c0100000000000000000000000000000000000000000000000000000000600035046313af403581146100575780638da5cb5b1461008c575b600080fd5b61008a6004803603602081101561006d57600080fd5b503573ffffffffffffffffffffffffffffffffffffffff166100bd565b005b610094610163565b6040805173ffffffffffffffffffffffffffffffffffffffff9092168252519081900360200190f35b60005473ffffffffffffffffffffffffffffffffffffffff1633146100e157600080fd5b6000805460405173ffffffffffffffffffffffffffffffffffffffff808516939216917f70aea8d848e8a90fb7661b227dc522eb6395c3dac71b63cb59edd5c9899b236491a36000805473ffffffffffffffffffffffffffffffffffffffff191673ffffffffffffffffffffffffffffffffffffffff92909216919091179055565b60005473ffffffffffffffffffffffffffffffffffffffff168156fea165627a7a7230582088481d51b2fc22cd75a8eac834c26e94cac675b6fb85eb69225351a56245959b0029",
+  "deployedBytecode": "0x608060405234801561001057600080fd5b5060043610610052577c0100000000000000000000000000000000000000000000000000000000600035046313af403581146100575780638da5cb5b1461008c575b600080fd5b61008a6004803603602081101561006d57600080fd5b503573ffffffffffffffffffffffffffffffffffffffff166100bd565b005b610094610163565b6040805173ffffffffffffffffffffffffffffffffffffffff9092168252519081900360200190f35b60005473ffffffffffffffffffffffffffffffffffffffff1633146100e157600080fd5b6000805460405173ffffffffffffffffffffffffffffffffffffffff808516939216917f70aea8d848e8a90fb7661b227dc522eb6395c3dac71b63cb59edd5c9899b236491a36000805473ffffffffffffffffffffffffffffffffffffffff191673ffffffffffffffffffffffffffffffffffffffff92909216919091179055565b60005473ffffffffffffffffffffffffffffffffffffffff168156fea165627a7a7230582088481d51b2fc22cd75a8eac834c26e94cac675b6fb85eb69225351a56245959b0029",
   "sourceMap": "157:327:9:-;;;245:33;;;-1:-1:-1;;;;;;245:33:9;268:10;245:33;;;157:327;5:2:-1;;;;30:1;27;20:12;5:2;157:327:9;;;;;;;",
   "deployedSourceMap": "157:327:9:-;;;;8:9:-1;5:2;;;30:1;27;20:12;5:2;157:327:9;;;;;;;;;;;;;;;;;;;;;;;;366:116;;;;;;13:2:-1;8:3;5:11;2:2;;;29:1;26;19:12;2:2;-1:-1;366:116:9;;;;:::i;:::-;;245:33;;;:::i;:::-;;;;;;;;;;;;;;;;;;;366:116;336:5;;;;322:10;:19;314:28;;;;;;441:5;;;432:21;;;;;;;441:5;;;432:21;;;463:5;:12;;-1:-1:-1;;463:12:9;;;;;;;;;;;;366:116::o;245:33::-;;;;;;:::o",
   "source": "pragma solidity 0.5.2;\n\nimport \"./interfaces/IMetadataRegistry.sol\";\nimport \"./interfaces/IOwnerRegistry.sol\";\nimport \"./interfaces/IReverseRegistry.sol\";\n\n\ncontract Owned {\n    event NewOwner(address indexed old, address indexed current);\n\n    address public owner = msg.sender;\n\n    modifier onlyOwner {\n        require(msg.sender == owner);\n        _;\n    }\n\n    function setOwner(address _new) external onlyOwner {\n        emit NewOwner(owner, _new);\n        owner = _new;\n    }\n}\n\n\ncontract Registry is Owned, IMetadataRegistry, IOwnerRegistry, IReverseRegistry {\n    struct Entry {\n        address owner;\n        address reverse;\n        bool deleted;\n        mapping(string => bytes32) data;\n    }\n\n    event Drained(uint amount);\n    event FeeChanged(uint amount);\n    event ReverseProposed(string name, address indexed reverse);\n\n    mapping(bytes32 => Entry) internal entries;\n    mapping(address => string) internal reverses;\n\n    uint256 public fee = 1 ether;\n\n    modifier whenUnreserved(bytes32 _name) {\n        require(entries[_name].owner == address(0));\n        _;\n    }\n\n    modifier onlyOwnerOf(bytes32 _name) {\n        require(entries[_name].owner == msg.sender);\n        _;\n    }\n\n    modifier whenProposed(string memory _name) {\n        require(entries[keccak256(bytes(_name))].reverse == msg.sender);\n        _;\n    }\n\n    modifier whenEntry(string memory _name) {\n        require(!entries[keccak256(bytes(_name))].deleted);\n        _;\n    }\n\n    modifier whenEntryRaw(bytes32 _name) {\n        require(!entries[_name].deleted);\n        _;\n    }\n\n    modifier whenFeePaid {\n        require(msg.value >= fee);\n        _;\n    }\n\n    constructor(address _certifierContract) public {\n        require(_certifierContract != address(0));\n        entries[keccak256(\"service_transaction_checker\")].data[\"A\"] = bytes20(_certifierContract);\n    }\n\n    // Reservation functions\n    function reserve(bytes32 _name)\n        external\n        payable\n        whenEntryRaw(_name)\n        whenUnreserved(_name)\n        whenFeePaid\n        returns (bool success)\n    {\n        entries[_name].owner = msg.sender;\n        emit Reserved(_name, msg.sender);\n        return true;\n    }\n\n    function transfer(bytes32 _name, address _to)\n        external\n        whenEntryRaw(_name)\n        onlyOwnerOf(_name)\n        returns (bool success)\n    {\n        entries[_name].owner = _to;\n        emit Transferred(_name, msg.sender, _to);\n        return true;\n    }\n\n    function drop(bytes32 _name)\n        external\n        whenEntryRaw(_name)\n        onlyOwnerOf(_name)\n        returns (bool success)\n    {\n        delete reverses[entries[_name].reverse];\n        entries[_name].deleted = true;\n        emit Dropped(_name, msg.sender);\n        return true;\n    }\n\n    // Data admin functions\n    function setData(bytes32 _name, string calldata _key, bytes32 _value)\n        external\n        whenEntryRaw(_name)\n        onlyOwnerOf(_name)\n        returns (bool success)\n    {\n        entries[_name].data[_key] = _value;\n        emit DataChanged(_name, _key, _key);\n        return true;\n    }\n\n    function setAddress(bytes32 _name, string calldata _key, address _value)\n        external\n        whenEntryRaw(_name)\n        onlyOwnerOf(_name)\n        returns (bool success)\n    {\n        entries[_name].data[_key] = bytes20(_value);\n        emit DataChanged(_name, _key, _key);\n        return true;\n    }\n\n    function setUint(bytes32 _name, string calldata _key, uint _value)\n        external\n        whenEntryRaw(_name)\n        onlyOwnerOf(_name)\n        returns (bool success)\n    {\n        entries[_name].data[_key] = bytes32(_value);\n        emit DataChanged(_name, _key, _key);\n        return true;\n    }\n\n    // Reverse registration functions\n    function proposeReverse(string calldata _name, address _who)\n        external\n        whenEntry(_name)\n        onlyOwnerOf(keccak256(bytes(_name)))\n        returns (bool success)\n    {\n        bytes32 sha3Name = keccak256(bytes(_name));\n        if (\n            entries[sha3Name].reverse != address(0) &&\n            keccak256(bytes(reverses[entries[sha3Name].reverse])) == sha3Name\n        ) {\n            delete reverses[entries[sha3Name].reverse];\n            emit ReverseRemoved(_name, entries[sha3Name].reverse);\n        }\n        entries[sha3Name].reverse = _who;\n        emit ReverseProposed(_name, _who);\n        return true;\n    }\n\n    function confirmReverse(string calldata _name)\n        external\n        whenEntry(_name)\n        whenProposed(_name)\n        returns (bool success)\n    {\n        reverses[msg.sender] = _name;\n        emit ReverseConfirmed(_name, msg.sender);\n        return true;\n    }\n\n    function confirmReverseAs(string calldata _name, address _who)\n        external\n        whenEntry(_name)\n        onlyOwner\n        returns (bool success)\n    {\n        reverses[_who] = _name;\n        emit ReverseConfirmed(_name, _who);\n        return true;\n    }\n\n    function removeReverse()\n        external\n        whenEntry(reverses[msg.sender])\n    {\n        emit ReverseRemoved(reverses[msg.sender], msg.sender);\n        delete entries[keccak256(bytes(reverses[msg.sender]))].reverse;\n        delete reverses[msg.sender];\n    }\n\n    // Admin functions for the owner\n    function setFee(uint _amount)\n        external\n        onlyOwner\n        returns (bool)\n    {\n        fee = _amount;\n        emit FeeChanged(_amount);\n        return true;\n    }\n\n    function drain()\n        external\n        onlyOwner\n        returns (bool)\n    {\n        emit Drained(address(this).balance);\n        msg.sender.transfer(address(this).balance);\n        return true;\n    }\n\n    // MetadataRegistry views\n    function getData(bytes32 _name, string calldata _key)\n        external\n        view\n        whenEntryRaw(_name)\n        returns (bytes32)\n    {\n        return entries[_name].data[_key];\n    }\n\n    function getAddress(bytes32 _name, string calldata _key)\n        external\n        view\n        whenEntryRaw(_name)\n        returns (address)\n    {\n        return address(bytes20(entries[_name].data[_key]));\n    }\n\n    function getUint(bytes32 _name, string calldata _key)\n        external\n        view\n        whenEntryRaw(_name)\n        returns (uint)\n    {\n        return uint(entries[_name].data[_key]);\n    }\n\n    // OwnerRegistry views\n    function getOwner(bytes32 _name)\n        external\n        view\n        whenEntryRaw(_name)\n        returns (address)\n    {\n        return entries[_name].owner;\n    }\n\n    // ReversibleRegistry views\n    function hasReverse(bytes32 _name)\n        external\n        view\n        whenEntryRaw(_name)\n        returns (bool)\n    {\n        return entries[_name].reverse != address(0);\n    }\n\n    function getReverse(bytes32 _name)\n        external\n        view\n        whenEntryRaw(_name)\n        returns (address)\n    {\n        return entries[_name].reverse;\n    }\n\n    function canReverse(address _data)\n        external\n        view\n        returns (bool)\n    {\n        return bytes(reverses[_data]).length != 0;\n    }\n\n    function reverse(address _data)\n        external\n        view\n        returns (string memory)\n    {\n        return reverses[_data];\n    }\n\n    function reserved(bytes32 _name)\n        external\n        view\n        whenEntryRaw(_name)\n        returns (bool)\n    {\n        return entries[_name].owner != address(0);\n    }\n}\n",
-  "sourcePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/Registry.sol",
+  "sourcePath": "/home/user/pos-contracts/contracts/Registry.sol",
   "ast": {
-    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/Registry.sol",
+    "absolutePath": "/home/user/pos-contracts/contracts/Registry.sol",
     "exportedSymbols": {
       "Owned": [
         2538
@@ -77,7 +77,7 @@
         "src": "0:22:9"
       },
       {
-        "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IMetadataRegistry.sol",
+        "absolutePath": "/home/user/pos-contracts/contracts/interfaces/IMetadataRegistry.sol",
         "file": "./interfaces/IMetadataRegistry.sol",
         "id": 2497,
         "nodeType": "ImportDirective",
@@ -88,7 +88,7 @@
         "unitAlias": ""
       },
       {
-        "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IOwnerRegistry.sol",
+        "absolutePath": "/home/user/pos-contracts/contracts/interfaces/IOwnerRegistry.sol",
         "file": "./interfaces/IOwnerRegistry.sol",
         "id": 2498,
         "nodeType": "ImportDirective",
@@ -99,7 +99,7 @@
         "unitAlias": ""
       },
       {
-        "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IReverseRegistry.sol",
+        "absolutePath": "/home/user/pos-contracts/contracts/interfaces/IReverseRegistry.sol",
         "file": "./interfaces/IReverseRegistry.sol",
         "id": 2499,
         "nodeType": "ImportDirective",
@@ -10359,7 +10359,7 @@
     "src": "0:7347:9"
   },
   "legacyAST": {
-    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/Registry.sol",
+    "absolutePath": "/home/user/pos-contracts/contracts/Registry.sol",
     "exportedSymbols": {
       "Owned": [
         2538
@@ -10382,7 +10382,7 @@
         "src": "0:22:9"
       },
       {
-        "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IMetadataRegistry.sol",
+        "absolutePath": "/home/user/pos-contracts/contracts/interfaces/IMetadataRegistry.sol",
         "file": "./interfaces/IMetadataRegistry.sol",
         "id": 2497,
         "nodeType": "ImportDirective",
@@ -10393,7 +10393,7 @@
         "unitAlias": ""
       },
       {
-        "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IOwnerRegistry.sol",
+        "absolutePath": "/home/user/pos-contracts/contracts/interfaces/IOwnerRegistry.sol",
         "file": "./interfaces/IOwnerRegistry.sol",
         "id": 2498,
         "nodeType": "ImportDirective",
@@ -10404,7 +10404,7 @@
         "unitAlias": ""
       },
       {
-        "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IReverseRegistry.sol",
+        "absolutePath": "/home/user/pos-contracts/contracts/interfaces/IReverseRegistry.sol",
         "file": "./interfaces/IReverseRegistry.sol",
         "id": 2499,
         "nodeType": "ImportDirective",
@@ -20669,7 +20669,7 @@
   },
   "networks": {},
   "schemaVersion": "3.0.1",
-  "updatedAt": "2019-01-15T09:22:41.032Z",
+  "updatedAt": "2019-01-15T15:35:28.311Z",
   "devdoc": {
     "methods": {}
   },

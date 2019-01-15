@@ -38,13 +38,13 @@
     }
   ],
   "bytecode": "0x608060405234801561001057600080fd5b506040516101dc3803806101dc833981018060405260e081101561003357600080fd5b81516020830151604084015160608501516080860180519496939592949193928301929164010000000081111561006957600080fd5b8201602081018481111561007c57600080fd5b815185602082028301116401000000008211171561009957600080fd5b50506020820151604090920151909350909150600160a060020a03871615156100c157600080fd5b86600160a060020a031663b4fcda138787878787876040518763ffffffff167c01000000000000000000000000000000000000000000000000000000000281526004018087600160a060020a0316600160a060020a0316815260200186600160a060020a0316600160a060020a0316815260200185600160a060020a0316600160a060020a0316815260200180602001848152602001838152602001828103825285818151815260200191508051906020019060200280838360005b8381101561019557818101518382015260200161017d565b50505050905001975050505050505050600060405180830381600087803b1580156101bf57600080fd5b505af11580156101d3573d6000803e3d6000fd5b503392505050fffe",
-  "deployedBytecode": "0x6080604052600080fdfea165627a7a72305820321c3ea72f95a66eadd9a994ff3b34f42f942936c97e95a3043fdbacc6453f630029",
+  "deployedBytecode": "0x6080604052600080fdfea165627a7a72305820ac2238589bf28fb1cfb85f82c942a3dd845da49d2677fffe82c6ec2b159398720029",
   "sourceMap": "77:683:4:-;;;110:647;8:9:-1;5:2;;;30:1;27;20:12;5:2;110:647:4;;;;;;;;;;;;;;;13:3:-1;8;5:12;2:2;;;30:1;27;20:12;2:2;110:647:4;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;19:11:-1;11:20;;8:2;;;44:1;41;34:12;8:2;62:21;;123:4;114:14;;138:31;;;135:2;;;182:1;179;172:12;135:2;219:3;213:10;331:9;325:2;311:12;307:21;289:16;285:44;282:59;261:11;247:12;244:29;233:116;230:2;;;362:1;359;352:12;230:2;-1:-1;;110:647:4;;;;;;;;;;;-1:-1:-1;110:647:4;;-1:-1:-1;;;;;;427:44:4;;;;419:53;;;;;;483:21;-1:-1:-1;;;;;483:32:4;;530:20;565:15;595:19;629:11;655:15;685:18;483:231;;;;;;;;;;;;;-1:-1:-1;;;;;483:231:4;-1:-1:-1;;;;;483:231:4;;;;;;-1:-1:-1;;;;;483:231:4;-1:-1:-1;;;;;483:231:4;;;;;;-1:-1:-1;;;;;483:231:4;-1:-1:-1;;;;;483:231:4;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;23:1:-1;8:100;33:3;30:1;27:10;8:100;;;90:11;;;84:18;71:11;;;64:39;52:2;45:10;8:100;;;12:14;483:231:4;;;;;;;;;;;;;;;;;;;;;;;;;;;8:9:-1;5:2;;;30:1;27;20:12;5:2;483:231:4;;;;8:9:-1;5:2;;;45:16;42:1;39;24:38;77:16;74:1;67:27;5:2;-1:-1;738:10:4;;-1:-1:-1;;;725:24:4",
   "deployedSourceMap": "77:683:4:-;;;;;",
   "source": "pragma solidity 0.5.2;\r\n\r\nimport \"./interfaces/IValidatorSetHBBFT.sol\";\r\n\r\n\r\ncontract InitializerHBBFT {\r\n    constructor(\r\n        IValidatorSetHBBFT _validatorSetContract,\r\n        address _blockRewardContract,\r\n        address _randomContract,\r\n        address _erc20TokenContract,\r\n        address[] memory _validators,\r\n        uint256 _stakerMinStake,\r\n        uint256 _validatorMinStake\r\n    ) public {\r\n        require(address(_validatorSetContract) != address(0));\r\n        _validatorSetContract.initialize(\r\n            _blockRewardContract,\r\n            _randomContract,\r\n            _erc20TokenContract,\r\n            _validators,\r\n            _stakerMinStake,\r\n            _validatorMinStake\r\n        );\r\n        selfdestruct(msg.sender);\r\n    }\r\n}\r\n",
-  "sourcePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/InitializerHBBFT.sol",
+  "sourcePath": "/home/user/pos-contracts/contracts/InitializerHBBFT.sol",
   "ast": {
-    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/InitializerHBBFT.sol",
+    "absolutePath": "/home/user/pos-contracts/contracts/InitializerHBBFT.sol",
     "exportedSymbols": {
       "InitializerHBBFT": [
         1013
@@ -64,7 +64,7 @@
         "src": "0:22:4"
       },
       {
-        "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IValidatorSetHBBFT.sol",
+        "absolutePath": "/home/user/pos-contracts/contracts/interfaces/IValidatorSetHBBFT.sol",
         "file": "./interfaces/IValidatorSetHBBFT.sol",
         "id": 967,
         "nodeType": "ImportDirective",
@@ -722,7 +722,7 @@
     "src": "0:762:4"
   },
   "legacyAST": {
-    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/InitializerHBBFT.sol",
+    "absolutePath": "/home/user/pos-contracts/contracts/InitializerHBBFT.sol",
     "exportedSymbols": {
       "InitializerHBBFT": [
         1013
@@ -742,7 +742,7 @@
         "src": "0:22:4"
       },
       {
-        "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IValidatorSetHBBFT.sol",
+        "absolutePath": "/home/user/pos-contracts/contracts/interfaces/IValidatorSetHBBFT.sol",
         "file": "./interfaces/IValidatorSetHBBFT.sol",
         "id": 967,
         "nodeType": "ImportDirective",
@@ -1405,7 +1405,7 @@
   },
   "networks": {},
   "schemaVersion": "3.0.1",
-  "updatedAt": "2019-01-15T09:22:41.036Z",
+  "updatedAt": "2019-01-15T15:35:28.295Z",
   "devdoc": {
     "methods": {}
   },
