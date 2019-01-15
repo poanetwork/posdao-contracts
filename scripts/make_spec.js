@@ -31,6 +31,13 @@ async function main() {
     console.log(`Loading spec.json from poa-chain-spec repo...`);
     let spec = await fetch('https://raw.githubusercontent.com/poanetwork/poa-chain-spec/aaec610a3af9ea5ef30a1e53c51ddfaf3c734fc3/spec.json');
     spec = await spec.json();
+    let extra_accounts = process.env.EXTRA_ACCOUNTS;
+    if (typeof extra_accounts === 'string') {
+        extra_accounts = JSON.parse(extra_accounts);
+    }
+    if (typeof extra_accounts === 'object' && extra_accounts !== null && !Array.isArray(extra_accounts)) {
+       Object.assign(spec.accounts, extra_accounts);
+    }
 
     spec.name = networkName;
     spec.params.networkID = networkID;
@@ -163,7 +170,7 @@ async function main() {
     };
 
     console.log('Saving spec.json file ...');
-    fs.writeFileSync('spec.json', JSON.stringify(spec, null, '  '));
+    fs.writeFileSync(process.env.OUTPUT_FILE || 'spec.json', JSON.stringify(spec, null, '  '));
     console.log('Done');
 }
 
