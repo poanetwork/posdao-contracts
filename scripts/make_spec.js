@@ -102,6 +102,7 @@ async function main() {
         balance: '0',
         constructor: '0x' + contractsCompiled['RandomAuRa'].bytecode
     };
+    spec.engine.authorityRound.params.randomnessContractAddress = '0x3000000000000000000000000000000000000001';
 
     // Build TxPermission contract
     deploy = await contract.deploy({data: '0x' + eternalStorageProxyCompiled.bytecode, arguments: [
