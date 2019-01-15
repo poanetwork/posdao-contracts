@@ -1,11 +1,11 @@
 pragma solidity 0.5.2;
 
-import "./interfaces/IValidatorSet.sol";
+import "./interfaces/IValidatorSetHBBFT.sol";
 
 
-contract Initializer {
+contract InitializerHBBFT {
     constructor(
-        IValidatorSet _validatorSetContract,
+        IValidatorSetHBBFT _validatorSetContract,
         address _blockRewardContract,
         address _randomContract,
         address _erc20TokenContract,
@@ -22,6 +22,6 @@ contract Initializer {
             _stakerMinStake,
             _validatorMinStake
         );
-        selfdestruct(address(0));
+        selfdestruct(msg.sender);
     }
 }

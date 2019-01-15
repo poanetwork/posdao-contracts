@@ -7,11 +7,6 @@ import "./interfaces/IValidatorSetAuRa.sol";
 
 contract RandomAuRa is RandomBase, IRandomAuRa {
 
-    // ============================================== Constants =======================================================
-
-    uint256 public constant COLLECT_ROUND_LENGTH = 200; // blocks
-    uint256 public constant COMMIT_PHASE_LENGTH = COLLECT_ROUND_LENGTH / 2; // blocks
-
     // ============================================== Modifiers =======================================================
 
     modifier onlyBlockReward() {
@@ -65,6 +60,16 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         }
     }
 
+    /// Initializes the contract at the start of the network.
+    /// Must be called by the constructor of `Initializer` contract on genesis block.
+    /// This is used instead of `constructor()` because this contract is upgradable.
+    function initialize(
+        uint256 _collectRoundLength // in blocks
+    ) external {
+        require(_collectRoundLength % 2 == 0);
+        _setCollectRoundLength(_collectRoundLength);
+    }
+
     function onBlockClose(address _currentValidator) external onlyBlockReward {
         uint256 currentRound = currentCollectRound();
 
@@ -86,7 +91,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
             }
         }
 
-        if (block.number % COLLECT_ROUND_LENGTH == COLLECT_ROUND_LENGTH - 1) {
+        if (block.number % collectRoundLength() == collectRoundLength() - 1) {
             // This is the last block of the current collection round
 
             if (boolStorage[ALLOW_PUBLISH_SECRET]) {
@@ -100,7 +105,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
             blockNumber = IValidatorSet(VALIDATOR_SET_CONTRACT).validatorSetApplyBlock();
 
-            if (blockNumber != 0 && block.number > blockNumber + COLLECT_ROUND_LENGTH * 2 || blockNumber == 0) {
+            if (blockNumber != 0 && block.number > blockNumber + collectRoundLength() * 2 || blockNumber == 0) {
                 // Check each validator whether he created at least one block
                 // during commits phase and at least one block during reveals phase
                 // but didn't reveal his secret during reveals phase
@@ -125,8 +130,8 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
             // If this is the last collection round in the current staking epoch
             if (
                 blockNumber == block.number ||
-                block.number + COLLECT_ROUND_LENGTH >
-                blockNumber + IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).STAKING_EPOCH_DURATION() - 1
+                block.number + collectRoundLength() >
+                blockNumber + IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).stakingEpochDuration() - 1
             ) {
                 // Check each validator whether he didn't reveal
                 // his secret during the last full `reveals phase`
@@ -151,6 +156,13 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         return addressArrayStorage[keccak256(abi.encode(BLOCKS_PRODUCERS, _collectRound))];
     }
 
+    function collectRoundLength() public view returns(uint256) {
+        return uintStorage[COLLECT_ROUND_LENGTH];
+    }
+    function commitPhaseLength() public view returns(uint256) {
+        return collectRoundLength() / 2;
+    }
+
     function committedValidators(uint256 _collectRound) public view returns(address[] memory) {
         return addressArrayStorage[keccak256(abi.encode(COMMITTED_VALIDATORS, _collectRound))];
     }
@@ -165,7 +177,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
     // Returns the number of collection round for the current block
     function currentCollectRound() public view returns(uint256) {
-        return block.number / COLLECT_ROUND_LENGTH;
+        return block.number / collectRoundLength();
     }
 
     function getCommit(uint256 _collectRound, address _validator) public view returns(bytes32) {
@@ -181,7 +193,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     }
 
     function isCommitPhase() public view returns(bool) {
-        return (block.number % COLLECT_ROUND_LENGTH) < COMMIT_PHASE_LENGTH;
+        return (block.number % collectRoundLength()) < commitPhaseLength();
     }
 
     function isRevealPhase() public view returns(bool) {
@@ -199,6 +211,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     // =============================================== Private ========================================================
 
     bytes32 internal constant ALLOW_PUBLISH_SECRET = keccak256("allowPublishSecret");
+    bytes32 internal constant COLLECT_ROUND_LENGTH = keccak256("collectRoundLength");
     bytes32 internal constant CURRENT_SECRET = keccak256("currentSecret");
     bytes32 internal constant OWNER = keccak256("owner");
 
@@ -279,6 +292,10 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         }
 
         _denyPublishSecret();
+    }
+
+    function _setCollectRoundLength(uint256 _length) private {
+        uintStorage[COLLECT_ROUND_LENGTH] = _length;
     }
 
     function _setCommit(uint256 _collectRound, address _validator, bytes32 _secretHash) private {

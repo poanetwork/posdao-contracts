@@ -7,11 +7,6 @@ contract ValidatorSetAuRa is ValidatorSetBase {
 
     // TODO: add a description for each function
 
-    // ============================================== Constants =======================================================
-
-    uint256 public constant STAKING_EPOCH_DURATION = 120960; // 1 week in blocks (5 seconds per block)
-    uint256 public constant STAKE_WITHDRAW_DISALLOW_PERIOD = 4320; // 6 hours in blocks (staking epoch last blocks)
-
     // ================================================ Events ========================================================
 
     event ReportedMalicious(address reportingValidator, address maliciousValidator, uint256 blockNumber);
@@ -42,8 +37,9 @@ contract ValidatorSetAuRa is ValidatorSetBase {
         address _randomContract,
         address _erc20TokenContract,
         address[] calldata _initialValidators,
-        uint256 _stakerMinStake,
-        uint256 _validatorMinStake
+        uint256 _stakerMinStake, // in STAKE_UNITs
+        uint256 _validatorMinStake, // in STAKE_UNITs
+        uint256 _stakingEpochDuration // in blocks (e.g., 120960 = 1 week)
     ) external {
         super._initialize(
             _blockRewardContract,
@@ -53,6 +49,8 @@ contract ValidatorSetAuRa is ValidatorSetBase {
             _stakerMinStake,
             _validatorMinStake
         );
+        _setStakingEpochDuration(_stakingEpochDuration);
+        require(stakeWithdrawDisallowPeriod() > 0);
         _setStakingEpochStartBlock(block.number);
     }
 
@@ -106,12 +104,21 @@ contract ValidatorSetAuRa is ValidatorSetBase {
         return addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED_FOR_BLOCK, _validator, _blockNumber))];
     }
 
+    function stakeWithdrawDisallowPeriod() public view returns(uint256) {
+        return stakingEpochDuration() / 28;
+    }
+
+    function stakingEpochDuration() public view returns(uint256) {
+        return uintStorage[STAKING_EPOCH_DURATION];
+    }
+
     function stakingEpochStartBlock() public view returns(uint256) {
         return uintStorage[STAKING_EPOCH_START_BLOCK];
     }
 
     // =============================================== Private ========================================================
 
+    bytes32 internal constant STAKING_EPOCH_DURATION = keccak256("stakingEpochDuration");
     bytes32 internal constant STAKING_EPOCH_START_BLOCK = keccak256("stakingEpochStartBlock");
     bytes32 internal constant MALICE_REPORTED_FOR_BLOCK = "maliceReportedForBlock";
 
@@ -127,18 +134,22 @@ contract ValidatorSetAuRa is ValidatorSetBase {
         }
     }
 
+    function _setStakingEpochDuration(uint256 _duration) internal {
+        uintStorage[STAKING_EPOCH_DURATION] = _duration;
+    }
+
     function _setStakingEpochStartBlock(uint256 _blockNumber) internal {
         uintStorage[STAKING_EPOCH_START_BLOCK] = _blockNumber;
     }
 
     function _areStakeAndWithdrawAllowed() internal view returns(bool) {
-        uint256 allowedDuration = STAKING_EPOCH_DURATION - STAKE_WITHDRAW_DISALLOW_PERIOD;
+        uint256 allowedDuration = stakingEpochDuration() - stakeWithdrawDisallowPeriod();
         uint256 applyBlock = validatorSetApplyBlock();
         bool afterValidatorSetApplied = applyBlock != 0 && block.number > applyBlock;
         return afterValidatorSetApplied && block.number.sub(stakingEpochStartBlock()) <= allowedDuration;
     }
 
     function _newValidatorSetCallable() internal view returns(bool) {
-        return block.number.sub(stakingEpochStartBlock()) >= STAKING_EPOCH_DURATION - 1;
+        return block.number.sub(stakingEpochStartBlock()) >= stakingEpochDuration() - 1;
     }
 }

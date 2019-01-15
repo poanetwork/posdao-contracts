@@ -35,7 +35,7 @@ contract BlockRewardAuRa is BlockRewardBase {
             require(validatorSetContract.isValidator(benefactors[0]));
         }
 
-        // Start new staking epoch every `STAKING_EPOCH_DURATION` blocks
+        // Start new staking epoch every `stakingEpochDuration()` blocks
         validatorSetContract.newValidatorSet();
 
         // Distribute fees

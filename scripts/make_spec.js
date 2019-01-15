@@ -7,13 +7,15 @@ const web3 = new Web3(new Web3.providers.HttpProvider("https://dai.poa.network")
 main();
 
 async function main() {
+    const networkName = process.env.NETWORK_NAME;
+    const networkID = process.env.NETWORK_ID;
     const owner = process.env.OWNER.trim();
     let initialValidators = process.env.INITIAL_VALIDATORS.split(',');
     for (let i = 0; i < initialValidators.length; i++) {
         initialValidators[i] = initialValidators[i].trim();
     }
-    const networkName = process.env.NETWORK_NAME;
-    const networkID = process.env.NETWORK_ID;
+    const stakingEpochDuration = process.env.STAKING_EPOCH_DURATION;
+    const collectRoundLength = process.env.COLLECT_ROUND_LENGTH;
 
     const contracts = [
         'EternalStorageProxy',
@@ -23,7 +25,7 @@ async function main() {
         'TxPermission',
         'Certifier',
         'Registry',
-        'Initializer'
+        'InitializerAuRa'
     ];
 
     console.log(`Loading spec.json from poa-chain-spec repo...`);
@@ -141,16 +143,18 @@ async function main() {
     };
     spec.params.registrar = '0x6000000000000000000000000000000000000000';
 
-    // Build Initializer contract
-    contract = new web3.eth.Contract(contractsCompiled['Initializer'].abi);
-    deploy = await contract.deploy({data: '0x' + contractsCompiled['Initializer'].bytecode, arguments: [
+    // Build InitializerAuRa contract
+    contract = new web3.eth.Contract(contractsCompiled['InitializerAuRa'].abi);
+    deploy = await contract.deploy({data: '0x' + contractsCompiled['InitializerAuRa'].bytecode, arguments: [
         '0x1000000000000000000000000000000000000001', // _validatorSetContract
         '0x2000000000000000000000000000000000000001', // _blockRewardContract
         '0x3000000000000000000000000000000000000001', // _randomContract
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialValidators, // _validators
         1, // _stakerMinStake
-        1  // _validatorMinStake
+        1, // _validatorMinStake
+        stakingEpochDuration, // _stakingEpochDuration
+        collectRoundLength    // _collectRoundLength
     ]});
     spec.accounts['0x7000000000000000000000000000000000000000'] = {
         balance: '0',
@@ -203,4 +207,4 @@ async function compile(dir, contractName) {
     return {abi: result.abi, bytecode: result.evm.bytecode.object};
 }
 
-// NETWORK_NAME=DPoSChain NETWORK_ID=101 OWNER=0x1092a1E3A3F2FB2024830Dd12064a4B33fF8EbAe INITIAL_VALIDATORS=0xeE385a1df869A468883107B0C06fA8791b28A04f,0x71385ae87c4b93db96f02f952be1f7a63f6057a6,0x190ec582090ae24284989af812f6b2c93f768ecd node scripts/make_spec.js
+// NETWORK_NAME=DPoSChain NETWORK_ID=101 OWNER=0x1092a1E3A3F2FB2024830Dd12064a4B33fF8EbAe INITIAL_VALIDATORS=0xeE385a1df869A468883107B0C06fA8791b28A04f,0x71385ae87c4b93db96f02f952be1f7a63f6057a6,0x190ec582090ae24284989af812f6b2c93f768ecd STAKING_EPOCH_DURATION=120960 COLLECT_ROUND_LENGTH=200 node scripts/make_spec.js
