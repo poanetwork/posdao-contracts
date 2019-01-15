@@ -61,7 +61,7 @@ async function main() {
     ]});
     spec.engine.authorityRound.params.validators.multi = {
         "0": {
-            "contract": '0x1000000000000000000000000000000000000001'
+            "contractCallGetPendingValidators": '0x1000000000000000000000000000000000000001'
         }
     };
     spec.accounts['0x1000000000000000000000000000000000000001'] = {
