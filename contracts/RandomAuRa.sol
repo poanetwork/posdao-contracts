@@ -60,8 +60,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     /// This is used instead of `constructor()` because this contract is upgradable.
     function initialize(
         uint256 _collectRoundLength // in blocks
-    ) external {
-        require(block.number == 0);
+    ) external onlyOwner {
         require(_collectRoundLength % 2 == 0);
         require(_collectRoundLength > 0);
         require(collectRoundLength() == 0);
@@ -175,7 +174,9 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
     // Returns the number of collection round for the current block
     function currentCollectRound() public view returns(uint256) {
-        require(collectRoundLength() != 0);
+        if (0 == block.number) {
+            return 0;
+        }
         return block.number / collectRoundLength();
     }
 
