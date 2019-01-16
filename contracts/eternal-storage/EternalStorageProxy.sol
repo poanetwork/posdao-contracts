@@ -1,48 +1,45 @@
 pragma solidity 0.5.2;
 
-import "./EternalStorage.sol";
+import "./OwnedEternalStorage.sol";
 import "../interfaces/IEternalStorageProxy.sol";
 
 
 /**
  * @title EternalStorageProxy
  * @dev This proxy holds the storage of the token contract and delegates every call to the current implementation set.
- * Besides, it allows to upgrade the token's behaviour towards further implementations, and provides
+ * It allows to upgrade the token's behaviour towards further implementations, and provides
  * authorization control functionalities
  */
-contract EternalStorageProxy is EternalStorage, IEternalStorageProxy {
-    bytes32 internal constant OWNER = keccak256("owner");
+contract EternalStorageProxy is IEternalStorageProxy, OwnedEternalStorage {
 
-    /**
-    * @dev This event will be emitted every time the implementation gets upgraded
-    * @param version representing the version number of the upgraded implementation
-    * @param implementation representing the address of the upgraded implementation
-    */
+    /// @dev Emitted every time the implementation gets upgraded.
+    /// @param version The version number of the upgraded implementation.
+    /// @param implementation The address of the upgraded implementation.
     event Upgraded(uint256 version, address indexed implementation);
 
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
-    modifier onlyOwner() {
-        require(msg.sender == getOwner());
-        _;
-    }
+    /// @param implementation The address of the implementation.  This must
+    /// either be the address of an already-constructed contract, or
+    /// `address(0)`.
+    /// @param owner The owner of the contract.  If set to `address(0)`, then
+    /// `msg.sender` will be used instead.
+    constructor(address _implementationAddress, address _ownerAddress) public {
+        if (_ownerAddress != address(0)) {
+            _owner = _ownerAddress;
+        } else {
+            _owner = msg.sender;
+        }
 
-    constructor(address _implementationAddress, address _owner) public {
         if (_implementationAddress != address(0)) {
             require(_isContract(_implementationAddress));
             _implementation = _implementationAddress;
         }
-        if (_owner != address(0)) {
-            _setOwner(_owner);
-        } else {
-            _setOwner(msg.sender);
-        }
     }
 
-    /**
-    * @dev Fallback function allowing to perform a delegatecall to the given implementation.
-    * This function will return whatever the implementation call returns
-    */
+    /// @dev Fallback function allowing to perform a delegatecall to the given
+    /// implementation.  This function will return whatever the implementation
+    /// call returns.
     // solhint-disable no-complex-fallback, no-inline-assembly
     function() external payable {
         address _impl = _implementation;
@@ -69,33 +66,9 @@ contract EternalStorageProxy is EternalStorage, IEternalStorageProxy {
     }
     // solhint-enable no-complex-fallback, no-inline-assembly
 
-    function getOwner() public view returns(address) {
-        return addressStorage[OWNER];
-    }
-
-    /**
-    * @dev Tells the address of the current implementation
-    * @return address of the current implementation
-    */
-    function implementation() public view returns(address) {
-        return _implementation;
-    }
-
-    /**
-     * @dev Allows the current owner to transfer control of the contract to a _newOwner.
-     * @param _newOwner The address to transfer ownership to.
-     */
-    function transferOwnership(address _newOwner) public onlyOwner {
-        require(_newOwner != address(0));
-        emit OwnershipTransferred(getOwner(), _newOwner);
-        _setOwner(_newOwner);
-    }
-
-    /**
-     * @dev Allows owner to upgrade the current implementation.
-     * @param _newImplementation representing the address of the new implementation to be set.
-     */
-    function upgradeTo(address _newImplementation) public onlyOwner returns(bool) {
+    /// @dev Allows the owner to upgrade the current implementation.
+    /// @param _newImplementation representing the address of the new implementation to be set.
+    function upgradeTo(address _newImplementation) external onlyOwner returns(bool) {
         if (_newImplementation == address(0)) return false;
         if (_implementation == _newImplementation) return false;
         if (!_isContract(_newImplementation)) return false;
@@ -110,16 +83,30 @@ contract EternalStorageProxy is EternalStorage, IEternalStorageProxy {
         return true;
     }
 
-    /**
-    * @dev Tells the version number of the current implementation
-    * @return uint representing the number of the current version
-    */
-    function version() public view returns(uint256) {
+    /// @dev Allows the current owner to irrevocably transfer control of the
+    /// contract to a `_newOwner`.
+    /// @param _newOwner The address to transfer ownership to.
+    function transferOwnership(address _newOwner) external onlyOwner {
+        require(_newOwner != address(0));
+        emit OwnershipTransferred(_owner, _newOwner);
+        _owner = _newOwner;
+    }
+
+    /// @dev Returns the owner of the contract.
+    function getOwner() external view returns(address) {
+        return _owner;
+    }
+
+    /// @dev Returns the version number of the current implementation
+    /// @return the version number of the current implementation
+    function version() external view returns(uint256) {
         return _version;
     }
 
-    function _setOwner(address _owner) private {
-        addressStorage[OWNER] = _owner;
+    /// @dev Tells the address of the current implementation
+    /// @return The address of the current implementation
+    function implementation() external view returns(address) {
+        return _implementation;
     }
 
     function _isContract(address _addr) private view returns(bool) {
@@ -127,4 +114,10 @@ contract EternalStorageProxy is EternalStorage, IEternalStorageProxy {
         assembly { size := extcodesize(_addr) } // solhint-disable-line no-inline-assembly
         return size != 0;
     }
+
+    /// @dev This event will be emitted every time the ownership of this
+    /// contract changes.
+    /// @param previousOwner representing the previous owner of the contract
+    /// @param newOwner representing the new owner of the contract
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 }

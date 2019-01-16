@@ -1,11 +1,11 @@
 pragma solidity 0.5.2;
 
 import "./interfaces/IValidatorSet.sol";
-import "./eternal-storage/EternalStorage.sol";
+import "./eternal-storage/OwnedEternalStorage.sol";
 import "./libs/SafeMath.sol";
 
 
-contract KeyGenHistory is EternalStorage {
+contract KeyGenHistory is OwnedEternalStorage {
     using SafeMath for uint256;
 
     // ================================================ Events ========================================================
@@ -25,11 +25,6 @@ contract KeyGenHistory is EternalStorage {
     );
 
     // ============================================== Modifiers =======================================================
-
-    modifier onlyOwner() {
-        require(msg.sender == addressStorage[OWNER]);
-        _;
-    }
 
     modifier onlyValidator() {
         require(validatorSet().isValidator(msg.sender));
@@ -84,7 +79,6 @@ contract KeyGenHistory is EternalStorage {
 
     // =============================================== Private ========================================================
 
-    bytes32 internal constant OWNER = keccak256("owner");
     bytes32 internal constant VALIDATOR_SET = keccak256("validatorSet");
     bytes32 internal constant VALIDATOR_WROTE_PART = "validatorWrotePart";
 

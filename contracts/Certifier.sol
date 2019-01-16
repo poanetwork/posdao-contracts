@@ -1,10 +1,10 @@
 pragma solidity 0.5.2;
 
 import "./interfaces/IValidatorSet.sol";
-import "./eternal-storage/EternalStorage.sol";
+import "./eternal-storage/OwnedEternalStorage.sol";
 
 
-contract Certifier is EternalStorage {
+contract Certifier is OwnedEternalStorage {
 
     // ============================================== Constants =======================================================
 
@@ -15,13 +15,6 @@ contract Certifier is EternalStorage {
 
     event Confirmed(address indexed who);
     event Revoked(address indexed who);
-
-    // ============================================== Modifiers =======================================================
-
-    modifier onlyOwner {
-        require(msg.sender == addressStorage[OWNER]);
-        _;
-    }
 
     // =============================================== Setters ========================================================
 
@@ -46,6 +39,5 @@ contract Certifier is EternalStorage {
 
     // =============================================== Private ========================================================
 
-    bytes32 internal constant OWNER = keccak256("owner");
     bytes32 internal constant CERTIFIED = "certified";
 }

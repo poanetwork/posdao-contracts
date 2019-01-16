@@ -14,11 +14,6 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         _;
     }
 
-    modifier onlyOwner() {
-        require(msg.sender == addressStorage[OWNER]);
-        _;
-    }
-
     // =============================================== Setters ========================================================
 
     function commitHash(bytes32 _secretHash) external {
@@ -216,8 +211,6 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     bytes32 internal constant ALLOW_PUBLISH_SECRET = keccak256("allowPublishSecret");
     bytes32 internal constant COLLECT_ROUND_LENGTH = keccak256("collectRoundLength");
     bytes32 internal constant CURRENT_SECRET = keccak256("currentSecret");
-    bytes32 internal constant OWNER = keccak256("owner");
-
     bytes32 internal constant BLOCKS_PRODUCERS = "blocksProducers";
     bytes32 internal constant COMMITS = "commits";
     bytes32 internal constant COMMITTED_VALIDATORS = "committedValidators";

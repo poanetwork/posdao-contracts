@@ -8,3 +8,11 @@ node_modules
 /flat
 /build
 /spec.json
+
+# Emacs backups
+\#*#
+.#*
+*~
+
+# Vim backups
+.*.sw[po]
