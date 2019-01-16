@@ -372,6 +372,8 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     bytes32 internal constant PENDING_VALIDATORS = keccak256("pendingValidators");
     bytes32 internal constant POOLS = keccak256("pools");
     bytes32 internal constant POOLS_INACTIVE = keccak256("poolsInactive");
+    bytes32 internal constant POOLS_EMPTY = keccak256("poolsEmpty");
+    bytes32 internal constant POOLS_NON_EMPTY = keccak256("poolsNonEmpty");
     bytes32 internal constant PREVIOUS_VALIDATORS = keccak256("previousValidators");
     bytes32 internal constant RANDOM_CONTRACT = keccak256("randomContract");
     bytes32 internal constant STAKER_MIN_STAKE = keccak256("stakerMinStake");
@@ -515,11 +517,25 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
 
     function _newValidatorSet() internal {
         address[] memory pools = getPools();
-        require(pools.length > 0);
+        uint256 i;
+
+        // Filter pools and leave only non-empty
+        delete addressArrayStorage[POOLS_NON_EMPTY];
+        delete addressArrayStorage[POOLS_EMPTY];
+        for (i = 0; i < pools.length; i++) {
+            if (stakeAmount(pools[i], pools[i]) > 0) {
+                addressArrayStorage[POOLS_NON_EMPTY].push(pools[i]);
+            } else {
+                addressArrayStorage[POOLS_EMPTY].push(pools[i]);
+            }
+        }
+        pools = addressArrayStorage[POOLS_NON_EMPTY];
 
         // Choose new validators
         if (pools.length <= MAX_VALIDATORS) {
-            _setPendingValidators(pools);
+            if (pools.length > 0) {
+                _setPendingValidators(pools);
+            }
         } else {
             uint256[] memory randomNumbers = IRandom(randomContract()).currentRandom();
 
@@ -532,7 +548,6 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
             address[] memory newValidators = new address[](MAX_VALIDATORS);
 
             uint256 likelihoodSum = 0;
-            uint256 i;
 
             for (i = 0; i < poolsLocalLength; i++) {
                 likelihood[i] = stakeAmountTotal(poolsLocal[i]).mul(100).div(STAKE_UNIT);
@@ -609,6 +624,10 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
 
     function _setPendingValidators(address[] memory _validators) internal {
         addressArrayStorage[PENDING_VALIDATORS] = _validators;
+
+        for (uint256 i = 0; i < addressArrayStorage[POOLS_EMPTY].length; i++) {
+            _removeFromPools(addressArrayStorage[POOLS_EMPTY][i]);
+        }
     }
 
     function _setPoolIndex(address _who, uint256 _index) internal {
