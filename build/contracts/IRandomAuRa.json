@@ -35,19 +35,19 @@
   "sourceMap": "",
   "deployedSourceMap": "",
   "source": "pragma solidity 0.5.2;\n\n\ninterface IRandomAuRa {\n    function initialize(uint256) external;\n    function onBlockClose(address) external;\n}",
-  "sourcePath": "/home/user/pos-contracts/contracts/interfaces/IRandomAuRa.sol",
+  "sourcePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IRandomAuRa.sol",
   "ast": {
-    "absolutePath": "/home/user/pos-contracts/contracts/interfaces/IRandomAuRa.sol",
+    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IRandomAuRa.sol",
     "exportedSymbols": {
       "IRandomAuRa": [
-        8958
+        8981
       ]
     },
-    "id": 8959,
+    "id": 8982,
     "nodeType": "SourceUnit",
     "nodes": [
       {
-        "id": 8947,
+        "id": 8970,
         "literals": [
           "solidity",
           "0.5",
@@ -62,9 +62,9 @@
         "contractKind": "interface",
         "documentation": null,
         "fullyImplemented": false,
-        "id": 8958,
+        "id": 8981,
         "linearizedBaseContracts": [
-          8958
+          8981
         ],
         "name": "IRandomAuRa",
         "nodeType": "ContractDefinition",
@@ -72,22 +72,22 @@
           {
             "body": null,
             "documentation": null,
-            "id": 8952,
+            "id": 8975,
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "initialize",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 8950,
+              "id": 8973,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 8949,
+                  "id": 8972,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 8952,
+                  "scope": 8975,
                   "src": "73:7:24",
                   "stateVariable": false,
                   "storageLocation": "default",
@@ -96,7 +96,7 @@
                     "typeString": "uint256"
                   },
                   "typeName": {
-                    "id": 8948,
+                    "id": 8971,
                     "name": "uint256",
                     "nodeType": "ElementaryTypeName",
                     "src": "73:7:24",
@@ -112,12 +112,12 @@
               "src": "72:9:24"
             },
             "returnParameters": {
-              "id": 8951,
+              "id": 8974,
               "nodeType": "ParameterList",
               "parameters": [],
               "src": "90:0:24"
             },
-            "scope": 8958,
+            "scope": 8981,
             "src": "53:38:24",
             "stateMutability": "nonpayable",
             "superFunction": null,
@@ -126,22 +126,22 @@
           {
             "body": null,
             "documentation": null,
-            "id": 8957,
+            "id": 8980,
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "onBlockClose",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 8955,
+              "id": 8978,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 8954,
+                  "id": 8977,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 8957,
+                  "scope": 8980,
                   "src": "118:7:24",
                   "stateVariable": false,
                   "storageLocation": "default",
@@ -150,7 +150,7 @@
                     "typeString": "address"
                   },
                   "typeName": {
-                    "id": 8953,
+                    "id": 8976,
                     "name": "address",
                     "nodeType": "ElementaryTypeName",
                     "src": "118:7:24",
@@ -167,36 +167,36 @@
               "src": "117:9:24"
             },
             "returnParameters": {
-              "id": 8956,
+              "id": 8979,
               "nodeType": "ParameterList",
               "parameters": [],
               "src": "135:0:24"
             },
-            "scope": 8958,
+            "scope": 8981,
             "src": "96:40:24",
             "stateMutability": "nonpayable",
             "superFunction": null,
             "visibility": "external"
           }
         ],
-        "scope": 8959,
+        "scope": 8982,
         "src": "25:113:24"
       }
     ],
     "src": "0:138:24"
   },
   "legacyAST": {
-    "absolutePath": "/home/user/pos-contracts/contracts/interfaces/IRandomAuRa.sol",
+    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IRandomAuRa.sol",
     "exportedSymbols": {
       "IRandomAuRa": [
-        8958
+        8981
       ]
     },
-    "id": 8959,
+    "id": 8982,
     "nodeType": "SourceUnit",
     "nodes": [
       {
-        "id": 8947,
+        "id": 8970,
         "literals": [
           "solidity",
           "0.5",
@@ -211,9 +211,9 @@
         "contractKind": "interface",
         "documentation": null,
         "fullyImplemented": false,
-        "id": 8958,
+        "id": 8981,
         "linearizedBaseContracts": [
-          8958
+          8981
         ],
         "name": "IRandomAuRa",
         "nodeType": "ContractDefinition",
@@ -221,22 +221,22 @@
           {
             "body": null,
             "documentation": null,
-            "id": 8952,
+            "id": 8975,
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "initialize",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 8950,
+              "id": 8973,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 8949,
+                  "id": 8972,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 8952,
+                  "scope": 8975,
                   "src": "73:7:24",
                   "stateVariable": false,
                   "storageLocation": "default",
@@ -245,7 +245,7 @@
                     "typeString": "uint256"
                   },
                   "typeName": {
-                    "id": 8948,
+                    "id": 8971,
                     "name": "uint256",
                     "nodeType": "ElementaryTypeName",
                     "src": "73:7:24",
@@ -261,12 +261,12 @@
               "src": "72:9:24"
             },
             "returnParameters": {
-              "id": 8951,
+              "id": 8974,
               "nodeType": "ParameterList",
               "parameters": [],
               "src": "90:0:24"
             },
-            "scope": 8958,
+            "scope": 8981,
             "src": "53:38:24",
             "stateMutability": "nonpayable",
             "superFunction": null,
@@ -275,22 +275,22 @@
           {
             "body": null,
             "documentation": null,
-            "id": 8957,
+            "id": 8980,
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "onBlockClose",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 8955,
+              "id": 8978,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 8954,
+                  "id": 8977,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 8957,
+                  "scope": 8980,
                   "src": "118:7:24",
                   "stateVariable": false,
                   "storageLocation": "default",
@@ -299,7 +299,7 @@
                     "typeString": "address"
                   },
                   "typeName": {
-                    "id": 8953,
+                    "id": 8976,
                     "name": "address",
                     "nodeType": "ElementaryTypeName",
                     "src": "118:7:24",
@@ -316,19 +316,19 @@
               "src": "117:9:24"
             },
             "returnParameters": {
-              "id": 8956,
+              "id": 8979,
               "nodeType": "ParameterList",
               "parameters": [],
               "src": "135:0:24"
             },
-            "scope": 8958,
+            "scope": 8981,
             "src": "96:40:24",
             "stateMutability": "nonpayable",
             "superFunction": null,
             "visibility": "external"
           }
         ],
-        "scope": 8959,
+        "scope": 8982,
         "src": "25:113:24"
       }
     ],
@@ -340,7 +340,7 @@
   },
   "networks": {},
   "schemaVersion": "3.0.1",
-  "updatedAt": "2019-01-15T15:35:28.384Z",
+  "updatedAt": "2019-01-16T07:39:32.327Z",
   "devdoc": {
     "methods": {}
   },

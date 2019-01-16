@@ -26,19 +26,19 @@
   "sourceMap": "",
   "deployedSourceMap": "",
   "source": "pragma solidity 0.5.2;\n\n\ninterface IEternalStorageProxy {\n    function upgradeTo(address) external returns(bool);\n}",
-  "sourcePath": "/home/user/pos-contracts/contracts/interfaces/IEternalStorageProxy.sol",
+  "sourcePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IEternalStorageProxy.sol",
   "ast": {
-    "absolutePath": "/home/user/pos-contracts/contracts/interfaces/IEternalStorageProxy.sol",
+    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IEternalStorageProxy.sol",
     "exportedSymbols": {
       "IEternalStorageProxy": [
-        8868
+        8891
       ]
     },
-    "id": 8869,
+    "id": 8892,
     "nodeType": "SourceUnit",
     "nodes": [
       {
-        "id": 8860,
+        "id": 8883,
         "literals": [
           "solidity",
           "0.5",
@@ -53,9 +53,9 @@
         "contractKind": "interface",
         "documentation": null,
         "fullyImplemented": false,
-        "id": 8868,
+        "id": 8891,
         "linearizedBaseContracts": [
-          8868
+          8891
         ],
         "name": "IEternalStorageProxy",
         "nodeType": "ContractDefinition",
@@ -63,22 +63,22 @@
           {
             "body": null,
             "documentation": null,
-            "id": 8867,
+            "id": 8890,
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "upgradeTo",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 8863,
+              "id": 8886,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 8862,
+                  "id": 8885,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 8867,
+                  "scope": 8890,
                   "src": "81:7:20",
                   "stateVariable": false,
                   "storageLocation": "default",
@@ -87,7 +87,7 @@
                     "typeString": "address"
                   },
                   "typeName": {
-                    "id": 8861,
+                    "id": 8884,
                     "name": "address",
                     "nodeType": "ElementaryTypeName",
                     "src": "81:7:20",
@@ -104,15 +104,15 @@
               "src": "80:9:20"
             },
             "returnParameters": {
-              "id": 8866,
+              "id": 8889,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 8865,
+                  "id": 8888,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 8867,
+                  "scope": 8890,
                   "src": "107:4:20",
                   "stateVariable": false,
                   "storageLocation": "default",
@@ -121,7 +121,7 @@
                     "typeString": "bool"
                   },
                   "typeName": {
-                    "id": 8864,
+                    "id": 8887,
                     "name": "bool",
                     "nodeType": "ElementaryTypeName",
                     "src": "107:4:20",
@@ -136,31 +136,31 @@
               ],
               "src": "106:6:20"
             },
-            "scope": 8868,
+            "scope": 8891,
             "src": "62:51:20",
             "stateMutability": "nonpayable",
             "superFunction": null,
             "visibility": "external"
           }
         ],
-        "scope": 8869,
+        "scope": 8892,
         "src": "25:90:20"
       }
     ],
     "src": "0:115:20"
   },
   "legacyAST": {
-    "absolutePath": "/home/user/pos-contracts/contracts/interfaces/IEternalStorageProxy.sol",
+    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IEternalStorageProxy.sol",
     "exportedSymbols": {
       "IEternalStorageProxy": [
-        8868
+        8891
       ]
     },
-    "id": 8869,
+    "id": 8892,
     "nodeType": "SourceUnit",
     "nodes": [
       {
-        "id": 8860,
+        "id": 8883,
         "literals": [
           "solidity",
           "0.5",
@@ -175,9 +175,9 @@
         "contractKind": "interface",
         "documentation": null,
         "fullyImplemented": false,
-        "id": 8868,
+        "id": 8891,
         "linearizedBaseContracts": [
-          8868
+          8891
         ],
         "name": "IEternalStorageProxy",
         "nodeType": "ContractDefinition",
@@ -185,22 +185,22 @@
           {
             "body": null,
             "documentation": null,
-            "id": 8867,
+            "id": 8890,
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "upgradeTo",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 8863,
+              "id": 8886,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 8862,
+                  "id": 8885,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 8867,
+                  "scope": 8890,
                   "src": "81:7:20",
                   "stateVariable": false,
                   "storageLocation": "default",
@@ -209,7 +209,7 @@
                     "typeString": "address"
                   },
                   "typeName": {
-                    "id": 8861,
+                    "id": 8884,
                     "name": "address",
                     "nodeType": "ElementaryTypeName",
                     "src": "81:7:20",
@@ -226,15 +226,15 @@
               "src": "80:9:20"
             },
             "returnParameters": {
-              "id": 8866,
+              "id": 8889,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 8865,
+                  "id": 8888,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 8867,
+                  "scope": 8890,
                   "src": "107:4:20",
                   "stateVariable": false,
                   "storageLocation": "default",
@@ -243,7 +243,7 @@
                     "typeString": "bool"
                   },
                   "typeName": {
-                    "id": 8864,
+                    "id": 8887,
                     "name": "bool",
                     "nodeType": "ElementaryTypeName",
                     "src": "107:4:20",
@@ -258,14 +258,14 @@
               ],
               "src": "106:6:20"
             },
-            "scope": 8868,
+            "scope": 8891,
             "src": "62:51:20",
             "stateMutability": "nonpayable",
             "superFunction": null,
             "visibility": "external"
           }
         ],
-        "scope": 8869,
+        "scope": 8892,
         "src": "25:90:20"
       }
     ],
@@ -277,7 +277,7 @@
   },
   "networks": {},
   "schemaVersion": "3.0.1",
-  "updatedAt": "2019-01-15T15:35:28.383Z",
+  "updatedAt": "2019-01-16T07:39:32.326Z",
   "devdoc": {
     "methods": {}
   },

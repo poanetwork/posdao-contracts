@@ -87,14 +87,14 @@
       "type": "function"
     }
   ],
-  "bytecode": "0x608060405234801561001057600080fd5b50610448806100206000396000f3fe608060405234801561001057600080fd5b5060043610610068577c0100000000000000000000000000000000000000000000000000000000600035046314253887811461006d57806374a8f1031461009557806376137dd9146100bb578063cc1d4c02146100df575b600080fd5b6100936004803603602081101561008357600080fd5b5035600160a060020a0316610119565b005b610093600480360360208110156100ab57600080fd5b5035600160a060020a0316610203565b6100c36102ea565b60408051600160a060020a039092168252519081900360200190f35b610105600480360360208110156100f557600080fd5b5035600160a060020a0316610302565b604080519115158252519081900360200190f35b604080517f6f776e65720000000000000000000000000000000000000000000000000000008152815190819003600501902060009081526004602052205433600160a060020a039091161461016d57600080fd5b604080517f6365727469666965640000000000000000000000000000000000000000000000602080830191909152600160a060020a038416828401819052835180840385018152606090930180855283519383019390932060009081526006909252928120805460ff191660011790557fd415b905d4dd806bfba99a7a0e6351bd0c9db3a9912add21c0e6bef4479f673f91a250565b604080517f6f776e65720000000000000000000000000000000000000000000000000000008152815190819003600501902060009081526004602052205433600160a060020a039091161461025757600080fd5b604080517f6365727469666965640000000000000000000000000000000000000000000000602080830191909152600160a060020a038416828401819052835180840385018152606090930180855283519383019390932060009081526006909252928120805460ff191690557fb6fa8b8bd5eab60f292eca876e3ef90722275b785309d84b1de113ce0b8c4e7491a250565b73100000000000000000000000000000000000000181565b604080517f6365727469666965640000000000000000000000000000000000000000000000602080830191909152600160a060020a0384168284015282518083038401815260609092018352815191810191909120600090815260069091529081205460ff161561037557506001610417565b604080517f87eed76a000000000000000000000000000000000000000000000000000000008152600160a060020a03841660048201529051731000000000000000000000000000000000000001916387eed76a916024808301926020929190829003018186803b1580156103e857600080fd5b505afa1580156103fc573d6000803e3d6000fd5b505050506040513d602081101561041257600080fd5b505190505b91905056fea165627a7a7230582084337fe5e83280e131d549f06a5cd07c66b9bf23d0d08d9b04f4ff8f76f1cc160029",
-  "deployedBytecode": "0x608060405234801561001057600080fd5b5060043610610068577c0100000000000000000000000000000000000000000000000000000000600035046314253887811461006d57806374a8f1031461009557806376137dd9146100bb578063cc1d4c02146100df575b600080fd5b6100936004803603602081101561008357600080fd5b5035600160a060020a0316610119565b005b610093600480360360208110156100ab57600080fd5b5035600160a060020a0316610203565b6100c36102ea565b60408051600160a060020a039092168252519081900360200190f35b610105600480360360208110156100f557600080fd5b5035600160a060020a0316610302565b604080519115158252519081900360200190f35b604080517f6f776e65720000000000000000000000000000000000000000000000000000008152815190819003600501902060009081526004602052205433600160a060020a039091161461016d57600080fd5b604080517f6365727469666965640000000000000000000000000000000000000000000000602080830191909152600160a060020a038416828401819052835180840385018152606090930180855283519383019390932060009081526006909252928120805460ff191660011790557fd415b905d4dd806bfba99a7a0e6351bd0c9db3a9912add21c0e6bef4479f673f91a250565b604080517f6f776e65720000000000000000000000000000000000000000000000000000008152815190819003600501902060009081526004602052205433600160a060020a039091161461025757600080fd5b604080517f6365727469666965640000000000000000000000000000000000000000000000602080830191909152600160a060020a038416828401819052835180840385018152606090930180855283519383019390932060009081526006909252928120805460ff191690557fb6fa8b8bd5eab60f292eca876e3ef90722275b785309d84b1de113ce0b8c4e7491a250565b73100000000000000000000000000000000000000181565b604080517f6365727469666965640000000000000000000000000000000000000000000000602080830191909152600160a060020a0384168284015282518083038401815260609092018352815191810191909120600090815260069091529081205460ff161561037557506001610417565b604080517f87eed76a000000000000000000000000000000000000000000000000000000008152600160a060020a03841660048201529051731000000000000000000000000000000000000001916387eed76a916024808301926020929190829003018186803b1580156103e857600080fd5b505afa1580156103fc573d6000803e3d6000fd5b505050506040513d602081101561041257600080fd5b505190505b91905056fea165627a7a7230582084337fe5e83280e131d549f06a5cd07c66b9bf23d0d08d9b04f4ff8f76f1cc160029",
+  "bytecode": "0x608060405234801561001057600080fd5b50610448806100206000396000f3fe608060405234801561001057600080fd5b5060043610610068577c0100000000000000000000000000000000000000000000000000000000600035046314253887811461006d57806374a8f1031461009557806376137dd9146100bb578063cc1d4c02146100df575b600080fd5b6100936004803603602081101561008357600080fd5b5035600160a060020a0316610119565b005b610093600480360360208110156100ab57600080fd5b5035600160a060020a0316610203565b6100c36102ea565b60408051600160a060020a039092168252519081900360200190f35b610105600480360360208110156100f557600080fd5b5035600160a060020a0316610302565b604080519115158252519081900360200190f35b604080517f6f776e65720000000000000000000000000000000000000000000000000000008152815190819003600501902060009081526004602052205433600160a060020a039091161461016d57600080fd5b604080517f6365727469666965640000000000000000000000000000000000000000000000602080830191909152600160a060020a038416828401819052835180840385018152606090930180855283519383019390932060009081526006909252928120805460ff191660011790557fd415b905d4dd806bfba99a7a0e6351bd0c9db3a9912add21c0e6bef4479f673f91a250565b604080517f6f776e65720000000000000000000000000000000000000000000000000000008152815190819003600501902060009081526004602052205433600160a060020a039091161461025757600080fd5b604080517f6365727469666965640000000000000000000000000000000000000000000000602080830191909152600160a060020a038416828401819052835180840385018152606090930180855283519383019390932060009081526006909252928120805460ff191690557fb6fa8b8bd5eab60f292eca876e3ef90722275b785309d84b1de113ce0b8c4e7491a250565b73100000000000000000000000000000000000000181565b604080517f6365727469666965640000000000000000000000000000000000000000000000602080830191909152600160a060020a0384168284015282518083038401815260609092018352815191810191909120600090815260069091529081205460ff161561037557506001610417565b604080517f87eed76a000000000000000000000000000000000000000000000000000000008152600160a060020a03841660048201529051731000000000000000000000000000000000000001916387eed76a916024808301926020929190829003018186803b1580156103e857600080fd5b505afa1580156103fc573d6000803e3d6000fd5b505050506040513d602081101561041257600080fd5b505190505b91905056fea165627a7a7230582002f2c8320e25418fd19db0fc1d5e9123fcd882e1fe3a8efd29080451f791c7650029",
+  "deployedBytecode": "0x608060405234801561001057600080fd5b5060043610610068577c0100000000000000000000000000000000000000000000000000000000600035046314253887811461006d57806374a8f1031461009557806376137dd9146100bb578063cc1d4c02146100df575b600080fd5b6100936004803603602081101561008357600080fd5b5035600160a060020a0316610119565b005b610093600480360360208110156100ab57600080fd5b5035600160a060020a0316610203565b6100c36102ea565b60408051600160a060020a039092168252519081900360200190f35b610105600480360360208110156100f557600080fd5b5035600160a060020a0316610302565b604080519115158252519081900360200190f35b604080517f6f776e65720000000000000000000000000000000000000000000000000000008152815190819003600501902060009081526004602052205433600160a060020a039091161461016d57600080fd5b604080517f6365727469666965640000000000000000000000000000000000000000000000602080830191909152600160a060020a038416828401819052835180840385018152606090930180855283519383019390932060009081526006909252928120805460ff191660011790557fd415b905d4dd806bfba99a7a0e6351bd0c9db3a9912add21c0e6bef4479f673f91a250565b604080517f6f776e65720000000000000000000000000000000000000000000000000000008152815190819003600501902060009081526004602052205433600160a060020a039091161461025757600080fd5b604080517f6365727469666965640000000000000000000000000000000000000000000000602080830191909152600160a060020a038416828401819052835180840385018152606090930180855283519383019390932060009081526006909252928120805460ff191690557fb6fa8b8bd5eab60f292eca876e3ef90722275b785309d84b1de113ce0b8c4e7491a250565b73100000000000000000000000000000000000000181565b604080517f6365727469666965640000000000000000000000000000000000000000000000602080830191909152600160a060020a0384168284015282518083038401815260609092018352815191810191909120600090815260069091529081205460ff161561037557506001610417565b604080517f87eed76a000000000000000000000000000000000000000000000000000000008152600160a060020a03841660048201529051731000000000000000000000000000000000000001916387eed76a916024808301926020929190829003018186803b1580156103e857600080fd5b505afa1580156103fc573d6000803e3d6000fd5b505050506040513d602081101561041257600080fd5b505190505b91905056fea165627a7a7230582002f2c8320e25418fd19db0fc1d5e9123fcd882e1fe3a8efd29080451f791c7650029",
   "sourceMap": "114:1792:2:-;;;;8:9:-1;5:2;;;30:1;27;20:12;5:2;114:1792:2;;;;;;;",
   "deployedSourceMap": "114:1792:2:-;;;;8:9:-1;5:2;;;30:1;27;20:12;5:2;114:1792:2;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;975:155;;;;;;13:2:-1;8:3;5:11;2:2;;;29:1;26;19:12;2:2;-1:-1;975:155:2;-1:-1:-1;;;;;975:155:2;;:::i;:::-;;1136:153;;;;;;13:2:-1;8:3;5:11;2:2;;;29:1;26;19:12;2:2;-1:-1;1136:153:2;-1:-1:-1;;;;;1136:153:2;;:::i;325:100::-;;;:::i;:::-;;;;-1:-1:-1;;;;;325:100:2;;;;;;;;;;;;;;1416:253;;;;;;13:2:-1;8:3;5:11;2:2;;;29:1;26;19:12;2:2;-1:-1;1416:253:2;-1:-1:-1;;;;;1416:253:2;;:::i;:::-;;;;;;;;;;;;;;;;;;975:155;1830:18;;;;;;;;;;;;;;;;808:21;;;;:14;:21;;;;794:10;-1:-1:-1;;;;;808:21:2;;;794:35;786:44;;;;;;1057:27;;;1068:9;1057:27;;;;;;;;-1:-1:-1;;;;;1057:27:2;;;;;;;;;;26:21:-1;;;22:32;;6:49;;1057:27:2;;;;;;;1047:38;;;;;;;;;1035:51;;;;:11;:51;;;;;;:58;;-1:-1:-1;;1035:58:2;1089:4;1035:58;;;1108:15;;;975:155;:::o;1136:153::-;1830:18;;;;;;;;;;;;;;;;808:21;;;;:14;:21;;;;794:10;-1:-1:-1;;;;;808:21:2;;;794:35;786:44;;;;;;1217:27;;;1228:9;1217:27;;;;;;;;-1:-1:-1;;;;;1217:27:2;;;;;;;;;;26:21:-1;;;22:32;;6:49;;1217:27:2;;;;;;;1207:38;;;;;;;;;1249:5;1195:51;;;:11;:51;;;;;;:59;;-1:-1:-1;;1195:59:2;;;1269:13;;;1136:153;:::o;325:100::-;382:42;325:100;:::o;1416:253::-;1513:27;;;1524:9;1513:27;;;;;;;;-1:-1:-1;;;;;1513:27:2;;;;;;;;26:21:-1;;;22:32;;6:49;;1513:27:2;;;;;;1503:38;;;;;;;;;1471:4;1491:51;;;:11;:51;;;;;;;;;1487:93;;;-1:-1:-1;1565:4:2;1558:11;;1487:93;1596:66;;;;;;-1:-1:-1;;;;;1596:66:2;;;;;;;;382:42;;1596:60;;:66;;;;;;;;;;;;;;382:42;1596:66;;;5:2:-1;;;;30:1;27;20:12;5:2;1596:66:2;;;;8:9:-1;5:2;;;45:16;42:1;39;24:38;77:16;74:1;67:27;5:2;1596:66:2;;;;;;;13:2:-1;8:3;5:11;2:2;;;29:1;26;19:12;2:2;-1:-1;1596:66:2;;-1:-1:-1;1416:253:2;;;;:::o",
   "source": "pragma solidity 0.5.2;\n\nimport \"./interfaces/IValidatorSet.sol\";\nimport \"./eternal-storage/EternalStorage.sol\";\n\n\ncontract Certifier is EternalStorage {\n\n    // ============================================== Constants =======================================================\n\n    // This address must be set before deploy\n    address public constant VALIDATOR_SET_CONTRACT = address(0x1000000000000000000000000000000000000001);\n\n    // ================================================ Events ========================================================\n\n    event Confirmed(address indexed who);\n    event Revoked(address indexed who);\n\n    // ============================================== Modifiers =======================================================\n\n    modifier onlyOwner {\n        require(msg.sender == addressStorage[OWNER]);\n        _;\n    }\n\n    // =============================================== Setters ========================================================\n\n    function certify(address _who) external onlyOwner {\n        boolStorage[keccak256(abi.encode(CERTIFIED, _who))] = true;\n        emit Confirmed(_who);\n    }\n\n    function revoke(address _who) external onlyOwner {\n        boolStorage[keccak256(abi.encode(CERTIFIED, _who))] = false;\n        emit Revoked(_who);\n    }\n\n    // =============================================== Getters ========================================================\n\n    function certified(address _who) external view returns(bool) {\n        if (boolStorage[keccak256(abi.encode(CERTIFIED, _who))]) {\n            return true;\n        }\n        return IValidatorSet(VALIDATOR_SET_CONTRACT).isReportValidatorValid(_who);\n    }\n\n    // =============================================== Private ========================================================\n\n    bytes32 internal constant OWNER = keccak256(\"owner\");\n    bytes32 internal constant CERTIFIED = \"certified\";\n}\n",
-  "sourcePath": "/home/user/pos-contracts/contracts/Certifier.sol",
+  "sourcePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/Certifier.sol",
   "ast": {
-    "absolutePath": "/home/user/pos-contracts/contracts/Certifier.sol",
+    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/Certifier.sol",
     "exportedSymbols": {
       "Certifier": [
         901
@@ -114,23 +114,23 @@
         "src": "0:22:2"
       },
       {
-        "absolutePath": "/home/user/pos-contracts/contracts/interfaces/IValidatorSet.sol",
+        "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IValidatorSet.sol",
         "file": "./interfaces/IValidatorSet.sol",
         "id": 787,
         "nodeType": "ImportDirective",
         "scope": 902,
-        "sourceUnit": 9099,
+        "sourceUnit": 9122,
         "src": "24:40:2",
         "symbolAliases": [],
         "unitAlias": ""
       },
       {
-        "absolutePath": "/home/user/pos-contracts/contracts/eternal-storage/EternalStorage.sol",
+        "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/eternal-storage/EternalStorage.sol",
         "file": "./eternal-storage/EternalStorage.sol",
         "id": 788,
         "nodeType": "ImportDirective",
         "scope": 902,
-        "sourceUnit": 8592,
+        "sourceUnit": 8615,
         "src": "65:46:2",
         "symbolAliases": [],
         "unitAlias": ""
@@ -144,10 +144,10 @@
               "id": 789,
               "name": "EternalStorage",
               "nodeType": "UserDefinedTypeName",
-              "referencedDeclaration": 8591,
+              "referencedDeclaration": 8614,
               "src": "136:14:2",
               "typeDescriptions": {
-                "typeIdentifier": "t_contract$_EternalStorage_$8591",
+                "typeIdentifier": "t_contract$_EternalStorage_$8614",
                 "typeString": "contract EternalStorage"
               }
             },
@@ -157,7 +157,7 @@
           }
         ],
         "contractDependencies": [
-          8591
+          8614
         ],
         "contractKind": "contract",
         "documentation": null,
@@ -165,7 +165,7 @@
         "id": 901,
         "linearizedBaseContracts": [
           901,
-          8591
+          8614
         ],
         "name": "Certifier",
         "nodeType": "ContractDefinition",
@@ -367,7 +367,7 @@
                             "name": "msg",
                             "nodeType": "Identifier",
                             "overloadedDeclarations": [],
-                            "referencedDeclaration": 9272,
+                            "referencedDeclaration": 9295,
                             "src": "794:3:2",
                             "typeDescriptions": {
                               "typeIdentifier": "t_magic_message",
@@ -398,7 +398,7 @@
                             "name": "addressStorage",
                             "nodeType": "Identifier",
                             "overloadedDeclarations": [],
-                            "referencedDeclaration": 8544,
+                            "referencedDeclaration": 8567,
                             "src": "808:14:2",
                             "typeDescriptions": {
                               "typeIdentifier": "t_mapping$_t_bytes32_$_t_address_$",
@@ -448,10 +448,10 @@
                       "name": "require",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [
-                        9275,
-                        9276
+                        9298,
+                        9299
                       ],
-                      "referencedDeclaration": 9275,
+                      "referencedDeclaration": 9298,
                       "src": "786:7:2",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_require_pure$_t_bool_$returns$__$",
@@ -518,7 +518,7 @@
                         "name": "boolStorage",
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
-                        "referencedDeclaration": 8552,
+                        "referencedDeclaration": 8575,
                         "src": "1035:11:2",
                         "typeDescriptions": {
                           "typeIdentifier": "t_mapping$_t_bytes32_$_t_bool_$",
@@ -576,7 +576,7 @@
                                 "name": "abi",
                                 "nodeType": "Identifier",
                                 "overloadedDeclarations": [],
-                                "referencedDeclaration": 9259,
+                                "referencedDeclaration": 9282,
                                 "src": "1057:3:2",
                                 "typeDescriptions": {
                                   "typeIdentifier": "t_magic_abi",
@@ -623,7 +623,7 @@
                           "name": "keccak256",
                           "nodeType": "Identifier",
                           "overloadedDeclarations": [],
-                          "referencedDeclaration": 9266,
+                          "referencedDeclaration": 9289,
                           "src": "1047:9:2",
                           "typeDescriptions": {
                             "typeIdentifier": "t_function_keccak256_pure$_t_bytes_memory_ptr_$returns$_t_bytes32_$",
@@ -836,7 +836,7 @@
                         "name": "boolStorage",
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
-                        "referencedDeclaration": 8552,
+                        "referencedDeclaration": 8575,
                         "src": "1195:11:2",
                         "typeDescriptions": {
                           "typeIdentifier": "t_mapping$_t_bytes32_$_t_bool_$",
@@ -894,7 +894,7 @@
                                 "name": "abi",
                                 "nodeType": "Identifier",
                                 "overloadedDeclarations": [],
-                                "referencedDeclaration": 9259,
+                                "referencedDeclaration": 9282,
                                 "src": "1217:3:2",
                                 "typeDescriptions": {
                                   "typeIdentifier": "t_magic_abi",
@@ -941,7 +941,7 @@
                           "name": "keccak256",
                           "nodeType": "Identifier",
                           "overloadedDeclarations": [],
-                          "referencedDeclaration": 9266,
+                          "referencedDeclaration": 9289,
                           "src": "1207:9:2",
                           "typeDescriptions": {
                             "typeIdentifier": "t_function_keccak256_pure$_t_bytes_memory_ptr_$returns$_t_bytes32_$",
@@ -1147,7 +1147,7 @@
                       "name": "boolStorage",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 8552,
+                      "referencedDeclaration": 8575,
                       "src": "1491:11:2",
                       "typeDescriptions": {
                         "typeIdentifier": "t_mapping$_t_bytes32_$_t_bool_$",
@@ -1205,7 +1205,7 @@
                               "name": "abi",
                               "nodeType": "Identifier",
                               "overloadedDeclarations": [],
-                              "referencedDeclaration": 9259,
+                              "referencedDeclaration": 9282,
                               "src": "1513:3:2",
                               "typeDescriptions": {
                                 "typeIdentifier": "t_magic_abi",
@@ -1252,7 +1252,7 @@
                         "name": "keccak256",
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
-                        "referencedDeclaration": 9266,
+                        "referencedDeclaration": 9289,
                         "src": "1503:9:2",
                         "typeDescriptions": {
                           "typeIdentifier": "t_function_keccak256_pure$_t_bytes_memory_ptr_$returns$_t_bytes32_$",
@@ -1373,10 +1373,10 @@
                           "name": "IValidatorSet",
                           "nodeType": "Identifier",
                           "overloadedDeclarations": [],
-                          "referencedDeclaration": 9098,
+                          "referencedDeclaration": 9121,
                           "src": "1596:13:2",
                           "typeDescriptions": {
-                            "typeIdentifier": "t_type$_t_contract$_IValidatorSet_$9098_$",
+                            "typeIdentifier": "t_type$_t_contract$_IValidatorSet_$9121_$",
                             "typeString": "type(contract IValidatorSet)"
                           }
                         },
@@ -1390,7 +1390,7 @@
                         "nodeType": "FunctionCall",
                         "src": "1596:37:2",
                         "typeDescriptions": {
-                          "typeIdentifier": "t_contract$_IValidatorSet_$9098",
+                          "typeIdentifier": "t_contract$_IValidatorSet_$9121",
                           "typeString": "contract IValidatorSet"
                         }
                       },
@@ -1401,7 +1401,7 @@
                       "lValueRequested": false,
                       "memberName": "isReportValidatorValid",
                       "nodeType": "MemberAccess",
-                      "referencedDeclaration": 9046,
+                      "referencedDeclaration": 9069,
                       "src": "1596:60:2",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_external_view$_t_address_$returns$_t_bool_$",
@@ -1565,7 +1565,7 @@
                 "name": "keccak256",
                 "nodeType": "Identifier",
                 "overloadedDeclarations": [],
-                "referencedDeclaration": 9266,
+                "referencedDeclaration": 9289,
                 "src": "1830:9:2",
                 "typeDescriptions": {
                   "typeIdentifier": "t_function_keccak256_pure$_t_bytes_memory_ptr_$returns$_t_bytes32_$",
@@ -1639,7 +1639,7 @@
     "src": "0:1907:2"
   },
   "legacyAST": {
-    "absolutePath": "/home/user/pos-contracts/contracts/Certifier.sol",
+    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/Certifier.sol",
     "exportedSymbols": {
       "Certifier": [
         901
@@ -1659,23 +1659,23 @@
         "src": "0:22:2"
       },
       {
-        "absolutePath": "/home/user/pos-contracts/contracts/interfaces/IValidatorSet.sol",
+        "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IValidatorSet.sol",
         "file": "./interfaces/IValidatorSet.sol",
         "id": 787,
         "nodeType": "ImportDirective",
         "scope": 902,
-        "sourceUnit": 9099,
+        "sourceUnit": 9122,
         "src": "24:40:2",
         "symbolAliases": [],
         "unitAlias": ""
       },
       {
-        "absolutePath": "/home/user/pos-contracts/contracts/eternal-storage/EternalStorage.sol",
+        "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/eternal-storage/EternalStorage.sol",
         "file": "./eternal-storage/EternalStorage.sol",
         "id": 788,
         "nodeType": "ImportDirective",
         "scope": 902,
-        "sourceUnit": 8592,
+        "sourceUnit": 8615,
         "src": "65:46:2",
         "symbolAliases": [],
         "unitAlias": ""
@@ -1689,10 +1689,10 @@
               "id": 789,
               "name": "EternalStorage",
               "nodeType": "UserDefinedTypeName",
-              "referencedDeclaration": 8591,
+              "referencedDeclaration": 8614,
               "src": "136:14:2",
               "typeDescriptions": {
-                "typeIdentifier": "t_contract$_EternalStorage_$8591",
+                "typeIdentifier": "t_contract$_EternalStorage_$8614",
                 "typeString": "contract EternalStorage"
               }
             },
@@ -1702,7 +1702,7 @@
           }
         ],
         "contractDependencies": [
-          8591
+          8614
         ],
         "contractKind": "contract",
         "documentation": null,
@@ -1710,7 +1710,7 @@
         "id": 901,
         "linearizedBaseContracts": [
           901,
-          8591
+          8614
         ],
         "name": "Certifier",
         "nodeType": "ContractDefinition",
@@ -1912,7 +1912,7 @@
                             "name": "msg",
                             "nodeType": "Identifier",
                             "overloadedDeclarations": [],
-                            "referencedDeclaration": 9272,
+                            "referencedDeclaration": 9295,
                             "src": "794:3:2",
                             "typeDescriptions": {
                               "typeIdentifier": "t_magic_message",
@@ -1943,7 +1943,7 @@
                             "name": "addressStorage",
                             "nodeType": "Identifier",
                             "overloadedDeclarations": [],
-                            "referencedDeclaration": 8544,
+                            "referencedDeclaration": 8567,
                             "src": "808:14:2",
                             "typeDescriptions": {
                               "typeIdentifier": "t_mapping$_t_bytes32_$_t_address_$",
@@ -1993,10 +1993,10 @@
                       "name": "require",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [
-                        9275,
-                        9276
+                        9298,
+                        9299
                       ],
-                      "referencedDeclaration": 9275,
+                      "referencedDeclaration": 9298,
                       "src": "786:7:2",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_require_pure$_t_bool_$returns$__$",
@@ -2063,7 +2063,7 @@
                         "name": "boolStorage",
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
-                        "referencedDeclaration": 8552,
+                        "referencedDeclaration": 8575,
                         "src": "1035:11:2",
                         "typeDescriptions": {
                           "typeIdentifier": "t_mapping$_t_bytes32_$_t_bool_$",
@@ -2121,7 +2121,7 @@
                                 "name": "abi",
                                 "nodeType": "Identifier",
                                 "overloadedDeclarations": [],
-                                "referencedDeclaration": 9259,
+                                "referencedDeclaration": 9282,
                                 "src": "1057:3:2",
                                 "typeDescriptions": {
                                   "typeIdentifier": "t_magic_abi",
@@ -2168,7 +2168,7 @@
                           "name": "keccak256",
                           "nodeType": "Identifier",
                           "overloadedDeclarations": [],
-                          "referencedDeclaration": 9266,
+                          "referencedDeclaration": 9289,
                           "src": "1047:9:2",
                           "typeDescriptions": {
                             "typeIdentifier": "t_function_keccak256_pure$_t_bytes_memory_ptr_$returns$_t_bytes32_$",
@@ -2381,7 +2381,7 @@
                         "name": "boolStorage",
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
-                        "referencedDeclaration": 8552,
+                        "referencedDeclaration": 8575,
                         "src": "1195:11:2",
                         "typeDescriptions": {
                           "typeIdentifier": "t_mapping$_t_bytes32_$_t_bool_$",
@@ -2439,7 +2439,7 @@
                                 "name": "abi",
                                 "nodeType": "Identifier",
                                 "overloadedDeclarations": [],
-                                "referencedDeclaration": 9259,
+                                "referencedDeclaration": 9282,
                                 "src": "1217:3:2",
                                 "typeDescriptions": {
                                   "typeIdentifier": "t_magic_abi",
@@ -2486,7 +2486,7 @@
                           "name": "keccak256",
                           "nodeType": "Identifier",
                           "overloadedDeclarations": [],
-                          "referencedDeclaration": 9266,
+                          "referencedDeclaration": 9289,
                           "src": "1207:9:2",
                           "typeDescriptions": {
                             "typeIdentifier": "t_function_keccak256_pure$_t_bytes_memory_ptr_$returns$_t_bytes32_$",
@@ -2692,7 +2692,7 @@
                       "name": "boolStorage",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 8552,
+                      "referencedDeclaration": 8575,
                       "src": "1491:11:2",
                       "typeDescriptions": {
                         "typeIdentifier": "t_mapping$_t_bytes32_$_t_bool_$",
@@ -2750,7 +2750,7 @@
                               "name": "abi",
                               "nodeType": "Identifier",
                               "overloadedDeclarations": [],
-                              "referencedDeclaration": 9259,
+                              "referencedDeclaration": 9282,
                               "src": "1513:3:2",
                               "typeDescriptions": {
                                 "typeIdentifier": "t_magic_abi",
@@ -2797,7 +2797,7 @@
                         "name": "keccak256",
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
-                        "referencedDeclaration": 9266,
+                        "referencedDeclaration": 9289,
                         "src": "1503:9:2",
                         "typeDescriptions": {
                           "typeIdentifier": "t_function_keccak256_pure$_t_bytes_memory_ptr_$returns$_t_bytes32_$",
@@ -2918,10 +2918,10 @@
                           "name": "IValidatorSet",
                           "nodeType": "Identifier",
                           "overloadedDeclarations": [],
-                          "referencedDeclaration": 9098,
+                          "referencedDeclaration": 9121,
                           "src": "1596:13:2",
                           "typeDescriptions": {
-                            "typeIdentifier": "t_type$_t_contract$_IValidatorSet_$9098_$",
+                            "typeIdentifier": "t_type$_t_contract$_IValidatorSet_$9121_$",
                             "typeString": "type(contract IValidatorSet)"
                           }
                         },
@@ -2935,7 +2935,7 @@
                         "nodeType": "FunctionCall",
                         "src": "1596:37:2",
                         "typeDescriptions": {
-                          "typeIdentifier": "t_contract$_IValidatorSet_$9098",
+                          "typeIdentifier": "t_contract$_IValidatorSet_$9121",
                           "typeString": "contract IValidatorSet"
                         }
                       },
@@ -2946,7 +2946,7 @@
                       "lValueRequested": false,
                       "memberName": "isReportValidatorValid",
                       "nodeType": "MemberAccess",
-                      "referencedDeclaration": 9046,
+                      "referencedDeclaration": 9069,
                       "src": "1596:60:2",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_external_view$_t_address_$returns$_t_bool_$",
@@ -3110,7 +3110,7 @@
                 "name": "keccak256",
                 "nodeType": "Identifier",
                 "overloadedDeclarations": [],
-                "referencedDeclaration": 9266,
+                "referencedDeclaration": 9289,
                 "src": "1830:9:2",
                 "typeDescriptions": {
                   "typeIdentifier": "t_function_keccak256_pure$_t_bytes_memory_ptr_$returns$_t_bytes32_$",
@@ -3189,7 +3189,7 @@
   },
   "networks": {},
   "schemaVersion": "3.0.1",
-  "updatedAt": "2019-01-15T15:35:28.293Z",
+  "updatedAt": "2019-01-16T07:39:32.244Z",
   "devdoc": {
     "methods": {}
   },

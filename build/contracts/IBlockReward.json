@@ -16,19 +16,19 @@
   "sourceMap": "",
   "deployedSourceMap": "",
   "source": "pragma solidity 0.5.2;\n\n\ninterface IBlockReward {\n    function setSnapshot() external;\n}",
-  "sourcePath": "/home/user/pos-contracts/contracts/interfaces/IBlockReward.sol",
+  "sourcePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IBlockReward.sol",
   "ast": {
-    "absolutePath": "/home/user/pos-contracts/contracts/interfaces/IBlockReward.sol",
+    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IBlockReward.sol",
     "exportedSymbols": {
       "IBlockReward": [
-        8832
+        8855
       ]
     },
-    "id": 8833,
+    "id": 8856,
     "nodeType": "SourceUnit",
     "nodes": [
       {
-        "id": 8828,
+        "id": 8851,
         "literals": [
           "solidity",
           "0.5",
@@ -43,9 +43,9 @@
         "contractKind": "interface",
         "documentation": null,
         "fullyImplemented": false,
-        "id": 8832,
+        "id": 8855,
         "linearizedBaseContracts": [
-          8832
+          8855
         ],
         "name": "IBlockReward",
         "nodeType": "ContractDefinition",
@@ -53,49 +53,49 @@
           {
             "body": null,
             "documentation": null,
-            "id": 8831,
+            "id": 8854,
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "setSnapshot",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 8829,
+              "id": 8852,
               "nodeType": "ParameterList",
               "parameters": [],
               "src": "74:2:18"
             },
             "returnParameters": {
-              "id": 8830,
+              "id": 8853,
               "nodeType": "ParameterList",
               "parameters": [],
               "src": "85:0:18"
             },
-            "scope": 8832,
+            "scope": 8855,
             "src": "54:32:18",
             "stateMutability": "nonpayable",
             "superFunction": null,
             "visibility": "external"
           }
         ],
-        "scope": 8833,
+        "scope": 8856,
         "src": "25:63:18"
       }
     ],
     "src": "0:88:18"
   },
   "legacyAST": {
-    "absolutePath": "/home/user/pos-contracts/contracts/interfaces/IBlockReward.sol",
+    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IBlockReward.sol",
     "exportedSymbols": {
       "IBlockReward": [
-        8832
+        8855
       ]
     },
-    "id": 8833,
+    "id": 8856,
     "nodeType": "SourceUnit",
     "nodes": [
       {
-        "id": 8828,
+        "id": 8851,
         "literals": [
           "solidity",
           "0.5",
@@ -110,9 +110,9 @@
         "contractKind": "interface",
         "documentation": null,
         "fullyImplemented": false,
-        "id": 8832,
+        "id": 8855,
         "linearizedBaseContracts": [
-          8832
+          8855
         ],
         "name": "IBlockReward",
         "nodeType": "ContractDefinition",
@@ -120,32 +120,32 @@
           {
             "body": null,
             "documentation": null,
-            "id": 8831,
+            "id": 8854,
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "setSnapshot",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 8829,
+              "id": 8852,
               "nodeType": "ParameterList",
               "parameters": [],
               "src": "74:2:18"
             },
             "returnParameters": {
-              "id": 8830,
+              "id": 8853,
               "nodeType": "ParameterList",
               "parameters": [],
               "src": "85:0:18"
             },
-            "scope": 8832,
+            "scope": 8855,
             "src": "54:32:18",
             "stateMutability": "nonpayable",
             "superFunction": null,
             "visibility": "external"
           }
         ],
-        "scope": 8833,
+        "scope": 8856,
         "src": "25:63:18"
       }
     ],
@@ -157,7 +157,7 @@
   },
   "networks": {},
   "schemaVersion": "3.0.1",
-  "updatedAt": "2019-01-15T15:35:28.382Z",
+  "updatedAt": "2019-01-16T07:39:32.326Z",
   "devdoc": {
     "methods": {}
   },

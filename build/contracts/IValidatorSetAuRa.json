@@ -87,9 +87,9 @@
   "sourceMap": "",
   "deployedSourceMap": "",
   "source": "pragma solidity 0.5.2;\n\n\ninterface IValidatorSetAuRa {\n    function initialize(address, address, address, address[] calldata, uint256, uint256, uint256) external;\n    function removeMaliciousValidator(address) external;\n    function stakingEpochDuration() external view returns(uint256);\n    function stakingEpochStartBlock() external view returns(uint256);\n}",
-  "sourcePath": "/home/user/pos-contracts/contracts/interfaces/IValidatorSetAuRa.sol",
+  "sourcePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IValidatorSetAuRa.sol",
   "ast": {
-    "absolutePath": "/home/user/pos-contracts/contracts/interfaces/IValidatorSetAuRa.sol",
+    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IValidatorSetAuRa.sol",
     "exportedSymbols": {
       "IValidatorSetAuRa": [
         9157
@@ -516,7 +516,7 @@
     "src": "0:359:27"
   },
   "legacyAST": {
-    "absolutePath": "/home/user/pos-contracts/contracts/interfaces/IValidatorSetAuRa.sol",
+    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IValidatorSetAuRa.sol",
     "exportedSymbols": {
       "IValidatorSetAuRa": [
         9157
@@ -948,7 +948,7 @@
   },
   "networks": {},
   "schemaVersion": "3.0.1",
-  "updatedAt": "2019-01-15T16:27:03.724Z",
+  "updatedAt": "2019-01-16T07:39:32.328Z",
   "devdoc": {
     "methods": {}
   },

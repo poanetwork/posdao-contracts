@@ -41,19 +41,19 @@
   "sourceMap": "",
   "deployedSourceMap": "",
   "source": "pragma solidity 0.5.2;\n\n\ninterface IValidatorSetHBBFT {\n    function initialize(address, address, address, address[] calldata, uint256, uint256) external;\n}",
-  "sourcePath": "/home/user/pos-contracts/contracts/interfaces/IValidatorSetHBBFT.sol",
+  "sourcePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IValidatorSetHBBFT.sol",
   "ast": {
-    "absolutePath": "/home/user/pos-contracts/contracts/interfaces/IValidatorSetHBBFT.sol",
+    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IValidatorSetHBBFT.sol",
     "exportedSymbols": {
       "IValidatorSetHBBFT": [
-        9153
+        9176
       ]
     },
-    "id": 9154,
+    "id": 9177,
     "nodeType": "SourceUnit",
     "nodes": [
       {
-        "id": 9136,
+        "id": 9159,
         "literals": [
           "solidity",
           "0.5",
@@ -68,9 +68,9 @@
         "contractKind": "interface",
         "documentation": null,
         "fullyImplemented": false,
-        "id": 9153,
+        "id": 9176,
         "linearizedBaseContracts": [
-          9153
+          9176
         ],
         "name": "IValidatorSetHBBFT",
         "nodeType": "ContractDefinition",
@@ -78,22 +78,22 @@
           {
             "body": null,
             "documentation": null,
-            "id": 9152,
+            "id": 9175,
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "initialize",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 9150,
+              "id": 9173,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 9138,
+                  "id": 9161,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 9152,
+                  "scope": 9175,
                   "src": "80:7:28",
                   "stateVariable": false,
                   "storageLocation": "default",
@@ -102,7 +102,7 @@
                     "typeString": "address"
                   },
                   "typeName": {
-                    "id": 9137,
+                    "id": 9160,
                     "name": "address",
                     "nodeType": "ElementaryTypeName",
                     "src": "80:7:28",
@@ -117,10 +117,10 @@
                 },
                 {
                   "constant": false,
-                  "id": 9140,
+                  "id": 9163,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 9152,
+                  "scope": 9175,
                   "src": "89:7:28",
                   "stateVariable": false,
                   "storageLocation": "default",
@@ -129,7 +129,7 @@
                     "typeString": "address"
                   },
                   "typeName": {
-                    "id": 9139,
+                    "id": 9162,
                     "name": "address",
                     "nodeType": "ElementaryTypeName",
                     "src": "89:7:28",
@@ -144,10 +144,10 @@
                 },
                 {
                   "constant": false,
-                  "id": 9142,
+                  "id": 9165,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 9152,
+                  "scope": 9175,
                   "src": "98:7:28",
                   "stateVariable": false,
                   "storageLocation": "default",
@@ -156,7 +156,7 @@
                     "typeString": "address"
                   },
                   "typeName": {
-                    "id": 9141,
+                    "id": 9164,
                     "name": "address",
                     "nodeType": "ElementaryTypeName",
                     "src": "98:7:28",
@@ -171,10 +171,10 @@
                 },
                 {
                   "constant": false,
-                  "id": 9145,
+                  "id": 9168,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 9152,
+                  "scope": 9175,
                   "src": "107:18:28",
                   "stateVariable": false,
                   "storageLocation": "calldata",
@@ -184,7 +184,7 @@
                   },
                   "typeName": {
                     "baseType": {
-                      "id": 9143,
+                      "id": 9166,
                       "name": "address",
                       "nodeType": "ElementaryTypeName",
                       "src": "107:7:28",
@@ -194,7 +194,7 @@
                         "typeString": "address"
                       }
                     },
-                    "id": 9144,
+                    "id": 9167,
                     "length": null,
                     "nodeType": "ArrayTypeName",
                     "src": "107:9:28",
@@ -208,10 +208,10 @@
                 },
                 {
                   "constant": false,
-                  "id": 9147,
+                  "id": 9170,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 9152,
+                  "scope": 9175,
                   "src": "127:7:28",
                   "stateVariable": false,
                   "storageLocation": "default",
@@ -220,7 +220,7 @@
                     "typeString": "uint256"
                   },
                   "typeName": {
-                    "id": 9146,
+                    "id": 9169,
                     "name": "uint256",
                     "nodeType": "ElementaryTypeName",
                     "src": "127:7:28",
@@ -234,10 +234,10 @@
                 },
                 {
                   "constant": false,
-                  "id": 9149,
+                  "id": 9172,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 9152,
+                  "scope": 9175,
                   "src": "136:7:28",
                   "stateVariable": false,
                   "storageLocation": "default",
@@ -246,7 +246,7 @@
                     "typeString": "uint256"
                   },
                   "typeName": {
-                    "id": 9148,
+                    "id": 9171,
                     "name": "uint256",
                     "nodeType": "ElementaryTypeName",
                     "src": "136:7:28",
@@ -262,36 +262,36 @@
               "src": "79:65:28"
             },
             "returnParameters": {
-              "id": 9151,
+              "id": 9174,
               "nodeType": "ParameterList",
               "parameters": [],
               "src": "153:0:28"
             },
-            "scope": 9153,
+            "scope": 9176,
             "src": "60:94:28",
             "stateMutability": "nonpayable",
             "superFunction": null,
             "visibility": "external"
           }
         ],
-        "scope": 9154,
+        "scope": 9177,
         "src": "25:131:28"
       }
     ],
     "src": "0:156:28"
   },
   "legacyAST": {
-    "absolutePath": "/home/user/pos-contracts/contracts/interfaces/IValidatorSetHBBFT.sol",
+    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IValidatorSetHBBFT.sol",
     "exportedSymbols": {
       "IValidatorSetHBBFT": [
-        9153
+        9176
       ]
     },
-    "id": 9154,
+    "id": 9177,
     "nodeType": "SourceUnit",
     "nodes": [
       {
-        "id": 9136,
+        "id": 9159,
         "literals": [
           "solidity",
           "0.5",
@@ -306,9 +306,9 @@
         "contractKind": "interface",
         "documentation": null,
         "fullyImplemented": false,
-        "id": 9153,
+        "id": 9176,
         "linearizedBaseContracts": [
-          9153
+          9176
         ],
         "name": "IValidatorSetHBBFT",
         "nodeType": "ContractDefinition",
@@ -316,22 +316,22 @@
           {
             "body": null,
             "documentation": null,
-            "id": 9152,
+            "id": 9175,
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "initialize",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 9150,
+              "id": 9173,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 9138,
+                  "id": 9161,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 9152,
+                  "scope": 9175,
                   "src": "80:7:28",
                   "stateVariable": false,
                   "storageLocation": "default",
@@ -340,7 +340,7 @@
                     "typeString": "address"
                   },
                   "typeName": {
-                    "id": 9137,
+                    "id": 9160,
                     "name": "address",
                     "nodeType": "ElementaryTypeName",
                     "src": "80:7:28",
@@ -355,10 +355,10 @@
                 },
                 {
                   "constant": false,
-                  "id": 9140,
+                  "id": 9163,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 9152,
+                  "scope": 9175,
                   "src": "89:7:28",
                   "stateVariable": false,
                   "storageLocation": "default",
@@ -367,7 +367,7 @@
                     "typeString": "address"
                   },
                   "typeName": {
-                    "id": 9139,
+                    "id": 9162,
                     "name": "address",
                     "nodeType": "ElementaryTypeName",
                     "src": "89:7:28",
@@ -382,10 +382,10 @@
                 },
                 {
                   "constant": false,
-                  "id": 9142,
+                  "id": 9165,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 9152,
+                  "scope": 9175,
                   "src": "98:7:28",
                   "stateVariable": false,
                   "storageLocation": "default",
@@ -394,7 +394,7 @@
                     "typeString": "address"
                   },
                   "typeName": {
-                    "id": 9141,
+                    "id": 9164,
                     "name": "address",
                     "nodeType": "ElementaryTypeName",
                     "src": "98:7:28",
@@ -409,10 +409,10 @@
                 },
                 {
                   "constant": false,
-                  "id": 9145,
+                  "id": 9168,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 9152,
+                  "scope": 9175,
                   "src": "107:18:28",
                   "stateVariable": false,
                   "storageLocation": "calldata",
@@ -422,7 +422,7 @@
                   },
                   "typeName": {
                     "baseType": {
-                      "id": 9143,
+                      "id": 9166,
                       "name": "address",
                       "nodeType": "ElementaryTypeName",
                       "src": "107:7:28",
@@ -432,7 +432,7 @@
                         "typeString": "address"
                       }
                     },
-                    "id": 9144,
+                    "id": 9167,
                     "length": null,
                     "nodeType": "ArrayTypeName",
                     "src": "107:9:28",
@@ -446,10 +446,10 @@
                 },
                 {
                   "constant": false,
-                  "id": 9147,
+                  "id": 9170,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 9152,
+                  "scope": 9175,
                   "src": "127:7:28",
                   "stateVariable": false,
                   "storageLocation": "default",
@@ -458,7 +458,7 @@
                     "typeString": "uint256"
                   },
                   "typeName": {
-                    "id": 9146,
+                    "id": 9169,
                     "name": "uint256",
                     "nodeType": "ElementaryTypeName",
                     "src": "127:7:28",
@@ -472,10 +472,10 @@
                 },
                 {
                   "constant": false,
-                  "id": 9149,
+                  "id": 9172,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 9152,
+                  "scope": 9175,
                   "src": "136:7:28",
                   "stateVariable": false,
                   "storageLocation": "default",
@@ -484,7 +484,7 @@
                     "typeString": "uint256"
                   },
                   "typeName": {
-                    "id": 9148,
+                    "id": 9171,
                     "name": "uint256",
                     "nodeType": "ElementaryTypeName",
                     "src": "136:7:28",
@@ -500,19 +500,19 @@
               "src": "79:65:28"
             },
             "returnParameters": {
-              "id": 9151,
+              "id": 9174,
               "nodeType": "ParameterList",
               "parameters": [],
               "src": "153:0:28"
             },
-            "scope": 9153,
+            "scope": 9176,
             "src": "60:94:28",
             "stateMutability": "nonpayable",
             "superFunction": null,
             "visibility": "external"
           }
         ],
-        "scope": 9154,
+        "scope": 9177,
         "src": "25:131:28"
       }
     ],
@@ -524,7 +524,7 @@
   },
   "networks": {},
   "schemaVersion": "3.0.1",
-  "updatedAt": "2019-01-15T15:35:28.386Z",
+  "updatedAt": "2019-01-16T07:39:32.328Z",
   "devdoc": {
     "methods": {}
   },

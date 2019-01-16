@@ -46,13 +46,13 @@
     }
   ],
   "bytecode": "0x608060405234801561001057600080fd5b5060405161026b38038061026b833981018060405261012081101561003457600080fd5b81516020830151604084015160608501516080860180519496939592949193928301929164010000000081111561006a57600080fd5b8201602081018481111561007d57600080fd5b815185602082028301116401000000008211171561009a57600080fd5b50506020820151604083015160608401516080909401519295509093509190600160a060020a03891615156100ce57600080fd5b88600160a060020a0316637767c476898989898989896040518863ffffffff167c01000000000000000000000000000000000000000000000000000000000281526004018088600160a060020a0316600160a060020a0316815260200187600160a060020a0316600160a060020a0316815260200186600160a060020a0316600160a060020a0316815260200180602001858152602001848152602001838152602001828103825286818151815260200191508051906020019060200280838360005b838110156101a9578181015183820152602001610191565b5050505090500198505050505050505050600060405180830381600087803b1580156101d457600080fd5b505af11580156101e8573d6000803e3d6000fd5b5050505086600160a060020a031663fe4b84df826040518263ffffffff167c010000000000000000000000000000000000000000000000000000000002815260040180828152602001915050600060405180830381600087803b15801561024e57600080fd5b505af1158015610262573d6000803e3d6000fd5b503392505050fffe",
-  "deployedBytecode": "0x6080604052600080fdfea165627a7a7230582049cac0e02a60ec86eb24a9553e8da6cb50f1441f2f28c95d9a2998a8e2af619f0029",
+  "deployedBytecode": "0x6080604052600080fdfea165627a7a72305820b15569cdae14ab057ce68adecf682f992b3a419e6a8dca093675af9acb5cee650029",
   "sourceMap": "116:890:3:-;;;148:855;8:9:-1;5:2;;;30:1;27;20:12;5:2;148:855:3;;;;;;;;;;;;;;;13:3:-1;8;5:12;2:2;;;30:1;27;20:12;2:2;148:855:3;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;19:11:-1;11:20;;8:2;;;44:1;41;34:12;8:2;62:21;;123:4;114:14;;138:31;;;135:2;;;182:1;179;172:12;135:2;219:3;213:10;331:9;325:2;311:12;307:21;289:16;285:44;282:59;261:11;247:12;244:29;233:116;230:2;;;362:1;359;352:12;230:2;-1:-1;;148:855:3;;;;;;;;;;;;;;;;;;;-1:-1:-1;148:855:3;;-1:-1:-1;148:855:3;;-1:-1:-1;;;;;546:44:3;;;;538:53;;;;;;602:21;-1:-1:-1;;;;;602:32:3;;649:20;692:15;723:19;757:11;783:15;813:18;846:21;602:276;;;;;;;;;;;;;-1:-1:-1;;;;;602:276:3;-1:-1:-1;;;;;602:276:3;;;;;;-1:-1:-1;;;;;602:276:3;-1:-1:-1;;;;;602:276:3;;;;;;-1:-1:-1;;;;;602:276:3;-1:-1:-1;;;;;602:276:3;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;23:1:-1;8:100;33:3;30:1;27:10;8:100;;;90:11;;;84:18;71:11;;;64:39;52:2;45:10;8:100;;;12:14;602:276:3;;;;;;;;;;;;;;;;;;;;;;;;;;;;8:9:-1;5:2;;;30:1;27;20:12;5:2;602:276:3;;;;8:9:-1;5:2;;;45:16;42:1;39;24:38;77:16;74:1;67:27;5:2;602:276:3;;;;889:15;-1:-1:-1;;;;;889:26:3;;930:19;889:71;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;8:9:-1;5:2;;;30:1;27;20:12;5:2;889:71:3;;;;8:9:-1;5:2;;;45:16;42:1;39;24:38;77:16;74:1;67:27;5:2;-1:-1;984:10:3;;-1:-1:-1;;;971:24:3",
   "deployedSourceMap": "116:890:3:-;;;;;",
   "source": "pragma solidity 0.5.2;\r\n\r\nimport \"./interfaces/IRandomAuRa.sol\";\r\nimport \"./interfaces/IValidatorSetAuRa.sol\";\r\n\r\n\r\ncontract InitializerAuRa {\r\n    constructor(\r\n        IValidatorSetAuRa _validatorSetContract,\r\n        address _blockRewardContract,\r\n        IRandomAuRa _randomContract,\r\n        address _erc20TokenContract,\r\n        address[] memory _validators,\r\n        uint256 _stakerMinStake,\r\n        uint256 _validatorMinStake,\r\n        uint256 _stakingEpochDuration,\r\n        uint256 _collectRoundLength\r\n    ) public {\r\n        require(address(_validatorSetContract) != address(0));\r\n        _validatorSetContract.initialize(\r\n            _blockRewardContract,\r\n            address(_randomContract),\r\n            _erc20TokenContract,\r\n            _validators,\r\n            _stakerMinStake,\r\n            _validatorMinStake,\r\n            _stakingEpochDuration\r\n        );\r\n        _randomContract.initialize(\r\n            _collectRoundLength\r\n        );\r\n        selfdestruct(msg.sender);\r\n    }\r\n}\r\n",
-  "sourcePath": "/home/user/pos-contracts/contracts/InitializerAuRa.sol",
+  "sourcePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/InitializerAuRa.sol",
   "ast": {
-    "absolutePath": "/home/user/pos-contracts/contracts/InitializerAuRa.sol",
+    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/InitializerAuRa.sol",
     "exportedSymbols": {
       "InitializerAuRa": [
         964
@@ -72,7 +72,7 @@
         "src": "0:22:3"
       },
       {
-        "absolutePath": "/home/user/pos-contracts/contracts/interfaces/IRandomAuRa.sol",
+        "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IRandomAuRa.sol",
         "file": "./interfaces/IRandomAuRa.sol",
         "id": 904,
         "nodeType": "ImportDirective",
@@ -83,7 +83,7 @@
         "unitAlias": ""
       },
       {
-        "absolutePath": "/home/user/pos-contracts/contracts/interfaces/IValidatorSetAuRa.sol",
+        "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IValidatorSetAuRa.sol",
         "file": "./interfaces/IValidatorSetAuRa.sol",
         "id": 905,
         "nodeType": "ImportDirective",
@@ -919,7 +919,7 @@
     "src": "0:1008:3"
   },
   "legacyAST": {
-    "absolutePath": "/home/user/pos-contracts/contracts/InitializerAuRa.sol",
+    "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/InitializerAuRa.sol",
     "exportedSymbols": {
       "InitializerAuRa": [
         964
@@ -939,7 +939,7 @@
         "src": "0:22:3"
       },
       {
-        "absolutePath": "/home/user/pos-contracts/contracts/interfaces/IRandomAuRa.sol",
+        "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IRandomAuRa.sol",
         "file": "./interfaces/IRandomAuRa.sol",
         "id": 904,
         "nodeType": "ImportDirective",
@@ -950,7 +950,7 @@
         "unitAlias": ""
       },
       {
-        "absolutePath": "/home/user/pos-contracts/contracts/interfaces/IValidatorSetAuRa.sol",
+        "absolutePath": "/home/poa/Dropbox/POA/GitHub/pos-contracts/contracts/interfaces/IValidatorSetAuRa.sol",
         "file": "./interfaces/IValidatorSetAuRa.sol",
         "id": 905,
         "nodeType": "ImportDirective",
@@ -1791,7 +1791,7 @@
   },
   "networks": {},
   "schemaVersion": "3.0.1",
-  "updatedAt": "2019-01-15T16:27:03.715Z",
+  "updatedAt": "2019-01-16T07:39:32.245Z",
   "devdoc": {
     "methods": {}
   },
