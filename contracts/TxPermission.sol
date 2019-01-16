@@ -13,13 +13,6 @@ contract TxPermission is EternalStorage {
     address public constant RANDOM_CONTRACT = address(0x3000000000000000000000000000000000000001);
     address public constant VALIDATOR_SET_CONTRACT = address(0x1000000000000000000000000000000000000001);
 
-    // ============================================== Modifiers =======================================================
-
-    modifier onlyOwner {
-        require(msg.sender == addressStorage[OWNER]);
-        _;
-    }
-
     // =============================================== Setters ========================================================
 
     function addAllowedSender(address _sender) public onlyOwner {
@@ -128,7 +121,6 @@ contract TxPermission is EternalStorage {
     // =============================================== Private ========================================================
 
     bytes32 internal constant ALLOWED_SENDERS = keccak256("allowedSenders");
-    bytes32 internal constant OWNER = keccak256("owner");
 
     /// Allowed transaction types mask
     uint32 internal constant NONE = 0;

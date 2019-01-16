@@ -31,11 +31,6 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
         _;
     }
 
-    modifier onlyOwner() {
-        require(msg.sender == addressStorage[OWNER]);
-        _;
-    }
-
     modifier onlySystem {
         require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
         _;
@@ -223,7 +218,6 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
     bytes32 internal constant EXTRA_RECEIVERS = keccak256("extraReceivers");
     bytes32 internal constant MINTED_TOTALLY = keccak256("mintedTotally");
     bytes32 internal constant NATIVE_TO_ERC_BRIDGES_ALLOWED = keccak256("nativeToErcBridgesAllowed");
-    bytes32 internal constant OWNER = keccak256("owner");
 
     bytes32 internal constant BRIDGE_AMOUNT = "bridgeAmount";
     bytes32 internal constant BRIDGE_NATIVE_FEE = "bridgeNativeFee";

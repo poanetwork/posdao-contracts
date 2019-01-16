@@ -26,11 +26,6 @@ contract KeyGenHistory is EternalStorage {
 
     // ============================================== Modifiers =======================================================
 
-    modifier onlyOwner() {
-        require(msg.sender == addressStorage[OWNER]);
-        _;
-    }
-
     modifier onlyValidator() {
         require(validatorSet().isValidator(msg.sender));
         _;
@@ -84,7 +79,6 @@ contract KeyGenHistory is EternalStorage {
 
     // =============================================== Private ========================================================
 
-    bytes32 internal constant OWNER = keccak256("owner");
     bytes32 internal constant VALIDATOR_SET = keccak256("validatorSet");
     bytes32 internal constant VALIDATOR_WROTE_PART = "validatorWrotePart";
 

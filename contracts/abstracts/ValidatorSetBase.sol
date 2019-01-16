@@ -64,11 +64,6 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
 
     // ============================================== Modifiers =======================================================
 
-    modifier onlyOwner() {
-        require(msg.sender == addressStorage[OWNER]);
-        _;
-    }
-
     modifier onlySystem() {
         require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
         _;
@@ -368,7 +363,6 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     bytes32 internal constant CHANGE_REQUEST_COUNT = keccak256("changeRequestCount");
     bytes32 internal constant CURRENT_VALIDATORS = keccak256("currentValidators");
     bytes32 internal constant ERC20_TOKEN_CONTRACT = keccak256("erc20TokenContract");
-    bytes32 internal constant OWNER = keccak256("owner");
     bytes32 internal constant PENDING_VALIDATORS = keccak256("pendingValidators");
     bytes32 internal constant POOLS = keccak256("pools");
     bytes32 internal constant POOLS_INACTIVE = keccak256("poolsInactive");

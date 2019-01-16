@@ -16,13 +16,6 @@ contract Certifier is EternalStorage {
     event Confirmed(address indexed who);
     event Revoked(address indexed who);
 
-    // ============================================== Modifiers =======================================================
-
-    modifier onlyOwner {
-        require(msg.sender == addressStorage[OWNER]);
-        _;
-    }
-
     // =============================================== Setters ========================================================
 
     function certify(address _who) external onlyOwner {
@@ -46,6 +39,5 @@ contract Certifier is EternalStorage {
 
     // =============================================== Private ========================================================
 
-    bytes32 internal constant OWNER = keccak256("owner");
     bytes32 internal constant CERTIFIED = "certified";
 }
