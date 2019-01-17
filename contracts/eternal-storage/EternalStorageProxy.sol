@@ -27,11 +27,16 @@ contract EternalStorageProxy is EternalStorage, IEternalStorageProxy {
      */
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
-    constructor(address _implementationAddress, address _owner) public {
-        if (_implementationAddress != address(0)) {
-            require(_isContract(_implementationAddress) || 0 == block.number);
-            _implementation = _implementationAddress;
+    constructor(bytes memory _bytecode, address _owner) public {
+        // solhint-disable no-inline-assembly
+        address _implementationAddress;
+        assembly {
+            let len := mload(_bytecode)
+            let data := add(_bytecode, 0x20)
+            _implementationAddress := create(0, data, len)
         }
+        // solhint-enable no-inline-assembly
+        _implementation = _implementationAddress;
         if (_owner != address(0)) {
             _setOwner(_owner);
         } else {

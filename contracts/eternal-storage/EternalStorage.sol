@@ -18,6 +18,11 @@ contract EternalStorage {
     address internal _owner;
 
     /**
+     * @dev Does nothing.  Used only for initialization.
+     */
+    function doNothing() external {} // solhint-disable-line no-empty-blocks
+
+    /**
      * @dev Access check: ensure that either we are on the genesis block, or
      * `msg.sender` is the owner of the contract.  The genesis block is
      * hard-coded into the client, so attacks based on it are not possible.

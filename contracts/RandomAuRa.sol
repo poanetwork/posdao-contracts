@@ -192,12 +192,16 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         return getCommit(_collectRound, _validator) != bytes32(0);
     }
 
-    function isCommitPhase() public view returns(bool) {
+    function _isCommitPhase() private view returns(bool) {
         return (block.number % collectRoundLength()) < commitPhaseLength();
     }
 
+    function isCommitPhase() private view returns(bool) {
+        return block.number > 0 && _isCommitPhase();
+    }
+
     function isRevealPhase() public view returns(bool) {
-        return !isCommitPhase();
+        return block.number > 0 && !_isCommitPhase();
     }
 
     function revealsCount(uint256 _collectRound) public view returns(uint256) {

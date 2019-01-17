@@ -51,7 +51,7 @@ async function main() {
         const contractName = contracts[i];
         console.log(`Compiling ${contractName}...`);
         const compiled = await compile(
-            contractName == 'EternalStorageProxy' ? 'contracts/eternal-storage/' : 'contracts/',
+            contractName === 'EternalStorageProxy' ? 'contracts/eternal-storage/' : 'contracts/',
             contractName
         );
         contractsCompiled[contractName] = compiled;
@@ -63,8 +63,8 @@ async function main() {
 
     // Build ValidatorSetAuRa contract
     deploy = await contract.deploy({data: '0x' + eternalStorageProxyCompiled.bytecode, arguments: [
-        '0x1000000000000000000000000000000000000002', // implementation address
-        owner
+        '0x' + contractsCompiled['ValidatorSetAuRa'].bytecode,
+        owner,
     ]});
     spec.engine.authorityRound.params.validators.multi = {
         "0": {
@@ -75,15 +75,11 @@ async function main() {
         balance: '0',
         constructor: await deploy.encodeABI()
     };
-    spec.accounts['0x1000000000000000000000000000000000000002'] = {
-        balance: '0',
-        constructor: '0x' + contractsCompiled['ValidatorSetAuRa'].bytecode
-    };
 
     // Build BlockRewardAuRa contract
     deploy = await contract.deploy({data: '0x' + eternalStorageProxyCompiled.bytecode, arguments: [
-        '0x2000000000000000000000000000000000000002', // implementation address
-        owner
+        '0x' + contractsCompiled['BlockRewardAuRa'].bytecode,
+        owner,
     ]});
     spec.accounts['0x2000000000000000000000000000000000000001'] = {
         balance: '0',
@@ -91,29 +87,21 @@ async function main() {
     };
     spec.engine.authorityRound.params.blockRewardContractAddress = '0x2000000000000000000000000000000000000001';
     spec.engine.authorityRound.params.blockRewardContractTransition = 0;
-    spec.accounts['0x2000000000000000000000000000000000000002'] = {
-        balance: '0',
-        constructor: '0x' + contractsCompiled['BlockRewardAuRa'].bytecode
-    };
 
     // Build RandomAuRa contract
     deploy = await contract.deploy({data: '0x' + eternalStorageProxyCompiled.bytecode, arguments: [
-        '0x3000000000000000000000000000000000000002', // implementation address
+        '0x' + contractsCompiled['RandomAuRa'].bytecode, // implementation address
         owner
     ]});
     spec.accounts['0x3000000000000000000000000000000000000001'] = {
         balance: '0',
         constructor: await deploy.encodeABI()
     };
-    spec.accounts['0x3000000000000000000000000000000000000002'] = {
-        balance: '0',
-        constructor: '0x' + contractsCompiled['RandomAuRa'].bytecode
-    };
     spec.engine.authorityRound.params.randomnessContractAddress = '0x3000000000000000000000000000000000000001';
 
     // Build TxPermission contract
     deploy = await contract.deploy({data: '0x' + eternalStorageProxyCompiled.bytecode, arguments: [
-        '0x4000000000000000000000000000000000000002', // implementation address
+        '0x' + contractsCompiled['TxPermission'].bytecode, // implementation address
         owner
     ]});
     spec.accounts['0x4000000000000000000000000000000000000001'] = {
@@ -121,23 +109,15 @@ async function main() {
         constructor: await deploy.encodeABI()
     };
     spec.params.transactionPermissionContract = '0x4000000000000000000000000000000000000001';
-    spec.accounts['0x4000000000000000000000000000000000000002'] = {
-        balance: '0',
-        constructor: '0x' + contractsCompiled['TxPermission'].bytecode
-    };
 
     // Build Certifier contract
     deploy = await contract.deploy({data: '0x' + eternalStorageProxyCompiled.bytecode, arguments: [
-        '0x5000000000000000000000000000000000000002', // implementation address
+        '0x' + contractsCompiled['Certifier'].bytecode, // implementation address
         owner
     ]});
     spec.accounts['0x5000000000000000000000000000000000000001'] = {
         balance: '0',
         constructor: await deploy.encodeABI()
-    };
-    spec.accounts['0x5000000000000000000000000000000000000002'] = {
-        balance: '0',
-        constructor: '0x' + contractsCompiled['Certifier'].bytecode
     };
 
     // Build Registry contract
