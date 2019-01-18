@@ -21,7 +21,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     uint256 public constant STAKE_UNIT = 1 ether;
 
     // ================================================ Events ========================================================
-    /// @dev Emitted by `stake` function to signal that the staker made a stake of the specified
+    /// Emitted by `stake` function to signal that the staker made a stake of the specified
     /// amount for the specified observer during the specified staking epoch.
     /// @param toObserver The observer for whom the `staker` made the stake.
     /// @param staker The address of staker who made the stake.
@@ -34,7 +34,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         uint256 amount
     );
 
-    /// @dev Emitted by `moveStake` function to signal that the staker moved the specified
+    /// Emitted by `moveStake` function to signal that the staker moved the specified
     /// amount of a stake from one observer to another during the specified staking epoch.
     /// @param fromObserver The observer from whom the `staker` moved the stake.
     /// @param toObserver The observer to whom the `staker` moved the stake.
@@ -49,7 +49,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         uint256 amount
     );
 
-    /// @dev Emitted by `withdraw` function to signal that the staker withdrew the specified
+    /// Emitted by `withdraw` function to signal that the staker withdrew the specified
     /// amount of a stake from the specified observer during the specified staking epoch.
     /// @param fromObserver The observer from whom the `staker` withdrew `amount`.
     /// @param staker The address of staker who withdrew `amount`.
@@ -298,14 +298,11 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         ];
     }
 
-    /// @dev Returns an index of the pool in the `poolsInactive` array.
-    /// @param _who The address to search for.
-    /// @return `uint256(~0)` if the address is not found, or the index otherwise.
+    // Returns an index of the pool in the `poolsInactive` array
     function poolInactiveIndex(address _who) public view returns(uint256) {
-        // NOTE: the potential overflow is deliberate
         return uintStorage[
             keccak256(abi.encode(POOL_INACTIVE_INDEX, _who))
-        ] - 1;
+        ];
     }
 
     // Returns the list of current stakers in the specified pool
@@ -315,14 +312,11 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         ];
     }
 
-    /// @dev Returns an index of the pool in the `poolStakers` array.
-    /// @param _pool The pool to search in.
-    /// @param _staker The address to search for.
-    /// @return `uint256(~0)` if the address is not found, or the index otherwise.
+    // Returns staker index in `poolStakers` array
     function poolStakerIndex(address _pool, address _staker) public view returns(uint256) {
         return uintStorage[
             keccak256(abi.encode(POOL_STAKER_INDEX, _pool, _staker))
-        ] - 1;
+        ];
     }
 
     function randomContract() public view returns(address) {
@@ -354,6 +348,13 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     // Returns the internal serial number of staking epoch
     function stakingEpoch() public view returns(uint256) {
         return uintStorage[STAKING_EPOCH];
+    }
+
+    // Returns the index of validator in the `currentValidators`
+    function validatorIndex(address _validator) public view returns(uint256) {
+        return uintStorage[
+            keccak256(abi.encode(VALIDATOR_INDEX, _validator))
+        ];
     }
 
     // Returns the block number when `finalizeChange` was called to apply the validator set
@@ -408,8 +409,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     // Adds `_who` to the array of inactive pools
     function _addToPoolsInactive(address _who) internal {
         address[] storage poolsInactive = addressArrayStorage[POOLS_INACTIVE];
-        uint256 index = poolInactiveIndex(_who);
-        if (index != uint256(~0) && poolsInactive[index] != _who) {
+        if (poolsInactive[poolInactiveIndex(_who)] != _who) {
             _setPoolInactiveIndex(_who, poolsInactive.length);
             poolsInactive.push(_who);
         }
@@ -435,7 +435,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     function _removeFromPoolsInactive(address _who) internal {
         address[] storage poolsInactive = addressArrayStorage[POOLS_INACTIVE];
         uint256 indexToRemove = poolInactiveIndex(_who);
-        if (indexToRemove != uint256(~0) && poolsInactive[indexToRemove] == _who) {
+        if (poolsInactive[indexToRemove] == _who) {
             poolsInactive[indexToRemove] = poolsInactive[poolsInactive.length - 1];
             _setPoolInactiveIndex(poolsInactive[indexToRemove], indexToRemove);
             poolsInactive.length--;
@@ -449,6 +449,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
 
         // Clear indexes for old validator set
         for (i = 0; i < validators.length; i++) {
+            _setValidatorIndex(validators[i], 0);
             _setIsValidator(validators[i], false);
         }
 
@@ -457,6 +458,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
 
         // Set indexes for new validator set
         for (i = 0; i < validators.length; i++) {
+            _setValidatorIndex(validators[i], i);
             _setIsValidator(validators[i], true);
         }
     }
@@ -502,6 +504,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         for (uint256 i = 0; i < _initialValidators.length; i++) {
             currentValidators.push(_initialValidators[i]);
             pendingValidators.push(_initialValidators[i]);
+            _setValidatorIndex(_initialValidators[i], i);
             _setIsValidator(_initialValidators[i], true);
             _addToPools(_initialValidators[i]);
         }
@@ -636,11 +639,11 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     function _setPoolInactiveIndex(address _who, uint256 _index) internal {
         uintStorage[
             keccak256(abi.encode(POOL_INACTIVE_INDEX, _who))
-        ] = _index.add(1);
+        ] = _index;
     }
 
     function _setPoolStakerIndex(address _pool, address _staker, uint256 _index) internal {
-        uintStorage[keccak256(abi.encode(POOL_STAKER_INDEX, _pool, _staker))] = _index.add(1);
+        uintStorage[keccak256(abi.encode(POOL_STAKER_INDEX, _pool, _staker))] = _index;
     }
 
     // Add `_staker` to the array of observer's stakers
@@ -658,7 +661,6 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
             keccak256(abi.encode(POOL_STAKERS, _pool))
         ];
         uint256 indexToRemove = poolStakerIndex(_pool, _staker);
-        if (indexToRemove == uint256(~0)) return;
         stakers[indexToRemove] = stakers[stakers.length - 1];
         _setPoolStakerIndex(_pool, stakers[indexToRemove], indexToRemove);
         stakers.length--;
@@ -698,6 +700,12 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
 
     function _setValidatorMinStake(uint256 _minStake) internal {
         uintStorage[VALIDATOR_MIN_STAKE] = _minStake * STAKE_UNIT;
+    }
+
+    function _setValidatorIndex(address _validator, uint256 _index) internal {
+        uintStorage[
+            keccak256(abi.encode(VALIDATOR_INDEX, _validator))
+        ] = _index;
     }
 
     function _setValidatorSetApplyBlock(uint256 _blockNumber) internal {
