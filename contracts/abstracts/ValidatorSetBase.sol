@@ -409,7 +409,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     // Adds `_who` to the array of inactive pools
     function _addToPoolsInactive(address _who) internal {
         address[] storage poolsInactive = addressArrayStorage[POOLS_INACTIVE];
-        if (poolsInactive[poolInactiveIndex(_who)] != _who) {
+        if (poolsInactive.length == 0 || poolsInactive[poolInactiveIndex(_who)] != _who) {
             _setPoolInactiveIndex(_who, poolsInactive.length);
             poolsInactive.push(_who);
         }
@@ -419,7 +419,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     function _removeFromPools(address _who) internal {
         uint256 indexToRemove = poolIndex(_who);
         address[] storage pools = addressArrayStorage[POOLS];
-        if (pools[indexToRemove] == _who) {
+        if (pools.length > 0 && pools[indexToRemove] == _who) {
             pools[indexToRemove] = pools[pools.length - 1];
             _setPoolIndex(pools[indexToRemove], indexToRemove);
             pools.length--;
@@ -435,7 +435,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     function _removeFromPoolsInactive(address _who) internal {
         address[] storage poolsInactive = addressArrayStorage[POOLS_INACTIVE];
         uint256 indexToRemove = poolInactiveIndex(_who);
-        if (poolsInactive[indexToRemove] == _who) {
+        if (poolsInactive.length > 0 && poolsInactive[indexToRemove] == _who) {
             poolsInactive[indexToRemove] = poolsInactive[poolsInactive.length - 1];
             _setPoolInactiveIndex(poolsInactive[indexToRemove], indexToRemove);
             poolsInactive.length--;
@@ -660,6 +660,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         address[] storage stakers = addressArrayStorage[
             keccak256(abi.encode(POOL_STAKERS, _pool))
         ];
+        if (stakers.length == 0) return;
         uint256 indexToRemove = poolStakerIndex(_pool, _staker);
         stakers[indexToRemove] = stakers[stakers.length - 1];
         _setPoolStakerIndex(_pool, stakers[indexToRemove], indexToRemove);
