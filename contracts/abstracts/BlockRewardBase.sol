@@ -289,7 +289,7 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
         rewards = new uint256[](extraLength);
 
         uint256 i;
-        
+
         for (i = 0; i < extraLength; i++) {
             address extraAddress = extraReceiverByIndex(i);
             uint256 extraAmount = extraReceiverAmount(extraAddress);
@@ -437,7 +437,7 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
 
     function _isErcToNativeBridge(address _addr) internal view returns(bool) {
         address[] memory bridges = ercToNativeBridgesAllowed();
-        
+
         for (uint256 i = 0; i < bridges.length; i++) {
             if (_addr == bridges[i]) {
                 return true;
@@ -449,7 +449,7 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
 
     function _isNativeToErcBridge(address _addr) internal view returns(bool) {
         address[] memory bridges = nativeToErcBridgesAllowed();
-        
+
         for (uint256 i = 0; i < bridges.length; i++) {
             if (_addr == bridges[i]) {
                 return true;

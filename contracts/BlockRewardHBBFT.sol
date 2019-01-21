@@ -58,7 +58,7 @@ contract BlockRewardHBBFT is BlockRewardBase {
             ) = _distributePoolReward(stakingEpoch, benefactors[i], i == 0 ? poolReward + remainder : poolReward);
 
             erc20Contract.mintReward(receivers, rewards);
-            
+
             emit RewardedERC20ByBlock(receivers, rewards);
         }
     }
