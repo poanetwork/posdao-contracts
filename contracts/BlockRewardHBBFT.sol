@@ -22,11 +22,11 @@ contract BlockRewardHBBFT is BlockRewardBase {
         onlySystem
         returns (address[] memory, uint256[] memory)
     {
-        // Mint ERC20 tokens to validators and their stakers as block reward.
+        // Mint ERC20 tokens to validators and their delegates as block reward.
         // This is not bridge's fee distribution.
         // This call makes sense only if `BLOCK_REWARD` and `ERC20_TOKEN_CONTRACT`
         // constants are not equal to zero.
-        _mintTokensForStakers(benefactors);
+        _mintTokensForDelegates(benefactors);
 
         // We don't accrue any block reward in native coins to validator here.
         // We just mint native coins by bridge if needed.
@@ -35,8 +35,8 @@ contract BlockRewardHBBFT is BlockRewardBase {
 
     // =============================================== Private ========================================================
 
-    // Mint ERC20 tokens for each staker of each active validator
-    function _mintTokensForStakers(address[] memory benefactors) internal {
+    // Mint ERC20 tokens for each delegate of each active validator
+    function _mintTokensForDelegates(address[] memory benefactors) internal {
         IERC20Minting erc20Contract = IERC20Minting(IValidatorSet(VALIDATOR_SET_CONTRACT).erc20TokenContract());
 
         if (BLOCK_REWARD == 0) return;

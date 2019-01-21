@@ -22,7 +22,7 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
         address _randomContract,
         address _erc20TokenContract,
         address[] calldata _initialValidators,
-        uint256 _stakerMinStake,
+        uint256 _delegateMinStake,
         uint256 _validatorMinStake
     ) external {
         super._initialize(
@@ -30,7 +30,7 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
             _randomContract,
             _erc20TokenContract,
             _initialValidators,
-            _stakerMinStake,
+            _delegateMinStake,
             _validatorMinStake
         );
     }

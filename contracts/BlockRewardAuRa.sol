@@ -149,7 +149,7 @@ contract BlockRewardAuRa is BlockRewardBase {
             remainder = bridgeFeeAmount % snapshotValidators(_stakingEpoch).length;
 
             for (i = 0; i < validators.length; i++) {
-                // Distribute the reward among validators and their stakers
+                // Distribute the reward among validators and their delegates
                 (
                     receivers,
                     rewards

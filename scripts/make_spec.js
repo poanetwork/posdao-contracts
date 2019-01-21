@@ -152,7 +152,7 @@ async function main() {
         '0x3000000000000000000000000000000000000001', // _randomContract
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialValidators, // _validators
-        1, // _stakerMinStake
+        1, // _delegateMinStake
         1, // _validatorMinStake
         stakingEpochDuration, // _stakingEpochDuration
         collectRoundLength    // _collectRoundLength

@@ -11,7 +11,7 @@ contract InitializerAuRa {
         IRandomAuRa _randomContract,
         address _erc20TokenContract,
         address[] memory _validators,
-        uint256 _stakerMinStake,
+        uint256 _delegateMinStake,
         uint256 _validatorMinStake,
         uint256 _stakingEpochDuration,
         uint256 _collectRoundLength
@@ -22,7 +22,7 @@ contract InitializerAuRa {
             address(_randomContract),
             _erc20TokenContract,
             _validators,
-            _stakerMinStake,
+            _delegateMinStake,
             _validatorMinStake,
             _stakingEpochDuration
         );

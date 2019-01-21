@@ -83,7 +83,7 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
 
         address validator;
         address[] memory validators;
-        address[] memory stakers;
+        address[] memory delegates;
         uint256 i;
         uint256 s;
 
@@ -97,11 +97,11 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
             for (i = 0; i < validators.length; i++) {
                 validator = validators[i];
                 _setSnapshotStakeAmount(stakingEpochBeforeLast, validator, validator, 0);
-                stakers = snapshotStakers(stakingEpochBeforeLast, validator);
-                for (s = 0; s < stakers.length; s++) {
-                    _setSnapshotStakeAmount(stakingEpochBeforeLast, validator, stakers[s], 0);
+                delegates = snapshotDelegates(stakingEpochBeforeLast, validator);
+                for (s = 0; s < delegates.length; s++) {
+                    _setSnapshotStakeAmount(stakingEpochBeforeLast, validator, delegates[s], 0);
                 }
-                _clearSnapshotStakers(stakingEpochBeforeLast, validator);
+                _clearSnapshotDelegates(stakingEpochBeforeLast, validator);
             }
         }
 
@@ -116,16 +116,16 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
                 validator,
                 validatorSet.stakeAmount(validator, validator)
             );
-            stakers = validatorSet.poolStakers(validator);
-            for (s = 0; s < stakers.length; s++) {
+            delegates = validatorSet.poolDelegates(validator);
+            for (s = 0; s < delegates.length; s++) {
                 _setSnapshotStakeAmount(
                     stakingEpoch,
                     validator,
-                    stakers[s],
-                    validatorSet.stakeAmount(validator, stakers[s])
+                    delegates[s],
+                    validatorSet.stakeAmount(validator, delegates[s])
                 );
             }
-            _setSnapshotStakers(stakingEpoch, validator, stakers);
+            _setSnapshotDelegates(stakingEpoch, validator, delegates);
         }
     }
 
@@ -198,16 +198,16 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
     function snapshotStakeAmount(
         uint256 _stakingEpoch,
         address _validator,
-        address _staker
+        address _delegate
     ) public view returns(uint256) {
         return uintStorage[
-            keccak256(abi.encode(SNAPSHOT_STAKE_AMOUNT, _stakingEpoch, _validator, _staker))
+            keccak256(abi.encode(SNAPSHOT_STAKE_AMOUNT, _stakingEpoch, _validator, _delegate))
         ];
     }
 
-    function snapshotStakers(uint256 _stakingEpoch, address _validator) public view returns(address[] memory) {
+    function snapshotDelegates(uint256 _stakingEpoch, address _validator) public view returns(address[] memory) {
         return addressArrayStorage[
-            keccak256(abi.encode(SNAPSHOT_STAKERS, _stakingEpoch, _validator))
+            keccak256(abi.encode(SNAPSHOT_DELEGATES, _stakingEpoch, _validator))
         ];
     }
 
@@ -233,7 +233,7 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
     bytes32 internal constant MINTED_FOR_ACCOUNT_IN_BLOCK = "mintedForAccountInBlock";
     bytes32 internal constant MINTED_IN_BLOCK = "mintedInBlock";
     bytes32 internal constant MINTED_TOTALLY_BY_BRIDGE = "mintedTotallyByBridge";
-    bytes32 internal constant SNAPSHOT_STAKERS = "snapshotStakers";
+    bytes32 internal constant SNAPSHOT_DELEGATES = "snapshotDelegates";
     bytes32 internal constant SNAPSHOT_STAKE_AMOUNT = "snapshotStakeAmount";
     bytes32 internal constant SNAPSHOT_VALIDATORS = "snapshotValidators";
 
@@ -272,9 +272,9 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
         addressArrayStorage[EXTRA_RECEIVERS].length = 0;
     }
 
-    function _clearSnapshotStakers(uint256 _stakingEpoch, address _validator) internal {
+    function _clearSnapshotDelegates(uint256 _stakingEpoch, address _validator) internal {
         delete addressArrayStorage[
-            keccak256(abi.encode(SNAPSHOT_STAKERS, _stakingEpoch, _validator))
+            keccak256(abi.encode(SNAPSHOT_DELEGATES, _stakingEpoch, _validator))
         ];
     }
 
@@ -348,18 +348,18 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
     function _setSnapshotStakeAmount(
         uint256 _stakingEpoch,
         address _validator,
-        address _staker,
+        address _delegate,
         uint256 _amount
     ) internal {
         uintStorage[
-            keccak256(abi.encode(SNAPSHOT_STAKE_AMOUNT, _stakingEpoch, _validator, _staker))
+            keccak256(abi.encode(SNAPSHOT_STAKE_AMOUNT, _stakingEpoch, _validator, _delegate))
         ] = _amount;
     }
 
-    function _setSnapshotStakers(uint256 _stakingEpoch, address _validator, address[] memory _stakers) internal {
+    function _setSnapshotDelegates(uint256 _stakingEpoch, address _validator, address[] memory _delegates) internal {
         addressArrayStorage[
-            keccak256(abi.encode(SNAPSHOT_STAKERS, _stakingEpoch, _validator))
-        ] = _stakers;
+            keccak256(abi.encode(SNAPSHOT_DELEGATES, _stakingEpoch, _validator))
+        ] = _delegates;
     }
 
     function _setSnapshotValidators(uint256 _stakingEpoch, address[] memory _validators) internal {
@@ -374,32 +374,32 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
         uint256 _poolReward
     ) internal view returns(address[] memory receivers, uint256[] memory rewards) {
         uint256 s;
-        address[] memory stakers = snapshotStakers(_stakingEpoch, _validator);
-        receivers = new address[](stakers.length.add(1));
+        address[] memory delegates = snapshotDelegates(_stakingEpoch, _validator);
+        receivers = new address[](delegates.length.add(1));
         rewards = new uint256[](receivers.length);
 
         uint256 validatorStake = snapshotStakeAmount(_stakingEpoch, _validator, _validator);
-        uint256 stakersAmount = 0;
+        uint256 delegatesAmount = 0;
 
-        for (s = 0; s < stakers.length; s++) {
-            stakersAmount += snapshotStakeAmount(_stakingEpoch, _validator, stakers[s]);
+        for (s = 0; s < delegates.length; s++) {
+            delegatesAmount += snapshotStakeAmount(_stakingEpoch, _validator, delegates[s]);
         }
 
-        // Calculate reward for each staker
-        for (s = 0; s < stakers.length; s++) {
-            uint256 stakerStake = snapshotStakeAmount(_stakingEpoch, _validator, stakers[s]);
-            receivers[s] = stakers[s];
-            if (validatorStake > stakersAmount) {
-                rewards[s] = _poolReward.mul(stakerStake).div(validatorStake + stakersAmount);
+        // Calculate reward for each delegate
+        for (s = 0; s < delegates.length; s++) {
+            uint256 delegateStake = snapshotStakeAmount(_stakingEpoch, _validator, delegates[s]);
+            receivers[s] = delegates[s];
+            if (validatorStake > delegatesAmount) {
+                rewards[s] = _poolReward.mul(delegateStake).div(validatorStake + delegatesAmount);
             } else {
-                rewards[s] = _poolReward.mul(stakerStake).mul(7).div(stakersAmount.mul(10));
+                rewards[s] = _poolReward.mul(delegateStake).mul(7).div(delegatesAmount.mul(10));
             }
         }
 
         // Calculate reward for validator
         receivers[s] = _validator;
-        if (validatorStake > stakersAmount) {
-            rewards[s] = _poolReward.mul(validatorStake).div(validatorStake + stakersAmount);
+        if (validatorStake > delegatesAmount) {
+            rewards[s] = _poolReward.mul(validatorStake).div(validatorStake + delegatesAmount);
         } else {
             rewards[s] = _poolReward.mul(3).div(10);
         }
