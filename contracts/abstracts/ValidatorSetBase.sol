@@ -491,7 +491,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         uint256 _delegateMinStake,
         uint256 _validatorMinStake
     ) internal {
-        require(block.number == 0); // initialization must be done on genesis block
+        require(_getCurrentBlockNumber() == 0); // initialization must be done on genesis block
         require(_blockRewardContract != address(0));
         require(_randomContract != address(0));
         require(_initialValidators.length > 0);
@@ -790,6 +790,10 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     }
 
     function _areStakeAndWithdrawAllowed() internal view returns(bool);
+
+    function _getCurrentBlockNumber() internal view returns(uint256) {
+        return block.number;
+    }
 
     function _getRandomIndex(uint256[] memory _likelihood, uint256 _likelihoodSum, uint256 _randomNumber)
         internal
