@@ -21,6 +21,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     uint256 public constant STAKE_UNIT = 1 ether;
 
     // ================================================ Events ========================================================
+
     /// Emitted by `stake` function to signal that the staker made a stake of the specified
     /// amount for the specified observer during the specified staking epoch.
     /// @param toObserver The observer for whom the `staker` made the stake.
@@ -64,6 +65,11 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
 
     // ============================================== Modifiers =======================================================
 
+    modifier gasPriceIsValid() {
+        require(tx.gasprice != 0);
+        _;
+    }
+
     modifier onlyOwner() {
         require(msg.sender == addressStorage[OWNER]);
         _;
@@ -76,7 +82,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
 
     // =============================================== Setters ========================================================
 
-    function removePool() public {
+    function removePool() public gasPriceIsValid {
         if (stakingEpoch() == 0 && isValidator(msg.sender)) {
             revert(); // initial validator cannot remove his pool during the initial staking epoch
         }
@@ -116,7 +122,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         }
     }
 
-    function moveStake(address _fromObserver, address _toObserver, uint256 _amount) public {
+    function moveStake(address _fromObserver, address _toObserver, uint256 _amount) public gasPriceIsValid {
         require(_fromObserver != _toObserver);
         address staker = msg.sender;
         _withdraw(_fromObserver, staker, _amount);
@@ -124,7 +130,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         emit StakeMoved(_fromObserver, _toObserver, staker, stakingEpoch(), _amount);
     }
 
-    function stake(address _toObserver, uint256 _amount) public {
+    function stake(address _toObserver, uint256 _amount) public gasPriceIsValid {
         IERC20Minting tokenContract = IERC20Minting(erc20TokenContract());
         require(address(tokenContract) != address(0));
         address staker = msg.sender;
@@ -133,7 +139,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         emit Staked(_toObserver, staker, stakingEpoch(), _amount);
     }
 
-    function withdraw(address _fromObserver, uint256 _amount) public {
+    function withdraw(address _fromObserver, uint256 _amount) public gasPriceIsValid {
         IERC20Minting tokenContract = IERC20Minting(erc20TokenContract());
         require(address(tokenContract) != address(0));
         address staker = msg.sender;
@@ -142,7 +148,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         emit Withdrawn(_fromObserver, staker, stakingEpoch(), _amount);
     }
 
-    function clearStakeHistory(address _observer, address[] memory _staker, uint256 _stakingEpoch) public onlySystem {
+    function clearStakeHistory(address _observer, address[] memory _staker, uint256 _stakingEpoch) public onlyOwner {
         require(_stakingEpoch <= stakingEpoch().sub(2));
         for (uint256 i = 0; i < _staker.length; i++) {
             _setStakeAmountByEpoch(_observer, _staker[i], _stakingEpoch, 0);

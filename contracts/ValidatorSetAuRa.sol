@@ -76,6 +76,12 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
 
         require(isReportValidatorValid(_maliciousValidator));
         require(_blockNumber <= block.number); // avoid reporting about future blocks
+
+        uint256 ancientBlocksLimit = 100;
+        if (block.number >= ancientBlocksLimit) {
+            require(_blockNumber >= block.number - ancientBlocksLimit); // avoid reporting about ancient blocks
+        }
+
         require(isReportValidatorValid(reportingValidator));
 
         address[] storage reportedValidators =
