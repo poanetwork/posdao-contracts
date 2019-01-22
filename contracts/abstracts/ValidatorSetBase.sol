@@ -505,7 +505,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         address[] storage currentValidators = addressArrayStorage[CURRENT_VALIDATORS];
         address[] storage pendingValidators = addressArrayStorage[PENDING_VALIDATORS];
         require(currentValidators.length == 0);
-        
+
         // Add initial validators to the `currentValidators` array
         for (uint256 i = 0; i < _initialValidators.length; i++) {
             currentValidators.push(_initialValidators[i]);

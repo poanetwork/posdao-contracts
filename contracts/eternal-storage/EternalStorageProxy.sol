@@ -19,7 +19,7 @@ contract EternalStorageProxy is EternalStorage, IEternalStorageProxy {
     * @param implementation representing the address of the upgraded implementation
     */
     event Upgraded(uint256 version, address indexed implementation);
-    
+
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
     modifier onlyOwner() {
