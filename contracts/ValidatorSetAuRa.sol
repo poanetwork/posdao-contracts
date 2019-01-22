@@ -38,7 +38,7 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
         address _randomContract,
         address _erc20TokenContract,
         address[] calldata _initialValidators,
-        uint256 _delegateMinStake, // in STAKE_UNITs
+        uint256 _delegatorMinStake, // in STAKE_UNITs
         uint256 _validatorMinStake, // in STAKE_UNITs
         uint256 _stakingEpochDuration // in blocks (e.g., 120960 = 1 week)
     ) external {
@@ -47,18 +47,18 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
             _randomContract,
             _erc20TokenContract,
             _initialValidators,
-            _delegateMinStake,
+            _delegatorMinStake,
             _validatorMinStake
         );
         _setStakingEpochDuration(_stakingEpochDuration);
         require(stakeWithdrawDisallowPeriod() > 0);
-        _setStakingEpochStartBlock(block.number);
+        _setStakingEpochStartBlock(_getCurrentBlockNumber());
     }
 
     function newValidatorSet() external onlyBlockRewardContract {
         if (!_newValidatorSetCallable()) return;
         super._newValidatorSet();
-        _setStakingEpochStartBlock(block.number);
+        _setStakingEpochStartBlock(_getCurrentBlockNumber());
     }
 
     function removeMaliciousValidator(address _validator) external onlyRandomContract {
@@ -73,13 +73,14 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
 
     function reportMalicious(address _maliciousValidator, uint256 _blockNumber, bytes calldata) external {
         address reportingValidator = msg.sender;
+        uint256 currentBlock = _getCurrentBlockNumber(); 
 
         require(isReportValidatorValid(_maliciousValidator));
-        require(_blockNumber <= block.number); // avoid reporting about future blocks
+        require(_blockNumber <= currentBlock); // avoid reporting about future blocks
 
         uint256 ancientBlocksLimit = 100;
-        if (block.number >= ancientBlocksLimit) {
-            require(_blockNumber >= block.number - ancientBlocksLimit); // avoid reporting about ancient blocks
+        if (currentBlock >= ancientBlocksLimit) {
+            require(_blockNumber >= currentBlock - ancientBlocksLimit); // avoid reporting about ancient blocks
         }
 
         require(isReportValidatorValid(reportingValidator));
@@ -152,11 +153,12 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
     function _areStakeAndWithdrawAllowed() internal view returns(bool) {
         uint256 allowedDuration = stakingEpochDuration() - stakeWithdrawDisallowPeriod();
         uint256 applyBlock = validatorSetApplyBlock();
-        bool afterValidatorSetApplied = applyBlock != 0 && block.number > applyBlock;
-        return afterValidatorSetApplied && block.number.sub(stakingEpochStartBlock()) <= allowedDuration;
+        uint256 currentBlock = _getCurrentBlockNumber();
+        bool afterValidatorSetApplied = applyBlock != 0 && currentBlock > applyBlock;
+        return afterValidatorSetApplied && currentBlock.sub(stakingEpochStartBlock()) <= allowedDuration;
     }
 
     function _newValidatorSetCallable() internal view returns(bool) {
-        return block.number.sub(stakingEpochStartBlock()) >= stakingEpochDuration() - 1;
+        return _getCurrentBlockNumber().sub(stakingEpochStartBlock()) >= stakingEpochDuration() - 1;
     }
 }

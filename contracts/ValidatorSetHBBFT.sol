@@ -22,7 +22,7 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
         address _randomContract,
         address _erc20TokenContract,
         address[] calldata _initialValidators,
-        uint256 _delegateMinStake,
+        uint256 _delegatorMinStake,
         uint256 _validatorMinStake
     ) external {
         super._initialize(
@@ -30,7 +30,7 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
             _randomContract,
             _erc20TokenContract,
             _initialValidators,
-            _delegateMinStake,
+            _delegatorMinStake,
             _validatorMinStake
         );
     }
@@ -137,6 +137,6 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
 
     function _areStakeAndWithdrawAllowed() internal view returns(bool) {
         uint256 applyBlock = validatorSetApplyBlock();
-        return applyBlock != 0 && block.number > applyBlock;
+        return applyBlock != 0 && _getCurrentBlockNumber() > applyBlock;
     }
 }

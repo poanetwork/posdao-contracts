@@ -21,6 +21,9 @@
     "solidity-flattener": "github:poanetwork/solidity-flattener#master"
   },
   "devDependencies": {
+    "chai": "^4.2.0",
+    "chai-as-promised": "^7.1.1",
+    "chai-bn": "^0.1.1",
     "ganache-cli": "^6.2.5",
     "mochawesome": "^3.1.1",
     "node-fetch": "^2.3.0",
