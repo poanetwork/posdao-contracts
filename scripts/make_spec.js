@@ -161,6 +161,12 @@ async function main() {
         balance: '0',
         constructor: await deploy.encodeABI()
     };
+    // Add initial balance to validator accounts.
+    for (let i = 0; i < initialValidators.length; i++) {
+        spec.accounts[initialValidators[i]] = {
+            balance: '1000000000000000000'
+        }
+    }
 
     console.log('Saving spec.json file ...');
     fs.writeFileSync('spec.json', JSON.stringify(spec, null, '  '));
