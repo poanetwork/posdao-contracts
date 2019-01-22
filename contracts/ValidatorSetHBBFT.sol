@@ -137,6 +137,6 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
 
     function _areStakeAndWithdrawAllowed() internal view returns(bool) {
         uint256 applyBlock = validatorSetApplyBlock();
-        return applyBlock != 0 && block.number > applyBlock;
+        return applyBlock != 0 && _getCurrentBlockNumber() > applyBlock;
     }
 }

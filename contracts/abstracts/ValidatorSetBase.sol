@@ -112,7 +112,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
             _setPreviousValidators(currentValidators);
 
             _applyPendingValidators();
-            _setValidatorSetApplyBlock(block.number);
+            _setValidatorSetApplyBlock(_getCurrentBlockNumber());
 
             // Set a new snapshot inside BlockReward contract
             IBlockReward(blockRewardContract()).setSnapshot();
@@ -237,7 +237,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         if (stakingEpoch() == 0 || validatorSetApplyBlock() == 0) {
             return isValid;
         }
-        if (block.number - validatorSetApplyBlock() <= 3) {
+        if (_getCurrentBlockNumber() - validatorSetApplyBlock() <= 3) {
             // The current validator set was applied in engine,
             // but we should let the previous validators finish
             // reporting malicious validator within a few blocks
