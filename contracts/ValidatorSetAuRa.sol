@@ -38,7 +38,7 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
         address _randomContract,
         address _erc20TokenContract,
         address[] calldata _initialValidators,
-        uint256 _delegateMinStake, // in STAKE_UNITs
+        uint256 _delegatorMinStake, // in STAKE_UNITs
         uint256 _validatorMinStake, // in STAKE_UNITs
         uint256 _stakingEpochDuration // in blocks (e.g., 120960 = 1 week)
     ) external {
@@ -47,7 +47,7 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
             _randomContract,
             _erc20TokenContract,
             _initialValidators,
-            _delegateMinStake,
+            _delegatorMinStake,
             _validatorMinStake
         );
         _setStakingEpochDuration(_stakingEpochDuration);

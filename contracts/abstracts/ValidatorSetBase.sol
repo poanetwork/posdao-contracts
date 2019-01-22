@@ -160,8 +160,8 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         addressStorage[ERC20_TOKEN_CONTRACT] = _erc20TokenContract;
     }
 
-    function setDelegateMinStake(uint256 _minStake) public onlyOwner {
-        _setDelegateMinStake(_minStake);
+    function setDelegatorMinStake(uint256 _minStake) public onlyOwner {
+        _setDelegatorMinStake(_minStake);
     }
 
     function setValidatorMinStake(uint256 _minStake) public onlyOwner {
@@ -214,8 +214,8 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         return addressArrayStorage[PENDING_VALIDATORS];
     }
 
-    function getDelegateMinStake() public view returns(uint256) {
-        return uintStorage[DELEGATE_MIN_STAKE];
+    function getDelegatorMinStake() public view returns(uint256) {
+        return uintStorage[DELEGATOR_MIN_STAKE];
     }
 
     function getValidatorMinStake() public view returns(uint256) {
@@ -311,17 +311,17 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         ];
     }
 
-    // Returns the list of current delegates in the specified pool
-    function poolDelegates(address _pool) public view returns(address[] memory) {
+    // Returns the list of current delegators in the specified pool
+    function poolDelegators(address _pool) public view returns(address[] memory) {
         return addressArrayStorage[
-            keccak256(abi.encode(POOL_DELEGATES, _pool))
+            keccak256(abi.encode(POOL_DELEGATORS, _pool))
         ];
     }
 
-    // Returns delegate's index in `poolDelegates` array
-    function poolDelegateIndex(address _pool, address _delegate) public view returns(uint256) {
+    // Returns delegator's index in `poolDelegators` array
+    function poolDelegatorIndex(address _pool, address _delegator) public view returns(uint256) {
         return uintStorage[
-            keccak256(abi.encode(POOL_DELEGATE_INDEX, _pool, _delegate))
+            keccak256(abi.encode(POOL_DELEGATOR_INDEX, _pool, _delegator))
         ];
     }
 
@@ -373,7 +373,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     bytes32 internal constant BLOCK_REWARD_CONTRACT = keccak256("blockRewardContract");
     bytes32 internal constant CHANGE_REQUEST_COUNT = keccak256("changeRequestCount");
     bytes32 internal constant CURRENT_VALIDATORS = keccak256("currentValidators");
-    bytes32 internal constant DELEGATE_MIN_STAKE = keccak256("delegateMinStake");
+    bytes32 internal constant DELEGATOR_MIN_STAKE = keccak256("delegatorMinStake");
     bytes32 internal constant ERC20_TOKEN_CONTRACT = keccak256("erc20TokenContract");
     bytes32 internal constant OWNER = keccak256("owner");
     bytes32 internal constant PENDING_VALIDATORS = keccak256("pendingValidators");
@@ -391,8 +391,8 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     bytes32 internal constant IS_POOL_ACTIVE = "isPoolActive";
     bytes32 internal constant IS_VALIDATOR = "isValidator";
     bytes32 internal constant IS_VALIDATOR_ON_PREVIOUS_EPOCH = "isValidatorOnPreviousEpoch";
-    bytes32 internal constant POOL_DELEGATES = "poolDelegates";
-    bytes32 internal constant POOL_DELEGATE_INDEX = "poolDelegateIndex";
+    bytes32 internal constant POOL_DELEGATORS = "poolDelegators";
+    bytes32 internal constant POOL_DELEGATOR_INDEX = "poolDelegatorIndex";
     bytes32 internal constant POOL_INDEX = "poolIndex";
     bytes32 internal constant POOL_INACTIVE_INDEX = "poolInactiveIndex";
     bytes32 internal constant STAKE_AMOUNT = "stakeAmount";
@@ -488,14 +488,14 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         address _randomContract,
         address _erc20TokenContract,
         address[] memory _initialValidators,
-        uint256 _delegateMinStake,
+        uint256 _delegatorMinStake,
         uint256 _validatorMinStake
     ) internal {
         require(_getCurrentBlockNumber() == 0); // initialization must be done on genesis block
         require(_blockRewardContract != address(0));
         require(_randomContract != address(0));
         require(_initialValidators.length > 0);
-        require(_delegateMinStake != 0);
+        require(_delegatorMinStake != 0);
         require(_validatorMinStake != 0);
 
         addressStorage[BLOCK_REWARD_CONTRACT] = _blockRewardContract;
@@ -515,7 +515,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
             _addToPools(_initialValidators[i]);
         }
 
-        _setDelegateMinStake(_delegateMinStake);
+        _setDelegatorMinStake(_delegatorMinStake);
         _setValidatorMinStake(_validatorMinStake);
 
         _setValidatorSetApplyBlock(1);
@@ -648,30 +648,30 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         ] = _index;
     }
 
-    function _setPoolDelegateIndex(address _pool, address _delegate, uint256 _index) internal {
-        uintStorage[keccak256(abi.encode(POOL_DELEGATE_INDEX, _pool, _delegate))] = _index;
+    function _setPoolDelegatorIndex(address _pool, address _delegator, uint256 _index) internal {
+        uintStorage[keccak256(abi.encode(POOL_DELEGATOR_INDEX, _pool, _delegator))] = _index;
     }
 
-    // Add `_delegate` to the array of observer's delegates
-    function _addPoolDelegate(address _pool, address _delegate) internal {
-        address[] storage delegates = addressArrayStorage[
-            keccak256(abi.encode(POOL_DELEGATES, _pool))
+    // Add `_delegator` to the array of observer's delegators
+    function _addPoolDelegator(address _pool, address _delegator) internal {
+        address[] storage delegators = addressArrayStorage[
+            keccak256(abi.encode(POOL_DELEGATORS, _pool))
         ];
-        _setPoolDelegateIndex(_pool, _delegate, delegates.length);
-        delegates.push(_delegate);
+        _setPoolDelegatorIndex(_pool, _delegator, delegators.length);
+        delegators.push(_delegator);
     }
 
-    // Remove `_delegate` from the array of observer's delegates
-    function _removePoolDelegate(address _pool, address _delegate) internal {
-        address[] storage delegates = addressArrayStorage[
-            keccak256(abi.encode(POOL_DELEGATES, _pool))
+    // Remove `_delegator` from the array of observer's delegators
+    function _removePoolDelegator(address _pool, address _delegator) internal {
+        address[] storage delegators = addressArrayStorage[
+            keccak256(abi.encode(POOL_DELEGATORS, _pool))
         ];
-        if (delegates.length == 0) return;
-        uint256 indexToRemove = poolDelegateIndex(_pool, _delegate);
-        delegates[indexToRemove] = delegates[delegates.length - 1];
-        _setPoolDelegateIndex(_pool, delegates[indexToRemove], indexToRemove);
-        delegates.length--;
-        _setPoolDelegateIndex(_pool, _delegate, 0);
+        if (delegators.length == 0) return;
+        uint256 indexToRemove = poolDelegatorIndex(_pool, _delegator);
+        delegators[indexToRemove] = delegators[delegators.length - 1];
+        _setPoolDelegatorIndex(_pool, delegators[indexToRemove], indexToRemove);
+        delegators.length--;
+        _setPoolDelegatorIndex(_pool, _delegator, 0);
     }
 
     function _setPreviousValidators(address[] memory _validators) internal {
@@ -701,8 +701,8 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         ] = _amount;
     }
 
-    function _setDelegateMinStake(uint256 _minStake) internal {
-        uintStorage[DELEGATE_MIN_STAKE] = _minStake * STAKE_UNIT;
+    function _setDelegatorMinStake(uint256 _minStake) internal {
+        uintStorage[DELEGATOR_MIN_STAKE] = _minStake * STAKE_UNIT;
     }
 
     function _setValidatorMinStake(uint256 _minStake) internal {
@@ -731,7 +731,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         if (_staker == _observer) {
             require(newStakeAmount >= getValidatorMinStake()); // the staked amount must be at least VALIDATOR_MIN_STAKE
         } else {
-            require(newStakeAmount >= getDelegateMinStake()); // the staked amount must be at least DELEGATE_MIN_STAKE
+            require(newStakeAmount >= getDelegatorMinStake()); // the staked amount must be at least DELEGATOR_MIN_STAKE
         }
         _setStakeAmount(_observer, _staker, newStakeAmount);
         _setStakeAmountByEpoch(_observer, _staker, epoch, stakeAmountByEpoch(_observer, _staker, epoch).add(_amount));
@@ -741,8 +741,8 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
             // Add `_observer` to the array of pools
             _addToPools(_observer);
         } else if (newStakeAmount == _amount) { // if the stake is first
-            // Add `_staker` to the array of observer's delegates
-            _addPoolDelegate(_observer, _staker);
+            // Add `_staker` to the array of observer's delegators
+            _addPoolDelegator(_observer, _staker);
         }
     }
 
@@ -762,7 +762,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
             if (_staker == _observer) {
                 require(newStakeAmount >= getValidatorMinStake());
             } else {
-                require(newStakeAmount >= getDelegateMinStake());
+                require(newStakeAmount >= getDelegatorMinStake());
             }
         }
         _setStakeAmount(_observer, _staker, newStakeAmount);
@@ -779,8 +779,8 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
                 // Remove `_observer` from the array of pools
                 _removeFromPools(_observer);
             } else {
-                // Remove `_staker` from the array of observer's delegates
-                _removePoolDelegate(_observer, _staker);
+                // Remove `_staker` from the array of observer's delegators
+                _removePoolDelegator(_observer, _staker);
             }
 
             if (stakeAmountTotal(_observer) == 0) {
