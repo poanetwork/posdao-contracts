@@ -80,6 +80,11 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         _;
     }
 
+    modifier onlySystemOrBlockReward() {
+        require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE || msg.sender == blockRewardContract());
+        _;
+    }
+
     // =============================================== Setters ========================================================
 
     function removePool() public gasPriceIsValid {
@@ -89,7 +94,7 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         _removeFromPools(msg.sender);
     }
 
-    function finalizeChange() public onlySystem {
+    function finalizeChange() public onlySystemOrBlockReward {
         if (stakingEpoch() == 0) {
             // Ignore invocations if `newValidatorSet()` has never been called
             return;
@@ -112,7 +117,12 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
             _setPreviousValidators(currentValidators);
 
             _applyPendingValidators();
-            _setValidatorSetApplyBlock(_getCurrentBlockNumber());
+
+            if (msg.sender == blockRewardContract()) {
+                _setValidatorSetApplyBlock(_getCurrentBlockNumber() + 1);
+            } else {
+                _setValidatorSetApplyBlock(_getCurrentBlockNumber());
+            }
 
             // Set a new snapshot inside BlockReward contract
             IBlockReward(blockRewardContract()).setSnapshot();
@@ -521,7 +531,8 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         _setValidatorSetApplyBlock(1);
     }
 
-    function _newValidatorSet() internal {
+    function _newValidatorSet() internal returns(bool) {
+        bytes32 pendingValidatorsHashPrev = _getPendingValidatorsHash();
         address[] memory pools = getPools();
         uint256 i;
 
@@ -583,6 +594,8 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
         _incrementStakingEpoch();
 
         _setValidatorSetApplyBlock(0);
+
+        return _getPendingValidatorsHash() != pendingValidatorsHashPrev;
     }
 
     function _removeMaliciousValidator(address _validator) internal returns(bool) {
@@ -793,6 +806,15 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
 
     function _getCurrentBlockNumber() internal view returns(uint256) {
         return block.number;
+    }
+
+    // Calculates the hash of `pendingValidators` list
+    function _getPendingValidatorsHash() internal view returns(bytes32) {
+        bytes32 hash = bytes32(0);
+        for (uint256 i = 0; i < addressArrayStorage[PENDING_VALIDATORS].length; i++) {
+            hash = keccak256(abi.encodePacked(hash, addressArrayStorage[PENDING_VALIDATORS][i]));
+        }
+        return hash;
     }
 
     function _getRandomIndex(uint256[] memory _likelihood, uint256 _likelihoodSum, uint256 _randomNumber)

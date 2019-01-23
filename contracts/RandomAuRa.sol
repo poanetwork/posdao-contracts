@@ -131,7 +131,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
             blockNumber = IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).stakingEpochStartBlock();
 
-            // If this is the last collection round in the current staking epoch
+            // If this was the last collection round in the current staking epoch
             if (
                 blockNumber == block.number ||
                 block.number + collectRoundLength() >

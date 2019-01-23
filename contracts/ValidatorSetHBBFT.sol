@@ -35,8 +35,10 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
         );
     }
 
-    function newValidatorSet() external onlySystem {
-        super._newValidatorSet();
+    function newValidatorSet() external onlySystem returns(bool called, bool validatorSetChanged) {
+        called = true;
+        validatorSetChanged = super._newValidatorSet();
+        return (called, validatorSetChanged);
     }
 
     function reportMaliciousValidators(address[] calldata _validators, address[] calldata _reportingValidators)
