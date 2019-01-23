@@ -1,7 +1,7 @@
 {
   "rules": {
-  	"code-complexity": false,
-  	"function-max-lines": false,
+    "code-complexity": false,
+    "function-max-lines": false,
     "separate-by-one-line-in-contract": false
   }
 }
