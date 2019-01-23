@@ -7,36 +7,68 @@ import "../eternal-storage/OwnedEternalStorage.sol";
 import "../libs/SafeMath.sol";
 
 
+/// @title The Block Reward Base Contract
+/// @author POA Networks, Inc.
+/// @notice The block reward contract is responsible for rewarding validators and those who have delegated stake to them.
+/// It therefore provides the basis for validators' and delegators' profitability.  Additionally, it is responsible for
+/// determining the amount that validators must reward themselves and their delegators.  It therefore controls the
+/// supply of Ether on the blockchain.
+///
+/// This contract is an abstract base that contains functions used both by AuRa and HBBFT consensus.
 contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     using SafeMath for uint256;
 
     // ============================================== Constants =======================================================
 
-    // This address must be set before deploy
+    /// @dev The address of the validator set contract.  The block reward contract calls the validator set contract to
+    /// retrieve the current staking epoch abd to get and set staking amounts.  It also needs to know this value for
+    /// access control, as some of its methods can only be called by the validator set contract.
+    ///
+    /// This address must be set before deploy, and is also hard-coded into `scripts/make_spec.js`, which creates the
+    /// chain spec.  The values in both places must be kept in sync, or the network will not work properly.
     address public constant VALIDATOR_SET_CONTRACT = address(0x1000000000000000000000000000000000000001);
 
     // ================================================ Events ========================================================
 
+    /// @dev This event fires when an amount is awarded to a designated receiver of funds.
+    /// @param amount The amount of funds transferred, in wei.
+    /// @param receiver The receiver of the funds.
+    /// @param bridge The bridge used to transfer the funds, or 0x0 if no bridge was used.
     event AddedReceiver(uint256 amount, address indexed receiver, address indexed bridge);
+
+    /// @dev This event is emitted when the bridge mints new tokens.
+    /// @param receivers The receivers of the tokens.
+    /// @param rewards The amount of the rewards.  Will always be the same length
+    /// as `receivers`.
     event MintedByBridge(address[] receivers, uint256[] rewards);
 
     // ============================================== Modifiers =======================================================
 
+    /// Restricts the modified function to only be called by the ERC20 to Native Bridge Contract.
+    /// @dev All such functions should be marked `external`.
     modifier onlyErcToNativeBridge {
         require(_isErcToNativeBridge(msg.sender));
         _;
     }
 
+    /// @notice Restricts the modified function to only be called by the
+    /// Native to ERC20 Bridge Contract, or by the ERC to ERC Bridge Contract.
+    /// @dev All such functions should be marked `external`.
     modifier onlyXToErcBridge {
         require(_isErcToErcBridge(msg.sender) || _isNativeToErcBridge(msg.sender));
         _;
     }
 
+    /// @dev Only allows the modified function to be called from a system transaction.
+    /// Such transactions are never stored on the blockchain, and so must be agreed to by all
+    /// parties.
     modifier onlySystem {
         require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
         _;
     }
 
+    /// Only allows the validator set contract to call the modified function.
+    /// @dev All such functions should be marked `external`.
     modifier onlyValidatorSet {
         require(msg.sender == VALIDATOR_SET_CONTRACT);
         _;
@@ -44,18 +76,22 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
 
     // =============================================== Setters ========================================================
 
-    // This function can only be called by erc-to-native
+    /// @notice Adds `_amount` to the native fee received by all bridge receivers.
+    /// @dev Can only be called by the ERC20 to Native Bridge.
     function addBridgeNativeFeeReceivers(uint256 _amount) external onlyErcToNativeBridge {
         require(_amount != 0);
         _addBridgeNativeFee(_getStakingEpoch(), _amount);
     }
 
-    // This function can only be called by native-to-erc or erc-to-erc bridge
+    /// @notice Adds `_amount` to the fee in ERC20 tokens received by all bridge receivers.
+    /// @dev Can only be called by the Native to ERC or ERC to ERC bridges.
     function addBridgeTokenFeeReceivers(uint256 _amount) external onlyXToErcBridge {
         require(_amount != 0);
         _addBridgeTokenFee(_getStakingEpoch(), _amount);
     }
 
+    /// @notice Adds `_amount` to the native fee received by `_receiver`.
+    /// @dev Can only be called by the ERC20 to Native Bridge.
     function addExtraReceiver(uint256 _amount, address _receiver) external onlyErcToNativeBridge {
         require(_amount != 0);
         require(_receiver != address(0));

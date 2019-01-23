@@ -12,6 +12,13 @@ require('chai')
   .use(require('chai-bn')(BN))
   .should();
 
+const initialValidators = [
+  '0xeE385a1df869A468883107B0C06fA8791b28A04f',
+  '0x71385ae87C4b93DB96f02F952Be1F7A63F6057a6',
+  '0x190EC582090aE24284989aF812F6B2c93F768ECd'
+];
+
+
 contract('ValidatorSetAuRa', async accounts => {
   let owner;
   let stakingAuRa;
