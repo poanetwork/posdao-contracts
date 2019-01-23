@@ -12,7 +12,9 @@ import "../interfaces/IEternalStorageProxy.sol";
  */
 contract EternalStorageProxy is OwnedEternalStorage, IEternalStorageProxy {
 
-	/// @dev This event will be emitted every time the ownership of this
+    // ================================================ Events ========================================================
+
+    /// @dev This event will be emitted every time the ownership of this
     /// contract changes.
     /// @param previousOwner representing the previous owner of the contract
     /// @param newOwner representing the new owner of the contract
@@ -23,6 +25,8 @@ contract EternalStorageProxy is OwnedEternalStorage, IEternalStorageProxy {
     /// @param implementation The address of the upgraded implementation.
     event Upgraded(uint256 version, address indexed implementation);
 
+    // =============================================== Setters ========================================================
+
     /// @param _implementationAddress The address of the implementation. This must
     /// either be the address of an already-constructed contract, or `address(0)`.
     /// @param _ownerAddress The owner of the contract. If set to `address(0)`, then
@@ -30,7 +34,7 @@ contract EternalStorageProxy is OwnedEternalStorage, IEternalStorageProxy {
     constructor(address _implementationAddress, address _ownerAddress) public {
         if (_implementationAddress != address(0)) {
             require(_isContract(_implementationAddress));
-            _implementation = _implementationAddress;
+            _setImplementation(_implementationAddress);
         }
         if (_ownerAddress != address(0)) {
             _owner = _ownerAddress;
@@ -44,7 +48,7 @@ contract EternalStorageProxy is OwnedEternalStorage, IEternalStorageProxy {
     /// call returns.
     // solhint-disable no-complex-fallback, no-inline-assembly
     function() external payable {
-        address _impl = _implementation;
+        address _impl = implementation();
         require(_impl != address(0));
 
         assembly {
@@ -68,17 +72,6 @@ contract EternalStorageProxy is OwnedEternalStorage, IEternalStorageProxy {
     }
     // solhint-enable no-complex-fallback, no-inline-assembly
 
-    /// @dev Returns the owner of the contract.
-    function getOwner() external view returns(address) {
-        return _owner;
-    }
-
-    /// @dev Tells the address of the current implementation
-    /// @return The address of the current implementation
-    function implementation() external view returns(address) {
-        return _implementation;
-    }
-
     /// @dev Allows the current owner to irrevocably transfer control of the
     /// contract to a `_newOwner`.
     /// @param _newOwner The address to transfer ownership to.
@@ -92,29 +85,55 @@ contract EternalStorageProxy is OwnedEternalStorage, IEternalStorageProxy {
     /// @param _newImplementation representing the address of the new implementation to be set.
     function upgradeTo(address _newImplementation) external onlyOwner returns(bool) {
         if (_newImplementation == address(0)) return false;
-        if (_implementation == _newImplementation) return false;
+        if (implementation() == _newImplementation) return false;
         if (!_isContract(_newImplementation)) return false;
 
-        uint256 newVersion = _version + 1;
-        if (newVersion <= _version) return false;
+        uint256 newVersion = version() + 1;
+        if (newVersion <= version()) return false;
 
-        _version = newVersion;
-        _implementation = _newImplementation;
+        _setVersion(newVersion);
+        _setImplementation(_newImplementation);
 
         emit Upgraded(newVersion, _newImplementation);
         return true;
     }
 
+    // =============================================== Getters ========================================================
+
+    /// @dev Returns the owner of the contract.
+    function getOwner() external view returns(address) {
+        return _owner;
+    }
+
+    /// @dev Tells the address of the current implementation
+    /// @return The address of the current implementation
+    function implementation() public view returns(address) {
+        return addressStorage[IMPLEMENTATION];
+    }
+
     /// @dev Returns the version number of the current implementation
     /// @return the version number of the current implementation
-    function version() external view returns(uint256) {
-        return _version;
+    function version() public view returns(uint256) {
+        return uintStorage[VERSION];
     }
+
+    // =============================================== Private ========================================================
+
+    bytes32 internal constant IMPLEMENTATION = keccak256("implementation");
+    bytes32 internal constant VERSION = keccak256("version");
 
     function _isContract(address _addr) private view returns(bool) {
         uint256 size;
         assembly { size := extcodesize(_addr) } // solhint-disable-line no-inline-assembly
         return size != 0;
+    }
+
+    function _setImplementation(address _implementationAddress) private {
+        addressStorage[IMPLEMENTATION] = _implementationAddress;
+    }
+
+    function _setVersion(uint256 _newVersion) private {
+        uintStorage[VERSION] = _newVersion;
     }
 
 }

@@ -8,12 +8,6 @@ pragma solidity 0.5.2;
  */
 contract EternalStorage {
 
-    /// @dev Version number of the current implementation
-    uint256 internal _version;
-
-    //// @dev Address of the current implementation
-    address internal _implementation;
-
     /// @dev Address of the owner of the contract
     address internal _owner;
 
@@ -33,4 +27,5 @@ contract EternalStorage {
     mapping(bytes32 => bool[]) internal boolArrayStorage;
     mapping(bytes32 => int256[]) internal intArrayStorage;
     mapping(bytes32 => bytes32[]) internal bytes32ArrayStorage;
+
 }

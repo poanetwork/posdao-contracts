@@ -15,4 +15,5 @@ contract OwnedEternalStorage is EternalStorage {
         require(msg.sender == _owner);
         _;
     }
+
 }
