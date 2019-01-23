@@ -21,7 +21,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
     // =============================================== Setters ========================================================
 
-    function commitHash(bytes32 _secretHash) external {
+    function commitHash(bytes32 _secretHash, bytes calldata _cipher) external {
         require(isCommitPhase()); // must only be called in `commits phase`
         require(_secretHash != bytes32(0));
 
@@ -32,6 +32,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
         if (isCommitted(collectRound, validator)) return; // cannot commit more than once
 
+        _setCipher(collectRound, validator, _cipher);
         _setCommit(collectRound, validator, _secretHash);
         _addCommittedValidator(collectRound, validator);
     }
@@ -183,6 +184,10 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         return block.number / collectRoundLength();
     }
 
+    function getCipher(uint256 _collectRound, address _validator) public view returns(bytes memory) {
+        return bytesStorage[keccak256(abi.encode(CIPHERS, _collectRound, _validator))];
+    }
+
     function getCommit(uint256 _collectRound, address _validator) public view returns(bytes32) {
         return bytes32Storage[keccak256(abi.encode(COMMITS, _collectRound, _validator))];
     }
@@ -219,6 +224,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     bytes32 internal constant OWNER = keccak256("owner");
 
     bytes32 internal constant BLOCKS_PRODUCERS = "blocksProducers";
+    bytes32 internal constant CIPHERS = "ciphers";
     bytes32 internal constant COMMITS = "commits";
     bytes32 internal constant COMMITTED_VALIDATORS = "committedValidators";
     bytes32 internal constant CREATED_BLOCK_ON_COMMITS_PHASE = "createdBlockOnCommitsPhase";
@@ -295,6 +301,10 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         }
 
         _denyPublishSecret();
+    }
+
+    function _setCipher(uint256 _collectRound, address _validator, bytes memory _cipher) private {
+        bytesStorage[keccak256(abi.encode(CIPHERS, _collectRound, _validator))] = _cipher;
     }
 
     function _setCollectRoundLength(uint256 _length) private {
