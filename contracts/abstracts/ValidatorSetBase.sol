@@ -4,11 +4,11 @@ import "../interfaces/IBlockReward.sol";
 import "../interfaces/IERC20Minting.sol";
 import "../interfaces/IRandom.sol";
 import "../interfaces/IValidatorSet.sol";
-import "../eternal-storage/EternalStorage.sol";
+import "../eternal-storage/OwnedEternalStorage.sol";
 import "../libs/SafeMath.sol";
 
 
-contract ValidatorSetBase is EternalStorage, IValidatorSet {
+contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     using SafeMath for uint256;
 
     // TODO: add a description for each function
@@ -67,11 +67,6 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
 
     modifier gasPriceIsValid() {
         require(tx.gasprice != 0);
-        _;
-    }
-
-    modifier onlyOwner() {
-        require(msg.sender == addressStorage[OWNER]);
         _;
     }
 
@@ -385,7 +380,6 @@ contract ValidatorSetBase is EternalStorage, IValidatorSet {
     bytes32 internal constant CURRENT_VALIDATORS = keccak256("currentValidators");
     bytes32 internal constant DELEGATOR_MIN_STAKE = keccak256("delegatorMinStake");
     bytes32 internal constant ERC20_TOKEN_CONTRACT = keccak256("erc20TokenContract");
-    bytes32 internal constant OWNER = keccak256("owner");
     bytes32 internal constant PENDING_VALIDATORS = keccak256("pendingValidators");
     bytes32 internal constant POOLS = keccak256("pools");
     bytes32 internal constant POOLS_INACTIVE = keccak256("poolsInactive");

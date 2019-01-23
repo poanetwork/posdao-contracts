@@ -2,11 +2,11 @@ pragma solidity 0.5.2;
 
 import "../interfaces/IRandom.sol";
 import "../interfaces/IValidatorSet.sol";
-import "../eternal-storage/EternalStorage.sol";
+import "../eternal-storage/OwnedEternalStorage.sol";
 import "../libs/SafeMath.sol";
 
 
-contract RandomBase is EternalStorage, IRandom {
+contract RandomBase is OwnedEternalStorage, IRandom {
     using SafeMath for uint256;
 
     // ============================================== Constants =======================================================

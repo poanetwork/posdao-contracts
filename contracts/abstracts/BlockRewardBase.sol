@@ -2,11 +2,11 @@ pragma solidity 0.5.2;
 
 import "../interfaces/IBlockReward.sol";
 import "../interfaces/IValidatorSet.sol";
-import "../eternal-storage/EternalStorage.sol";
+import "../eternal-storage/OwnedEternalStorage.sol";
 import "../libs/SafeMath.sol";
 
 
-contract BlockRewardBase is EternalStorage, IBlockReward {
+contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     using SafeMath for uint256;
 
     // ============================================== Constants =======================================================
@@ -28,11 +28,6 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
 
     modifier onlyNativeToErcBridge {
         require(_isNativeToErcBridge(msg.sender));
-        _;
-    }
-
-    modifier onlyOwner() {
-        require(msg.sender == addressStorage[OWNER]);
         _;
     }
 
@@ -223,7 +218,6 @@ contract BlockRewardBase is EternalStorage, IBlockReward {
     bytes32 internal constant EXTRA_RECEIVERS = keccak256("extraReceivers");
     bytes32 internal constant MINTED_TOTALLY = keccak256("mintedTotally");
     bytes32 internal constant NATIVE_TO_ERC_BRIDGES_ALLOWED = keccak256("nativeToErcBridgesAllowed");
-    bytes32 internal constant OWNER = keccak256("owner");
 
     bytes32 internal constant BRIDGE_AMOUNT = "bridgeAmount";
     bytes32 internal constant BRIDGE_NATIVE_FEE = "bridgeNativeFee";
