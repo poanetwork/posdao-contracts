@@ -1,7 +1,7 @@
 const fs = require('fs');
+const path = require('path');
 const solc = require('solc');
 const Web3 = require('web3');
-const fetch = require('node-fetch');
 const web3 = new Web3(new Web3.providers.HttpProvider("https://dai.poa.network"));
 
 main();
@@ -28,9 +28,7 @@ async function main() {
         'InitializerAuRa'
     ];
 
-    console.log(`Loading spec.json from poa-chain-spec repo...`);
-    let spec = await fetch('https://raw.githubusercontent.com/poanetwork/poa-chain-spec/aaec610a3af9ea5ef30a1e53c51ddfaf3c734fc3/spec.json');
-    spec = await spec.json();
+    let spec = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'templates', 'spec.json'), 'UTF-8'));
 
     spec.name = networkName;
     spec.params.networkID = networkID;
@@ -44,7 +42,7 @@ async function main() {
         const contractName = contracts[i];
         console.log(`Compiling ${contractName}...`);
         const compiled = await compile(
-            contractName == 'EternalStorageProxy' ? 'contracts/eternal-storage/' : 'contracts/',
+            path.join(__dirname, '..', contractName == 'EternalStorageProxy' ? 'contracts/eternal-storage/' : 'contracts/'),
             contractName
         );
         contractsCompiled[contractName] = compiled;
@@ -163,7 +161,7 @@ async function main() {
     };
 
     console.log('Saving spec.json file ...');
-    fs.writeFileSync('spec.json', JSON.stringify(spec, null, '  '));
+    fs.writeFileSync(path.join(__dirname, '..', 'spec.json'), JSON.stringify(spec, null, '  '), 'UTF-8');
     console.log('Done');
 }
 
