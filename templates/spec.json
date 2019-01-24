@@ -1,4 +1,5 @@
 {
+  "name": "DPoSChain",
   "engine": {
     "authorityRound": {
       "params": {
@@ -9,17 +10,13 @@
         "validators": {
           "multi": {
             "0": {
-              "list": [
-                "0xcace5b3c29211740e595850e80478416ee77ca21"
-              ]
-            },
-            "1300": {
-              "safeContract": "0x22e1229a2c5b95a60983b5577f745a603284f535"
+              "contractCallGetPendingValidators": "0x1000000000000000000000000000000000000001"
             }
           }
         },
-        "blockRewardContractAddress": "0x867305d19606aadba405ce534e303d0e225f9556",
-        "blockRewardContractTransition": 1310
+        "blockRewardContractAddress": "0x2000000000000000000000000000000000000001",
+        "blockRewardContractTransition": 0,
+        "randomnessContractAddress": "0x3000000000000000000000000000000000000001"
       }
     }
   },
@@ -27,16 +24,16 @@
     "gasLimitBoundDivisor": "0x400",
     "maximumExtraDataSize": "0x20",
     "minGasLimit": "0x1388",
-    "networkID": "100",
+    "networkID": "101",
     "eip140Transition": "0x0",
     "eip211Transition": "0x0",
     "eip214Transition": "0x0",
     "eip658Transition": "0x0",
-    "eip145Transition": 1604400,
-    "eip1014Transition": 1604400,
-    "eip1052Transition": 1604400,
-    "eip1283Transition": 1604400,
-    "registrar": "0x1ec97dc137f5168af053c24460a1200502e1a9d2"
+    "eip145Transition": "0x0",
+    "eip1014Transition": "0x0",
+    "eip1052Transition": "0x0",
+    "registrar": "0x6000000000000000000000000000000000000000",
+    "transactionPermissionContract": "0x4000000000000000000000000000000000000001"
   },
   "genesis": {
     "seal": {

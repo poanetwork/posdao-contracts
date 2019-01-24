@@ -32,10 +32,6 @@ async function main() {
 
     spec.name = networkName;
     spec.params.networkID = networkID;
-    spec.params.eip145Transition = '0x0';
-    spec.params.eip1014Transition = '0x0';
-    spec.params.eip1052Transition = '0x0';
-    spec.params.eip1283Transition = '0x0';
 
     let contractsCompiled = {};
     for (let i = 0; i < contracts.length; i++) {
