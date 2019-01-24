@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "compile": "node_modules/.bin/truffle compile",
+    "flat": "bash scripts/make_flat.sh",
     "solhint": "node_modules/.bin/solhint \"contracts/**/*.sol\"",
     "test": "node scripts/check_for_clashing.js && bash scripts/test.sh"
   },
