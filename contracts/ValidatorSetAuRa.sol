@@ -83,7 +83,7 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
 
     function reportMalicious(address _maliciousValidator, uint256 _blockNumber, bytes calldata) external {
         address reportingValidator = msg.sender;
-        uint256 currentBlock = _getCurrentBlockNumber(); 
+        uint256 currentBlock = _getCurrentBlockNumber();
 
         require(isReportValidatorValid(_maliciousValidator));
         require(_blockNumber <= currentBlock); // avoid reporting about future blocks
