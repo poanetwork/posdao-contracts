@@ -39,7 +39,7 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
         address _erc20TokenContract,
         address[] calldata _initialValidators,
         uint256 _delegatorMinStake, // in STAKE_UNITs
-        uint256 _validatorMinStake, // in STAKE_UNITs
+        uint256 _candidateMinStake, // in STAKE_UNITs
         uint256 _stakingEpochDuration // in blocks (e.g., 120960 = 1 week)
     ) external {
         super._initialize(
@@ -48,7 +48,7 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
             _erc20TokenContract,
             _initialValidators,
             _delegatorMinStake,
-            _validatorMinStake
+            _candidateMinStake
         );
         _setStakingEpochDuration(_stakingEpochDuration);
         require(stakeWithdrawDisallowPeriod() > 0);

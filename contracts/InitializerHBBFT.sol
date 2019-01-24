@@ -11,7 +11,7 @@ contract InitializerHBBFT {
         address _erc20TokenContract,
         address[] memory _validators,
         uint256 _delegatorMinStake,
-        uint256 _validatorMinStake
+        uint256 _candidateMinStake
     ) public {
         require(address(_validatorSetContract) != address(0));
         _validatorSetContract.initialize(
@@ -20,7 +20,7 @@ contract InitializerHBBFT {
             _erc20TokenContract,
             _validators,
             _delegatorMinStake,
-            _validatorMinStake
+            _candidateMinStake
         );
         selfdestruct(msg.sender);
     }

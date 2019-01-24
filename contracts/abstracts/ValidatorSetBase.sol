@@ -16,48 +16,48 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     // ============================================== Constants =======================================================
 
     // These values must be set before deploy
-    uint256 public constant MAX_OBSERVERS = 2000;
+    uint256 public constant MAX_CANDIDATES = 2000;
     uint256 public constant MAX_VALIDATORS = 20;
     uint256 public constant STAKE_UNIT = 1 ether;
 
     // ================================================ Events ========================================================
 
     /// Emitted by `stake` function to signal that the staker made a stake of the specified
-    /// amount for the specified observer during the specified staking epoch.
-    /// @param toObserver The observer for whom the `staker` made the stake.
+    /// amount for the specified pool during the specified staking epoch.
+    /// @param toPool The pool for which the `staker` made the stake.
     /// @param staker The address of staker who made the stake.
     /// @param stakingEpoch The serial number of staking epoch during which the stake was made.
     /// @param amount The amount of the stake.
     event Staked(
-        address indexed toObserver,
+        address indexed toPool,
         address indexed staker,
         uint256 indexed stakingEpoch,
         uint256 amount
     );
 
     /// Emitted by `moveStake` function to signal that the staker moved the specified
-    /// amount of a stake from one observer to another during the specified staking epoch.
-    /// @param fromObserver The observer from whom the `staker` moved the stake.
-    /// @param toObserver The observer to whom the `staker` moved the stake.
+    /// amount of a stake from one pool to another during the specified staking epoch.
+    /// @param fromPool The pool from which the `staker` moved the stake.
+    /// @param toPool The pool to which the `staker` moved the stake.
     /// @param staker The address of staker who moved the `amount`.
     /// @param stakingEpoch The serial number of staking epoch during which the `amount` was moved.
     /// @param amount The amount of the stake.
     event StakeMoved(
-        address fromObserver,
-        address indexed toObserver,
+        address fromPool,
+        address indexed toPool,
         address indexed staker,
         uint256 indexed stakingEpoch,
         uint256 amount
     );
 
     /// Emitted by `withdraw` function to signal that the staker withdrew the specified
-    /// amount of a stake from the specified observer during the specified staking epoch.
-    /// @param fromObserver The observer from whom the `staker` withdrew `amount`.
+    /// amount of a stake from the specified pool during the specified staking epoch.
+    /// @param fromPool The pool from which the `staker` withdrew `amount`.
     /// @param staker The address of staker who withdrew `amount`.
     /// @param stakingEpoch The serial number of staking epoch during which the withdrawal was made.
     /// @param amount The amount of the withdrawal.
     event Withdrawn(
-        address indexed fromObserver,
+        address indexed fromPool,
         address indexed staker,
         uint256 indexed stakingEpoch,
         uint256 amount
@@ -127,36 +127,36 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         }
     }
 
-    function moveStake(address _fromObserver, address _toObserver, uint256 _amount) public gasPriceIsValid {
-        require(_fromObserver != _toObserver);
+    function moveStake(address _fromPool, address _toPool, uint256 _amount) public gasPriceIsValid {
+        require(_fromPool != _toPool);
         address staker = msg.sender;
-        _withdraw(_fromObserver, staker, _amount);
-        _stake(_toObserver, staker, _amount);
-        emit StakeMoved(_fromObserver, _toObserver, staker, stakingEpoch(), _amount);
+        _withdraw(_fromPool, staker, _amount);
+        _stake(_toPool, staker, _amount);
+        emit StakeMoved(_fromPool, _toPool, staker, stakingEpoch(), _amount);
     }
 
-    function stake(address _toObserver, uint256 _amount) public gasPriceIsValid {
+    function stake(address _toPool, uint256 _amount) public gasPriceIsValid {
         IERC20Minting tokenContract = IERC20Minting(erc20TokenContract());
         require(address(tokenContract) != address(0));
         address staker = msg.sender;
-        _stake(_toObserver, staker, _amount);
+        _stake(_toPool, staker, _amount);
         tokenContract.stake(staker, _amount);
-        emit Staked(_toObserver, staker, stakingEpoch(), _amount);
+        emit Staked(_toPool, staker, stakingEpoch(), _amount);
     }
 
-    function withdraw(address _fromObserver, uint256 _amount) public gasPriceIsValid {
+    function withdraw(address _fromPool, uint256 _amount) public gasPriceIsValid {
         IERC20Minting tokenContract = IERC20Minting(erc20TokenContract());
         require(address(tokenContract) != address(0));
         address staker = msg.sender;
-        _withdraw(_fromObserver, staker, _amount);
+        _withdraw(_fromPool, staker, _amount);
         tokenContract.withdraw(staker, _amount);
-        emit Withdrawn(_fromObserver, staker, stakingEpoch(), _amount);
+        emit Withdrawn(_fromPool, staker, stakingEpoch(), _amount);
     }
 
-    function clearStakeHistory(address _observer, address[] memory _staker, uint256 _stakingEpoch) public onlyOwner {
+    function clearStakeHistory(address _pool, address[] memory _staker, uint256 _stakingEpoch) public onlyOwner {
         require(_stakingEpoch <= stakingEpoch().sub(2));
         for (uint256 i = 0; i < _staker.length; i++) {
-            _setStakeAmountByEpoch(_observer, _staker[i], _stakingEpoch, 0);
+            _setStakeAmountByEpoch(_pool, _staker[i], _stakingEpoch, 0);
         }
     }
 
@@ -165,12 +165,12 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         addressStorage[ERC20_TOKEN_CONTRACT] = _erc20TokenContract;
     }
 
-    function setDelegatorMinStake(uint256 _minStake) public onlyOwner {
-        _setDelegatorMinStake(_minStake);
+    function setCandidateMinStake(uint256 _minStake) public onlyOwner {
+        _setCandidateMinStake(_minStake);
     }
 
-    function setValidatorMinStake(uint256 _minStake) public onlyOwner {
-        _setValidatorMinStake(_minStake);
+    function setDelegatorMinStake(uint256 _minStake) public onlyOwner {
+        _setDelegatorMinStake(_minStake);
     }
 
     // =============================================== Getters ========================================================
@@ -199,7 +199,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         return addressStorage[ERC20_TOKEN_CONTRACT];
     }
 
-    // Returns the list of current observers (pools)
+    // Returns the list of current pools (candidates and validators)
     function getPools() public view returns(address[] memory) {
         return addressArrayStorage[POOLS];
     }
@@ -219,12 +219,12 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         return addressArrayStorage[PENDING_VALIDATORS];
     }
 
-    function getDelegatorMinStake() public view returns(uint256) {
-        return uintStorage[DELEGATOR_MIN_STAKE];
+    function getCandidateMinStake() public view returns(uint256) {
+        return uintStorage[CANDIDATE_MIN_STAKE];
     }
 
-    function getValidatorMinStake() public view returns(uint256) {
-        return uintStorage[VALIDATOR_MIN_STAKE];
+    function getDelegatorMinStake() public view returns(uint256) {
+        return uintStorage[DELEGATOR_MIN_STAKE];
     }
 
     // Returns the current set of validators (the same as in the engine)
@@ -267,16 +267,16 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         return now < bannedUntil(_validator);
     }
 
-    function maxWithdrawAllowed(address _observer, address _staker) public view returns(uint256) {
-        bool observerIsValidator = isValidator(_observer);
+    function maxWithdrawAllowed(address _pool, address _staker) public view returns(uint256) {
+        bool poolIsValidator = isValidator(_pool);
 
-        if (_staker == _observer && observerIsValidator) {
-            // An observer can't withdraw while he is a validator
+        if (_staker == _pool && poolIsValidator) {
+            // A pool can't withdraw while it is a validator
             return 0;
         }
 
-        if (isValidatorBanned(_observer)) {
-            // No one can withdraw from `_observer` until the ban is expired
+        if (isValidatorBanned(_pool)) {
+            // No one can withdraw from `_pool` until the ban is expired
             return 0;
         }
 
@@ -284,21 +284,21 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
             return 0;
         }
 
-        if (!observerIsValidator) {
-            // The whole amount can be withdrawn if observer is not a validator
-            return stakeAmount(_observer, _staker);
+        if (!poolIsValidator) {
+            // The whole amount can be withdrawn if the pool is not a validator
+            return stakeAmount(_pool, _staker);
         }
 
-        if (isValidatorOnPreviousEpoch(_observer)) {
-            // The observer was also a validator on the previous staking epoch, so
+        if (isValidatorOnPreviousEpoch(_pool)) {
+            // The pool was also a validator on the previous staking epoch, so
             // the staker can't withdraw amount staked on the previous staking epoch
-            return stakeAmount(_observer, _staker).sub(
-                stakeAmountByEpoch(_observer, _staker, stakingEpoch().sub(1)) // stakingEpoch is always > 0 here
+            return stakeAmount(_pool, _staker).sub(
+                stakeAmountByEpoch(_pool, _staker, stakingEpoch().sub(1)) // stakingEpoch is always > 0 here
             );
         } else {
-            // The observer wasn't a validator on the previous staking epoch, so
+            // The pool wasn't a validator on the previous staking epoch, so
             // the staker can only withdraw amount staked on the current staking epoch
-            return stakeAmountByEpoch(_observer, _staker, stakingEpoch());
+            return stakeAmountByEpoch(_pool, _staker, stakingEpoch());
         }
     }
 
@@ -334,19 +334,19 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         return addressStorage[RANDOM_CONTRACT];
     }
 
-    function stakeAmount(address _observer, address _staker) public view returns(uint256) {
+    function stakeAmount(address _pool, address _staker) public view returns(uint256) {
         return uintStorage[
-            keccak256(abi.encode(STAKE_AMOUNT, _observer, _staker))
+            keccak256(abi.encode(STAKE_AMOUNT, _pool, _staker))
         ];
     }
 
-    function stakeAmountByEpoch(address _observer, address _staker, uint256 _stakingEpoch)
+    function stakeAmountByEpoch(address _pool, address _staker, uint256 _stakingEpoch)
         public
         view
         returns(uint256)
     {
         return uintStorage[
-            keccak256(abi.encode(STAKE_AMOUNT_BY_EPOCH, _observer, _staker, _stakingEpoch))
+            keccak256(abi.encode(STAKE_AMOUNT_BY_EPOCH, _pool, _staker, _stakingEpoch))
         ];
     }
 
@@ -376,6 +376,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     // =============================================== Private ========================================================
 
     bytes32 internal constant BLOCK_REWARD_CONTRACT = keccak256("blockRewardContract");
+    bytes32 internal constant CANDIDATE_MIN_STAKE = keccak256("candidateMinStake");
     bytes32 internal constant CHANGE_REQUEST_COUNT = keccak256("changeRequestCount");
     bytes32 internal constant CURRENT_VALIDATORS = keccak256("currentValidators");
     bytes32 internal constant DELEGATOR_MIN_STAKE = keccak256("delegatorMinStake");
@@ -388,7 +389,6 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     bytes32 internal constant PREVIOUS_VALIDATORS = keccak256("previousValidators");
     bytes32 internal constant RANDOM_CONTRACT = keccak256("randomContract");
     bytes32 internal constant STAKING_EPOCH = keccak256("stakingEpoch");
-    bytes32 internal constant VALIDATOR_MIN_STAKE = keccak256("validatorMinStake");
     bytes32 internal constant VALIDATOR_SET_APPLY_BLOCK = keccak256("validatorSetApplyBlock");
 
     bytes32 internal constant BANNED_UNTIL = "bannedUntil";
@@ -410,7 +410,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
             address[] storage pools = addressArrayStorage[POOLS];
             _setPoolIndex(_who, pools.length);
             pools.push(_who);
-            require(pools.length <= MAX_OBSERVERS);
+            require(pools.length <= MAX_CANDIDATES);
             _setIsPoolActive(_who, true);
         }
         _removeFromPoolsInactive(_who);
@@ -493,14 +493,14 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         address _erc20TokenContract,
         address[] memory _initialValidators,
         uint256 _delegatorMinStake,
-        uint256 _validatorMinStake
+        uint256 _candidateMinStake
     ) internal {
         require(_getCurrentBlockNumber() == 0); // initialization must be done on genesis block
         require(_blockRewardContract != address(0));
         require(_randomContract != address(0));
         require(_initialValidators.length > 0);
         require(_delegatorMinStake != 0);
-        require(_validatorMinStake != 0);
+        require(_candidateMinStake != 0);
 
         addressStorage[BLOCK_REWARD_CONTRACT] = _blockRewardContract;
         addressStorage[RANDOM_CONTRACT] = _randomContract;
@@ -520,7 +520,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         }
 
         _setDelegatorMinStake(_delegatorMinStake);
-        _setValidatorMinStake(_validatorMinStake);
+        _setCandidateMinStake(_candidateMinStake);
 
         _setValidatorSetApplyBlock(1);
     }
@@ -566,16 +566,16 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
             }
 
             for (i = 0; i < MAX_VALIDATORS; i++) {
-                uint256 observerIndex = _getRandomIndex(
+                uint256 randomPoolIndex = _getRandomIndex(
                     likelihood,
                     likelihoodSum,
                     uint256(keccak256(abi.encodePacked(randomNumbers[i])))
                 );
-                newValidators[i] = poolsLocal[observerIndex];
-                likelihoodSum -= likelihood[observerIndex];
+                newValidators[i] = poolsLocal[randomPoolIndex];
+                likelihoodSum -= likelihood[randomPoolIndex];
                 poolsLocalLength--;
-                poolsLocal[observerIndex] = poolsLocal[poolsLocalLength];
-                likelihood[observerIndex] = likelihood[poolsLocalLength];
+                poolsLocal[randomPoolIndex] = poolsLocal[poolsLocalLength];
+                likelihood[randomPoolIndex] = likelihood[poolsLocalLength];
             }
 
             _setPendingValidators(newValidators);
@@ -659,7 +659,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         uintStorage[keccak256(abi.encode(POOL_DELEGATOR_INDEX, _pool, _delegator))] = _index;
     }
 
-    // Add `_delegator` to the array of observer's delegators
+    // Add `_delegator` to the array of pool's delegators
     function _addPoolDelegator(address _pool, address _delegator) internal {
         address[] storage delegators = addressArrayStorage[
             keccak256(abi.encode(POOL_DELEGATORS, _pool))
@@ -668,7 +668,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         delegators.push(_delegator);
     }
 
-    // Remove `_delegator` from the array of observer's delegators
+    // Remove `_delegator` from the array of pool's delegators
     function _removePoolDelegator(address _pool, address _delegator) internal {
         address[] storage delegators = addressArrayStorage[
             keccak256(abi.encode(POOL_DELEGATORS, _pool))
@@ -685,20 +685,20 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         addressArrayStorage[PREVIOUS_VALIDATORS] = _validators;
     }
 
-    function _setStakeAmount(address _observer, address _staker, uint256 _amount) internal {
+    function _setStakeAmount(address _pool, address _staker, uint256 _amount) internal {
         uintStorage[
-            keccak256(abi.encode(STAKE_AMOUNT, _observer, _staker))
+            keccak256(abi.encode(STAKE_AMOUNT, _pool, _staker))
         ] = _amount;
     }
 
     function _setStakeAmountByEpoch(
-        address _observer,
+        address _pool,
         address _staker,
         uint256 _stakingEpoch,
         uint256 _amount
     ) internal {
         uintStorage[
-            keccak256(abi.encode(STAKE_AMOUNT_BY_EPOCH, _observer, _staker, _stakingEpoch))
+            keccak256(abi.encode(STAKE_AMOUNT_BY_EPOCH, _pool, _staker, _stakingEpoch))
         ] = _amount;
     }
 
@@ -712,8 +712,8 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         uintStorage[DELEGATOR_MIN_STAKE] = _minStake * STAKE_UNIT;
     }
 
-    function _setValidatorMinStake(uint256 _minStake) internal {
-        uintStorage[VALIDATOR_MIN_STAKE] = _minStake * STAKE_UNIT;
+    function _setCandidateMinStake(uint256 _minStake) internal {
+        uintStorage[CANDIDATE_MIN_STAKE] = _minStake * STAKE_UNIT;
     }
 
     function _setValidatorIndex(address _validator, uint256 _index) internal {
@@ -726,72 +726,72 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         uintStorage[VALIDATOR_SET_APPLY_BLOCK] = _blockNumber;
     }
 
-    function _stake(address _observer, address _staker, uint256 _amount) internal {
-        require(_observer != address(0));
+    function _stake(address _pool, address _staker, uint256 _amount) internal {
+        require(_pool != address(0));
         require(_amount != 0);
-        require(!isValidatorBanned(_observer));
+        require(!isValidatorBanned(_pool));
         require(_areStakeAndWithdrawAllowed());
 
         uint256 epoch = stakingEpoch();
 
-        uint256 newStakeAmount = stakeAmount(_observer, _staker).add(_amount);
-        if (_staker == _observer) {
-            require(newStakeAmount >= getValidatorMinStake()); // the staked amount must be at least VALIDATOR_MIN_STAKE
+        uint256 newStakeAmount = stakeAmount(_pool, _staker).add(_amount);
+        if (_staker == _pool) {
+            require(newStakeAmount >= getCandidateMinStake()); // the staked amount must be at least CANDIDATE_MIN_STAKE
         } else {
             require(newStakeAmount >= getDelegatorMinStake()); // the staked amount must be at least DELEGATOR_MIN_STAKE
         }
-        _setStakeAmount(_observer, _staker, newStakeAmount);
-        _setStakeAmountByEpoch(_observer, _staker, epoch, stakeAmountByEpoch(_observer, _staker, epoch).add(_amount));
-        _setStakeAmountTotal(_observer, stakeAmountTotal(_observer).add(_amount));
+        _setStakeAmount(_pool, _staker, newStakeAmount);
+        _setStakeAmountByEpoch(_pool, _staker, epoch, stakeAmountByEpoch(_pool, _staker, epoch).add(_amount));
+        _setStakeAmountTotal(_pool, stakeAmountTotal(_pool).add(_amount));
 
-        if (_staker == _observer) { // `staker` makes a stake for himself and becomes an observer
-            // Add `_observer` to the array of pools
-            _addToPools(_observer);
+        if (_staker == _pool) { // `staker` makes a stake for himself and becomes a candidate
+            // Add `_pool` to the array of pools
+            _addToPools(_pool);
         } else if (newStakeAmount == _amount) { // if the stake is first
-            // Add `_staker` to the array of observer's delegators
-            _addPoolDelegator(_observer, _staker);
+            // Add `_staker` to the array of pool's delegators
+            _addPoolDelegator(_pool, _staker);
         }
     }
 
-    function _withdraw(address _observer, address _staker, uint256 _amount) internal {
-        require(_observer != address(0));
+    function _withdraw(address _pool, address _staker, uint256 _amount) internal {
+        require(_pool != address(0));
         require(_amount != 0);
 
-        // How much can `staker` withdraw from `_observer` pool at the moment?
-        require(_amount <= maxWithdrawAllowed(_observer, _staker));
+        // How much can `staker` withdraw from `_pool` at the moment?
+        require(_amount <= maxWithdrawAllowed(_pool, _staker));
 
         uint256 epoch = stakingEpoch();
 
         // The amount to be withdrawn must be the whole staked amount or
         // must not exceed the diff between the entire amount and MIN_STAKE
-        uint256 newStakeAmount = stakeAmount(_observer, _staker).sub(_amount);
+        uint256 newStakeAmount = stakeAmount(_pool, _staker).sub(_amount);
         if (newStakeAmount > 0) {
-            if (_staker == _observer) {
-                require(newStakeAmount >= getValidatorMinStake());
+            if (_staker == _pool) {
+                require(newStakeAmount >= getCandidateMinStake());
             } else {
                 require(newStakeAmount >= getDelegatorMinStake());
             }
         }
-        _setStakeAmount(_observer, _staker, newStakeAmount);
-        uint256 amountByEpoch = stakeAmountByEpoch(_observer, _staker, epoch);
+        _setStakeAmount(_pool, _staker, newStakeAmount);
+        uint256 amountByEpoch = stakeAmountByEpoch(_pool, _staker, epoch);
         if (_amount <= amountByEpoch) {
-            _setStakeAmountByEpoch(_observer, _staker, epoch, amountByEpoch - _amount);
+            _setStakeAmountByEpoch(_pool, _staker, epoch, amountByEpoch - _amount);
         } else {
-            _setStakeAmountByEpoch(_observer, _staker, epoch, 0);
+            _setStakeAmountByEpoch(_pool, _staker, epoch, 0);
         }
-        _setStakeAmountTotal(_observer, stakeAmountTotal(_observer).sub(_amount));
+        _setStakeAmountTotal(_pool, stakeAmountTotal(_pool).sub(_amount));
 
         if (newStakeAmount == 0) { // the whole amount has been withdrawn
-            if (_staker == _observer) {
-                // Remove `_observer` from the array of pools
-                _removeFromPools(_observer);
+            if (_staker == _pool) {
+                // Remove `_pool` from the array of pools
+                _removeFromPools(_pool);
             } else {
-                // Remove `_staker` from the array of observer's delegators
-                _removePoolDelegator(_observer, _staker);
+                // Remove `_staker` from the array of pool's delegators
+                _removePoolDelegator(_pool, _staker);
             }
 
-            if (stakeAmountTotal(_observer) == 0) {
-                _removeFromPoolsInactive(_observer);
+            if (stakeAmountTotal(_pool) == 0) {
+                _removeFromPoolsInactive(_pool);
             }
         }
     }

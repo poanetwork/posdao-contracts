@@ -12,7 +12,7 @@ contract InitializerAuRa {
         address _erc20TokenContract,
         address[] memory _validators,
         uint256 _delegatorMinStake,
-        uint256 _validatorMinStake,
+        uint256 _candidateMinStake,
         uint256 _stakingEpochDuration,
         uint256 _collectRoundLength
     ) public {
@@ -23,7 +23,7 @@ contract InitializerAuRa {
             _erc20TokenContract,
             _validators,
             _delegatorMinStake,
-            _validatorMinStake,
+            _candidateMinStake,
             _stakingEpochDuration
         );
         _randomContract.initialize(

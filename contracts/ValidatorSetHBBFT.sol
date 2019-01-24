@@ -23,7 +23,7 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
         address _erc20TokenContract,
         address[] calldata _initialValidators,
         uint256 _delegatorMinStake,
-        uint256 _validatorMinStake
+        uint256 _candidateMinStake
     ) external {
         super._initialize(
             _blockRewardContract,
@@ -31,7 +31,7 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
             _erc20TokenContract,
             _initialValidators,
             _delegatorMinStake,
-            _validatorMinStake
+            _candidateMinStake
         );
     }
 
@@ -116,7 +116,7 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
         return addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED, _validator))];
     }
 
-    // Returns the serialized public key of observer/ validator
+    // Returns the serialized public key of candidate/ validator
     function publicKey(address _who) public view returns(bytes memory) {
         return bytesStorage[
             keccak256(abi.encode(PUBLIC_KEY, _who))
