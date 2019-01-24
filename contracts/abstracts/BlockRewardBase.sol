@@ -379,12 +379,15 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
             delegatorsAmount += snapshotStakeAmount(_stakingEpoch, _validator, delegators[s]);
         }
 
+        uint256 totalStaked = validatorStake + delegatorsAmount;
+        bool validatorHasMore30Per = validatorStake.mul(7) > delegatorsAmount.mul(3);
+
         // Calculate reward for each delegator
         for (s = 0; s < delegators.length; s++) {
             uint256 delegatorStake = snapshotStakeAmount(_stakingEpoch, _validator, delegators[s]);
             receivers[s] = delegators[s];
-            if (validatorStake > delegatorsAmount) {
-                rewards[s] = _poolReward.mul(delegatorStake).div(validatorStake + delegatorsAmount);
+            if (validatorHasMore30Per) {
+                rewards[s] = _poolReward.mul(delegatorStake).div(totalStaked);
             } else {
                 rewards[s] = _poolReward.mul(delegatorStake).mul(7).div(delegatorsAmount.mul(10));
             }
@@ -392,8 +395,8 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
 
         // Calculate reward for validator
         receivers[s] = _validator;
-        if (validatorStake > delegatorsAmount) {
-            rewards[s] = _poolReward.mul(validatorStake).div(validatorStake + delegatorsAmount);
+        if (validatorHasMore30Per) {
+            rewards[s] = _poolReward.mul(validatorStake).div(totalStaked);
         } else {
             rewards[s] = _poolReward.mul(3).div(10);
         }
