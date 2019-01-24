@@ -36,7 +36,7 @@ contract BlockRewardAuRa is BlockRewardBase {
         }
 
         // Start new staking epoch every `stakingEpochDuration()` blocks
-        (bool newValidatorSetCalled, bool validatorSetChanged) = validatorSetContract.newValidatorSet();
+        validatorSetContract.newValidatorSet();
 
         // Distribute fees
         address[] memory receivers;
@@ -97,13 +97,6 @@ contract BlockRewardAuRa is BlockRewardBase {
         // Publish current random number at the end of the current collection round.
         // Check if current validators participated in the current collection round.
         IRandomAuRa(validatorSetContract.randomContract()).onBlockClose(benefactors[0]);
-
-        // If the ValidatorSet contract was called, but the validator set
-        // wasn't changed, call `finalizeChange()` forcibly, because
-        // SYSTEM_ADDRESS wouldn't call it due to validator set wasn't changed.
-        if (newValidatorSetCalled && !validatorSetChanged) {
-            validatorSetContract.finalizeChange();
-        }
 
         return (receivers, rewards);
     }

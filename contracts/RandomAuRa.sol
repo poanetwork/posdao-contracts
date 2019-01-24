@@ -20,6 +20,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         _commitHash(_secretHash);
     }
 
+    // TODO: https://github.com/poanetwork/parity-ethereum/issues/72
     function commitHash(bytes32 _secretHash, bytes calldata _cipher) external {
         if (_commitHash(_secretHash)) {
             _setCipher(currentCollectRound(), msg.sender, _cipher);

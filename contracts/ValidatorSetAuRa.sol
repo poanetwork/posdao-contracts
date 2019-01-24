@@ -55,20 +55,10 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
         _setStakingEpochStartBlock(_getCurrentBlockNumber());
     }
 
-    function newValidatorSet()
-        external
-        onlyBlockRewardContract
-        returns(bool called, bool validatorSetChanged)
-    {
-        if (_newValidatorSetCallable()) {
-            called = true;
-            validatorSetChanged = super._newValidatorSet();
-            _setStakingEpochStartBlock(_getCurrentBlockNumber());
-        } else {
-            called = false;
-            validatorSetChanged = false;
-        }
-        return (called, validatorSetChanged);
+    function newValidatorSet() external onlyBlockRewardContract {
+        if (!_newValidatorSetCallable()) return;
+        super._newValidatorSet();
+        _setStakingEpochStartBlock(_getCurrentBlockNumber());
     }
 
     function removeMaliciousValidator(address _validator) external onlyRandomContract {

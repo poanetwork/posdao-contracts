@@ -75,11 +75,6 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         _;
     }
 
-    modifier onlySystemOrBlockReward() {
-        require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE || msg.sender == blockRewardContract());
-        _;
-    }
-
     // =============================================== Setters ========================================================
 
     function removePool() public gasPriceIsValid {
@@ -89,12 +84,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         _removeFromPools(msg.sender);
     }
 
-    function finalizeChange() public onlySystemOrBlockReward {
-        if (stakingEpoch() == 0) {
-            // Ignore invocations if `newValidatorSet()` has never been called
-            return;
-        }
-
+    function finalizeChange() public onlySystem {
         if (validatorSetApplyBlock() == 0) {
             // Apply new validator set after `newValidatorSet()` is called
 
@@ -113,11 +103,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
             _applyPendingValidators();
 
-            if (msg.sender == blockRewardContract()) {
-                _setValidatorSetApplyBlock(_getCurrentBlockNumber() + 1);
-            } else {
-                _setValidatorSetApplyBlock(_getCurrentBlockNumber());
-            }
+            _setValidatorSetApplyBlock(_getCurrentBlockNumber());
 
             // Set a new snapshot inside BlockReward contract
             IBlockReward(blockRewardContract()).setSnapshot();
@@ -525,8 +511,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         _setValidatorSetApplyBlock(1);
     }
 
-    function _newValidatorSet() internal returns(bool) {
-        bytes32 pendingValidatorsHashPrev = _getPendingValidatorsHash();
+    function _newValidatorSet() internal {
         address[] memory pools = getPools();
         uint256 i;
 
@@ -588,8 +573,6 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         _incrementStakingEpoch();
 
         _setValidatorSetApplyBlock(0);
-
-        return _getPendingValidatorsHash() != pendingValidatorsHashPrev;
     }
 
     function _removeMaliciousValidator(address _validator) internal returns(bool) {
@@ -800,15 +783,6 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
     function _getCurrentBlockNumber() internal view returns(uint256) {
         return block.number;
-    }
-
-    // Calculates the hash of `pendingValidators` list
-    function _getPendingValidatorsHash() internal view returns(bytes32) {
-        bytes32 hash = bytes32(0);
-        for (uint256 i = 0; i < addressArrayStorage[PENDING_VALIDATORS].length; i++) {
-            hash = keccak256(abi.encodePacked(hash, addressArrayStorage[PENDING_VALIDATORS][i]));
-        }
-        return hash;
     }
 
     function _getRandomIndex(uint256[] memory _likelihood, uint256 _likelihoodSum, uint256 _randomNumber)
