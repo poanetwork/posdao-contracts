@@ -93,8 +93,9 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
         }
 
         if (validatorSetChanged) {
-            _incrementChangeRequestCount();
             // From this moment `getPendingValidators()` will return the new validator set
+            _incrementChangeRequestCount();
+            _setInitiateChangeAllowed(true);
         }
     }
 

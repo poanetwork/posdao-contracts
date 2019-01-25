@@ -22,6 +22,18 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
     // ================================================ Events ========================================================
 
+    /// Issue this log event to signal a desired change in validator set.
+    /// This will not lead to a change in active validator set until
+    /// finalizeChange is called.
+    ///
+    /// Only the last log event of any block can take effect.
+    /// If a signal is issued while another is being finalized it may never
+    /// take effect.
+    ///
+    /// parentHash here should be the parent block hash, or the
+    /// signal will not be recognized.
+    event InitiateChange(bytes32 indexed parentHash, address[] newSet);
+
     /// Emitted by `stake` function to signal that the staker made a stake of the specified
     /// amount for the specified pool during the specified staking epoch.
     /// @param toPool The pool for which the `staker` made the stake.
@@ -76,6 +88,13 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     }
 
     // =============================================== Setters ========================================================
+
+    function initiateChange() external {
+        if (!isValidator(msg.sender)) return;
+        if (!initiateChangeAllowed()) return;
+        emit InitiateChange(blockhash(block.number - 1), getPendingValidators());
+        _setInitiateChangeAllowed(false);
+    }
 
     function removePool() public gasPriceIsValid {
         if (stakingEpoch() == 0 && isValidator(msg.sender)) {
@@ -216,6 +235,10 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     // Returns the current set of validators (the same as in the engine)
     function getValidators() public view returns(address[] memory) {
         return addressArrayStorage[CURRENT_VALIDATORS];
+    }
+
+    function initiateChangeAllowed() public view returns(bool) {
+        return boolStorage[INITIATE_CHANGE_ALLOWED];
     }
 
     // Returns the flag whether the address in the `pools` array
@@ -367,6 +390,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     bytes32 internal constant CURRENT_VALIDATORS = keccak256("currentValidators");
     bytes32 internal constant DELEGATOR_MIN_STAKE = keccak256("delegatorMinStake");
     bytes32 internal constant ERC20_TOKEN_CONTRACT = keccak256("erc20TokenContract");
+    bytes32 internal constant INITIATE_CHANGE_ALLOWED = keccak256("initiateChangeAllowed");
     bytes32 internal constant PENDING_VALIDATORS = keccak256("pendingValidators");
     bytes32 internal constant POOLS = keccak256("pools");
     bytes32 internal constant POOLS_INACTIVE = keccak256("poolsInactive");
@@ -569,9 +593,10 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         // From this moment `getPendingValidators()` will return the new validator set
 
         // Increment counters
-        _incrementChangeRequestCount();
         _incrementStakingEpoch();
+        _incrementChangeRequestCount();
 
+        _setInitiateChangeAllowed(true);
         _setValidatorSetApplyBlock(0);
     }
 
@@ -604,6 +629,10 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
     function _setCurrentValidators(address[] memory _validators) internal {
         addressArrayStorage[CURRENT_VALIDATORS] = _validators;
+    }
+
+    function _setInitiateChangeAllowed(bool _allowed) internal {
+        boolStorage[INITIATE_CHANGE_ALLOWED] = _allowed;
     }
 
     function _setIsPoolActive(address _who, bool _isPoolActive) internal {
