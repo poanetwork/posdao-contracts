@@ -91,7 +91,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
     function emitInitiateChange() external {
         if (!isValidator(msg.sender)) return;
-        if (!initiateChangeAllowed()) return;
+        if (!emitInitiateChangeCallable()) return;
         (address[] memory newSet, bool newStakingEpoch) = _dequeuePendingValidators();
         if (newSet.length > 0) {
             emit InitiateChange(blockhash(block.number - 1), newSet);
@@ -207,6 +207,10 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
     function doesPoolExist(address _who) public view returns(bool) {
         return isPoolActive(_who);
+    }
+
+    function emitInitiateChangeCallable() public view returns(bool) {
+        return initiateChangeAllowed() && uintStorage[QUEUE_PV_LAST] >= uintStorage[QUEUE_PV_FIRST];
     }
 
     function erc20TokenContract() public view returns(address) {
