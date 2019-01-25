@@ -92,8 +92,12 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     function emitInitiateChange() external {
         if (!isValidator(msg.sender)) return;
         if (!initiateChangeAllowed()) return;
-        emit InitiateChange(blockhash(block.number - 1), getPendingValidators());
-        _setInitiateChangeAllowed(false);
+        (address[] memory newSet, bool newStakingEpoch) = _dequeuePendingValidators();
+        if (newSet.length > 0) {
+            emit InitiateChange(blockhash(block.number - 1), newSet);
+            _setInitiateChangeAllowed(false);
+            _setQueueValidators(newSet, newStakingEpoch);
+        }
     }
 
     function removePool() public gasPriceIsValid {
@@ -104,32 +108,37 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     }
 
     function finalizeChange() public onlySystem {
-        if (validatorSetApplyBlock() == 0) {
-            // Apply new validator set after `newValidatorSet()` is called
+        if (block.number > 1) { // skip the block #1 (the block after genesis)
+            (address[] memory queueValidators, bool newStakingEpoch) = getQueueValidators();
 
-            address[] memory previousValidators = getPreviousValidators();
-            address[] memory currentValidators = getValidators();
-            uint256 i;
+            if (validatorSetApplyBlock() == 0 && newStakingEpoch) {
+                // Apply new validator set after `newValidatorSet()` is called
 
-            // Save the previous validator set
-            for (i = 0; i < previousValidators.length; i++) {
-                _setIsValidatorOnPreviousEpoch(previousValidators[i], false);
+                address[] memory previousValidators = getPreviousValidators();
+                address[] memory currentValidators = getValidators();
+                uint256 i;
+
+                // Save the previous validator set
+                for (i = 0; i < previousValidators.length; i++) {
+                    _setIsValidatorOnPreviousEpoch(previousValidators[i], false);
+                }
+                for (i = 0; i < currentValidators.length; i++) {
+                    _setIsValidatorOnPreviousEpoch(currentValidators[i], true);
+                }
+                _setPreviousValidators(currentValidators);
+
+                _applyQueueValidators(queueValidators);
+
+                _setValidatorSetApplyBlock(_getCurrentBlockNumber());
+
+                // Set a new snapshot inside BlockReward contract
+                IBlockReward(blockRewardContract()).setSnapshot();
+            } else {
+                // Apply new validator set after `reportMalicious` is called
+                _applyQueueValidators(queueValidators);
             }
-            for (i = 0; i < currentValidators.length; i++) {
-                _setIsValidatorOnPreviousEpoch(currentValidators[i], true);
-            }
-            _setPreviousValidators(currentValidators);
-
-            _applyPendingValidators();
-
-            _setValidatorSetApplyBlock(_getCurrentBlockNumber());
-
-            // Set a new snapshot inside BlockReward contract
-            IBlockReward(blockRewardContract()).setSnapshot();
-        } else {
-            // Apply new validator set after `reportMalicious` is called
-            _applyPendingValidators();
         }
+        _setInitiateChangeAllowed(true);
     }
 
     function moveStake(address _fromPool, address _toPool, uint256 _amount) public gasPriceIsValid {
@@ -222,6 +231,10 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     // Returns the set of validators to be finalized in engine
     function getPendingValidators() public view returns(address[] memory) {
         return addressArrayStorage[PENDING_VALIDATORS];
+    }
+
+    function getQueueValidators() public view returns(address[] memory, bool) {
+        return (addressArrayStorage[QUEUE_VALIDATORS], boolStorage[QUEUE_VALIDATORS_NEW_STAKING_EPOCH]);
     }
 
     function getCandidateMinStake() public view returns(uint256) {
@@ -397,6 +410,10 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     bytes32 internal constant POOLS_EMPTY = keccak256("poolsEmpty");
     bytes32 internal constant POOLS_NON_EMPTY = keccak256("poolsNonEmpty");
     bytes32 internal constant PREVIOUS_VALIDATORS = keccak256("previousValidators");
+    bytes32 internal constant QUEUE_PV_FIRST = keccak256("queuePVFirst");
+    bytes32 internal constant QUEUE_PV_LAST = keccak256("queuePVLast");
+    bytes32 internal constant QUEUE_VALIDATORS = keccak256("queueValidators");
+    bytes32 internal constant QUEUE_VALIDATORS_NEW_STAKING_EPOCH = keccak256("queueValidatorsNewStakingEpoch");
     bytes32 internal constant RANDOM_CONTRACT = keccak256("randomContract");
     bytes32 internal constant STAKING_EPOCH = keccak256("stakingEpoch");
     bytes32 internal constant VALIDATOR_SET_APPLY_BLOCK = keccak256("validatorSetApplyBlock");
@@ -409,6 +426,9 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     bytes32 internal constant POOL_DELEGATOR_INDEX = "poolDelegatorIndex";
     bytes32 internal constant POOL_INDEX = "poolIndex";
     bytes32 internal constant POOL_INACTIVE_INDEX = "poolInactiveIndex";
+    bytes32 internal constant QUEUE_PV_BLOCK = "queuePVBlock";
+    bytes32 internal constant QUEUE_PV_LIST = "queuePVList";
+    bytes32 internal constant QUEUE_PV_NEW_EPOCH = "queuePVNewEpoch";
     bytes32 internal constant STAKE_AMOUNT = "stakeAmount";
     bytes32 internal constant STAKE_AMOUNT_BY_EPOCH = "stakeAmountByEpoch";
     bytes32 internal constant STAKE_AMOUNT_TOTAL = "stakeAmountTotal";
@@ -463,23 +483,22 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         }
     }
 
-    function _applyPendingValidators() internal {
-        address[] memory validators = getValidators();
+    function _applyQueueValidators(address[] memory _queueValidators) internal {
+        address[] memory prevValidators = getValidators();
         uint256 i;
 
         // Clear indexes for old validator set
-        for (i = 0; i < validators.length; i++) {
-            _setValidatorIndex(validators[i], 0);
-            _setIsValidator(validators[i], false);
+        for (i = 0; i < prevValidators.length; i++) {
+            _setValidatorIndex(prevValidators[i], 0);
+            _setIsValidator(prevValidators[i], false);
         }
 
-        validators = getPendingValidators();
-        _setCurrentValidators(validators);
+        _setCurrentValidators(_queueValidators);
 
         // Set indexes for new validator set
-        for (i = 0; i < validators.length; i++) {
-            _setValidatorIndex(validators[i], i);
-            _setIsValidator(validators[i], true);
+        for (i = 0; i < _queueValidators.length; i++) {
+            _setValidatorIndex(_queueValidators[i], i);
+            _setIsValidator(_queueValidators[i], true);
         }
     }
 
@@ -487,6 +506,44 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         uintStorage[
             keccak256(abi.encode(BANNED_UNTIL, _validator))
         ] = _bannedUntil;
+    }
+
+    function _enqueuePendingValidators(bool _newStakingEpoch) internal {
+        uint256 queueFirst = uintStorage[QUEUE_PV_FIRST];
+        uint256 queueLast = uintStorage[QUEUE_PV_LAST];
+
+        for (uint256 i = queueLast; i >= queueFirst; i--) {
+            if (
+                uintStorage[keccak256(abi.encode(QUEUE_PV_BLOCK, i))] == block.number &&
+                !boolStorage[keccak256(abi.encode(QUEUE_PV_NEW_EPOCH, i))]
+            ) {
+                addressArrayStorage[keccak256(abi.encode(QUEUE_PV_LIST, i))] = getPendingValidators();
+                return;
+            }
+        }
+
+        queueLast++;
+        addressArrayStorage[keccak256(abi.encode(QUEUE_PV_LIST, queueLast))] = getPendingValidators();
+        boolStorage[keccak256(abi.encode(QUEUE_PV_NEW_EPOCH, queueLast))] = _newStakingEpoch;
+        uintStorage[keccak256(abi.encode(QUEUE_PV_BLOCK, queueLast))] = block.number;
+        uintStorage[QUEUE_PV_LAST] = queueLast;
+    }
+
+    function _dequeuePendingValidators() internal returns(address[] memory newSet, bool newStakingEpoch) {
+        uint256 queueFirst = uintStorage[QUEUE_PV_FIRST];
+        uint256 queueLast = uintStorage[QUEUE_PV_LAST];
+
+        if (queueLast < queueFirst) {
+            newSet = new address[](0);
+            newStakingEpoch = false;
+        } else {
+            newSet = addressArrayStorage[keccak256(abi.encode(QUEUE_PV_LIST, queueFirst))];
+            newStakingEpoch = boolStorage[keccak256(abi.encode(QUEUE_PV_NEW_EPOCH, queueFirst))];
+            delete addressArrayStorage[keccak256(abi.encode(QUEUE_PV_LIST, queueFirst))];
+            delete boolStorage[keccak256(abi.encode(QUEUE_PV_NEW_EPOCH, queueFirst))];
+            delete uintStorage[keccak256(abi.encode(QUEUE_PV_BLOCK, queueFirst))];
+            uintStorage[QUEUE_PV_FIRST]++;
+        }
     }
 
     function _incrementChangeRequestCount() internal {
@@ -533,6 +590,9 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         _setCandidateMinStake(_candidateMinStake);
 
         _setValidatorSetApplyBlock(1);
+
+        uintStorage[QUEUE_PV_FIRST] = 1;
+        uintStorage[QUEUE_PV_LAST] = 0;
     }
 
     function _newValidatorSet() internal {
@@ -596,7 +656,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         _incrementStakingEpoch();
         _incrementChangeRequestCount();
 
-        _setInitiateChangeAllowed(true);
+        _enqueuePendingValidators(true);
         _setValidatorSetApplyBlock(0);
     }
 
@@ -669,6 +729,11 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
     function _setPoolDelegatorIndex(address _pool, address _delegator, uint256 _index) internal {
         uintStorage[keccak256(abi.encode(POOL_DELEGATOR_INDEX, _pool, _delegator))] = _index;
+    }
+
+    function _setQueueValidators(address[] memory _validators, bool _newStakingEpoch) internal {
+        addressArrayStorage[QUEUE_VALIDATORS] = _validators;
+        boolStorage[QUEUE_VALIDATORS_NEW_STAKING_EPOCH] = _newStakingEpoch;
     }
 
     // Add `_delegator` to the array of pool's delegators

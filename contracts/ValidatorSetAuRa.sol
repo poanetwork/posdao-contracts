@@ -139,7 +139,7 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
         if (_removeMaliciousValidator(_validator)) {
             // From this moment `getPendingValidators()` will return the new validator set
             _incrementChangeRequestCount();
-            _setInitiateChangeAllowed(true);
+            _enqueuePendingValidators(false);
         }
     }
 
