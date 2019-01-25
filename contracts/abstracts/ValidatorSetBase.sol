@@ -82,11 +82,6 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         _;
     }
 
-    modifier onlySystem() {
-        require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
-        _;
-    }
-
     // =============================================== Setters ========================================================
 
     function emitInitiateChange() external {
@@ -107,8 +102,15 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         _removeFromPools(msg.sender);
     }
 
+    function needsFinalizeChange() public view returns(bool) {
+        return boolStorage[FINALIZE_CHANGE_NEEDS_TO_BE_CALLED];
+    }
+
+    bytes32 private constant FINALIZE_CHANGE_NEEDS_TO_BE_CALLED = "finalizeChangeNeedsToBeCalled";
+
     function finalizeChange() public onlySystem {
         if (block.number > 1) { // skip the block #1 (the block after genesis)
+            boolStorage[FINALIZE_CHANGE_NEEDS_TO_BE_CALLED] = false;
             (address[] memory queueValidators, bool newStakingEpoch) = getQueueValidators();
 
             if (validatorSetApplyBlock() == 0 && newStakingEpoch) {
@@ -547,6 +549,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     }
 
     function _incrementChangeRequestCount() internal {
+        boolStorage[FINALIZE_CHANGE_NEEDS_TO_BE_CALLED] = true;
         uintStorage[CHANGE_REQUEST_COUNT]++;
     }
 
@@ -598,7 +601,6 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     function _newValidatorSet() internal {
         address[] memory pools = getPools();
         uint256 i;
-
         // Filter pools and leave only non-empty
         delete addressArrayStorage[POOLS_NON_EMPTY];
         delete addressArrayStorage[POOLS_EMPTY];

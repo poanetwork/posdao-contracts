@@ -16,4 +16,13 @@ contract OwnedEternalStorage is EternalStorage {
         _;
     }
 
+    /// @dev Access check: revert unless `msg.sender` is the system address.
+    modifier onlySystem {
+        require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
+        // this should always be true, but as tx.origin is an anti-pattern,
+        // we don’t assert it.
+        // assert(tx.origin == msg.sender)
+        _;
+    }
+
 }

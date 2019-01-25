@@ -19,4 +19,5 @@ interface IValidatorSet {
     function stakeAmount(address, address) external view returns(uint256);
     function stakingEpoch() external view returns(uint256);
     function validatorSetApplyBlock() external view returns(uint256);
+    function needsFinalizeChange() external view returns (bool);
 }

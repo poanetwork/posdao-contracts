@@ -14,13 +14,6 @@ contract RandomBase is OwnedEternalStorage, IRandom {
     // This address must be set before deploy
     address public constant VALIDATOR_SET_CONTRACT = address(0x1000000000000000000000000000000000000001);
 
-    // ============================================== Modifiers =======================================================
-
-    modifier onlySystem() {
-        require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
-        _;
-    }
-
     // =============================================== Getters ========================================================
 
     // This function is called by ValidatorSet contract.

@@ -31,11 +31,6 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         _;
     }
 
-    modifier onlySystem {
-        require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
-        _;
-    }
-
     modifier onlyValidatorSet {
         require(msg.sender == VALIDATOR_SET_CONTRACT);
         _;
