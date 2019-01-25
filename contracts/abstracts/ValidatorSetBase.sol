@@ -89,7 +89,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
     // =============================================== Setters ========================================================
 
-    function initiateChange() external {
+    function emitInitiateChange() external {
         if (!isValidator(msg.sender)) return;
         if (!initiateChangeAllowed()) return;
         emit InitiateChange(blockhash(block.number - 1), getPendingValidators());
