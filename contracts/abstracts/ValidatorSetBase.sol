@@ -641,7 +641,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
                 uint256 randomPoolIndex = _getRandomIndex(
                     likelihood,
                     likelihoodSum,
-                    uint256(keccak256(abi.encodePacked(randomNumbers[i])))
+                    randomNumbers[i]
                 );
                 newValidators[i] = poolsLocal[randomPoolIndex];
                 likelihoodSum -= likelihood[randomPoolIndex];
@@ -887,7 +887,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         pure
         returns(uint256)
     {
-        int256 r = int256(_randomNumber % _likelihoodSum) + 1;
+        int256 r = int256(uint256(keccak256(abi.encode(_randomNumber))) % _likelihoodSum) + 1;
         int256 index = -1;
         do {
             r -= int256(_likelihood[uint256(++index)]);

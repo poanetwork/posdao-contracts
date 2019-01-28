@@ -10,9 +10,9 @@ require('chai')
   .should();
 
 contract('ValidatorSetAuRa', async accounts => {
-  describe('initialize()', async () => {
-    let validatorSetAuRa;
+  let validatorSetAuRa;
 
+  describe('initialize()', async () => {
     const initialValidators = [
       '0xeE385a1df869A468883107B0C06fA8791b28A04f',
       '0x71385ae87C4b93DB96f02F952Be1F7A63F6057a6',
@@ -188,4 +188,55 @@ contract('ValidatorSetAuRa', async accounts => {
       ).should.be.fulfilled;
     });
   });
+
+  describe('_getRandomIndex()', async () => {
+    beforeEach(async () => {
+      validatorSetAuRa = await ValidatorSetAuRa.new();
+    });
+    it('should return indexes according to given likelihood', async () => {
+      const repeats = 2000;
+      const maxFluctuation = 2; // percents, +/-
+
+      // Here we have 11 candidates
+      const stakeAmounts = [
+        170000, // 17%
+        130000, // 13%
+        10000,  // 1%
+        210000, // 21%
+        90000,  // 9%
+        60000,  // 6%
+        100000, // 10%
+        40000,  // 4%
+        140000, // 14%
+        30000,  // 3%
+        20000   // 2%
+      ];
+
+      const stakeAmountsTotal = stakeAmounts.reduce((accumulator, value) => accumulator + value);
+      const stakeAmountsShares = stakeAmounts.map((value) => parseInt(value / stakeAmountsTotal * 100));
+      let indexesStats = stakeAmounts.map(() => 0);
+
+      for (let i = 0; i < repeats; i++) {
+        const index = await validatorSetAuRa.getRandomIndex.call(
+          stakeAmounts,
+          stakeAmountsTotal,
+          random(0, Number.MAX_SAFE_INTEGER)
+        );
+        indexesStats[index.toNumber()]++;
+      }
+
+      const stakeAmountsRandomShares = indexesStats.map((value) => Math.round(value / repeats * 100));
+
+      //console.log(stakeAmountsShares);
+      //console.log(stakeAmountsRandomShares);
+
+      stakeAmountsRandomShares.forEach((value, index) => {
+        Math.abs(stakeAmountsShares[index] - value).should.be.most(maxFluctuation);
+      });
+    });
+  });
 });
+
+function random(low, high) {
+  return Math.floor(Math.random() * (high - low) + low);
+}
