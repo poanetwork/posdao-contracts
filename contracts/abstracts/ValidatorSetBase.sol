@@ -683,7 +683,8 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
         if (isPendingValidator) {
             // Remove the malicious validator from `pendingValidators`
-            validators[i] = validators[--validators.length];
+            validators[i] = validators[validators.length - 1];
+            validators.length--;
             return true;
         }
 
