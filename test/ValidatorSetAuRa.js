@@ -13,13 +13,13 @@ contract('ValidatorSetAuRa', async accounts => {
   let validatorSetAuRa;
 
   describe('initialize()', async () => {
-    const initialValidators = [
-      '0xeE385a1df869A468883107B0C06fA8791b28A04f',
-      '0x71385ae87C4b93DB96f02F952Be1F7A63F6057a6',
-      '0x190EC582090aE24284989aF812F6B2c93F768ECd'
-    ];
+    const initialValidators = accounts.slice(0, 3);
 
     beforeEach(async () => {
+      initialValidators.length.should.be.equal(3);
+      initialValidators[0].should.not.be.equal('0x0000000000000000000000000000000000000000');
+      initialValidators[1].should.not.be.equal('0x0000000000000000000000000000000000000000');
+      initialValidators[2].should.not.be.equal('0x0000000000000000000000000000000000000000');
       validatorSetAuRa = await ValidatorSetAuRa.new();
       await validatorSetAuRa.setCurrentBlockNumber(0);
     });
@@ -197,7 +197,6 @@ contract('ValidatorSetAuRa', async accounts => {
       const repeats = 2000;
       const maxFluctuation = 2; // percents, +/-
 
-      // Here we have 11 candidates
       const stakeAmounts = [
         170000, // 17%
         130000, // 13%
@@ -205,10 +204,12 @@ contract('ValidatorSetAuRa', async accounts => {
         210000, // 21%
         90000,  // 9%
         60000,  // 6%
+        0,      // 0%
         100000, // 10%
         40000,  // 4%
         140000, // 14%
         30000,  // 3%
+        0,      // 0%
         20000   // 2%
       ];
 
@@ -231,7 +232,11 @@ contract('ValidatorSetAuRa', async accounts => {
       //console.log(stakeAmountsRandomShares);
 
       stakeAmountsRandomShares.forEach((value, index) => {
-        Math.abs(stakeAmountsShares[index] - value).should.be.most(maxFluctuation);
+        if (stakeAmountsShares[index] == 0) {
+          value.should.be.equal(0);
+        } else {
+          Math.abs(stakeAmountsShares[index] - value).should.be.most(maxFluctuation);
+        }
       });
     });
   });
