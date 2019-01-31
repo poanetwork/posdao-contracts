@@ -160,6 +160,6 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
     }
 
     function _newValidatorSetCallable() internal view returns(bool) {
-        return _getCurrentBlockNumber().sub(stakingEpochStartBlock()) >= stakingEpochDuration() - 1;
+        return _getCurrentBlockNumber().sub(stakingEpochStartBlock()) >= stakingEpochDuration();
     }
 }
