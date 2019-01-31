@@ -16,15 +16,20 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
     // =============================================== Setters ========================================================
 
-    function commitHash(bytes32 _secretHash) external {
-        _commitHash(_secretHash);
-    }
-
-    // TODO: https://github.com/poanetwork/parity-ethereum/issues/72
     function commitHash(bytes32 _secretHash, bytes calldata _cipher) external {
-        if (_commitHash(_secretHash)) {
-            _setCipher(currentCollectRound(), msg.sender, _cipher);
-        }
+        require(isCommitPhase()); // must only be called in `commits phase`
+        require(_secretHash != bytes32(0));
+
+        address validator = msg.sender;
+        require(IValidatorSet(VALIDATOR_SET_CONTRACT).isValidator(validator));
+
+        uint256 collectRound = currentCollectRound();
+
+        if (isCommitted(collectRound, validator)) return; // cannot commit more than once
+
+        _setCommit(collectRound, validator, _secretHash);
+        _setCipher(collectRound, validator, _cipher);
+        _addCommittedValidator(collectRound, validator);
     }
 
     function revealSecret(uint256 _secret) external {
@@ -236,23 +241,6 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
     function _clearBlocksProducers(uint256 _collectRound) private {
         delete addressArrayStorage[keccak256(abi.encode(BLOCKS_PRODUCERS, _collectRound))];
-    }
-
-    function _commitHash(bytes32 _secretHash) private returns(bool) {
-        require(isCommitPhase()); // must only be called in `commits phase`
-        require(_secretHash != bytes32(0));
-
-        address validator = msg.sender;
-        require(IValidatorSet(VALIDATOR_SET_CONTRACT).isValidator(validator));
-
-        uint256 collectRound = currentCollectRound();
-
-        if (isCommitted(collectRound, validator)) return false; // cannot commit more than once
-
-        _setCommit(collectRound, validator, _secretHash);
-        _addCommittedValidator(collectRound, validator);
-
-        return true;
     }
 
     function _denyPublishSecret() private {
