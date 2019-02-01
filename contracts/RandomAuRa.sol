@@ -25,7 +25,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
         uint256 collectRound = currentCollectRound();
 
-        if (isCommitted(collectRound, validator)) return; // cannot commit more than once
+        require(!isCommitted(collectRound, validator)); // cannot commit more than once
 
         _setCommit(collectRound, validator, _secretHash);
         _setCipher(collectRound, validator, _cipher);
@@ -43,9 +43,8 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
         uint256 collectRound = currentCollectRound();
 
-        if (sentReveal(collectRound, validator)) return; // cannot reveal more than once during the same collectRound
-
-        if (secretHash != getCommit(collectRound, validator)) return; // the hash must be commited
+        require(!sentReveal(collectRound, validator)); // cannot reveal more than once during the same collectRound
+        require(secretHash == getCommit(collectRound, validator)); // the hash must be commited
 
         _setCurrentSecret(_getCurrentSecret() ^ _secret);
         _setSentReveal(collectRound, validator, true);

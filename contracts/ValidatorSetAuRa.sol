@@ -65,12 +65,6 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
         _removeMaliciousValidatorAuRa(_validator);
     }
 
-    // solhint-disable no-empty-blocks
-    function reportBenign(address, uint256) external {
-        // does nothing
-    }
-    // solhint-enable no-empty-blocks
-
     function reportMalicious(address _maliciousValidator, uint256 _blockNumber, bytes calldata) external {
         address reportingValidator = msg.sender;
         uint256 currentBlock = _getCurrentBlockNumber();
