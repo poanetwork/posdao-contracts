@@ -16,23 +16,19 @@ contract BlockRewardAuRa is BlockRewardBase {
         require(benefactors.length == 1);
         require(kind[0] == 0);
 
-        if (benefactors[0] == address(0)) {
-            // Return empty arrays for zero input address
-            // https://github.com/paritytech/parity-ethereum/issues/9764
-            return (new address[](0), new uint256[](0));
-        }
-
         IValidatorSet validatorSetContract = IValidatorSet(VALIDATOR_SET_CONTRACT);
 
         // Check if the validator is existed
         if (validatorSetContract.validatorSetApplyBlock() == block.number) {
             // If `finalizeChange` was called in this block
-            require(
-                validatorSetContract.isValidator(benefactors[0]) ||
-                validatorSetContract.isValidatorOnPreviousEpoch(benefactors[0])
-            );
-        } else {
-            require(validatorSetContract.isValidator(benefactors[0]));
+            if (
+                !validatorSetContract.isValidator(benefactors[0]) &&
+                !validatorSetContract.isValidatorOnPreviousEpoch(benefactors[0])
+            ) {
+                return (new address[](0), new uint256[](0));
+            }
+        } else if (!validatorSetContract.isValidator(benefactors[0])) {
+            return (new address[](0), new uint256[](0));
         }
 
         // Start new staking epoch every `stakingEpochDuration()` blocks
