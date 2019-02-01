@@ -90,7 +90,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     // =============================================== Setters ========================================================
 
     function emitInitiateChange() external {
-        if (!emitInitiateChangeCallable()) return;
+        require(emitInitiateChangeCallable());
         (address[] memory newSet, bool newStakingEpoch) = _dequeuePendingValidators();
         if (newSet.length > 0) {
             emit InitiateChange(blockhash(block.number - 1), newSet);
