@@ -107,17 +107,21 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
                 // Check each validator whether he created at least one block
                 // during commits phase and at least one block during reveals phase
                 // but didn't reveal his secret during reveals phase
+                // or revealed but didn't produce at least one block during any phase
 
                 validators = IValidatorSet(VALIDATOR_SET_CONTRACT).getValidators();
                 for (i = 0; i < validators.length; i++) {
                     validator = validators[i];
-                    if (
-                        createdBlockOnCommitsPhase(currentRound, validator) &&
-                        createdBlockOnRevealsPhase(currentRound, validator) &&
-                        !sentReveal(currentRound, validator)
-                    ) {
+                    bool producedBlockOnCommitsPhase = createdBlockOnCommitsPhase(currentRound, validator);
+                    bool producedBlockOnRevealsPhase = createdBlockOnRevealsPhase(currentRound, validator);
+                    bool revealedSecret = sentReveal(currentRound, validator);
+                    if (producedBlockOnCommitsPhase && producedBlockOnRevealsPhase && !revealedSecret) {
                         // The validator produced the blocks but didn't reveal his secret during
                         // the current collection round, so remove him from validator set as malicious
+                        IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).removeMaliciousValidator(validator);
+                    } else if ((!producedBlockOnCommitsPhase || !producedBlockOnRevealsPhase) && revealedSecret) {
+                        // The validator sent reveal but didn't produced any blocks during
+                        // commits phase or reveal phase, so remove him from validator set as malicious
                         IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).removeMaliciousValidator(validator);
                     }
                 }
