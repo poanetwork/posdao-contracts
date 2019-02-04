@@ -9,24 +9,14 @@ import "../libs/SafeMath.sol";
 
 /// @title The Block Reward Base Contract
 /// @author POA Networks, Inc.
-/// @notice The block reward contract is responsible for rewarding validators and those who have delegated stake to them.
-/// It therefore provides the basis for validators' and delegators' profitability.  Additionally, it is responsible for
-/// determining the amount that validators must reward themselves and their delegators.  It therefore controls the
-/// supply of Ether on the blockchain.
+/// @notice The block reward contract is responsible for rewarding validators and those who have delegated stake to
+/// them.  It therefore provides the basis for validators' and delegators' profitability.  Additionally, it is
+/// responsible for determining the amount that validators must reward themselves and their delegators.  It therefore
+/// controls the supply of native tokens on the blockchain.
 ///
 /// This contract is an abstract base that contains functions used both by AuRa and HBBFT consensus.
 contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     using SafeMath for uint256;
-
-    // ============================================== Constants =======================================================
-
-    /// @dev The address of the validator set contract.  The block reward contract calls the validator set contract to
-    /// retrieve the current staking epoch abd to get and set staking amounts.  It also needs to know this value for
-    /// access control, as some of its methods can only be called by the validator set contract.
-    ///
-    /// This address must be set before deploy, and is also hard-coded into `scripts/make_spec.js`, which creates the
-    /// chain spec.  The values in both places must be kept in sync, or the network will not work properly.
-    address public constant VALIDATOR_SET_CONTRACT = address(0x1000000000000000000000000000000000000001);
 
     // ================================================ Events ========================================================
 
@@ -44,7 +34,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
 
     // ============================================== Modifiers =======================================================
 
-    /// Restricts the modified function to only be called by the ERC20 to Native Bridge Contract.
+    /// @notice Restricts the modified function to only be called by the ERC20 to Native Bridge Contract.
     /// @dev All such functions should be marked `external`.
     modifier onlyErcToNativeBridge {
         require(_isErcToNativeBridge(msg.sender));
@@ -59,18 +49,17 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         _;
     }
 
-    /// @dev Only allows the modified function to be called from a system transaction.
-    /// Such transactions are never stored on the blockchain, and so must be agreed to by all
-    /// parties.
+    /// @notice Only allows the modified function to be called from a system transaction.
+    /// @dev Such transactions are never stored on the blockchain, and so must be agreed to by all parties.
     modifier onlySystem {
         require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
         _;
     }
 
-    /// Only allows the validator set contract to call the modified function.
+    /// @notice Only allows the validator set contract to call the modified function.
     /// @dev All such functions should be marked `external`.
     modifier onlyValidatorSet {
-        require(msg.sender == VALIDATOR_SET_CONTRACT);
+        require(msg.sender == address(VALIDATOR_SET_CONTRACT));
         _;
     }
 
@@ -117,8 +106,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     }
 
     function setSnapshot(uint256 _stakingEpoch) external onlyValidatorSet {
-        IValidatorSet validatorSet = IValidatorSet(VALIDATOR_SET_CONTRACT);
-        IStaking staking = IStaking(validatorSet.stakingContract());
+        IStaking staking = IStaking(VALIDATOR_SET_CONTRACT.stakingContract());
 
         address validatorStakingAddress;
         address[] memory validatorsStakingAddresses;
@@ -143,10 +131,10 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         }
 
         // Set a new snapshot of the current staking epoch
-        address[] memory validators = validatorSet.getValidators();
+        address[] memory validators = VALIDATOR_SET_CONTRACT.getValidators();
         validatorsStakingAddresses = new address[](validators.length);
         for (i = 0; i < validators.length; i++) {
-            validatorsStakingAddresses[i] = validatorSet.stakingByMiningAddress(validators[i]);
+            validatorsStakingAddresses[i] = VALIDATOR_SET_CONTRACT.stakingByMiningAddress(validators[i]);
         }
         _setSnapshotStakingAddresses(_stakingEpoch, validatorsStakingAddresses);
         for (i = 0; i < validatorsStakingAddresses.length; i++) {
@@ -279,7 +267,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         ];
     }
 
-    // =============================================== Private ========================================================
+    // =============================================== Internal =======================================================
 
     bytes32 internal constant DELEGATORS_TEMPORARY_ARRAY = keccak256("delegatorsTemporaryArray");
     bytes32 internal constant ERC_TO_ERC_BRIDGES_ALLOWED = keccak256("ercToErcBridgesAllowed");
@@ -300,12 +288,12 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     bytes32 internal constant SNAPSHOT_STAKE_AMOUNT = "snapshotStakeAmount";
     bytes32 internal constant SNAPSHOT_STAKING_ADDRESSES = "snapshotStakingAddresses";
 
-    function _addBridgeNativeFee(uint256 _stakingEpoch, uint256 _amount) internal {
+    function _addBridgeNativeFee(uint256 _stakingEpoch, uint256 _amount) private {
         bytes32 hash = keccak256(abi.encode(BRIDGE_NATIVE_FEE, _stakingEpoch));
         uintStorage[hash] = uintStorage[hash].add(_amount);
     }
 
-    function _addBridgeTokenFee(uint256 _stakingEpoch, uint256 _amount) internal {
+    function _addBridgeTokenFee(uint256 _stakingEpoch, uint256 _amount) private {
         bytes32 hash = keccak256(abi.encode(BRIDGE_TOKEN_FEE, _stakingEpoch));
         uintStorage[hash] = uintStorage[hash].add(_amount);
     }
@@ -314,7 +302,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         addressArrayStorage[EXTRA_RECEIVERS].push(_receiver);
     }
 
-    function _addMintedTotallyByBridge(uint256 _amount, address _bridge) internal {
+    function _addMintedTotallyByBridge(uint256 _amount, address _bridge) private {
         bytes32 hash = keccak256(abi.encode(MINTED_TOTALLY_BY_BRIDGE, _bridge));
         uintStorage[hash] = uintStorage[hash].add(_amount);
     }
@@ -373,14 +361,14 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
             }
         }
 
-        _clearExtraReceivers();
+        addressArrayStorage[EXTRA_RECEIVERS].length = 0;
 
         emit MintedByBridge(receivers, rewards);
 
         return (receivers, rewards);
     }
 
-    function _setBridgeAmount(uint256 _amount, address _bridge) internal {
+    function _setBridgeAmount(uint256 _amount, address _bridge) private {
         uintStorage[
             keccak256(abi.encode(BRIDGE_AMOUNT, _bridge))
         ] = _amount;
@@ -494,8 +482,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     }
 
     function _getStakingEpoch() internal view returns(uint256) {
-        IValidatorSet validatorSetContract = IValidatorSet(VALIDATOR_SET_CONTRACT);
-        IStaking stakingContract = IStaking(validatorSetContract.stakingContract());
+        IStaking stakingContract = IStaking(VALIDATOR_SET_CONTRACT.stakingContract());
 
         uint256 stakingEpoch = stakingContract.stakingEpoch();
 
@@ -503,14 +490,19 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
             return 0;
         }
 
-        if (validatorSetContract.validatorSetApplyBlock() == 0) {
+        if (VALIDATOR_SET_CONTRACT.validatorSetApplyBlock() == 0) {
             stakingEpoch--; // use the previous staking epoch because the current one is not applied yet
         }
 
         return stakingEpoch;
     }
 
-    function _isErcToNativeBridge(address _addr) internal view returns(bool) {
+    // =============================================== Private ========================================================
+
+
+    bytes32 private constant SNAPSHOT_VALIDATORS = "snapshotValidators";
+
+    function _isErcToNativeBridge(address _addr) private view returns(bool) {
         address[] memory bridges = ercToNativeBridgesAllowed();
 
         for (uint256 i = 0; i < bridges.length; i++) {
@@ -522,7 +514,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         return false;
     }
 
-    function _isErcToErcBridge(address _addr) internal view returns(bool) {
+    function _isErcToErcBridge(address _addr) private view returns(bool) {
         address[] memory bridges = ercToErcBridgesAllowed();
 
         for (uint256 i = 0; i < bridges.length; i++) {
@@ -534,7 +526,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         return false;
     }
 
-    function _isNativeToErcBridge(address _addr) internal view returns(bool) {
+    function _isNativeToErcBridge(address _addr) private view returns(bool) {
         address[] memory bridges = nativeToErcBridgesAllowed();
 
         for (uint256 i = 0; i < bridges.length; i++) {

@@ -8,7 +8,7 @@ const utils = require('./utils/utils');
 main();
 
 async function main() {
-  console.log('Checking the contracts\' functions for a clashing...');
+  console.log('Checking the contracts’ functions for clashing...');
 
   let dir = './contracts/';
 

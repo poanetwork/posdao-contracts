@@ -7,11 +7,6 @@ import "./eternal-storage/OwnedEternalStorage.sol";
 
 contract Certifier is OwnedEternalStorage, ICertifier {
 
-    // ============================================== Constants =======================================================
-
-    // This address must be set before deploy
-    address public constant VALIDATOR_SET_CONTRACT = address(0x1000000000000000000000000000000000000001);
-
     // ================================================ Events ========================================================
 
     event Confirmed(address indexed who);
@@ -45,7 +40,7 @@ contract Certifier is OwnedEternalStorage, ICertifier {
         if (boolStorage[keccak256(abi.encode(CERTIFIED, _who))]) {
             return true;
         }
-        return IValidatorSet(VALIDATOR_SET_CONTRACT).isReportValidatorValid(_who);
+        return VALIDATOR_SET_CONTRACT.isReportValidatorValid(_who);
     }
 
     // =============================================== Private ========================================================

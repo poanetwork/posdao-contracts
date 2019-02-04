@@ -14,7 +14,6 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
     /// Addresses of `Random` and `ValidatorSet` contracts.
     /// Must be set before deploy.
     address public constant RANDOM_CONTRACT = address(0x3000000000000000000000000000000000000001);
-    address public constant VALIDATOR_SET_CONTRACT = address(0x1000000000000000000000000000000000000001);
 
     // =============================================== Setters ========================================================
 
@@ -105,8 +104,6 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
             return (ALL, false);
         }
 
-        IValidatorSet validatorSet = IValidatorSet(VALIDATOR_SET_CONTRACT);
-
         // Get called function's signature
         bytes4 signature = bytes4(0);
         bytes memory abiParams;
@@ -133,12 +130,12 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
             }
         }
 
-        if (_to == VALIDATOR_SET_CONTRACT) {
+        if (_to == address(VALIDATOR_SET_CONTRACT)) {
             // The rules for ValidatorSet contract
             if (signature == bytes4(keccak256("emitInitiateChange()"))) {
                 // The `emitInitiateChange()` can be called by anyone
                 // if `emitInitiateChangeCallable()` returns `true`
-                return (validatorSet.emitInitiateChangeCallable() ? CALL : NONE, false);
+                return (VALIDATOR_SET_CONTRACT.emitInitiateChangeCallable() ? CALL : NONE, false);
             } else if (signature == bytes4(keccak256("reportMalicious(address,uint256,bytes)"))) {
                 abiParams = new bytes(_data.length - 4 > 64 ? 64 : _data.length - 4);
 
@@ -155,7 +152,7 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
                 );
 
                 // The `reportMalicious()` can only be called by validator's mining address when the calling is allowed
-                (bool callable,) = IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).reportMaliciousCallable(
+                (bool callable,) = IValidatorSetAuRa(address(VALIDATOR_SET_CONTRACT)).reportMaliciousCallable(
                     _sender, maliciousMiningAddress, blockNumber
                 );
 
@@ -163,16 +160,16 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
             } else if (_gasPrice > 0) {
                 // The other functions of ValidatorSet contract can be called
                 // by anyone except validators' mining addresses if gasPrice is not zero
-                return (validatorSet.isValidator(_sender) ? NONE : CALL, false);
+                return (VALIDATOR_SET_CONTRACT.isValidator(_sender) ? NONE : CALL, false);
             }
         }
 
-        if (validatorSet.isValidator(_sender) && _gasPrice > 0) {
+        if (VALIDATOR_SET_CONTRACT.isValidator(_sender) && _gasPrice > 0) {
             // Let the validator's mining address send their accumulated tx fees to some wallet
             return (_sender.balance > 0 ? BASIC : NONE, false);
         }
 
-        if (validatorSet.isValidator(_to)) {
+        if (VALIDATOR_SET_CONTRACT.isValidator(_to)) {
             // Validator's mining address can't receive any coins
             return (NONE, false);
         }
@@ -183,6 +180,11 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
     }
 
     function isSenderAllowed(address _sender) public view returns(bool) {
+        if (_owner == _sender) {
+            // Allow the owner to make any transactions
+            return true;
+        }
+
         uint256 allowedSendersLength = addressArrayStorage[ALLOWED_SENDERS].length;
 
         for (uint256 i = 0; i < allowedSendersLength; i++) {

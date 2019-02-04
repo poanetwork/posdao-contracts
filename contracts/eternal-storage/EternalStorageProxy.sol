@@ -119,8 +119,8 @@ contract EternalStorageProxy is OwnedEternalStorage, IEternalStorageProxy {
 
     // =============================================== Private ========================================================
 
-    bytes32 internal constant IMPLEMENTATION = keccak256("implementation");
-    bytes32 internal constant VERSION = keccak256("version");
+    bytes32 private constant IMPLEMENTATION = keccak256("implementation");
+    bytes32 private constant VERSION = keccak256("version");
 
     function _isContract(address _addr) private view returns(bool) {
         uint256 size;

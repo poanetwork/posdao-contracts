@@ -9,15 +9,10 @@ import "../libs/SafeMath.sol";
 contract RandomBase is OwnedEternalStorage, IRandom {
     using SafeMath for uint256;
 
-    // ============================================== Constants =======================================================
-
-    // This address must be set before deploy
-    address public constant VALIDATOR_SET_CONTRACT = address(0x1000000000000000000000000000000000000001);
-
     // ============================================== Modifiers =======================================================
 
     modifier onlyValidatorSetContract() {
-        require(msg.sender == VALIDATOR_SET_CONTRACT);
+        require(msg.sender == address(VALIDATOR_SET_CONTRACT));
         _;
     }
 

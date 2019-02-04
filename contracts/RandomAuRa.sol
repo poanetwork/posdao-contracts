@@ -12,7 +12,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     // ============================================== Modifiers =======================================================
 
     modifier onlyBlockReward() {
-        require(msg.sender == IValidatorSet(VALIDATOR_SET_CONTRACT).blockRewardContract());
+        require(msg.sender == VALIDATOR_SET_CONTRACT.blockRewardContract());
         _;
     }
 
@@ -23,6 +23,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
         require(commitHashCallable(miningAddress, _secretHash));
         require(block.coinbase == miningAddress); // make sure validator node is live
+        assert(VALIDATOR_SET_CONTRACT.isValidator(miningAddress)); // block.coinbase MUST be a validator!
 
         uint256 collectRound = currentCollectRound();
 
@@ -63,10 +64,10 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         address validator;
         uint256 i;
 
-        address stakingContract = IValidatorSet(VALIDATOR_SET_CONTRACT).stakingContract();
+        address stakingContract = VALIDATOR_SET_CONTRACT.stakingContract();
 
         uint256 stakingEpoch = IStaking(stakingContract).stakingEpoch();
-        uint256 applyBlock = IValidatorSet(VALIDATOR_SET_CONTRACT).validatorSetApplyBlock();
+        uint256 applyBlock = VALIDATOR_SET_CONTRACT.validatorSetApplyBlock();
         uint256 endBlock = IStakingAuRa(stakingContract).stakingEpochEndBlock();
         uint256 currentRound = currentCollectRound();
 
@@ -91,10 +92,10 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
                 maxRevealSkipsAllowed--;
             }
 
-            // Check each validator whether they didn't reveal
-            // their secret during the last full `reveals phase`
-            // or they missed required number of reveals per staking epoch
-            validators = IValidatorSet(VALIDATOR_SET_CONTRACT).getValidators();
+            // For each validator, check whether they didn’t reveal
+            // their secret during the last full `reveals phase`,
+            // or missed too many reveals per staking epoch.
+            validators = VALIDATOR_SET_CONTRACT.getValidators();
             for (i = 0; i < validators.length; i++) {
                 validator = validators[i];
                 if (
@@ -102,7 +103,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
                     revealSkips(stakingEpoch, validator) > maxRevealSkipsAllowed
                 ) {
                     // Remove the validator as malicious
-                    IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).removeMaliciousValidator(validator);
+                    _validatorSet().removeMaliciousValidator(validator);
                 }
             }
         }
@@ -236,6 +237,10 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
     function _setCollectRoundLength(uint256 _length) private {
         uintStorage[COLLECT_ROUND_LENGTH] = _length;
+    }
+
+    function _validatorSet() private pure returns(IValidatorSetAuRa) {
+        return IValidatorSetAuRa(address(VALIDATOR_SET_CONTRACT));
     }
 
     function _setCommit(uint256 _collectRound, address _miningAddress, bytes32 _secretHash) private {

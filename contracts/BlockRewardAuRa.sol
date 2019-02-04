@@ -16,7 +16,7 @@ contract BlockRewardAuRa is BlockRewardBase {
         require(benefactors.length == 1);
         require(kind[0] == 0);
 
-        IValidatorSet validatorSetContract = IValidatorSet(VALIDATOR_SET_CONTRACT);
+        IValidatorSet validatorSetContract = VALIDATOR_SET_CONTRACT;
 
         // Check if the validator is existed
         if (!validatorSetContract.isValidator(benefactors[0])) {
@@ -111,7 +111,7 @@ contract BlockRewardAuRa is BlockRewardBase {
             return (new address[](0), new uint256[](0));
         }
 
-        IValidatorSet validatorSetContract = IValidatorSet(VALIDATOR_SET_CONTRACT);
+        IValidatorSet validatorSetContract = VALIDATOR_SET_CONTRACT;
         address[] memory validators;
         uint256 poolReward;
         uint256 remainder;
