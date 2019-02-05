@@ -107,35 +107,33 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     }
 
     function finalizeChange() public onlySystem {
-        if (block.number > 1) { // skip the block #1 (the block after genesis)
-            (address[] memory queueValidators, bool newStakingEpoch) = getQueueValidators();
+        (address[] memory queueValidators, bool newStakingEpoch) = getQueueValidators();
 
-            if (validatorSetApplyBlock() == 0 && newStakingEpoch) {
-                // Apply new validator set after `newValidatorSet()` is called
+        if (validatorSetApplyBlock() == 0 && newStakingEpoch) {
+            // Apply new validator set after `newValidatorSet()` is called
 
-                address[] memory previousValidators = getPreviousValidators();
-                address[] memory currentValidators = getValidators();
-                uint256 i;
+            address[] memory previousValidators = getPreviousValidators();
+            address[] memory currentValidators = getValidators();
+            uint256 i;
 
-                // Save the previous validator set
-                for (i = 0; i < previousValidators.length; i++) {
-                    _setIsValidatorOnPreviousEpoch(previousValidators[i], false);
-                }
-                for (i = 0; i < currentValidators.length; i++) {
-                    _setIsValidatorOnPreviousEpoch(currentValidators[i], true);
-                }
-                _setPreviousValidators(currentValidators);
-
-                _applyQueueValidators(queueValidators);
-
-                _setValidatorSetApplyBlock(_getCurrentBlockNumber());
-
-                // Set a new snapshot inside BlockReward contract
-                IBlockReward(blockRewardContract()).setSnapshot();
-            } else {
-                // Apply new validator set after `reportMalicious` is called
-                _applyQueueValidators(queueValidators);
+            // Save the previous validator set
+            for (i = 0; i < previousValidators.length; i++) {
+                _setIsValidatorOnPreviousEpoch(previousValidators[i], false);
             }
+            for (i = 0; i < currentValidators.length; i++) {
+                _setIsValidatorOnPreviousEpoch(currentValidators[i], true);
+            }
+            _setPreviousValidators(currentValidators);
+
+            _applyQueueValidators(queueValidators);
+
+            _setValidatorSetApplyBlock(_getCurrentBlockNumber());
+
+            // Set a new snapshot inside BlockReward contract
+            IBlockReward(blockRewardContract()).setSnapshot();
+        } else if (queueValidators.length > 0) {
+            // Apply new validator set after `reportMalicious` is called
+            _applyQueueValidators(queueValidators);
         }
         _setInitiateChangeAllowed(true);
     }
