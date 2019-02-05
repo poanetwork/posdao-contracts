@@ -25,7 +25,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
         uint256 collectRound = currentCollectRound();
 
-        require(block.coinbase == validator);
+        require(block.coinbase == validator); // make sure validator node is live
         require(!isCommitted(collectRound, validator)); // cannot commit more than once
 
         _setCommit(collectRound, validator, _secretHash);
@@ -44,7 +44,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
         uint256 collectRound = currentCollectRound();
 
-        require(block.coinbase == validator);
+        require(block.coinbase == validator); // make sure validator node is live
         require(!sentReveal(collectRound, validator)); // cannot reveal more than once during the same collectRound
         require(secretHash == getCommit(collectRound, validator)); // the hash must be commited
 
@@ -70,113 +70,89 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         _setCollectRoundLength(_collectRoundLength);
     }
 
-    function onBlockClose(address _currentValidator) external onlyBlockReward {
+    function onBlockClose() external onlyBlockReward {
+        if (block.number % collectRoundLength() != collectRoundLength() - 1) return;
+
+        // This is the last block of the current collection round
+
+        if (boolStorage[ALLOW_PUBLISH_SECRET]) {
+            _publishSecret(); // publish new secret if `reveals phase` fully completed
+        }
+
+        address[] memory validators;
+        address validator;
+        uint256 i;
+
+        uint256 startBlock = IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).stakingEpochStartBlock();
+        uint256 applyBlock = IValidatorSet(VALIDATOR_SET_CONTRACT).validatorSetApplyBlock();
+        uint256 currentStakingEpoch = IValidatorSet(VALIDATOR_SET_CONTRACT).stakingEpoch();
         uint256 currentRound = currentCollectRound();
 
-        if (isCommitPhase()) {
-            // Remember that the current validator produced the current block
-            // during the `commits phase` of the current collection round
-            if (!createdBlockOnCommitsPhase(currentRound, _currentValidator)) {
-                _setCreatedBlockOnCommitsPhase(currentRound, _currentValidator, true);
-                _addBlockProducer(currentRound, _currentValidator);
-            }
-        } else {
-            // Remember that the current validator produced the current block
-            // during the `reveals phase` of the current collection round
-            if (!createdBlockOnRevealsPhase(currentRound, _currentValidator)) {
-                _setCreatedBlockOnRevealsPhase(currentRound, _currentValidator, true);
-                if (!createdBlockOnCommitsPhase(currentRound, _currentValidator)) {
-                    _addBlockProducer(currentRound, _currentValidator);
+        if (startBlock == block.number) {
+            // `newValidatorSet()` was called at the current block,
+            // so the number of stakingEpoch was incremented.
+            // We need to decrement it to get the number of
+            // completed staking epoch.
+            currentStakingEpoch--;
+        }
+
+        if (applyBlock != 0 && block.number > applyBlock + collectRoundLength() * 2) {
+            // Check each validator whether he didn't reveal his secret
+            // during collection round
+            validators = IValidatorSet(VALIDATOR_SET_CONTRACT).getValidators();
+            for (i = 0; i < validators.length; i++) {
+                validator = validators[i];
+                if (!sentReveal(currentRound, validator)) {
+                    _incrementRevealSkips(currentStakingEpoch, validator);
                 }
             }
         }
 
-        if (block.number % collectRoundLength() == collectRoundLength() - 1) {
-            // This is the last block of the current collection round
+        // If this was the last collection round in the current staking epoch
+        if (
+            startBlock == block.number ||
+            block.number + collectRoundLength() >
+            startBlock + IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).stakingEpochDuration() - 1
+        ) {
+            uint256 maxRevealSkipsAllowed =
+                IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).stakeWithdrawDisallowPeriod() / collectRoundLength();
 
-            if (boolStorage[ALLOW_PUBLISH_SECRET]) {
-                _publishSecret(); // publish new secret if `reveals phase` fully completed
+            if (maxRevealSkipsAllowed > 0) {
+                maxRevealSkipsAllowed--;
             }
 
-            address[] memory validators;
-            address validator;
-            uint256 blockNumber;
-            uint256 i;
-
-            blockNumber = IValidatorSet(VALIDATOR_SET_CONTRACT).validatorSetApplyBlock();
-
-            if (blockNumber != 0 && block.number > blockNumber + collectRoundLength() * 2 || blockNumber == 0) {
-                // Check each validator whether he created at least one block
-                // during commits phase and at least one block during reveals phase
-                // but didn't reveal his secret during reveals phase
-                // or revealed but didn't produce at least one block during any phase
-
-                validators = IValidatorSet(VALIDATOR_SET_CONTRACT).getValidators();
-                for (i = 0; i < validators.length; i++) {
-                    validator = validators[i];
-                    bool producedBlockOnCommitsPhase = createdBlockOnCommitsPhase(currentRound, validator);
-                    bool producedBlockOnRevealsPhase = createdBlockOnRevealsPhase(currentRound, validator);
-                    bool revealedSecret = sentReveal(currentRound, validator);
-                    if (producedBlockOnCommitsPhase && producedBlockOnRevealsPhase && !revealedSecret) {
-                        // The validator produced the blocks but didn't reveal his secret during
-                        // the current collection round, so remove him from validator set as malicious
-                        IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).removeMaliciousValidator(validator);
-                    } else if ((!producedBlockOnCommitsPhase || !producedBlockOnRevealsPhase) && revealedSecret) {
-                        // The validator sent reveal but didn't produced any blocks during
-                        // commits phase or reveal phase, so remove him from validator set as malicious
-                        IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).removeMaliciousValidator(validator);
-                    }
+            // Check each validator whether he didn't reveal
+            // his secret during the last full `reveals phase`
+            // or he missed required number of reveals per staking epoch
+            validators = IValidatorSet(VALIDATOR_SET_CONTRACT).getValidators();
+            for (i = 0; i < validators.length; i++) {
+                validator = validators[i];
+                if (
+                    !sentReveal(currentRound, validator) ||
+                    revealSkips(currentStakingEpoch, validator) > maxRevealSkipsAllowed
+                ) {
+                    // Remove the validator as malicious
+                    IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).removeMaliciousValidator(validator);
                 }
             }
-
-            blockNumber = IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).stakingEpochStartBlock();
-
-            // If this was the last collection round in the current staking epoch
-            if (
-                blockNumber == block.number ||
-                block.number + collectRoundLength() >
-                blockNumber + IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).stakingEpochDuration() - 1
-            ) {
-                // Check each validator whether he didn't reveal
-                // his secret during the last full `reveals phase`
-                validators = IValidatorSet(VALIDATOR_SET_CONTRACT).getValidators();
-                for (i = 0; i < validators.length; i++) {
-                    validator = validators[i];
-                    if (!sentReveal(currentRound, validator)) {
-                        // Remove the validator as malicious
-                        IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).removeMaliciousValidator(validator);
-                    }
-                }
-            }
-
-            // Clear info about previous collection round
-            _clear(currentRound);
         }
+
+        // Clear info about previous collection round
+        _clear(currentRound);
     }
 
     // =============================================== Getters ========================================================
 
-    function blocksProducers(uint256 _collectRound) public view returns(address[] memory) {
-        return addressArrayStorage[keccak256(abi.encode(BLOCKS_PRODUCERS, _collectRound))];
-    }
-
     function collectRoundLength() public view returns(uint256) {
         return uintStorage[COLLECT_ROUND_LENGTH];
     }
+
     function commitPhaseLength() public view returns(uint256) {
         return collectRoundLength() / 2;
     }
 
     function committedValidators(uint256 _collectRound) public view returns(address[] memory) {
         return addressArrayStorage[keccak256(abi.encode(COMMITTED_VALIDATORS, _collectRound))];
-    }
-
-    function createdBlockOnCommitsPhase(uint256 _collectRound, address _validator) public view returns(bool) {
-        return boolStorage[keccak256(abi.encode(CREATED_BLOCK_ON_COMMITS_PHASE, _collectRound, _validator))];
-    }
-
-    function createdBlockOnRevealsPhase(uint256 _collectRound, address _validator) public view returns(bool) {
-        return boolStorage[keccak256(abi.encode(CREATED_BLOCK_ON_REVEALS_PHASE, _collectRound, _validator))];
     }
 
     // Returns the number of collection round for the current block
@@ -212,6 +188,10 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         return uintStorage[keccak256(abi.encode(REVEALS_COUNT, _collectRound))];
     }
 
+    function revealSkips(uint256 _stakingEpoch, address _validator) public view returns(uint256) {
+        return uintStorage[keccak256(abi.encode(REVEAL_SKIPS, _stakingEpoch, _validator))];
+    }
+
     function sentReveal(uint256 _collectRound, address _validator) public view returns(bool) {
         return boolStorage[keccak256(abi.encode(SENT_REVEAL, _collectRound, _validator))];
     }
@@ -221,20 +201,12 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     bytes32 internal constant ALLOW_PUBLISH_SECRET = keccak256("allowPublishSecret");
     bytes32 internal constant COLLECT_ROUND_LENGTH = keccak256("collectRoundLength");
     bytes32 internal constant CURRENT_SECRET = keccak256("currentSecret");
-    bytes32 internal constant BLOCKS_PRODUCERS = "blocksProducers";
     bytes32 internal constant CIPHERS = "ciphers";
     bytes32 internal constant COMMITS = "commits";
     bytes32 internal constant COMMITTED_VALIDATORS = "committedValidators";
-    bytes32 internal constant CREATED_BLOCK_ON_COMMITS_PHASE = "createdBlockOnCommitsPhase";
-    bytes32 internal constant CREATED_BLOCK_ON_REVEALS_PHASE = "createdBlockOnRevealsPhase";
     bytes32 internal constant REVEALS_COUNT = "revealsCount";
+    bytes32 internal constant REVEAL_SKIPS = "revealSkips";
     bytes32 internal constant SENT_REVEAL = "sentReveal";
-
-    function _addBlockProducer(uint256 _collectRound, address _validator) private {
-        addressArrayStorage[
-            keccak256(abi.encode(BLOCKS_PRODUCERS, _collectRound))
-        ].push(_validator);
-    }
 
     function _addCommittedValidator(uint256 _collectRound, address _validator) private {
         addressArrayStorage[keccak256(abi.encode(COMMITTED_VALIDATORS, _collectRound))].push(_validator);
@@ -242,10 +214,6 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
     function _allowPublishSecret() private {
         boolStorage[ALLOW_PUBLISH_SECRET] = true;
-    }
-
-    function _clearBlocksProducers(uint256 _collectRound) private {
-        delete addressArrayStorage[keccak256(abi.encode(BLOCKS_PRODUCERS, _collectRound))];
     }
 
     function _denyPublishSecret() private {
@@ -259,22 +227,14 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         }
 
         uint256 collectRound = _currentCollectRound - 1;
-        address[] memory validators;
-        uint256 i;
+        address[] memory validators = committedValidators(collectRound);
 
-        validators = committedValidators(collectRound);
-        for (i = 0; i < validators.length; i++) {
+        for (uint256 i = 0; i < validators.length; i++) {
+            _clearCipher(collectRound, validators[i]);
             _setCommit(collectRound, validators[i], bytes32(0));
             _setSentReveal(collectRound, validators[i], false);
         }
         _clearCommittedValidators(collectRound);
-
-        validators = blocksProducers(collectRound);
-        for (i = 0; i < validators.length; i++) {
-            _setCreatedBlockOnCommitsPhase(collectRound, validators[i], false);
-            _setCreatedBlockOnRevealsPhase(collectRound, validators[i], false);
-        }
-        _clearBlocksProducers(collectRound);
 
         _setRevealsCount(collectRound, 0);
         _denyPublishSecret();
@@ -282,6 +242,14 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
     function _clearCommittedValidators(uint256 _collectRound) private {
         delete addressArrayStorage[keccak256(abi.encode(COMMITTED_VALIDATORS, _collectRound))];
+    }
+
+    function _clearCipher(uint256 _collectRound, address _validator) private {
+        delete bytesStorage[keccak256(abi.encode(CIPHERS, _collectRound, _validator))];
+    }
+
+    function _incrementRevealSkips(uint256 _stakingEpoch, address _validator) private {
+        uintStorage[keccak256(abi.encode(REVEAL_SKIPS, _stakingEpoch, _validator))]++;
     }
 
     function _publishSecret() private {
@@ -311,18 +279,6 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
     function _setCommit(uint256 _collectRound, address _validator, bytes32 _secretHash) private {
         bytes32Storage[keccak256(abi.encode(COMMITS, _collectRound, _validator))] = _secretHash;
-    }
-
-    function _setCreatedBlockOnCommitsPhase(uint256 _collectRound, address _validator, bool _flag) private {
-        boolStorage[
-            keccak256(abi.encode(CREATED_BLOCK_ON_COMMITS_PHASE, _collectRound, _validator))
-        ] = _flag;
-    }
-
-    function _setCreatedBlockOnRevealsPhase(uint256 _collectRound, address _validator, bool _flag) private {
-        boolStorage[
-            keccak256(abi.encode(CREATED_BLOCK_ON_REVEALS_PHASE, _collectRound, _validator))
-        ] = _flag;
     }
 
     function _setCurrentSecret(uint256 _secret) private {

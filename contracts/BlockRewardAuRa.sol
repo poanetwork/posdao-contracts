@@ -89,10 +89,9 @@ contract BlockRewardAuRa is BlockRewardBase {
         delete addressArrayStorage[REWARD_TEMPORARY_ARRAY];
         delete uintArrayStorage[REWARD_TEMPORARY_ARRAY];
 
-        // Mark that the current validator produced a block during the current phase.
         // Publish current random number at the end of the current collection round.
-        // Check if current validators participated in the current collection round.
-        IRandomAuRa(validatorSetContract.randomContract()).onBlockClose(benefactors[0]);
+        // Remove malicious validators if any.
+        IRandomAuRa(validatorSetContract.randomContract()).onBlockClose();
 
         return (receivers, rewards);
     }
