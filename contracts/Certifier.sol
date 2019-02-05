@@ -1,10 +1,11 @@
 pragma solidity 0.5.2;
 
+import "./interfaces/ICertifier.sol";
 import "./interfaces/IValidatorSet.sol";
 import "./eternal-storage/OwnedEternalStorage.sol";
 
 
-contract Certifier is OwnedEternalStorage {
+contract Certifier is OwnedEternalStorage, ICertifier {
 
     // ============================================== Constants =======================================================
 
@@ -18,8 +19,18 @@ contract Certifier is OwnedEternalStorage {
 
     // =============================================== Setters ========================================================
 
+    /// Initializes the contract at the start of the network.
+    /// Must be called by the constructor of `Initializer` contract on genesis block.
+    /// This is used instead of `constructor()` because this contract is upgradable.
+    function initialize(
+        address _certifiedAddress
+    ) external {
+        require(block.number == 0);
+        _certify(_certifiedAddress);
+    }
+
     function certify(address _who) external onlyOwner {
-        boolStorage[keccak256(abi.encode(CERTIFIED, _who))] = true;
+        _certify(_who);
         emit Confirmed(_who);
     }
 
@@ -40,4 +51,9 @@ contract Certifier is OwnedEternalStorage {
     // =============================================== Private ========================================================
 
     bytes32 internal constant CERTIFIED = "certified";
+
+    function _certify(address _who) internal {
+        require(_who != address(0));
+        boolStorage[keccak256(abi.encode(CERTIFIED, _who))] = true;
+    }
 }

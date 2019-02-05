@@ -144,7 +144,10 @@ async function main() {
         '0x1000000000000000000000000000000000000001', // _validatorSetContract
         '0x2000000000000000000000000000000000000001', // _blockRewardContract
         '0x3000000000000000000000000000000000000001', // _randomContract
+        '0x4000000000000000000000000000000000000001', // _permissionContract
+        '0x5000000000000000000000000000000000000001', // _certifierContract
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
+        owner, // _owner
         initialValidators, // _validators
         1, // _delegatorMinStake
         1, // _candidateMinStake

@@ -1,7 +1,9 @@
 pragma solidity 0.5.2;
 
-import "./interfaces/IRandomAuRa.sol";
 import "./interfaces/IValidatorSetAuRa.sol";
+import "./interfaces/IRandomAuRa.sol";
+import "./interfaces/ITxPermission.sol";
+import "./interfaces/ICertifier.sol";
 
 
 contract InitializerAuRa {
@@ -9,7 +11,10 @@ contract InitializerAuRa {
         IValidatorSetAuRa _validatorSetContract,
         address _blockRewardContract,
         IRandomAuRa _randomContract,
+        ITxPermission _permissionContract,
+        ICertifier _certifierContract,
         address _erc20TokenContract,
+        address _owner,
         address[] memory _validators,
         uint256 _delegatorMinStake,
         uint256 _candidateMinStake,
@@ -26,9 +31,9 @@ contract InitializerAuRa {
             _candidateMinStake,
             _stakingEpochDuration
         );
-        _randomContract.initialize(
-            _collectRoundLength
-        );
+        _randomContract.initialize(_collectRoundLength);
+        _permissionContract.initialize(_owner);
+        _certifierContract.initialize(_owner);
         selfdestruct(msg.sender);
     }
 }

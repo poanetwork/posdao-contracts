@@ -1,10 +1,11 @@
 pragma solidity 0.5.2;
 
+import "./interfaces/ITxPermission.sol";
 import "./interfaces/IValidatorSet.sol";
 import "./eternal-storage/OwnedEternalStorage.sol";
 
 
-contract TxPermission is OwnedEternalStorage {
+contract TxPermission is OwnedEternalStorage, ITxPermission {
 
     // ============================================== Constants =======================================================
 
@@ -15,9 +16,18 @@ contract TxPermission is OwnedEternalStorage {
 
     // =============================================== Setters ========================================================
 
+    /// Initializes the contract at the start of the network.
+    /// Must be called by the constructor of `Initializer` contract on genesis block.
+    /// This is used instead of `constructor()` because this contract is upgradable.
+    function initialize(
+        address _allowedSender
+    ) external {
+        require(block.number == 0);
+        _addAllowedSender(_allowedSender);
+    }
+
     function addAllowedSender(address _sender) public onlyOwner {
-        require(!isSenderAllowed(_sender));
-        addressArrayStorage[ALLOWED_SENDERS].push(_sender);
+        _addAllowedSender(_sender);
     }
 
     function removeAllowedSender(address _sender) public onlyOwner {
@@ -129,4 +139,10 @@ contract TxPermission is OwnedEternalStorage {
     uint32 internal constant CALL = 0x02;
     uint32 internal constant CREATE = 0x04;
     uint32 internal constant PRIVATE = 0x08;
+
+    function _addAllowedSender(address _sender) internal {
+        require(!isSenderAllowed(_sender));
+        require(_sender != address(0));
+        addressArrayStorage[ALLOWED_SENDERS].push(_sender);
+    }
 }
