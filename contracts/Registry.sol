@@ -16,6 +16,7 @@ contract Owned {
     }
 
     function setOwner(address _new) external onlyOwner {
+        require(_new != address(0));
         emit NewOwner(owner, _new);
         owner = _new;
     }
