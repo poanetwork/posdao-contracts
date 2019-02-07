@@ -516,11 +516,11 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         uint256 queueLast = uintStorage[QUEUE_PV_LAST];
 
         for (uint256 i = queueLast; i >= queueFirst; i--) {
-            if (
-                uintStorage[keccak256(abi.encode(QUEUE_PV_BLOCK, i))] == block.number &&
-                !boolStorage[keccak256(abi.encode(QUEUE_PV_NEW_EPOCH, i))]
-            ) {
+            if (uintStorage[keccak256(abi.encode(QUEUE_PV_BLOCK, i))] == block.number) {
                 addressArrayStorage[keccak256(abi.encode(QUEUE_PV_LIST, i))] = getPendingValidators();
+                if (_newStakingEpoch) {
+                    boolStorage[keccak256(abi.encode(QUEUE_PV_NEW_EPOCH, i))] = true;
+                }
                 return;
             }
         }

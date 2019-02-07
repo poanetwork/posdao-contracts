@@ -83,19 +83,10 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         address validator;
         uint256 i;
 
-        uint256 startBlock = IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).stakingEpochStartBlock();
-        uint256 endBlock = IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).stakingEpochEndBlock();
+        uint256 stakingEpoch = IValidatorSet(VALIDATOR_SET_CONTRACT).stakingEpoch();
         uint256 applyBlock = IValidatorSet(VALIDATOR_SET_CONTRACT).validatorSetApplyBlock();
-        uint256 currentStakingEpoch = IValidatorSet(VALIDATOR_SET_CONTRACT).stakingEpoch();
+        uint256 endBlock = IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).stakingEpochEndBlock();
         uint256 currentRound = currentCollectRound();
-
-        if (startBlock == block.number + 1) {
-            // `newValidatorSet()` was called at the current block,
-            // so the number of stakingEpoch was incremented.
-            // We need to decrement it to get the number of
-            // completed staking epoch.
-            currentStakingEpoch--;
-        }
 
         if (applyBlock != 0 && block.number > applyBlock + collectRoundLength() * 2) {
             // Check each validator whether he didn't reveal his secret
@@ -104,13 +95,13 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
             for (i = 0; i < validators.length; i++) {
                 validator = validators[i];
                 if (!sentReveal(currentRound, validator)) {
-                    _incrementRevealSkips(currentStakingEpoch, validator);
+                    _incrementRevealSkips(stakingEpoch, validator);
                 }
             }
         }
 
-        // If this was the last collection round in the current staking epoch
-        if (startBlock == block.number + 1 || block.number + collectRoundLength() > endBlock) {
+        // If this is the last collection round in the current staking epoch
+        if (block.number == endBlock || block.number + collectRoundLength() > endBlock) {
             uint256 maxRevealSkipsAllowed =
                 IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).stakeWithdrawDisallowPeriod() / collectRoundLength();
 
@@ -126,7 +117,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
                 validator = validators[i];
                 if (
                     !sentReveal(currentRound, validator) ||
-                    revealSkips(currentStakingEpoch, validator) > maxRevealSkipsAllowed
+                    revealSkips(stakingEpoch, validator) > maxRevealSkipsAllowed
                 ) {
                     // Remove the validator as malicious
                     IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).removeMaliciousValidator(validator);

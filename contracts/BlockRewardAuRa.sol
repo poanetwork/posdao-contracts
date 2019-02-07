@@ -31,6 +31,10 @@ contract BlockRewardAuRa is BlockRewardBase {
             return (new address[](0), new uint256[](0));
         }
 
+        // Publish current random number at the end of the current collection round.
+        // Remove malicious validators if any.
+        IRandomAuRa(validatorSetContract.randomContract()).onBlockClose();
+
         // Start new staking epoch every `stakingEpochDuration()` blocks
         validatorSetContract.newValidatorSet();
 
@@ -88,10 +92,6 @@ contract BlockRewardAuRa is BlockRewardBase {
 
         delete addressArrayStorage[REWARD_TEMPORARY_ARRAY];
         delete uintArrayStorage[REWARD_TEMPORARY_ARRAY];
-
-        // Publish current random number at the end of the current collection round.
-        // Remove malicious validators if any.
-        IRandomAuRa(validatorSetContract.randomContract()).onBlockClose();
 
         return (receivers, rewards);
     }
