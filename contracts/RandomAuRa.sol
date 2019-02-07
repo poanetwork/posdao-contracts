@@ -84,11 +84,12 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         uint256 i;
 
         uint256 startBlock = IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).stakingEpochStartBlock();
+        uint256 endBlock = IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).stakingEpochEndBlock();
         uint256 applyBlock = IValidatorSet(VALIDATOR_SET_CONTRACT).validatorSetApplyBlock();
         uint256 currentStakingEpoch = IValidatorSet(VALIDATOR_SET_CONTRACT).stakingEpoch();
         uint256 currentRound = currentCollectRound();
 
-        if (startBlock == block.number) {
+        if (startBlock == block.number + 1) {
             // `newValidatorSet()` was called at the current block,
             // so the number of stakingEpoch was incremented.
             // We need to decrement it to get the number of
@@ -109,11 +110,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         }
 
         // If this was the last collection round in the current staking epoch
-        if (
-            startBlock == block.number ||
-            block.number + collectRoundLength() >
-            startBlock + IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).stakingEpochDuration() - 1
-        ) {
+        if (startBlock == block.number + 1 || block.number + collectRoundLength() > endBlock) {
             uint256 maxRevealSkipsAllowed =
                 IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).stakeWithdrawDisallowPeriod() / collectRoundLength();
 

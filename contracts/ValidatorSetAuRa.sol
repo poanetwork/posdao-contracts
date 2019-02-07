@@ -56,9 +56,10 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
     }
 
     function newValidatorSet() external onlyBlockRewardContract {
-        if (!_newValidatorSetCallable()) return;
+        uint256 currentBlock = _getCurrentBlockNumber();
+        if (currentBlock != stakingEpochEndBlock()) return;
         super._newValidatorSet();
-        _setStakingEpochStartBlock(_getCurrentBlockNumber());
+        _setStakingEpochStartBlock(currentBlock + 1);
     }
 
     function removeMaliciousValidator(address _validator) external onlyRandomContract {
@@ -102,7 +103,15 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
 
     // =============================================== Getters ========================================================
 
-    function maliceReportedForBlock(address _validator, uint256 _blockNumber) external view returns(address[] memory) {
+    function areStakeAndWithdrawAllowed() public view returns(bool) {
+        uint256 allowedDuration = stakingEpochDuration() - stakeWithdrawDisallowPeriod();
+        uint256 applyBlock = validatorSetApplyBlock();
+        uint256 currentBlock = _getCurrentBlockNumber();
+        bool afterValidatorSetApplied = applyBlock != 0 && currentBlock > applyBlock;
+        return afterValidatorSetApplied && currentBlock.sub(stakingEpochStartBlock()) <= allowedDuration;
+    }
+
+    function maliceReportedForBlock(address _validator, uint256 _blockNumber) public view returns(address[] memory) {
         return addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED_FOR_BLOCK, _validator, _blockNumber))];
     }
 
@@ -116,6 +125,11 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
 
     function stakingEpochStartBlock() public view returns(uint256) {
         return uintStorage[STAKING_EPOCH_START_BLOCK];
+    }
+
+    function stakingEpochEndBlock() public view returns(uint256) {
+        uint256 startBlock = stakingEpochStartBlock();
+        return startBlock + stakingEpochDuration() - (startBlock == 0 ? 0 : 1);
     }
 
     // =============================================== Private ========================================================
@@ -143,17 +157,5 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
 
     function _setStakingEpochStartBlock(uint256 _blockNumber) internal {
         uintStorage[STAKING_EPOCH_START_BLOCK] = _blockNumber;
-    }
-
-    function _areStakeAndWithdrawAllowed() internal view returns(bool) {
-        uint256 allowedDuration = stakingEpochDuration() - stakeWithdrawDisallowPeriod();
-        uint256 applyBlock = validatorSetApplyBlock();
-        uint256 currentBlock = _getCurrentBlockNumber();
-        bool afterValidatorSetApplied = applyBlock != 0 && currentBlock > applyBlock;
-        return afterValidatorSetApplied && currentBlock.sub(stakingEpochStartBlock()) <= allowedDuration;
-    }
-
-    function _newValidatorSetCallable() internal view returns(bool) {
-        return _getCurrentBlockNumber().sub(stakingEpochStartBlock()) >= stakingEpochDuration();
     }
 }

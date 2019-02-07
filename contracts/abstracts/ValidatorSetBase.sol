@@ -186,6 +186,8 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
     // =============================================== Getters ========================================================
 
+    function areStakeAndWithdrawAllowed() public view returns(bool);
+
     // Returns the unix timestamp from which the address will be unbanned
     function bannedUntil(address _who) public view returns(uint256) {
         return uintStorage[
@@ -303,7 +305,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
             return 0;
         }
 
-        if (!_areStakeAndWithdrawAllowed()) {
+        if (!areStakeAndWithdrawAllowed()) {
             return 0;
         }
 
@@ -809,7 +811,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         require(_pool != address(0));
         require(_amount != 0);
         require(!isValidatorBanned(_pool));
-        require(_areStakeAndWithdrawAllowed());
+        require(areStakeAndWithdrawAllowed());
 
         uint256 epoch = stakingEpoch();
 
@@ -874,8 +876,6 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
             }
         }
     }
-
-    function _areStakeAndWithdrawAllowed() internal view returns(bool);
 
     function _getCurrentBlockNumber() internal view returns(uint256) {
         return block.number;
