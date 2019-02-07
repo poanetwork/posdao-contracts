@@ -40,8 +40,12 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
         address[] calldata _initialValidators,
         uint256 _delegatorMinStake, // in STAKE_UNITs
         uint256 _candidateMinStake, // in STAKE_UNITs
-        uint256 _stakingEpochDuration // in blocks (e.g., 120960 = 1 week)
+        uint256 _stakingEpochDuration, // in blocks (e.g., 120960 = 1 week)
+        uint256 _stakeWithdrawDisallowPeriod // in blocks (e.g., 4320 = 6 hours)
     ) external {
+        require(_stakingEpochDuration != 0);
+        require(_stakingEpochDuration > _stakeWithdrawDisallowPeriod);
+        require(_stakeWithdrawDisallowPeriod != 0);
         super._initialize(
             _blockRewardContract,
             _randomContract,
@@ -51,7 +55,7 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
             _candidateMinStake
         );
         _setStakingEpochDuration(_stakingEpochDuration);
-        require(stakeWithdrawDisallowPeriod() > 0);
+        _setStakeWithdrawDisallowPeriod(_stakeWithdrawDisallowPeriod);
         _setStakingEpochStartBlock(_getCurrentBlockNumber());
     }
 
@@ -116,7 +120,7 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
     }
 
     function stakeWithdrawDisallowPeriod() public view returns(uint256) {
-        return stakingEpochDuration() / 28;
+        return uintStorage[STAKE_WITHDRAW_DISALLOW_PERIOD];
     }
 
     function stakingEpochDuration() public view returns(uint256) {
@@ -134,6 +138,7 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
 
     // =============================================== Private ========================================================
 
+    bytes32 internal constant STAKE_WITHDRAW_DISALLOW_PERIOD = keccak256("stakeWithdrawDisallowPeriod");
     bytes32 internal constant STAKING_EPOCH_DURATION = keccak256("stakingEpochDuration");
     bytes32 internal constant STAKING_EPOCH_START_BLOCK = keccak256("stakingEpochStartBlock");
     bytes32 internal constant MALICE_REPORTED_FOR_BLOCK = "maliceReportedForBlock";
@@ -149,6 +154,10 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
             _incrementChangeRequestCount();
             _enqueuePendingValidators(false);
         }
+    }
+
+    function _setStakeWithdrawDisallowPeriod(uint256 _period) internal {
+        uintStorage[STAKE_WITHDRAW_DISALLOW_PERIOD] = _period;
     }
 
     function _setStakingEpochDuration(uint256 _duration) internal {

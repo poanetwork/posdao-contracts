@@ -19,6 +19,7 @@ contract InitializerAuRa {
         uint256 _delegatorMinStake,
         uint256 _candidateMinStake,
         uint256 _stakingEpochDuration,
+        uint256 _stakeWithdrawDisallowPeriod,
         uint256 _collectRoundLength
     ) public {
         require(address(_validatorSetContract) != address(0));
@@ -29,7 +30,8 @@ contract InitializerAuRa {
             _validators,
             _delegatorMinStake,
             _candidateMinStake,
-            _stakingEpochDuration
+            _stakingEpochDuration,
+            _stakeWithdrawDisallowPeriod
         );
         _randomContract.initialize(_collectRoundLength);
         _permissionContract.initialize(_owner);

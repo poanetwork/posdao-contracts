@@ -15,6 +15,7 @@ async function main() {
         initialValidators[i] = initialValidators[i].trim();
     }
     const stakingEpochDuration = process.env.STAKING_EPOCH_DURATION;
+    const stakeWithdrawDisallowPeriod = process.env.STAKE_WITHDRAW_DISALLOW_PERIOD;
     const collectRoundLength = process.env.COLLECT_ROUND_LENGTH;
 
     const contracts = [
@@ -152,6 +153,7 @@ async function main() {
         1, // _delegatorMinStake
         1, // _candidateMinStake
         stakingEpochDuration, // _stakingEpochDuration
+        stakeWithdrawDisallowPeriod, // _stakeWithdrawDisallowPeriod
         collectRoundLength    // _collectRoundLength
     ]});
     spec.accounts['0x7000000000000000000000000000000000000000'] = {
@@ -205,4 +207,4 @@ async function compile(dir, contractName) {
     return {abi: result.abi, bytecode: result.evm.bytecode.object};
 }
 
-// NETWORK_NAME=DPoSChain NETWORK_ID=101 OWNER=0x1092a1E3A3F2FB2024830Dd12064a4B33fF8EbAe INITIAL_VALIDATORS=0xeE385a1df869A468883107B0C06fA8791b28A04f,0x71385ae87c4b93db96f02f952be1f7a63f6057a6,0x190ec582090ae24284989af812f6b2c93f768ecd STAKING_EPOCH_DURATION=120960 COLLECT_ROUND_LENGTH=200 node scripts/make_spec.js
+// NETWORK_NAME=DPoSChain NETWORK_ID=101 OWNER=0x1092a1E3A3F2FB2024830Dd12064a4B33fF8EbAe INITIAL_VALIDATORS=0xeE385a1df869A468883107B0C06fA8791b28A04f,0x71385ae87c4b93db96f02f952be1f7a63f6057a6,0x190ec582090ae24284989af812f6b2c93f768ecd STAKING_EPOCH_DURATION=120960 STAKE_WITHDRAW_DISALLOW_PERIOD=4320 COLLECT_ROUND_LENGTH=200 node scripts/make_spec.js
