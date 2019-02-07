@@ -188,7 +188,11 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
     function areStakeAndWithdrawAllowed() public view returns(bool);
 
-    // Returns the unix timestamp from which the address will be unbanned
+    /// @dev Returns the block number or unix timestamp (depending on
+    /// consensus algorithm) from which the address will be unbanned.
+    /// @param _who The address of participant.
+    /// @return The block number (for AuRa) or unix timestamp (for HBBFT)
+    /// from which the address will be unbanned.
     function bannedUntil(address _who) public view returns(uint256) {
         return uintStorage[
             keccak256(abi.encode(BANNED_UNTIL, _who))
@@ -288,9 +292,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         return boolStorage[keccak256(abi.encode(IS_VALIDATOR_ON_PREVIOUS_EPOCH, _who))];
     }
 
-    function isValidatorBanned(address _validator) public view returns(bool) {
-        return now < bannedUntil(_validator);
-    }
+    function isValidatorBanned(address _validator) public view returns(bool);
 
     function maxWithdrawAllowed(address _pool, address _staker) public view returns(uint256) {
         bool poolIsValidator = isValidator(_pool);
@@ -505,10 +507,12 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         }
     }
 
-    function _banValidator(address _validator, uint256 _bannedUntil) internal {
+    function _banUntil() internal view returns(uint256);
+
+    function _banValidator(address _validator) internal {
         uintStorage[
             keccak256(abi.encode(BANNED_UNTIL, _validator))
-        ] = _bannedUntil;
+        ] = _banUntil();
     }
 
     function _enqueuePendingValidators(bool _newStakingEpoch) internal {
@@ -668,7 +672,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         _removeFromPools(_validator);
 
         // Ban the malicious validator for the next 3 months
-        _banValidator(_validator, now + 90 days);
+        _banValidator(_validator);
 
         address[] storage validators = addressArrayStorage[PENDING_VALIDATORS];
         bool isPendingValidator = false;

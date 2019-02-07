@@ -115,6 +115,10 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
         return afterValidatorSetApplied && currentBlock.sub(stakingEpochStartBlock()) <= allowedDuration;
     }
 
+    function isValidatorBanned(address _validator) public view returns(bool) {
+        return block.number < bannedUntil(_validator);
+    }
+
     function maliceReportedForBlock(address _validator, uint256 _blockNumber) public view returns(address[] memory) {
         return addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED_FOR_BLOCK, _validator, _blockNumber))];
     }
@@ -142,6 +146,10 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
     bytes32 internal constant STAKING_EPOCH_DURATION = keccak256("stakingEpochDuration");
     bytes32 internal constant STAKING_EPOCH_START_BLOCK = keccak256("stakingEpochStartBlock");
     bytes32 internal constant MALICE_REPORTED_FOR_BLOCK = "maliceReportedForBlock";
+
+    function _banUntil() internal view returns(uint256) {
+        return block.number + 1555200; // 90 days (for 5 seconds block)
+    }
 
     function _removeMaliciousValidatorAuRa(address _validator) internal {
         if (isValidatorBanned(_validator)) {

@@ -116,6 +116,10 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
         return applyBlock != 0 && _getCurrentBlockNumber() > applyBlock;
     }
 
+    function isValidatorBanned(address _validator) public view returns(bool) {
+        return now < bannedUntil(_validator);
+    }
+
     function maliceReported(address _validator) public view returns(address[] memory) {
         return addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED, _validator))];
     }
@@ -139,5 +143,9 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
         }
         super._addToPools(_who);
         delete addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED, _who))];
+    }
+
+    function _banUntil() internal view returns(uint256) {
+        return now + 90 days;
     }
 }
