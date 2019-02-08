@@ -13,7 +13,7 @@ contract ValidatorSetAuRaMock is ValidatorSetAuRa {
     	return _getRandomIndex(
             _likelihood,
             _likelihoodSum,
-            _randomNumber
+            uint256(keccak256(abi.encode(_randomNumber)))
         );
     }
 

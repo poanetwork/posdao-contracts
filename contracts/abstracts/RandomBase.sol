@@ -16,20 +16,28 @@ contract RandomBase is OwnedEternalStorage, IRandom {
 
     // ============================================== Modifiers =======================================================
 
-    modifier onlySystem() {
-        require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
+    modifier onlyValidatorSetContract() {
+        require(msg.sender == VALIDATOR_SET_CONTRACT);
         _;
     }
 
     // =============================================== Getters ========================================================
 
     // This function is called by ValidatorSet contract.
-    function currentRandom() public view returns(uint256[] memory) {
-        return uintArrayStorage[RANDOM_ARRAY];
+    function getCurrentSecret() external onlyValidatorSetContract view returns(uint256) {
+        return _getCurrentSecret();
     }
 
     // =============================================== Private ========================================================
 
-    bytes32 internal constant RANDOM_ARRAY = keccak256("randomArray");
+    bytes32 internal constant CURRENT_SECRET = keccak256("currentSecret");
+
+    function _setCurrentSecret(uint256 _secret) internal {
+        uintStorage[CURRENT_SECRET] = _secret;
+    }
+
+    function _getCurrentSecret() internal view returns(uint256) {
+        return uintStorage[CURRENT_SECRET];
+    }
 
 }

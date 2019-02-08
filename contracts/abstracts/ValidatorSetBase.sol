@@ -34,7 +34,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     /// signal will not be recognized.
     event InitiateChange(bytes32 indexed parentHash, address[] newSet);
 
-    /// Emitted by `stake` function to signal that the staker made a stake of the specified
+    /// @dev Emitted by `stake` function to signal that the staker made a stake of the specified
     /// amount for the specified pool during the specified staking epoch.
     /// @param toPool The pool for which the `staker` made the stake.
     /// @param staker The address of staker who made the stake.
@@ -47,7 +47,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         uint256 amount
     );
 
-    /// Emitted by `moveStake` function to signal that the staker moved the specified
+    /// @dev Emitted by `moveStake` function to signal that the staker moved the specified
     /// amount of a stake from one pool to another during the specified staking epoch.
     /// @param fromPool The pool from which the `staker` moved the stake.
     /// @param toPool The pool to which the `staker` moved the stake.
@@ -62,7 +62,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         uint256 amount
     );
 
-    /// Emitted by `withdraw` function to signal that the staker withdrew the specified
+    /// @dev Emitted by `withdraw` function to signal that the staker withdrew the specified
     /// amount of a stake from the specified pool during the specified staking epoch.
     /// @param fromPool The pool from which the `staker` withdrew `amount`.
     /// @param staker The address of staker who withdrew `amount`.
@@ -624,9 +624,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
                 _setPendingValidators(pools);
             }
         } else {
-            uint256[] memory randomNumbers = IRandom(randomContract()).currentRandom();
-
-            require(randomNumbers.length == MAX_VALIDATORS);
+            uint256 randomNumber = uint256(keccak256(abi.encode(IRandom(randomContract()).getCurrentSecret())));
 
             address[] memory poolsLocal = pools;
             uint256 poolsLocalLength = poolsLocal.length;
@@ -645,13 +643,14 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
                 uint256 randomPoolIndex = _getRandomIndex(
                     likelihood,
                     likelihoodSum,
-                    randomNumbers[i]
+                    randomNumber
                 );
                 newValidators[i] = poolsLocal[randomPoolIndex];
                 likelihoodSum -= likelihood[randomPoolIndex];
                 poolsLocalLength--;
                 poolsLocal[randomPoolIndex] = poolsLocal[poolsLocalLength];
                 likelihood[randomPoolIndex] = likelihood[poolsLocalLength];
+                randomNumber = uint256(keccak256(abi.encode(randomNumber)));
             }
 
             _setPendingValidators(newValidators);
@@ -890,7 +889,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         pure
         returns(uint256)
     {
-        int256 r = int256(uint256(keccak256(abi.encode(_randomNumber))) % _likelihoodSum) + 1;
+        int256 r = int256(_randomNumber % _likelihoodSum) + 1;
         int256 index = -1;
         do {
             r -= int256(_likelihood[uint256(++index)]);
