@@ -116,7 +116,7 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
     }
 
     function isValidatorBanned(address _validator) public view returns(bool) {
-        return block.number < bannedUntil(_validator);
+        return _getCurrentBlockNumber() < bannedUntil(_validator);
     }
 
     function maliceReportedForBlock(address _validator, uint256 _blockNumber) public view returns(address[] memory) {
