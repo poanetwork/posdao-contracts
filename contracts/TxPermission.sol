@@ -84,13 +84,15 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
      * @param _to Transaction recepient address
      * @param _value Value in wei for transaction
      * @param _gasPrice Gas price in wei for transaction
+     * @param _data Transaction data
      *
      */
     function allowedTxTypes(
         address _sender,
         address _to,
         uint256 /*_value*/, // solhint-disable-line space-after-comma
-        uint256 _gasPrice
+        uint256 _gasPrice,
+        bytes memory /*_data*/
     )
         public
         view
