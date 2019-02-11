@@ -451,7 +451,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
             address[] storage pools = addressArrayStorage[POOLS];
             _setPoolIndex(_who, pools.length);
             pools.push(_who);
-            require(pools.length <= MAX_CANDIDATES);
+            require(pools.length <= _getMaxCandidates());
             _setIsPoolActive(_who, true);
         }
         _removeFromPoolsInactive(_who);
@@ -888,6 +888,10 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
     function _getCurrentBlockNumber() internal view returns(uint256) {
         return block.number;
+    }
+
+    function _getMaxCandidates() internal pure returns(uint256) {
+        return MAX_CANDIDATES;
     }
 
     function _getRandomIndex(uint256[] memory _likelihood, uint256 _likelihoodSum, uint256 _randomNumber)

@@ -26,16 +26,18 @@ contract('ValidatorSetAuRa', async accounts => {
     let candidate;
     let erc20Token;
     let stakeUnit;
+    let initialValidators;
 
     beforeEach(async () => {
       candidate = accounts[4];
+      initialValidators = accounts.slice(1, 3 + 1); // accounts[1...3]
 
       // Initialize ValidatorSet
       await validatorSetAuRa.initialize(
         '0x2000000000000000000000000000000000000001', // _blockRewardContract
         '0x3000000000000000000000000000000000000001', // _randomContract
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
-        accounts.slice(1, 3 + 1), // _initialValidators
+        initialValidators, // _initialValidators
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
@@ -149,11 +151,33 @@ contract('ValidatorSetAuRa', async accounts => {
         candidate2
       ]);
     });
-    it('should not allow adding more than MAX_CANDIDATES pools', async () => {
-      // TODO: To be implemented
+    it('shouldn\'t allow adding more than MAX_CANDIDATES pools', async () => {
+      for (let p = initialValidators.length; p < 100; p++) {
+        // Generate new candidate address
+        let candidateAddress = '0x';
+        for (let i = 0; i < 20; i++) {
+          let randomByte = random(0, 255).toString(16);
+          if (randomByte.length % 2) {
+            randomByte = '0' + randomByte;
+          }
+          candidateAddress += randomByte;
+        }
+
+        // Add a new pool
+        await validatorSetAuRa.addToPoolsMock(candidateAddress).should.be.fulfilled;
+        new BN(p).should.be.bignumber.equal(await validatorSetAuRa.poolIndex.call(candidateAddress));
+      }
+
+      // Try to add a new pool outside of max limit
+      await validatorSetAuRa.addPool(stakeUnit.mul(new BN(1)), {from: candidate}).should.be.rejectedWith(ERROR_MSG);
+      false.should.be.equal(await validatorSetAuRa.doesPoolExist.call(candidate));
     });
     it('should remove added pool from the list of inactive pools', async () => {
-      // TODO: To be implemented
+      await validatorSetAuRa.addToPoolsInactiveMock(candidate).should.be.fulfilled;
+      (await validatorSetAuRa.getPoolsInactive.call()).should.be.deep.equal([candidate]);
+      await validatorSetAuRa.addPool(stakeUnit.mul(new BN(1)), {from: candidate}).should.be.fulfilled;
+      true.should.be.equal(await validatorSetAuRa.doesPoolExist.call(candidate));
+      (await validatorSetAuRa.getPoolsInactive.call()).length.should.be.equal(0);
     });
   });
 
