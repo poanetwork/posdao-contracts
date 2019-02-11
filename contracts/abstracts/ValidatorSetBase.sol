@@ -329,6 +329,12 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         }
     }
 
+    /// @dev Prevents sending tokens to `ValidatorSet` contract address
+    /// directly by `ERC677BridgeTokenRewardable.transferAndCall` function.
+    function onTokenTransfer(address, uint256, bytes memory) public pure returns(bool) {
+        return false;
+    }
+
     // Returns an index of the pool in the `pools` array
     function poolIndex(address _who) public view returns(uint256) {
         return uintStorage[
