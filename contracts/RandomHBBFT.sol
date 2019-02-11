@@ -12,7 +12,7 @@ contract RandomHBBFT is RandomBase {
 
     function storeRandom(uint256[] memory _random) public onlySystem {
         for (uint256 i = 0; i < _random.length; i++) {
-            _setCurrentSecret(_getCurrentSecret() ^ _random[i]);
+            _setCurrentSeed(_getCurrentSeed() ^ _random[i]);
         }
     }
 

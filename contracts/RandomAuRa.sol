@@ -48,7 +48,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         require(!sentReveal(collectRound, validator)); // cannot reveal more than once during the same collectRound
         require(secretHash == getCommit(collectRound, validator)); // the hash must be commited
 
-        _setCurrentSecret(_getCurrentSecret() ^ _secret);
+        _setCurrentSeed(_getCurrentSeed() ^ _secret);
         _setSentReveal(collectRound, validator, true);
     }
 

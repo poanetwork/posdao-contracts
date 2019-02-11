@@ -624,7 +624,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
                 _setPendingValidators(pools);
             }
         } else {
-            uint256 randomNumber = uint256(keccak256(abi.encode(IRandom(randomContract()).getCurrentSecret())));
+            uint256 randomNumber = uint256(keccak256(abi.encode(IRandom(randomContract()).getCurrentSeed())));
 
             address[] memory poolsLocal = pools;
             uint256 poolsLocalLength = poolsLocal.length;

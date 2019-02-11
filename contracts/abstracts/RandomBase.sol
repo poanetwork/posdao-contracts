@@ -24,20 +24,20 @@ contract RandomBase is OwnedEternalStorage, IRandom {
     // =============================================== Getters ========================================================
 
     // This function is called by ValidatorSet contract.
-    function getCurrentSecret() external onlyValidatorSetContract view returns(uint256) {
-        return _getCurrentSecret();
+    function getCurrentSeed() external onlyValidatorSetContract view returns(uint256) {
+        return _getCurrentSeed();
     }
 
     // =============================================== Private ========================================================
 
-    bytes32 internal constant CURRENT_SECRET = keccak256("currentSecret");
+    bytes32 internal constant CURRENT_SEED = keccak256("currentSeed");
 
-    function _setCurrentSecret(uint256 _secret) internal {
-        uintStorage[CURRENT_SECRET] = _secret;
+    function _setCurrentSeed(uint256 _seed) internal {
+        uintStorage[CURRENT_SEED] = _seed;
     }
 
-    function _getCurrentSecret() internal view returns(uint256) {
-        return uintStorage[CURRENT_SECRET];
+    function _getCurrentSeed() internal view returns(uint256) {
+        return uintStorage[CURRENT_SEED];
     }
 
 }

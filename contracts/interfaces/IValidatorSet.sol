@@ -13,7 +13,6 @@ interface IValidatorSet {
     function isReportValidatorValid(address) external view returns(bool);
     function isValidator(address) external view returns(bool);
     function isValidatorOnPreviousEpoch(address) external view returns(bool);
-    function MAX_VALIDATORS() external pure returns(uint256);
     function poolDelegators(address) external view returns(address[] memory);
     function randomContract() external view returns(address);
     function stakeAmount(address, address) external view returns(uint256);
