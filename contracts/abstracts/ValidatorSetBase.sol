@@ -208,10 +208,6 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         return uintStorage[CHANGE_REQUEST_COUNT];
     }
 
-    function doesPoolExist(address _who) public view returns(bool) {
-        return isPoolActive(_who);
-    }
-
     function emitInitiateChangeCallable() public view returns(bool) {
         return initiateChangeAllowed() && uintStorage[QUEUE_PV_LAST] >= uintStorage[QUEUE_PV_FIRST];
     }
@@ -343,10 +339,14 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     }
 
     // Returns an index of the pool in the `poolsInactive` array
-    function poolInactiveIndex(address _who) public view returns(uint256) {
-        return uintStorage[
+    function poolInactiveIndex(address _who) public view returns(uint256 index, bool is_valid) {
+        index = uintStorage[
             keccak256(abi.encode(POOL_INACTIVE_INDEX, _who))
         ];
+        if (index == 0)
+            return (0, false);
+        else
+            return (index - 1, true);
     }
 
     // Returns the list of current delegators in the specified pool
@@ -447,7 +447,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
     // Adds `_who` to the array of pools
     function _addToPools(address _who) internal {
-        if (!doesPoolExist(_who)) {
+        if (!isPoolActive(_who)) {
             address[] storage pools = addressArrayStorage[POOLS];
             _setPoolIndex(_who, pools.length);
             pools.push(_who);
@@ -460,10 +460,13 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     // Adds `_who` to the array of inactive pools
     function _addToPoolsInactive(address _who) internal {
         address[] storage poolsInactive = addressArrayStorage[POOLS_INACTIVE];
-        if (poolsInactive.length == 0 || poolsInactive[poolInactiveIndex(_who)] != _who) {
-            _setPoolInactiveIndex(_who, poolsInactive.length);
-            poolsInactive.push(_who);
+        if (poolsInactive.length != 0) {
+            (uint256 index, bool is_inactive) = poolInactiveIndex(_who);
+            if (is_inactive && poolsInactive[index] == _who)
+                return;
         }
+        _setPoolInactiveIndex(_who, poolsInactive.length);
+        poolsInactive.push(_who);
     }
 
     // Removes `_who` from the array of pools
@@ -485,7 +488,9 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     // Removes `_who` from the array of inactive pools
     function _removeFromPoolsInactive(address _who) internal {
         address[] storage poolsInactive = addressArrayStorage[POOLS_INACTIVE];
-        uint256 indexToRemove = poolInactiveIndex(_who);
+        (uint256 indexToRemove, bool isPoolInactive) = poolInactiveIndex(_who);
+        if (!isPoolInactive)
+            return;
         if (poolsInactive.length > 0 && poolsInactive[indexToRemove] == _who) {
             poolsInactive[indexToRemove] = poolsInactive[poolsInactive.length - 1];
             _setPoolInactiveIndex(poolsInactive[indexToRemove], indexToRemove);
@@ -735,9 +740,10 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     }
 
     function _setPoolInactiveIndex(address _who, uint256 _index) internal {
+        require(_index + 1 > _index);
         uintStorage[
             keccak256(abi.encode(POOL_INACTIVE_INDEX, _who))
-        ] = _index;
+        ] = _index + 1;
     }
 
     function _setPoolDelegatorIndex(address _pool, address _delegator, uint256 _index) internal {

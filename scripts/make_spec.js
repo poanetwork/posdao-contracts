@@ -156,6 +156,9 @@ async function main() {
         stakeWithdrawDisallowPeriod, // _stakeWithdrawDisallowPeriod
         collectRoundLength    // _collectRoundLength
     ]});
+    spec.accounts[owner] = {
+        balance: '1000000000000000000',
+    };
     spec.accounts['0x7000000000000000000000000000000000000000'] = {
         balance: '0',
         constructor: await deploy.encodeABI()
