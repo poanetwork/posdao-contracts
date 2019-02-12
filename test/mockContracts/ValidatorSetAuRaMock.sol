@@ -5,6 +5,13 @@ import '../../contracts/ValidatorSetAuRa.sol';
 
 contract ValidatorSetAuRaMock is ValidatorSetAuRa {
 
+    // ============================================== Modifiers =======================================================
+
+    modifier onlySystem() {
+        require(msg.sender == _getSystemAddress());
+        _;
+    }
+
     // =============================================== Setters ========================================================
 
     function addToPoolsMock(address _who) public {
@@ -21,6 +28,10 @@ contract ValidatorSetAuRaMock is ValidatorSetAuRa {
 
     function setCurrentBlockNumber(uint256 _blockNumber) public {
         uintStorage[keccak256("currentBlockNumber")] = _blockNumber;
+    }
+
+    function setSystemAddress(address _systemAddress) public {
+        addressStorage[keccak256("systemAddress")] = _systemAddress;
     }
 
     // =============================================== Getters ========================================================
@@ -45,6 +56,10 @@ contract ValidatorSetAuRaMock is ValidatorSetAuRa {
 
     function _getMaxCandidates() internal pure returns(uint256) {
         return 100;
+    }
+
+    function _getSystemAddress() internal view returns(address) {
+        return addressStorage[keccak256("systemAddress")];
     }
 
 }
