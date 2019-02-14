@@ -48,14 +48,18 @@ contract BlockRewardHBBFT is BlockRewardBase {
             return;
         }
 
-        uint256 poolReward = BLOCK_REWARD / snapshotValidators(stakingEpoch).length;
-        uint256 remainder = BLOCK_REWARD % snapshotValidators(stakingEpoch).length;
+        uint256 poolReward = BLOCK_REWARD / snapshotStakingAddresses(stakingEpoch).length;
+        uint256 remainder = BLOCK_REWARD % snapshotStakingAddresses(stakingEpoch).length;
 
         for (uint256 i = 0; i < benefactors.length; i++) {
             (
                 address[] memory receivers,
                 uint256[] memory rewards
-            ) = _distributePoolReward(stakingEpoch, benefactors[i], i == 0 ? poolReward + remainder : poolReward);
+            ) = _distributePoolReward(
+                stakingEpoch,
+                IValidatorSet(VALIDATOR_SET_CONTRACT).stakingByMiningAddress(benefactors[i]),
+                i == 0 ? poolReward + remainder : poolReward
+            );
 
             erc20Contract.mintReward(receivers, rewards);
 

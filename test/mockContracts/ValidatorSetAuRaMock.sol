@@ -14,12 +14,12 @@ contract ValidatorSetAuRaMock is ValidatorSetAuRa {
 
     // =============================================== Setters ========================================================
 
-    function addToPoolsMock(address _who) public {
-        _addToPools(_who);
+    function addToPoolsMock(address _stakingAddress) public {
+        _addToPools(_stakingAddress);
     }
 
-    function addToPoolsInactiveMock(address _who) public {
-        _addToPoolsInactive(_who);
+    function addToPoolsInactiveMock(address _stakingAddress) public {
+        _addToPoolsInactive(_stakingAddress);
     }
 
     function resetErc20TokenContract() public {

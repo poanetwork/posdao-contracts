@@ -131,17 +131,19 @@ contract BlockRewardAuRa is BlockRewardBase {
             poolReward = bridgeFeeAmount / validators.length;
             remainder = bridgeFeeAmount % validators.length;
 
+            receivers = new address[](validators.length);
             rewards = new uint256[](validators.length);
 
             for (i = 0; i < validators.length; i++) {
+                receivers[i] = validatorSetContract.stakingByMiningAddress(validators[i]);
                 rewards[i] = poolReward;
             }
             rewards[0] += remainder;
 
-            return (validators, rewards);
+            return (receivers, rewards);
         } else {
-            poolReward = bridgeFeeAmount / snapshotValidators(_stakingEpoch).length;
-            remainder = bridgeFeeAmount % snapshotValidators(_stakingEpoch).length;
+            poolReward = bridgeFeeAmount / snapshotStakingAddresses(_stakingEpoch).length;
+            remainder = bridgeFeeAmount % snapshotStakingAddresses(_stakingEpoch).length;
 
             for (i = 0; i < validators.length; i++) {
                 // Distribute the reward among validators and their delegators
@@ -150,7 +152,7 @@ contract BlockRewardAuRa is BlockRewardBase {
                     rewards
                 ) = _distributePoolReward(
                     _stakingEpoch,
-                    validators[i],
+                    validatorSetContract.stakingByMiningAddress(validators[i]),
                     i == 0 ? poolReward + remainder : poolReward
                 );
 

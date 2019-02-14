@@ -36,12 +36,12 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
     /// @dev Emitted by `stake` function to signal that the staker made a stake of the specified
     /// amount for the specified pool during the specified staking epoch.
-    /// @param toPool The pool for which the `staker` made the stake.
+    /// @param toPoolStakingAddress The pool for which the `staker` made the stake.
     /// @param staker The address of staker who made the stake.
     /// @param stakingEpoch The serial number of staking epoch during which the stake was made.
     /// @param amount The amount of the stake.
     event Staked(
-        address indexed toPool,
+        address indexed toPoolStakingAddress,
         address indexed staker,
         uint256 indexed stakingEpoch,
         uint256 amount
@@ -49,14 +49,14 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
     /// @dev Emitted by `moveStake` function to signal that the staker moved the specified
     /// amount of a stake from one pool to another during the specified staking epoch.
-    /// @param fromPool The pool from which the `staker` moved the stake.
-    /// @param toPool The pool to which the `staker` moved the stake.
+    /// @param fromPoolStakingAddress The pool from which the `staker` moved the stake.
+    /// @param toPoolStakingAddress The pool to which the `staker` moved the stake.
     /// @param staker The address of staker who moved the `amount`.
     /// @param stakingEpoch The serial number of staking epoch during which the `amount` was moved.
     /// @param amount The amount of the stake.
     event StakeMoved(
-        address fromPool,
-        address indexed toPool,
+        address fromPoolStakingAddress,
+        address indexed toPoolStakingAddress,
         address indexed staker,
         uint256 indexed stakingEpoch,
         uint256 amount
@@ -64,12 +64,12 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
     /// @dev Emitted by `withdraw` function to signal that the staker withdrew the specified
     /// amount of a stake from the specified pool during the specified staking epoch.
-    /// @param fromPool The pool from which the `staker` withdrew `amount`.
+    /// @param fromPoolStakingAddress The pool from which the `staker` withdrew `amount`.
     /// @param staker The address of staker who withdrew `amount`.
     /// @param stakingEpoch The serial number of staking epoch during which the withdrawal was made.
     /// @param amount The amount of the withdrawal.
     event Withdrawn(
-        address indexed fromPool,
+        address indexed fromPoolStakingAddress,
         address indexed staker,
         uint256 indexed stakingEpoch,
         uint256 amount
@@ -100,10 +100,11 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     }
 
     function removePool() public gasPriceIsValid {
-        if (stakingEpoch() == 0 && isValidator(msg.sender)) {
-            revert(); // initial validator cannot remove his pool during the initial staking epoch
+        address stakingAddress = msg.sender;
+        if (stakingEpoch() == 0 && isValidator(miningByStakingAddress(stakingAddress))) {
+            revert(); // initial validator cannot remove their pool during the initial staking epoch
         }
-        _removeFromPools(msg.sender);
+        _removeFromPools(stakingAddress);
     }
 
     function finalizeChange() public onlySystem {
@@ -138,36 +139,56 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         _setInitiateChangeAllowed(true);
     }
 
-    function moveStake(address _fromPool, address _toPool, uint256 _amount) public gasPriceIsValid {
-        require(_fromPool != _toPool);
+    /// @dev Moves the tokens from one pool to another.
+    /// @param _fromPoolStakingAddress The staking address of the source pool.
+    /// @param _toPoolStakingAddress The staking address of the target pool.
+    /// @param _amount The amount to be moved.
+    function moveStake(
+        address _fromPoolStakingAddress,
+        address _toPoolStakingAddress,
+        uint256 _amount
+    ) public gasPriceIsValid {
+        require(_fromPoolStakingAddress != _toPoolStakingAddress);
         address staker = msg.sender;
-        _withdraw(_fromPool, staker, _amount);
-        _stake(_toPool, staker, _amount);
-        emit StakeMoved(_fromPool, _toPool, staker, stakingEpoch(), _amount);
+        _withdraw(_fromPoolStakingAddress, staker, _amount);
+        _stake(_toPoolStakingAddress, staker, _amount);
+        emit StakeMoved(_fromPoolStakingAddress, _toPoolStakingAddress, staker, stakingEpoch(), _amount);
     }
 
-    function stake(address _toPool, uint256 _amount) public gasPriceIsValid {
+    /// @dev Moves the tokens from staker address to ValidatorSet address
+    /// on the account of staking address of the pool.
+    /// @param _toPoolStakingAddress The staking address of the pool.
+    /// @param _amount The amount of the stake.
+    function stake(address _toPoolStakingAddress, uint256 _amount) public gasPriceIsValid {
         IERC20Minting tokenContract = IERC20Minting(erc20TokenContract());
         require(address(tokenContract) != address(0));
         address staker = msg.sender;
-        _stake(_toPool, staker, _amount);
+        _stake(_toPoolStakingAddress, staker, _amount);
         tokenContract.stake(staker, _amount);
-        emit Staked(_toPool, staker, stakingEpoch(), _amount);
+        emit Staked(_toPoolStakingAddress, staker, stakingEpoch(), _amount);
     }
 
-    function withdraw(address _fromPool, uint256 _amount) public gasPriceIsValid {
+    /// @dev Moves the tokens from ValidatorSet address (from the account of
+    /// staking address of the pool) to staker address.
+    /// @param _fromPoolStakingAddress The staking address of the pool.
+    /// @param _amount The amount of the withdrawal.
+    function withdraw(address _fromPoolStakingAddress, uint256 _amount) public gasPriceIsValid {
         IERC20Minting tokenContract = IERC20Minting(erc20TokenContract());
         require(address(tokenContract) != address(0));
         address staker = msg.sender;
-        _withdraw(_fromPool, staker, _amount);
+        _withdraw(_fromPoolStakingAddress, staker, _amount);
         tokenContract.withdraw(staker, _amount);
-        emit Withdrawn(_fromPool, staker, stakingEpoch(), _amount);
+        emit Withdrawn(_fromPoolStakingAddress, staker, stakingEpoch(), _amount);
     }
 
-    function clearStakeHistory(address _pool, address[] memory _staker, uint256 _stakingEpoch) public onlyOwner {
+    function clearStakeOldHistory(
+        address _poolStakingAddress,
+        address[] memory _staker,
+        uint256 _stakingEpoch
+    ) public onlyOwner {
         require(_stakingEpoch <= stakingEpoch().sub(2));
         for (uint256 i = 0; i < _staker.length; i++) {
-            _setStakeAmountByEpoch(_pool, _staker[i], _stakingEpoch, 0);
+            _setStakeAmountByEpoch(_poolStakingAddress, _staker[i], _stakingEpoch, 0);
         }
     }
 
@@ -190,12 +211,12 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
     /// @dev Returns the block number or unix timestamp (depending on
     /// consensus algorithm) from which the address will be unbanned.
-    /// @param _who The address of participant.
+    /// @param _miningAddress The address of participant.
     /// @return The block number (for AuRa) or unix timestamp (for HBBFT)
     /// from which the address will be unbanned.
-    function bannedUntil(address _who) public view returns(uint256) {
+    function bannedUntil(address _miningAddress) public view returns(uint256) {
         return uintStorage[
-            keccak256(abi.encode(BANNED_UNTIL, _who))
+            keccak256(abi.encode(BANNED_UNTIL, _miningAddress))
         ];
     }
 
@@ -208,8 +229,8 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         return uintStorage[CHANGE_REQUEST_COUNT];
     }
 
-    function doesPoolExist(address _who) public view returns(bool) {
-        return isPoolActive(_who);
+    function doesPoolExist(address _stakingAddress) public view returns(bool) {
+        return isPoolActive(_stakingAddress);
     }
 
     function emitInitiateChangeCallable() public view returns(bool) {
@@ -221,25 +242,31 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     }
 
     // Returns the list of current pools (candidates and validators)
+    // (their staking addresses)
     function getPools() public view returns(address[] memory) {
         return addressArrayStorage[POOLS];
     }
 
     // Returns the list of pools which are inactive or banned
+    // (their staking addresses)
     function getPoolsInactive() public view returns(address[] memory) {
         return addressArrayStorage[POOLS_INACTIVE];
     }
 
     // Returns the set of validators which was actual at the end of previous staking epoch
+    // (their mining addresses)
     function getPreviousValidators() public view returns(address[] memory) {
         return addressArrayStorage[PREVIOUS_VALIDATORS];
     }
 
-    // Returns the set of validators to be finalized in engine
+    // Returns the set of pending validators
+    // (their mining addresses)
     function getPendingValidators() public view returns(address[] memory) {
         return addressArrayStorage[PENDING_VALIDATORS];
     }
 
+    // Returns the set of validators to be finalized in engine
+    // (their mining addresses)
     function getQueueValidators() public view returns(address[] memory, bool) {
         return (addressArrayStorage[QUEUE_VALIDATORS], boolStorage[QUEUE_VALIDATORS_NEW_STAKING_EPOCH]);
     }
@@ -253,6 +280,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     }
 
     // Returns the current set of validators (the same as in the engine)
+    // (their mining addresses)
     function getValidators() public view returns(address[] memory) {
         return addressArrayStorage[CURRENT_VALIDATORS];
     }
@@ -261,49 +289,51 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         return boolStorage[INITIATE_CHANGE_ALLOWED];
     }
 
-    // Returns the flag whether the address in the `pools` array
-    function isPoolActive(address _who) public view returns(bool) {
-        return boolStorage[keccak256(abi.encode(IS_POOL_ACTIVE, _who))];
+    // Returns the flag whether the address is in the `pools` array
+    function isPoolActive(address _stakingAddress) public view returns(bool) {
+        return boolStorage[keccak256(abi.encode(IS_POOL_ACTIVE, _stakingAddress))];
     }
 
-    function isReportValidatorValid(address _validator) public view returns(bool) {
-        bool isValid = isValidator(_validator) && !isValidatorBanned(_validator);
+    function isReportValidatorValid(address _miningAddress) public view returns(bool) {
+        bool isValid = isValidator(_miningAddress) && !isValidatorBanned(_miningAddress);
         if (stakingEpoch() == 0 || validatorSetApplyBlock() == 0) {
             return isValid;
         }
-        if (_getCurrentBlockNumber() - validatorSetApplyBlock() <= 3) {
+        if (_getCurrentBlockNumber() - validatorSetApplyBlock() <= 20) {
             // The current validator set was applied in engine,
             // but we should let the previous validators finish
             // reporting malicious validator within a few blocks
             bool previousEpochValidator =
-                isValidatorOnPreviousEpoch(_validator) && !isValidatorBanned(_validator);
+                isValidatorOnPreviousEpoch(_miningAddress) && !isValidatorBanned(_miningAddress);
             return isValid || previousEpochValidator;
         }
         return isValid;
     }
 
-    // Returns the flag whether the address in the `currentValidators` array
-    function isValidator(address _who) public view returns(bool) {
-        return boolStorage[keccak256(abi.encode(IS_VALIDATOR, _who))];
+    // Returns the flag whether the mining address is in the `currentValidators` array
+    function isValidator(address _miningAddress) public view returns(bool) {
+        return boolStorage[keccak256(abi.encode(IS_VALIDATOR, _miningAddress))];
     }
 
-    // Returns the flag whether the address was a validator at the end of previous staking epoch
-    function isValidatorOnPreviousEpoch(address _who) public view returns(bool) {
-        return boolStorage[keccak256(abi.encode(IS_VALIDATOR_ON_PREVIOUS_EPOCH, _who))];
+    // Returns the flag whether the mining address was a validator at the end of previous staking epoch
+    function isValidatorOnPreviousEpoch(address _miningAddress) public view returns(bool) {
+        return boolStorage[keccak256(abi.encode(IS_VALIDATOR_ON_PREVIOUS_EPOCH, _miningAddress))];
     }
 
-    function isValidatorBanned(address _validator) public view returns(bool);
+    function isValidatorBanned(address _miningAddress) public view returns(bool);
 
-    function maxWithdrawAllowed(address _pool, address _staker) public view returns(uint256) {
-        bool poolIsValidator = isValidator(_pool);
+    function maxWithdrawAllowed(address _poolStakingAddress, address _staker) public view returns(uint256) {
+        address miningAddress = miningByStakingAddress(_poolStakingAddress);
 
-        if (_staker == _pool && poolIsValidator) {
+        bool poolIsValidator = isValidator(miningAddress);
+
+        if (_staker == _poolStakingAddress && poolIsValidator) {
             // A pool can't withdraw while it is a validator
             return 0;
         }
 
-        if (isValidatorBanned(_pool)) {
-            // No one can withdraw from `_pool` until the ban is expired
+        if (isValidatorBanned(miningAddress)) {
+            // No one can withdraw from `_poolStakingAddress` until the ban is expired
             return 0;
         }
 
@@ -313,20 +343,28 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
         if (!poolIsValidator) {
             // The whole amount can be withdrawn if the pool is not a validator
-            return stakeAmount(_pool, _staker);
+            return stakeAmount(_poolStakingAddress, _staker);
         }
 
-        if (isValidatorOnPreviousEpoch(_pool)) {
+        if (isValidatorOnPreviousEpoch(miningAddress)) {
             // The pool was also a validator on the previous staking epoch, so
             // the staker can't withdraw amount staked on the previous staking epoch
-            return stakeAmount(_pool, _staker).sub(
-                stakeAmountByEpoch(_pool, _staker, stakingEpoch().sub(1)) // stakingEpoch is always > 0 here
+            return stakeAmount(_poolStakingAddress, _staker).sub(
+                stakeAmountByEpoch(
+                    _poolStakingAddress,
+                    _staker,
+                    stakingEpoch().sub(1) // stakingEpoch is always > 0 here
+                )
             );
         } else {
             // The pool wasn't a validator on the previous staking epoch, so
             // the staker can only withdraw amount staked on the current staking epoch
-            return stakeAmountByEpoch(_pool, _staker, stakingEpoch());
+            return stakeAmountByEpoch(_poolStakingAddress, _staker, stakingEpoch());
         }
+    }
+
+    function miningByStakingAddress(address _stakingAddress) public view returns(address) {
+        return addressStorage[keccak256(abi.encode(MINING_BY_STAKING_ADDRESS, _stakingAddress))];
     }
 
     /// @dev Prevents sending tokens to `ValidatorSet` contract address
@@ -336,30 +374,30 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     }
 
     // Returns an index of the pool in the `pools` array
-    function poolIndex(address _who) public view returns(uint256) {
+    function poolIndex(address _stakingAddress) public view returns(uint256) {
         return uintStorage[
-            keccak256(abi.encode(POOL_INDEX, _who))
+            keccak256(abi.encode(POOL_INDEX, _stakingAddress))
         ];
     }
 
     // Returns an index of the pool in the `poolsInactive` array
-    function poolInactiveIndex(address _who) public view returns(uint256) {
+    function poolInactiveIndex(address _stakingAddress) public view returns(uint256) {
         return uintStorage[
-            keccak256(abi.encode(POOL_INACTIVE_INDEX, _who))
+            keccak256(abi.encode(POOL_INACTIVE_INDEX, _stakingAddress))
         ];
     }
 
-    // Returns the list of current delegators in the specified pool
-    function poolDelegators(address _pool) public view returns(address[] memory) {
+    // Returns the list of the current delegators in the specified pool
+    function poolDelegators(address _poolStakingAddress) public view returns(address[] memory) {
         return addressArrayStorage[
-            keccak256(abi.encode(POOL_DELEGATORS, _pool))
+            keccak256(abi.encode(POOL_DELEGATORS, _poolStakingAddress))
         ];
     }
 
     // Returns delegator's index in `poolDelegators` array
-    function poolDelegatorIndex(address _pool, address _delegator) public view returns(uint256) {
+    function poolDelegatorIndex(address _poolStakingAddress, address _delegator) public view returns(uint256) {
         return uintStorage[
-            keccak256(abi.encode(POOL_DELEGATOR_INDEX, _pool, _delegator))
+            keccak256(abi.encode(POOL_DELEGATOR_INDEX, _poolStakingAddress, _delegator))
         ];
     }
 
@@ -367,26 +405,30 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         return addressStorage[RANDOM_CONTRACT];
     }
 
-    function stakeAmount(address _pool, address _staker) public view returns(uint256) {
+    function stakeAmount(address _poolStakingAddress, address _staker) public view returns(uint256) {
         return uintStorage[
-            keccak256(abi.encode(STAKE_AMOUNT, _pool, _staker))
+            keccak256(abi.encode(STAKE_AMOUNT, _poolStakingAddress, _staker))
         ];
     }
 
-    function stakeAmountByEpoch(address _pool, address _staker, uint256 _stakingEpoch)
+    function stakeAmountByEpoch(address _poolStakingAddress, address _staker, uint256 _stakingEpoch)
         public
         view
         returns(uint256)
     {
         return uintStorage[
-            keccak256(abi.encode(STAKE_AMOUNT_BY_EPOCH, _pool, _staker, _stakingEpoch))
+            keccak256(abi.encode(STAKE_AMOUNT_BY_EPOCH, _poolStakingAddress, _staker, _stakingEpoch))
         ];
     }
 
-    function stakeAmountTotal(address _pool) public view returns(uint256) {
+    function stakeAmountTotal(address _poolStakingAddress) public view returns(uint256) {
         return uintStorage[
-            keccak256(abi.encode(STAKE_AMOUNT_TOTAL, _pool))
+            keccak256(abi.encode(STAKE_AMOUNT_TOTAL, _poolStakingAddress))
         ];
+    }
+
+    function stakingByMiningAddress(address _miningAddress) public view returns(address) {
+        return addressStorage[keccak256(abi.encode(STAKING_BY_MINING_ADDRESS, _miningAddress))];
     }
 
     // Returns the internal serial number of staking epoch
@@ -395,13 +437,13 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     }
 
     // Returns the index of validator in the `currentValidators`
-    function validatorIndex(address _validator) public view returns(uint256) {
+    function validatorIndex(address _miningAddress) public view returns(uint256) {
         return uintStorage[
-            keccak256(abi.encode(VALIDATOR_INDEX, _validator))
+            keccak256(abi.encode(VALIDATOR_INDEX, _miningAddress))
         ];
     }
 
-    // Returns the block number when `finalizeChange` was called to apply the validator set
+    // Returns the block number when `finalizeChange` was called to apply the current validator set
     function validatorSetApplyBlock() public view returns(uint256) {
         return uintStorage[VALIDATOR_SET_APPLY_BLOCK];
     }
@@ -433,6 +475,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     bytes32 internal constant IS_POOL_ACTIVE = "isPoolActive";
     bytes32 internal constant IS_VALIDATOR = "isValidator";
     bytes32 internal constant IS_VALIDATOR_ON_PREVIOUS_EPOCH = "isValidatorOnPreviousEpoch";
+    bytes32 internal constant MINING_BY_STAKING_ADDRESS = "miningByStakingAddress";
     bytes32 internal constant POOL_DELEGATORS = "poolDelegators";
     bytes32 internal constant POOL_DELEGATOR_INDEX = "poolDelegatorIndex";
     bytes32 internal constant POOL_INDEX = "poolIndex";
@@ -443,54 +486,55 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     bytes32 internal constant STAKE_AMOUNT = "stakeAmount";
     bytes32 internal constant STAKE_AMOUNT_BY_EPOCH = "stakeAmountByEpoch";
     bytes32 internal constant STAKE_AMOUNT_TOTAL = "stakeAmountTotal";
+    bytes32 internal constant STAKING_BY_MINING_ADDRESS = "stakingByMiningAddress";
     bytes32 internal constant VALIDATOR_INDEX = "validatorIndex";
 
-    // Adds `_who` to the array of pools
-    function _addToPools(address _who) internal {
-        if (!doesPoolExist(_who)) {
+    // Adds `_stakingAddress` to the array of pools
+    function _addToPools(address _stakingAddress) internal {
+        if (!doesPoolExist(_stakingAddress)) {
             address[] storage pools = addressArrayStorage[POOLS];
-            _setPoolIndex(_who, pools.length);
-            pools.push(_who);
+            _setPoolIndex(_stakingAddress, pools.length);
+            pools.push(_stakingAddress);
             require(pools.length <= _getMaxCandidates());
-            _setIsPoolActive(_who, true);
+            _setIsPoolActive(_stakingAddress, true);
         }
-        _removeFromPoolsInactive(_who);
+        _removeFromPoolsInactive(_stakingAddress);
     }
 
-    // Adds `_who` to the array of inactive pools
-    function _addToPoolsInactive(address _who) internal {
+    // Adds `_stakingAddress` to the array of inactive pools
+    function _addToPoolsInactive(address _stakingAddress) internal {
         address[] storage poolsInactive = addressArrayStorage[POOLS_INACTIVE];
-        if (poolsInactive.length == 0 || poolsInactive[poolInactiveIndex(_who)] != _who) {
-            _setPoolInactiveIndex(_who, poolsInactive.length);
-            poolsInactive.push(_who);
+        if (poolsInactive.length == 0 || poolsInactive[poolInactiveIndex(_stakingAddress)] != _stakingAddress) {
+            _setPoolInactiveIndex(_stakingAddress, poolsInactive.length);
+            poolsInactive.push(_stakingAddress);
         }
     }
 
-    // Removes `_who` from the array of pools
-    function _removeFromPools(address _who) internal {
-        uint256 indexToRemove = poolIndex(_who);
+    // Removes `_stakingAddress` from the array of pools
+    function _removeFromPools(address _stakingAddress) internal {
+        uint256 indexToRemove = poolIndex(_stakingAddress);
         address[] storage pools = addressArrayStorage[POOLS];
-        if (pools.length > 0 && pools[indexToRemove] == _who) {
+        if (pools.length > 0 && pools[indexToRemove] == _stakingAddress) {
             pools[indexToRemove] = pools[pools.length - 1];
             _setPoolIndex(pools[indexToRemove], indexToRemove);
             pools.length--;
-            _setPoolIndex(_who, 0);
-            _setIsPoolActive(_who, false);
-            if (stakeAmountTotal(_who) != 0) {
-                _addToPoolsInactive(_who);
+            _setPoolIndex(_stakingAddress, 0);
+            _setIsPoolActive(_stakingAddress, false);
+            if (stakeAmountTotal(_stakingAddress) != 0) {
+                _addToPoolsInactive(_stakingAddress);
             }
         }
     }
 
-    // Removes `_who` from the array of inactive pools
-    function _removeFromPoolsInactive(address _who) internal {
+    // Removes `_stakingAddress` from the array of inactive pools
+    function _removeFromPoolsInactive(address _stakingAddress) internal {
         address[] storage poolsInactive = addressArrayStorage[POOLS_INACTIVE];
-        uint256 indexToRemove = poolInactiveIndex(_who);
-        if (poolsInactive.length > 0 && poolsInactive[indexToRemove] == _who) {
+        uint256 indexToRemove = poolInactiveIndex(_stakingAddress);
+        if (poolsInactive.length > 0 && poolsInactive[indexToRemove] == _stakingAddress) {
             poolsInactive[indexToRemove] = poolsInactive[poolsInactive.length - 1];
             _setPoolInactiveIndex(poolsInactive[indexToRemove], indexToRemove);
             poolsInactive.length--;
-            _setPoolInactiveIndex(_who, 0);
+            _setPoolInactiveIndex(_stakingAddress, 0);
         }
     }
 
@@ -515,9 +559,9 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
     function _banUntil() internal view returns(uint256);
 
-    function _banValidator(address _validator) internal {
+    function _banValidator(address _miningAddress) internal {
         uintStorage[
-            keccak256(abi.encode(BANNED_UNTIL, _validator))
+            keccak256(abi.encode(BANNED_UNTIL, _miningAddress))
         ] = _banUntil();
     }
 
@@ -571,14 +615,16 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         address _blockRewardContract,
         address _randomContract,
         address _erc20TokenContract,
-        address[] memory _initialValidators,
+        address[] memory _initialMiningAddresses,
+        address[] memory _initialStakingAddresses,
         uint256 _delegatorMinStake,
         uint256 _candidateMinStake
     ) internal {
         require(_getCurrentBlockNumber() == 0); // initialization must be done on genesis block
         require(_blockRewardContract != address(0));
         require(_randomContract != address(0));
-        require(_initialValidators.length > 0);
+        require(_initialMiningAddresses.length > 0);
+        require(_initialMiningAddresses.length == _initialStakingAddresses.length);
         require(_delegatorMinStake != 0);
         require(_candidateMinStake != 0);
 
@@ -591,12 +637,13 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         require(currentValidators.length == 0);
 
         // Add initial validators to the `currentValidators` array
-        for (uint256 i = 0; i < _initialValidators.length; i++) {
-            currentValidators.push(_initialValidators[i]);
-            pendingValidators.push(_initialValidators[i]);
-            _setValidatorIndex(_initialValidators[i], i);
-            _setIsValidator(_initialValidators[i], true);
-            _addToPools(_initialValidators[i]);
+        for (uint256 i = 0; i < _initialMiningAddresses.length; i++) {
+            currentValidators.push(_initialMiningAddresses[i]);
+            pendingValidators.push(_initialMiningAddresses[i]);
+            _setValidatorIndex(_initialMiningAddresses[i], i);
+            _setIsValidator(_initialMiningAddresses[i], true);
+            _addToPools(_initialStakingAddresses[i]);
+            _setStakingAddress(_initialMiningAddresses[i], _initialStakingAddresses[i]);
         }
 
         _setDelegatorMinStake(_delegatorMinStake);
@@ -672,19 +719,19 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         _setValidatorSetApplyBlock(0);
     }
 
-    function _removeMaliciousValidator(address _validator) internal returns(bool) {
+    function _removeMaliciousValidator(address _miningAddress) internal returns(bool) {
         // Remove malicious validator from `pools`
-        _removeFromPools(_validator);
+        _removeFromPools(stakingByMiningAddress(_miningAddress));
 
         // Ban the malicious validator for the next 3 months
-        _banValidator(_validator);
+        _banValidator(_miningAddress);
 
-        address[] storage validators = addressArrayStorage[PENDING_VALIDATORS];
+        address[] storage miningAddresses = addressArrayStorage[PENDING_VALIDATORS];
         bool isPendingValidator = false;
         uint256 i;
 
-        for (i = 0; i < validators.length; i++) {
-            if (validators[i] == _validator) {
+        for (i = 0; i < miningAddresses.length; i++) {
+            if (miningAddresses[i] == _miningAddress) {
                 isPendingValidator = true;
                 break;
             }
@@ -692,110 +739,128 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
         if (isPendingValidator) {
             // Remove the malicious validator from `pendingValidators`
-            validators[i] = validators[validators.length - 1];
-            validators.length--;
+            miningAddresses[i] = miningAddresses[miningAddresses.length - 1];
+            miningAddresses.length--;
             return true;
         }
 
         return false;
     }
 
-    function _setCurrentValidators(address[] memory _validators) internal {
-        addressArrayStorage[CURRENT_VALIDATORS] = _validators;
+    function _setCurrentValidators(address[] memory _miningAddresses) internal {
+        addressArrayStorage[CURRENT_VALIDATORS] = _miningAddresses;
     }
 
     function _setInitiateChangeAllowed(bool _allowed) internal {
         boolStorage[INITIATE_CHANGE_ALLOWED] = _allowed;
     }
 
-    function _setIsPoolActive(address _who, bool _isPoolActive) internal {
-        boolStorage[keccak256(abi.encode(IS_POOL_ACTIVE, _who))] = _isPoolActive;
+    function _setIsPoolActive(address _stakingAddress, bool _isPoolActive) internal {
+        boolStorage[keccak256(abi.encode(IS_POOL_ACTIVE, _stakingAddress))] = _isPoolActive;
     }
 
-    function _setIsValidator(address _who, bool _isValidator) internal {
-        boolStorage[keccak256(abi.encode(IS_VALIDATOR, _who))] = _isValidator;
+    function _setIsValidator(address _miningAddress, bool _isValidator) internal {
+        boolStorage[keccak256(abi.encode(IS_VALIDATOR, _miningAddress))] = _isValidator;
     }
 
-    function _setIsValidatorOnPreviousEpoch(address _who, bool _isValidator) internal {
-        boolStorage[keccak256(abi.encode(IS_VALIDATOR_ON_PREVIOUS_EPOCH, _who))] = _isValidator;
+    function _setIsValidatorOnPreviousEpoch(address _miningAddress, bool _isValidator) internal {
+        boolStorage[keccak256(abi.encode(IS_VALIDATOR_ON_PREVIOUS_EPOCH, _miningAddress))] = _isValidator;
     }
 
-    function _setPendingValidators(address[] memory _validators) internal {
-        addressArrayStorage[PENDING_VALIDATORS] = _validators;
+    function _setPendingValidators(address[] memory _stakingAddresses) internal {
+        uint256 i;
 
-        for (uint256 i = 0; i < addressArrayStorage[POOLS_EMPTY].length; i++) {
+        delete addressArrayStorage[PENDING_VALIDATORS];
+
+        for (i = 0; i < _stakingAddresses.length; i++) {
+            addressArrayStorage[PENDING_VALIDATORS].push(miningByStakingAddress(_stakingAddresses[i]));
+        }
+
+        for (i = 0; i < addressArrayStorage[POOLS_EMPTY].length; i++) {
             _removeFromPools(addressArrayStorage[POOLS_EMPTY][i]);
         }
     }
 
-    function _setPoolIndex(address _who, uint256 _index) internal {
+    function _setPoolIndex(address _stakingAddress, uint256 _index) internal {
         uintStorage[
-            keccak256(abi.encode(POOL_INDEX, _who))
+            keccak256(abi.encode(POOL_INDEX, _stakingAddress))
         ] = _index;
     }
 
-    function _setPoolInactiveIndex(address _who, uint256 _index) internal {
+    function _setPoolInactiveIndex(address _stakingAddress, uint256 _index) internal {
         uintStorage[
-            keccak256(abi.encode(POOL_INACTIVE_INDEX, _who))
+            keccak256(abi.encode(POOL_INACTIVE_INDEX, _stakingAddress))
         ] = _index;
     }
 
-    function _setPoolDelegatorIndex(address _pool, address _delegator, uint256 _index) internal {
-        uintStorage[keccak256(abi.encode(POOL_DELEGATOR_INDEX, _pool, _delegator))] = _index;
+    function _setPoolDelegatorIndex(address _poolStakingAddress, address _delegator, uint256 _index) internal {
+        uintStorage[keccak256(abi.encode(POOL_DELEGATOR_INDEX, _poolStakingAddress, _delegator))] = _index;
     }
 
-    function _setQueueValidators(address[] memory _validators, bool _newStakingEpoch) internal {
-        addressArrayStorage[QUEUE_VALIDATORS] = _validators;
+    function _setQueueValidators(address[] memory _miningAddresses, bool _newStakingEpoch) internal {
+        addressArrayStorage[QUEUE_VALIDATORS] = _miningAddresses;
         boolStorage[QUEUE_VALIDATORS_NEW_STAKING_EPOCH] = _newStakingEpoch;
     }
 
     // Add `_delegator` to the array of pool's delegators
-    function _addPoolDelegator(address _pool, address _delegator) internal {
+    function _addPoolDelegator(address _poolStakingAddress, address _delegator) internal {
         address[] storage delegators = addressArrayStorage[
-            keccak256(abi.encode(POOL_DELEGATORS, _pool))
+            keccak256(abi.encode(POOL_DELEGATORS, _poolStakingAddress))
         ];
-        _setPoolDelegatorIndex(_pool, _delegator, delegators.length);
+        _setPoolDelegatorIndex(_poolStakingAddress, _delegator, delegators.length);
         delegators.push(_delegator);
     }
 
     // Remove `_delegator` from the array of pool's delegators
-    function _removePoolDelegator(address _pool, address _delegator) internal {
+    function _removePoolDelegator(address _poolStakingAddress, address _delegator) internal {
         address[] storage delegators = addressArrayStorage[
-            keccak256(abi.encode(POOL_DELEGATORS, _pool))
+            keccak256(abi.encode(POOL_DELEGATORS, _poolStakingAddress))
         ];
         if (delegators.length == 0) return;
-        uint256 indexToRemove = poolDelegatorIndex(_pool, _delegator);
+        uint256 indexToRemove = poolDelegatorIndex(_poolStakingAddress, _delegator);
         delegators[indexToRemove] = delegators[delegators.length - 1];
-        _setPoolDelegatorIndex(_pool, delegators[indexToRemove], indexToRemove);
+        _setPoolDelegatorIndex(_poolStakingAddress, delegators[indexToRemove], indexToRemove);
         delegators.length--;
-        _setPoolDelegatorIndex(_pool, _delegator, 0);
+        _setPoolDelegatorIndex(_poolStakingAddress, _delegator, 0);
     }
 
-    function _setPreviousValidators(address[] memory _validators) internal {
-        addressArrayStorage[PREVIOUS_VALIDATORS] = _validators;
+    function _setPreviousValidators(address[] memory _miningAddresses) internal {
+        addressArrayStorage[PREVIOUS_VALIDATORS] = _miningAddresses;
     }
 
-    function _setStakeAmount(address _pool, address _staker, uint256 _amount) internal {
+    function _setStakeAmount(address _poolStakingAddress, address _staker, uint256 _amount) internal {
         uintStorage[
-            keccak256(abi.encode(STAKE_AMOUNT, _pool, _staker))
+            keccak256(abi.encode(STAKE_AMOUNT, _poolStakingAddress, _staker))
         ] = _amount;
     }
 
     function _setStakeAmountByEpoch(
-        address _pool,
+        address _poolStakingAddress,
         address _staker,
         uint256 _stakingEpoch,
         uint256 _amount
     ) internal {
+        uintStorage[keccak256(abi.encode(
+            STAKE_AMOUNT_BY_EPOCH, _poolStakingAddress, _staker, _stakingEpoch
+        ))] = _amount;
+    }
+
+    function _setStakeAmountTotal(address _poolStakingAddress, uint256 _amount) internal {
         uintStorage[
-            keccak256(abi.encode(STAKE_AMOUNT_BY_EPOCH, _pool, _staker, _stakingEpoch))
+            keccak256(abi.encode(STAKE_AMOUNT_TOTAL, _poolStakingAddress))
         ] = _amount;
     }
 
-    function _setStakeAmountTotal(address _pool, uint256 _amount) internal {
-        uintStorage[
-            keccak256(abi.encode(STAKE_AMOUNT_TOTAL, _pool))
-        ] = _amount;
+    function _setStakingAddress(address _miningAddress, address _stakingAddress) internal {
+        require(_miningAddress != address(0));
+        require(_stakingAddress != address(0));
+        require(_miningAddress != _stakingAddress);
+        require(miningByStakingAddress(_stakingAddress) == address(0));
+        require(miningByStakingAddress(_miningAddress) == address(0));
+        require(stakingByMiningAddress(_stakingAddress) == address(0));
+        require(stakingByMiningAddress(_miningAddress) == address(0));
+        addressStorage[keccak256(abi.encode(MINING_BY_STAKING_ADDRESS, _stakingAddress))] = _miningAddress;
+        addressStorage[keccak256(abi.encode(STAKING_BY_MINING_ADDRESS, _miningAddress))] = _stakingAddress;
     }
 
     function _setDelegatorMinStake(uint256 _minStake) internal {
@@ -806,9 +871,9 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         uintStorage[CANDIDATE_MIN_STAKE] = _minStake * STAKE_UNIT;
     }
 
-    function _setValidatorIndex(address _validator, uint256 _index) internal {
+    function _setValidatorIndex(address _miningAddress, uint256 _index) internal {
         uintStorage[
-            keccak256(abi.encode(VALIDATOR_INDEX, _validator))
+            keccak256(abi.encode(VALIDATOR_INDEX, _miningAddress))
         ] = _index;
     }
 
@@ -816,72 +881,80 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         uintStorage[VALIDATOR_SET_APPLY_BLOCK] = _blockNumber;
     }
 
-    function _stake(address _pool, address _staker, uint256 _amount) internal {
-        require(_pool != address(0));
+    function _stake(address _poolStakingAddress, address _staker, uint256 _amount) internal {
+        address poolMiningAddress = miningByStakingAddress(_poolStakingAddress);
+
+        require(poolMiningAddress != address(0));
+        require(_poolStakingAddress != address(0));
         require(_amount != 0);
-        require(!isValidatorBanned(_pool));
+        require(!isValidatorBanned(poolMiningAddress));
         require(areStakeAndWithdrawAllowed());
 
         uint256 epoch = stakingEpoch();
 
-        uint256 newStakeAmount = stakeAmount(_pool, _staker).add(_amount);
-        if (_staker == _pool) {
+        uint256 newStakeAmount = stakeAmount(_poolStakingAddress, _staker).add(_amount);
+        if (_staker == _poolStakingAddress) {
             require(newStakeAmount >= getCandidateMinStake()); // the staked amount must be at least CANDIDATE_MIN_STAKE
         } else {
             require(newStakeAmount >= getDelegatorMinStake()); // the staked amount must be at least DELEGATOR_MIN_STAKE
         }
-        _setStakeAmount(_pool, _staker, newStakeAmount);
-        _setStakeAmountByEpoch(_pool, _staker, epoch, stakeAmountByEpoch(_pool, _staker, epoch).add(_amount));
-        _setStakeAmountTotal(_pool, stakeAmountTotal(_pool).add(_amount));
+        _setStakeAmount(_poolStakingAddress, _staker, newStakeAmount);
+        _setStakeAmountByEpoch(
+            _poolStakingAddress,
+            _staker,
+            epoch,
+            stakeAmountByEpoch(_poolStakingAddress, _staker, epoch).add(_amount)
+        );
+        _setStakeAmountTotal(_poolStakingAddress, stakeAmountTotal(_poolStakingAddress).add(_amount));
 
-        if (_staker == _pool) { // `staker` makes a stake for himself and becomes a candidate
-            // Add `_pool` to the array of pools
-            _addToPools(_pool);
+        if (_staker == _poolStakingAddress) { // `staker` makes a stake for himself and becomes a candidate
+            // Add `_poolStakingAddress` to the array of pools
+            _addToPools(_poolStakingAddress);
         } else if (newStakeAmount == _amount) { // if the stake is first
             // Add `_staker` to the array of pool's delegators
-            _addPoolDelegator(_pool, _staker);
+            _addPoolDelegator(_poolStakingAddress, _staker);
         }
     }
 
-    function _withdraw(address _pool, address _staker, uint256 _amount) internal {
-        require(_pool != address(0));
+    function _withdraw(address _poolStakingAddress, address _staker, uint256 _amount) internal {
+        require(_poolStakingAddress != address(0));
         require(_amount != 0);
 
-        // How much can `staker` withdraw from `_pool` at the moment?
-        require(_amount <= maxWithdrawAllowed(_pool, _staker));
+        // How much can `staker` withdraw from `_poolStakingAddress` at the moment?
+        require(_amount <= maxWithdrawAllowed(_poolStakingAddress, _staker));
 
         uint256 epoch = stakingEpoch();
 
         // The amount to be withdrawn must be the whole staked amount or
         // must not exceed the diff between the entire amount and MIN_STAKE
-        uint256 newStakeAmount = stakeAmount(_pool, _staker).sub(_amount);
+        uint256 newStakeAmount = stakeAmount(_poolStakingAddress, _staker).sub(_amount);
         if (newStakeAmount > 0) {
-            if (_staker == _pool) {
+            if (_staker == _poolStakingAddress) {
                 require(newStakeAmount >= getCandidateMinStake());
             } else {
                 require(newStakeAmount >= getDelegatorMinStake());
             }
         }
-        _setStakeAmount(_pool, _staker, newStakeAmount);
-        uint256 amountByEpoch = stakeAmountByEpoch(_pool, _staker, epoch);
+        _setStakeAmount(_poolStakingAddress, _staker, newStakeAmount);
+        uint256 amountByEpoch = stakeAmountByEpoch(_poolStakingAddress, _staker, epoch);
         if (_amount <= amountByEpoch) {
-            _setStakeAmountByEpoch(_pool, _staker, epoch, amountByEpoch - _amount);
+            _setStakeAmountByEpoch(_poolStakingAddress, _staker, epoch, amountByEpoch - _amount);
         } else {
-            _setStakeAmountByEpoch(_pool, _staker, epoch, 0);
+            _setStakeAmountByEpoch(_poolStakingAddress, _staker, epoch, 0);
         }
-        _setStakeAmountTotal(_pool, stakeAmountTotal(_pool).sub(_amount));
+        _setStakeAmountTotal(_poolStakingAddress, stakeAmountTotal(_poolStakingAddress).sub(_amount));
 
         if (newStakeAmount == 0) { // the whole amount has been withdrawn
-            if (_staker == _pool) {
-                // Remove `_pool` from the array of pools
-                _removeFromPools(_pool);
+            if (_staker == _poolStakingAddress) {
+                // Remove `_poolStakingAddress` from the array of pools
+                _removeFromPools(_poolStakingAddress);
             } else {
                 // Remove `_staker` from the array of pool's delegators
-                _removePoolDelegator(_pool, _staker);
+                _removePoolDelegator(_poolStakingAddress, _staker);
             }
 
-            if (stakeAmountTotal(_pool) == 0) {
-                _removeFromPoolsInactive(_pool);
+            if (stakeAmountTotal(_poolStakingAddress) == 0) {
+                _removeFromPoolsInactive(_poolStakingAddress);
             }
         }
     }

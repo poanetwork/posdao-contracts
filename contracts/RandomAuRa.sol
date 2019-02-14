@@ -20,17 +20,17 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         require(isCommitPhase()); // must only be called in `commits phase`
         require(_secretHash != bytes32(0));
 
-        address validator = msg.sender;
-        require(IValidatorSet(VALIDATOR_SET_CONTRACT).isValidator(validator));
+        address miningAddress = msg.sender;
+        require(IValidatorSet(VALIDATOR_SET_CONTRACT).isValidator(miningAddress));
 
         uint256 collectRound = currentCollectRound();
 
-        require(block.coinbase == validator); // make sure validator node is live
-        require(!isCommitted(collectRound, validator)); // cannot commit more than once
+        require(block.coinbase == miningAddress); // make sure validator node is live
+        require(!isCommitted(collectRound, miningAddress)); // cannot commit more than once
 
-        _setCommit(collectRound, validator, _secretHash);
-        _setCipher(collectRound, validator, _cipher);
-        _addCommittedValidator(collectRound, validator);
+        _setCommit(collectRound, miningAddress, _secretHash);
+        _setCipher(collectRound, miningAddress, _cipher);
+        _addCommittedValidator(collectRound, miningAddress);
     }
 
     function revealSecret(uint256 _secret) external {
@@ -39,17 +39,17 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         bytes32 secretHash = keccak256(abi.encodePacked(_secret));
         require(secretHash != bytes32(0));
 
-        address validator = msg.sender;
-        require(IValidatorSet(VALIDATOR_SET_CONTRACT).isValidator(validator));
+        address miningAddress = msg.sender;
+        require(IValidatorSet(VALIDATOR_SET_CONTRACT).isValidator(miningAddress));
 
         uint256 collectRound = currentCollectRound();
 
-        require(block.coinbase == validator); // make sure validator node is live
-        require(!sentReveal(collectRound, validator)); // cannot reveal more than once during the same collectRound
-        require(secretHash == getCommit(collectRound, validator)); // the hash must be commited
+        require(block.coinbase == miningAddress); // make sure validator node is live
+        require(!sentReveal(collectRound, miningAddress)); // cannot reveal more than once during the same collectRound
+        require(secretHash == getCommit(collectRound, miningAddress)); // the hash must be commited
 
         _setCurrentSeed(_getCurrentSeed() ^ _secret);
-        _setSentReveal(collectRound, validator, true);
+        _setSentReveal(collectRound, miningAddress, true);
     }
 
     /// Initializes the contract at the start of the network.
@@ -80,7 +80,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         uint256 currentRound = currentCollectRound();
 
         if (applyBlock != 0 && block.number > applyBlock + collectRoundLength() * 2) {
-            // Check each validator whether he didn't reveal his secret
+            // Check each validator whether they didn't reveal their secret
             // during collection round
             validators = IValidatorSet(VALIDATOR_SET_CONTRACT).getValidators();
             for (i = 0; i < validators.length; i++) {
@@ -100,9 +100,9 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
                 maxRevealSkipsAllowed--;
             }
 
-            // Check each validator whether he didn't reveal
-            // his secret during the last full `reveals phase`
-            // or he missed required number of reveals per staking epoch
+            // Check each validator whether they didn't reveal
+            // their secret during the last full `reveals phase`
+            // or they missed required number of reveals per staking epoch
             validators = IValidatorSet(VALIDATOR_SET_CONTRACT).getValidators();
             for (i = 0; i < validators.length; i++) {
                 validator = validators[i];
@@ -135,16 +135,16 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         return block.number / collectRoundLength();
     }
 
-    function getCipher(uint256 _collectRound, address _validator) public view returns(bytes memory) {
-        return bytesStorage[keccak256(abi.encode(CIPHERS, _collectRound, _validator))];
+    function getCipher(uint256 _collectRound, address _miningAddress) public view returns(bytes memory) {
+        return bytesStorage[keccak256(abi.encode(CIPHERS, _collectRound, _miningAddress))];
     }
 
-    function getCommit(uint256 _collectRound, address _validator) public view returns(bytes32) {
-        return bytes32Storage[keccak256(abi.encode(COMMITS, _collectRound, _validator))];
+    function getCommit(uint256 _collectRound, address _miningAddress) public view returns(bytes32) {
+        return bytes32Storage[keccak256(abi.encode(COMMITS, _collectRound, _miningAddress))];
     }
 
-    function isCommitted(uint256 _collectRound, address _validator) public view returns(bool) {
-        return getCommit(_collectRound, _validator) != bytes32(0);
+    function isCommitted(uint256 _collectRound, address _miningAddress) public view returns(bool) {
+        return getCommit(_collectRound, _miningAddress) != bytes32(0);
     }
 
     function isCommitPhase() public view returns(bool) {
@@ -155,12 +155,12 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         return !isCommitPhase();
     }
 
-    function revealSkips(uint256 _stakingEpoch, address _validator) public view returns(uint256) {
-        return uintStorage[keccak256(abi.encode(REVEAL_SKIPS, _stakingEpoch, _validator))];
+    function revealSkips(uint256 _stakingEpoch, address _miningAddress) public view returns(uint256) {
+        return uintStorage[keccak256(abi.encode(REVEAL_SKIPS, _stakingEpoch, _miningAddress))];
     }
 
-    function sentReveal(uint256 _collectRound, address _validator) public view returns(bool) {
-        return boolStorage[keccak256(abi.encode(SENT_REVEAL, _collectRound, _validator))];
+    function sentReveal(uint256 _collectRound, address _miningAddress) public view returns(bool) {
+        return boolStorage[keccak256(abi.encode(SENT_REVEAL, _collectRound, _miningAddress))];
     }
 
     // =============================================== Private ========================================================
@@ -172,8 +172,8 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     bytes32 internal constant REVEAL_SKIPS = "revealSkips";
     bytes32 internal constant SENT_REVEAL = "sentReveal";
 
-    function _addCommittedValidator(uint256 _collectRound, address _validator) private {
-        addressArrayStorage[keccak256(abi.encode(COMMITTED_VALIDATORS, _collectRound))].push(_validator);
+    function _addCommittedValidator(uint256 _collectRound, address _miningAddress) private {
+        addressArrayStorage[keccak256(abi.encode(COMMITTED_VALIDATORS, _collectRound))].push(_miningAddress);
     }
 
     // Removes garbage
@@ -183,12 +183,12 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         }
 
         uint256 collectRound = _currentCollectRound - 1;
-        address[] memory validators = _committedValidators(collectRound);
+        address[] memory miningAddresses = _committedValidators(collectRound);
 
-        for (uint256 i = 0; i < validators.length; i++) {
-            _clearCipher(collectRound, validators[i]);
-            _setCommit(collectRound, validators[i], bytes32(0));
-            _setSentReveal(collectRound, validators[i], false);
+        for (uint256 i = 0; i < miningAddresses.length; i++) {
+            _clearCipher(collectRound, miningAddresses[i]);
+            _setCommit(collectRound, miningAddresses[i], bytes32(0));
+            _setSentReveal(collectRound, miningAddresses[i], false);
         }
         _clearCommittedValidators(collectRound);
     }
@@ -197,28 +197,28 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         delete addressArrayStorage[keccak256(abi.encode(COMMITTED_VALIDATORS, _collectRound))];
     }
 
-    function _clearCipher(uint256 _collectRound, address _validator) private {
-        delete bytesStorage[keccak256(abi.encode(CIPHERS, _collectRound, _validator))];
+    function _clearCipher(uint256 _collectRound, address _miningAddress) private {
+        delete bytesStorage[keccak256(abi.encode(CIPHERS, _collectRound, _miningAddress))];
     }
 
-    function _incrementRevealSkips(uint256 _stakingEpoch, address _validator) private {
-        uintStorage[keccak256(abi.encode(REVEAL_SKIPS, _stakingEpoch, _validator))]++;
+    function _incrementRevealSkips(uint256 _stakingEpoch, address _miningAddress) private {
+        uintStorage[keccak256(abi.encode(REVEAL_SKIPS, _stakingEpoch, _miningAddress))]++;
     }
 
-    function _setCipher(uint256 _collectRound, address _validator, bytes memory _cipher) private {
-        bytesStorage[keccak256(abi.encode(CIPHERS, _collectRound, _validator))] = _cipher;
+    function _setCipher(uint256 _collectRound, address _miningAddress, bytes memory _cipher) private {
+        bytesStorage[keccak256(abi.encode(CIPHERS, _collectRound, _miningAddress))] = _cipher;
     }
 
     function _setCollectRoundLength(uint256 _length) private {
         uintStorage[COLLECT_ROUND_LENGTH] = _length;
     }
 
-    function _setCommit(uint256 _collectRound, address _validator, bytes32 _secretHash) private {
-        bytes32Storage[keccak256(abi.encode(COMMITS, _collectRound, _validator))] = _secretHash;
+    function _setCommit(uint256 _collectRound, address _miningAddress, bytes32 _secretHash) private {
+        bytes32Storage[keccak256(abi.encode(COMMITS, _collectRound, _miningAddress))] = _secretHash;
     }
 
-    function _setSentReveal(uint256 _collectRound, address _validator, bool _sent) private {
-        boolStorage[keccak256(abi.encode(SENT_REVEAL, _collectRound, _validator))] = _sent;
+    function _setSentReveal(uint256 _collectRound, address _miningAddress, bool _sent) private {
+        boolStorage[keccak256(abi.encode(SENT_REVEAL, _collectRound, _miningAddress))] = _sent;
     }
 
     function _committedValidators(uint256 _collectRound) private view returns(address[] memory) {

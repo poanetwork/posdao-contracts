@@ -16,6 +16,7 @@ interface IValidatorSet {
     function poolDelegators(address) external view returns(address[] memory);
     function randomContract() external view returns(address);
     function stakeAmount(address, address) external view returns(uint256);
+    function stakingByMiningAddress(address) external view returns(address);
     function stakingEpoch() external view returns(uint256);
     function validatorSetApplyBlock() external view returns(uint256);
 }

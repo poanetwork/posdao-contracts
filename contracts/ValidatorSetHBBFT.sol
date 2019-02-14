@@ -9,19 +9,22 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
 
     // =============================================== Setters ========================================================
 
-    function addPool(bytes calldata _publicKey, uint256 _amount) external {
-        stake(msg.sender, _amount);
+    function addPool(bytes calldata _publicKey, uint256 _amount, address _miningAddress) external {
+        address stakingAddress = msg.sender;
+        _setStakingAddress(_miningAddress, stakingAddress);
+        stake(stakingAddress, _amount);
         savePublicKey(_publicKey);
     }
 
     /// Creates an initial set of validators at the start of the network.
-    /// Must be called by the constructor of `Initializer` contract on genesis block.
+    /// Must be called by the constructor of `InitializerHBBFT` contract on genesis block.
     /// This is used instead of `constructor()` because this contract is upgradable.
     function initialize(
         address _blockRewardContract,
         address _randomContract,
         address _erc20TokenContract,
-        address[] calldata _initialValidators,
+        address[] calldata _initialMiningAddresses,
+        address[] calldata _initialStakingAddresses,
         uint256 _delegatorMinStake,
         uint256 _candidateMinStake
     ) external {
@@ -29,7 +32,8 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
             _blockRewardContract,
             _randomContract,
             _erc20TokenContract,
-            _initialValidators,
+            _initialMiningAddresses,
+            _initialStakingAddresses,
             _delegatorMinStake,
             _candidateMinStake
         );
@@ -39,20 +43,20 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
         super._newValidatorSet();
     }
 
-    function reportMaliciousValidators(address[] calldata _validators, address[] calldata _reportingValidators)
-        external
-        onlySystem
-    {
-        require(_validators.length == _reportingValidators.length);
+    function reportMaliciousValidators(
+        address[] calldata _miningAddresses,
+        address[] calldata _reportingMiningAddresses
+    ) external onlySystem {
+        require(_miningAddresses.length == _reportingMiningAddresses.length);
 
         bool validatorSetChanged = false;
 
         uint256 validatorsLength = getValidators().length;
 
         // Handle each perpetrator-reporter pair
-        for (uint256 i = 0; i < _validators.length; i++) {
-            address maliciousValidator = _validators[i];
-            address reportingValidator = _reportingValidators[i];
+        for (uint256 i = 0; i < _miningAddresses.length; i++) {
+            address maliciousValidator = _miningAddresses[i];
+            address reportingValidator = _reportingMiningAddresses[i];
 
             if (!isReportValidatorValid(reportingValidator)) {
                 continue;
@@ -100,12 +104,14 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
     }
 
     function savePublicKey(bytes memory _key) public {
+        address stakingAddress = msg.sender;
         require(_key.length == 48); // https://github.com/poanetwork/threshold_crypto/issues/63
-        require(stakeAmount(msg.sender, msg.sender) != 0);
-        bytesStorage[keccak256(abi.encode(PUBLIC_KEY, msg.sender))] = _key;
+        require(stakeAmount(stakingAddress, stakingAddress) != 0);
+        address miningAddress = miningByStakingAddress(stakingAddress);
+        bytesStorage[keccak256(abi.encode(PUBLIC_KEY, miningAddress))] = _key;
 
-        if (!isValidatorBanned(msg.sender)) {
-            _addToPools(msg.sender);
+        if (!isValidatorBanned(miningAddress)) {
+            _addToPools(stakingAddress);
         }
     }
 
@@ -116,18 +122,18 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
         return applyBlock != 0 && _getCurrentBlockNumber() > applyBlock;
     }
 
-    function isValidatorBanned(address _validator) public view returns(bool) {
-        return now < bannedUntil(_validator);
+    function isValidatorBanned(address _miningAddress) public view returns(bool) {
+        return now < bannedUntil(_miningAddress);
     }
 
-    function maliceReported(address _validator) public view returns(address[] memory) {
-        return addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED, _validator))];
+    function maliceReported(address _miningAddress) public view returns(address[] memory) {
+        return addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED, _miningAddress))];
     }
 
     // Returns the serialized public key of candidate/ validator
-    function publicKey(address _who) public view returns(bytes memory) {
+    function publicKey(address _miningAddress) public view returns(bytes memory) {
         return bytesStorage[
-            keccak256(abi.encode(PUBLIC_KEY, _who))
+            keccak256(abi.encode(PUBLIC_KEY, _miningAddress))
         ];
     }
 
@@ -136,13 +142,14 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
     bytes32 internal constant MALICE_REPORTED = "maliceReported";
     bytes32 internal constant PUBLIC_KEY = "publicKey";
 
-    // Adds `_who` to the array of pools
-    function _addToPools(address _who) internal {
-        if (publicKey(_who).length == 0) {
+    // Adds `_stakingAddress` to the array of pools
+    function _addToPools(address _stakingAddress) internal {
+        address miningAddress = miningByStakingAddress(_stakingAddress);
+        if (publicKey(miningAddress).length == 0) {
             return;
         }
-        super._addToPools(_who);
-        delete addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED, _who))];
+        super._addToPools(_stakingAddress);
+        delete addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED, miningAddress))];
     }
 
     function _banUntil() internal view returns(uint256) {

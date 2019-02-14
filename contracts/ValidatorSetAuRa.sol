@@ -26,18 +26,21 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
 
     // =============================================== Setters ========================================================
 
-    function addPool(uint256 _amount) external {
-        stake(msg.sender, _amount);
+    function addPool(uint256 _amount, address _miningAddress) external {
+        address stakingAddress = msg.sender;
+        _setStakingAddress(_miningAddress, stakingAddress);
+        stake(stakingAddress, _amount);
     }
 
     /// Creates an initial set of validators at the start of the network.
-    /// Must be called by the constructor of `Initializer` contract on genesis block.
+    /// Must be called by the constructor of `InitializerAuRa` contract on genesis block.
     /// This is used instead of `constructor()` because this contract is upgradable.
     function initialize(
         address _blockRewardContract,
         address _randomContract,
         address _erc20TokenContract,
-        address[] calldata _initialValidators,
+        address[] calldata _initialMiningAddresses,
+        address[] calldata _initialStakingAddresses,
         uint256 _delegatorMinStake, // in STAKE_UNITs
         uint256 _candidateMinStake, // in STAKE_UNITs
         uint256 _stakingEpochDuration, // in blocks (e.g., 120960 = 1 week)
@@ -50,7 +53,8 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
             _blockRewardContract,
             _randomContract,
             _erc20TokenContract,
-            _initialValidators,
+            _initialMiningAddresses,
+            _initialStakingAddresses,
             _delegatorMinStake,
             _candidateMinStake
         );
@@ -66,19 +70,19 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
         _setStakingEpochStartBlock(currentBlock + 1);
     }
 
-    function removeMaliciousValidator(address _validator) external onlyRandomContract {
-        _removeMaliciousValidatorAuRa(_validator);
+    function removeMaliciousValidator(address _miningAddress) external onlyRandomContract {
+        _removeMaliciousValidatorAuRa(_miningAddress);
     }
 
     function reportBenign(address, uint256) external {
         // does nothing
     }
 
-    function reportMalicious(address _maliciousValidator, uint256 _blockNumber, bytes calldata) external {
-        address reportingValidator = msg.sender;
+    function reportMalicious(address _maliciousMiningAddress, uint256 _blockNumber, bytes calldata) external {
+        address reportingMiningAddress = msg.sender;
         uint256 currentBlock = _getCurrentBlockNumber();
 
-        require(isReportValidatorValid(_maliciousValidator));
+        require(isReportValidatorValid(_maliciousMiningAddress));
         require(_blockNumber <= currentBlock); // avoid reporting about future blocks
 
         uint256 ancientBlocksLimit = 100;
@@ -86,26 +90,27 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
             require(_blockNumber >= currentBlock - ancientBlocksLimit); // avoid reporting about ancient blocks
         }
 
-        require(isReportValidatorValid(reportingValidator));
+        require(isReportValidatorValid(reportingMiningAddress));
 
-        address[] storage reportedValidators =
-            addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED_FOR_BLOCK, _maliciousValidator, _blockNumber))];
+        address[] storage reportedValidators = addressArrayStorage[keccak256(abi.encode(
+            MALICE_REPORTED_FOR_BLOCK, _maliciousMiningAddress, _blockNumber
+        ))];
 
         // Don't allow reporting validator to report about malicious validator more than once
         for (uint256 m = 0; m < reportedValidators.length; m++) {
-            if (reportedValidators[m] == reportingValidator) {
+            if (reportedValidators[m] == reportingMiningAddress) {
                 revert();
             }
         }
 
-        reportedValidators.push(reportingValidator);
+        reportedValidators.push(reportingMiningAddress);
 
-        emit ReportedMalicious(reportingValidator, _maliciousValidator, _blockNumber);
+        emit ReportedMalicious(reportingMiningAddress, _maliciousMiningAddress, _blockNumber);
 
         // If more than 50% of validators reported about malicious validator
         // for the same `blockNumber`
         if (reportedValidators.length.mul(2) > getValidators().length) {
-            _removeMaliciousValidatorAuRa(_maliciousValidator);
+            _removeMaliciousValidatorAuRa(_maliciousMiningAddress);
         }
     }
 
@@ -119,12 +124,17 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
         return afterValidatorSetApplied && currentBlock.sub(stakingEpochStartBlock()) <= allowedDuration;
     }
 
-    function isValidatorBanned(address _validator) public view returns(bool) {
-        return _getCurrentBlockNumber() < bannedUntil(_validator);
+    function isValidatorBanned(address _miningAddress) public view returns(bool) {
+        return _getCurrentBlockNumber() < bannedUntil(_miningAddress);
     }
 
-    function maliceReportedForBlock(address _validator, uint256 _blockNumber) public view returns(address[] memory) {
-        return addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED_FOR_BLOCK, _validator, _blockNumber))];
+    function maliceReportedForBlock(
+        address _maliciousMiningAddress,
+        uint256 _blockNumber
+    ) public view returns(address[] memory) {
+        return addressArrayStorage[keccak256(abi.encode(
+            MALICE_REPORTED_FOR_BLOCK, _maliciousMiningAddress, _blockNumber
+        ))];
     }
 
     function stakeWithdrawDisallowPeriod() public view returns(uint256) {
@@ -155,13 +165,13 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
         return block.number + 1555200; // 90 days (for 5 seconds block)
     }
 
-    function _removeMaliciousValidatorAuRa(address _validator) internal {
-        if (isValidatorBanned(_validator)) {
+    function _removeMaliciousValidatorAuRa(address _miningAddress) internal {
+        if (isValidatorBanned(_miningAddress)) {
             // The malicious validator is already banned
             return;
         }
 
-        if (_removeMaliciousValidator(_validator)) {
+        if (_removeMaliciousValidator(_miningAddress)) {
             // From this moment `getPendingValidators()` will return the new validator set
             _incrementChangeRequestCount();
             _enqueuePendingValidators(false);

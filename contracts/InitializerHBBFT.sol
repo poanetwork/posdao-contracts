@@ -14,7 +14,8 @@ contract InitializerHBBFT {
         ICertifier _certifierContract,
         address _erc20TokenContract,
         address _owner,
-        address[] memory _validators,
+        address[] memory _miningAddresses,
+        address[] memory _stakingAddresses,
         uint256 _delegatorMinStake,
         uint256 _candidateMinStake
     ) public {
@@ -23,7 +24,8 @@ contract InitializerHBBFT {
             _blockRewardContract,
             _randomContract,
             _erc20TokenContract,
-            _validators,
+            _miningAddresses,
+            _stakingAddresses,
             _delegatorMinStake,
             _candidateMinStake
         );
