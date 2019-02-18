@@ -92,30 +92,63 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
         address _to,
         uint256 /*_value*/, // solhint-disable-line space-after-comma
         uint256 _gasPrice,
-        bytes memory /*_data*/
+        bytes memory _data
     )
         public
         view
         returns(uint32, bool)
     {
-        if (_gasPrice > 0 || isSenderAllowed(_sender)) {
-            // Let `_sender` create any transactions with non-zero gas price
-            // or if he is in the allowedSenders list
+        if (isSenderAllowed(_sender)) {
+            // Let the `_sender` initiate any transaction if the `_sender` is in the `allowedSenders` list
             return (ALL, false);
         }
 
-        if (_to == RANDOM_CONTRACT && IValidatorSet(VALIDATOR_SET_CONTRACT).isValidator(_sender)) {
-            // Let the validator call any function of `Random` contract with zero gas price
-            return (CALL, false);
+        IValidatorSet validatorSet = IValidatorSet(VALIDATOR_SET_CONTRACT);
+
+        // Get called function's signature
+        bytes4 signature = bytes4(0);
+        for (uint256 i = 0; _data.length >= 4 && i < 4; i++) {
+            signature |= bytes4(_data[i]) >> i*8;
         }
 
-        if (_to == VALIDATOR_SET_CONTRACT && IValidatorSet(VALIDATOR_SET_CONTRACT).isReportValidatorValid(_sender)) {
-            // Let the validator call any function of `ValidatorSet` contract with zero gas price
-            return (CALL, false);
+        if (_to == RANDOM_CONTRACT) {
+            // The functions of Random contract can only be called by validator's mining address
+            return (validatorSet.isValidator(_sender) ? CALL : NONE, false);
         }
 
-        // Don't let `_sender` use zero gas price for other cases
-        return (NONE, false);
+        if (_to == VALIDATOR_SET_CONTRACT) {
+            // The rules for ValidatorSet contract
+            if (signature == bytes4(keccak256("emitInitiateChange()"))) {
+                // The `emitInitiateChange()` can be called by anyone
+                // if `emitInitiateChangeCallable()` returns `true`
+                return (validatorSet.emitInitiateChangeCallable() ? CALL : NONE, false);
+            } else if (signature == bytes4(keccak256("reportMalicious(address,uint256,bytes)"))) {
+                // The `reportMalicious()` can only be called by validator's mining address
+                return (validatorSet.isReportValidatorValid(_sender) ? CALL : NONE, false);
+            } else if (signature == bytes4(keccak256("reportBenign(address,uint256)"))) {
+                // The `reportBenign()` cannot be called by anyone
+                // since we don't use benign reports
+                return (NONE, false);
+            } else if (_gasPrice > 0) {
+                // The other functions of ValidatorSet contract can be called
+                // by anyone except validators' mining addresses if gasPrice is not zero
+                return (validatorSet.isValidator(_sender) ? NONE : CALL, false);
+            }
+        }
+
+        if (validatorSet.isValidator(_sender) && _gasPrice > 0) {
+            // Let the validator's mining address send their accumulated tx fees to some wallet
+            return (_sender.balance > 0 ? BASIC : NONE, false);
+        }
+
+        if (validatorSet.isValidator(_to)) {
+            // Validator's mining address can't receive any coins
+            return (NONE, false);
+        }
+
+        // In other cases let the `_sender` create any transaction with non-zero gas price,
+        // but don't let them use zero gas price
+        return (_gasPrice > 0 ? ALL : NONE, false);
     }
 
     function isSenderAllowed(address _sender) public view returns(bool) {

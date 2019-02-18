@@ -6,6 +6,7 @@ interface IValidatorSet {
     function newValidatorSet() external;
     function blockRewardContract() external view returns(address);
     function changeRequestCount() external view returns(uint256);
+    function emitInitiateChangeCallable() external view returns(bool);
     function erc20TokenContract() external view returns(address);
     function getPendingValidators() external view returns(address[] memory);
     function getPreviousValidators() external view returns(address[] memory);
