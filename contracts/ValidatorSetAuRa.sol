@@ -10,6 +10,7 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
 
     // ================================================ Events ========================================================
 
+    event ReportedBenign(address reportingValidator, address benignValidator, uint256 blockNumber);
     event ReportedMalicious(address reportingValidator, address maliciousValidator, uint256 blockNumber);
 
     // ============================================== Modifiers =======================================================
@@ -74,8 +75,17 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
         _removeMaliciousValidatorAuRa(_miningAddress);
     }
 
-    function reportBenign(address, uint256) external {
-        // does nothing
+    function reportBenign(address _benignMiningAddress, uint256 _blockNumber) external {
+        address reportingMiningAddress = msg.sender;
+        require(isReportValidatorValid(reportingMiningAddress));
+        require(isReportValidatorValid(_benignMiningAddress));
+        uint256 currentBlock = _getCurrentBlockNumber();
+        require(_blockNumber <= currentBlock); // avoid reporting about future blocks
+        address[] storage reportedValidators = addressArrayStorage[keccak256(abi.encode(
+            BENIGNANCY_REPORTED_FOR_BLOCK, _benignMiningAddress, _blockNumber
+        ))];
+        reportedValidators.push(reportingMiningAddress);
+        emit ReportedBenign(reportingMiningAddress, _benignMiningAddress, _blockNumber);
     }
 
     function reportMalicious(address _maliciousMiningAddress, uint256 _blockNumber, bytes calldata) external {
@@ -128,6 +138,15 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
         return _getCurrentBlockNumber() < bannedUntil(_miningAddress);
     }
 
+    function benignancyReportedForBlock(
+        address _benignMiningAddress,
+        uint256 _blockNumber
+    ) public view returns(address[] memory) {
+        return addressArrayStorage[keccak256(abi.encode(
+            BENIGNANCY_REPORTED_FOR_BLOCK, _benignMiningAddress, _blockNumber
+        ))];
+    }
+
     function maliceReportedForBlock(
         address _maliciousMiningAddress,
         uint256 _blockNumber
@@ -160,6 +179,7 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
     bytes32 internal constant STAKING_EPOCH_DURATION = keccak256("stakingEpochDuration");
     bytes32 internal constant STAKING_EPOCH_START_BLOCK = keccak256("stakingEpochStartBlock");
     bytes32 internal constant MALICE_REPORTED_FOR_BLOCK = "maliceReportedForBlock";
+    bytes32 internal constant BENIGNANCY_REPORTED_FOR_BLOCK = "benignancyReportedForBlock";
 
     function _banUntil() internal view returns(uint256) {
         return block.number + 1555200; // 90 days (for 5 seconds block)
