@@ -11,7 +11,7 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
 
     function addPool(bytes calldata _publicKey, uint256 _amount, address _miningAddress) external {
         address stakingAddress = msg.sender;
-        _setStakingAddress(_miningAddress, stakingAddress);
+        _setMiningAddress(stakingAddress, _miningAddress);
         stake(stakingAddress, _amount);
         savePublicKey(_publicKey);
     }
@@ -118,8 +118,7 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
     // =============================================== Getters ========================================================
 
     function areStakeAndWithdrawAllowed() public view returns(bool) {
-        uint256 applyBlock = validatorSetApplyBlock();
-        return applyBlock != 0 && _getCurrentBlockNumber() > applyBlock;
+        return _wasValidatorSetApplied();
     }
 
     function isValidatorBanned(address _miningAddress) public view returns(bool) {

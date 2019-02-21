@@ -2,8 +2,8 @@ pragma solidity 0.5.2;
 
 
 interface IValidatorSet {
-    function finalizeChange() external;
     function newValidatorSet() external;
+    function performOrderedWithdrawals() external;
     function blockRewardContract() external view returns(address);
     function changeRequestCount() external view returns(uint256);
     function emitInitiateChangeCallable() external view returns(bool);
@@ -17,6 +17,7 @@ interface IValidatorSet {
     function poolDelegators(address) external view returns(address[] memory);
     function randomContract() external view returns(address);
     function stakeAmount(address, address) external view returns(uint256);
+    function stakeAmountMinusOrderedWithdraw(address, address) external view returns(uint256);
     function stakingByMiningAddress(address) external view returns(address);
     function stakingEpoch() external view returns(uint256);
     function validatorSetApplyBlock() external view returns(uint256);

@@ -19,21 +19,16 @@ contract BlockRewardAuRa is BlockRewardBase {
         IValidatorSet validatorSetContract = IValidatorSet(VALIDATOR_SET_CONTRACT);
 
         // Check if the validator is existed
-        if (validatorSetContract.validatorSetApplyBlock() == block.number) {
-            // If `finalizeChange` was called in this block
-            if (
-                !validatorSetContract.isValidator(benefactors[0]) &&
-                !validatorSetContract.isValidatorOnPreviousEpoch(benefactors[0])
-            ) {
-                return (new address[](0), new uint256[](0));
-            }
-        } else if (!validatorSetContract.isValidator(benefactors[0])) {
+        if (!validatorSetContract.isValidator(benefactors[0])) {
             return (new address[](0), new uint256[](0));
         }
 
         // Publish current random number at the end of the current collection round.
         // Remove malicious validators if any.
         IRandomAuRa(validatorSetContract.randomContract()).onBlockClose();
+
+        // Perform ordered withdrawals at the starting of a new staking epoch
+        validatorSetContract.performOrderedWithdrawals();
 
         // Start new staking epoch every `stakingEpochDuration()` blocks
         validatorSetContract.newValidatorSet();

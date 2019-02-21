@@ -8,4 +8,7 @@ interface IERC20Minting {
     // These functions may only be called by ValidatorSet contract
     function stake(address _staker, uint256 _amount) external;
     function withdraw(address _staker, uint256 _amount) external;
+
+    // Other ERC20 functions
+    function balanceOf(address) external view returns(uint256);
 }

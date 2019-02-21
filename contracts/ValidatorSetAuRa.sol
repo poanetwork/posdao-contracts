@@ -14,11 +14,6 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
 
     // ============================================== Modifiers =======================================================
 
-    modifier onlyBlockRewardContract() {
-        require(msg.sender == address(blockRewardContract()));
-        _;
-    }
-
     modifier onlyRandomContract() {
         require(msg.sender == address(randomContract()));
         _;
@@ -28,7 +23,7 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
 
     function addPool(uint256 _amount, address _miningAddress) external {
         address stakingAddress = msg.sender;
-        _setStakingAddress(_miningAddress, stakingAddress);
+        _setMiningAddress(stakingAddress, _miningAddress);
         stake(stakingAddress, _amount);
     }
 
@@ -74,10 +69,6 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
         _removeMaliciousValidatorAuRa(_miningAddress);
     }
 
-    function reportBenign(address, uint256) external {
-        // does nothing
-    }
-
     function reportMalicious(address _maliciousMiningAddress, uint256 _blockNumber, bytes calldata) external {
         address reportingMiningAddress = msg.sender;
         uint256 currentBlock = _getCurrentBlockNumber();
@@ -117,11 +108,9 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
     // =============================================== Getters ========================================================
 
     function areStakeAndWithdrawAllowed() public view returns(bool) {
-        uint256 allowedDuration = stakingEpochDuration() - stakeWithdrawDisallowPeriod();
-        uint256 applyBlock = validatorSetApplyBlock();
         uint256 currentBlock = _getCurrentBlockNumber();
-        bool afterValidatorSetApplied = applyBlock != 0 && currentBlock > applyBlock;
-        return afterValidatorSetApplied && currentBlock.sub(stakingEpochStartBlock()) <= allowedDuration;
+        uint256 allowedDuration = stakingEpochDuration() - stakeWithdrawDisallowPeriod();
+        return _wasValidatorSetApplied() && currentBlock.sub(stakingEpochStartBlock()) <= allowedDuration;
     }
 
     function isValidatorBanned(address _miningAddress) public view returns(bool) {
