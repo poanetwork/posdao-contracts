@@ -125,10 +125,6 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
             } else if (signature == bytes4(keccak256("reportMalicious(address,uint256,bytes)"))) {
                 // The `reportMalicious()` can only be called by validator's mining address
                 return (validatorSet.isReportValidatorValid(_sender) ? CALL : NONE, false);
-            } else if (signature == bytes4(keccak256("reportBenign(address,uint256)"))) {
-                // The `reportBenign()` cannot be called by anyone
-                // since we don't use benign reports
-                return (NONE, false);
             } else if (_gasPrice > 0) {
                 // The other functions of ValidatorSet contract can be called
                 // by anyone except validators' mining addresses if gasPrice is not zero
