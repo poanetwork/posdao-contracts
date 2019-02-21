@@ -62,6 +62,19 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         uint256 amount
     );
 
+    /// @dev Emitted by `orderWithdraw` function to signal that the staker ordered the withdrawal of the
+    /// specified amount of their stake from the specified pool during the specified staking epoch.
+    /// @param fromPoolStakingAddress The pool from which the `staker` ordered withdrawal of `amount`.
+    /// @param staker The address of staker who ordered withdrawal of `amount`.
+    /// @param stakingEpoch The serial number of staking epoch during which the order was made.
+    /// @param amount The amount of the ordered withdrawal. Can be either positive or negative.
+    event WithdrawalOrdered(
+        address indexed fromPoolStakingAddress,
+        address indexed staker,
+        uint256 indexed stakingEpoch,
+        int256 amount
+    );
+
     /// @dev Emitted by `withdraw` function to signal that the staker withdrew the specified
     /// amount of a stake from the specified pool during the specified staking epoch.
     /// @param fromPoolStakingAddress The pool from which the `staker` withdrew `amount`.
@@ -82,6 +95,11 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         _;
     }
 
+    modifier onlyBlockRewardContract() {
+        require(msg.sender == address(blockRewardContract()));
+        _;
+    }
+
     modifier onlySystem() {
         require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
         _;
@@ -99,11 +117,39 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         }
     }
 
+    function performOrderedWithdrawals() external onlyBlockRewardContract {
+        if (validatorSetApplyBlock() != _getCurrentBlockNumber()) return;
+
+        uint256 candidateMinStake = getCandidateMinStake();
+        uint256 delegatorMinStake = getDelegatorMinStake();
+        IERC20Minting tokenContract = IERC20Minting(erc20TokenContract());
+
+        address[] storage validators = addressArrayStorage[PREVIOUS_VALIDATORS];
+
+        for (uint256 i = 0; i < validators.length; i++) {
+            address poolStakingAddress = stakingByMiningAddress(validators[i]);
+
+            // Withdraw validator's stake
+            _performOrderedWithdrawals(poolStakingAddress, poolStakingAddress, candidateMinStake, tokenContract);
+
+            // Withdraw delegators' stakes
+            address[] storage delegators = addressArrayStorage[keccak256(abi.encode(
+                POOL_DELEGATORS, poolStakingAddress
+            ))];
+
+            for (uint256 d = 0; d < delegators.length; d++) {
+                _performOrderedWithdrawals(poolStakingAddress, delegators[d], delegatorMinStake, tokenContract);
+            }
+
+            // Reset total ordered withdrawal amount for the pool
+            _setOrderedWithdrawAmountTotal(poolStakingAddress, 0);
+        }
+    }
+
     function removePool() public gasPriceIsValid {
         address stakingAddress = msg.sender;
-        if (stakingEpoch() == 0 && isValidator(miningByStakingAddress(stakingAddress))) {
-            revert(); // initial validator cannot remove their pool during the initial staking epoch
-        }
+        // initial validator cannot remove their pool during the initial staking epoch
+        require(stakingEpoch() > 0 || !isValidator(miningByStakingAddress(stakingAddress)));
         _removeFromPools(stakingAddress);
     }
 
@@ -181,15 +227,61 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         emit Withdrawn(_fromPoolStakingAddress, staker, stakingEpoch(), _amount);
     }
 
-    function clearStakeOldHistory(
-        address _poolStakingAddress,
-        address[] memory _staker,
-        uint256 _stakingEpoch
-    ) public onlyOwner {
-        require(_stakingEpoch <= stakingEpoch().sub(2));
-        for (uint256 i = 0; i < _staker.length; i++) {
-            _setStakeAmountByEpoch(_poolStakingAddress, _staker[i], _stakingEpoch, 0);
+    /// @dev Makes an order of tokens withdrawal from ValidatorSet address
+    /// (from the account of staking address of the pool) to staker address.
+    /// The tokens will be automatically withdrawn at the beginning of the
+    /// next staking epoch.
+    /// @param _fromPoolStakingAddress The staking address of the pool.
+    /// @param _amount The amount of the withdrawal. Positive value means
+    /// that the staker wants to set or increase their withdrawal amount.
+    /// Negative value means that the staker wants to decrease their
+    /// withdrawal amount which was set before.
+    function orderWithdraw(address _fromPoolStakingAddress, int256 _amount) public gasPriceIsValid {
+        IERC20Minting tokenContract = IERC20Minting(erc20TokenContract());
+        require(address(tokenContract) != address(0));
+
+        require(_fromPoolStakingAddress != address(0));
+        require(_amount != 0);
+        require(areStakeAndWithdrawAllowed());
+
+        address staker = msg.sender;
+
+        // How much can `staker` order for withdrawal from `_fromPoolStakingAddress` at the moment?
+        require(_amount < 0 || uint256(_amount) <= maxWithdrawOrderAllowed(_fromPoolStakingAddress, staker));
+
+        uint256 alreadyOrderedAmount = orderedWithdrawAmount(_fromPoolStakingAddress, staker);
+
+        require(_amount > 0 || uint256(-_amount) <= alreadyOrderedAmount);
+
+        uint256 newOrderedAmount;
+        if (_amount > 0) {
+            newOrderedAmount = alreadyOrderedAmount.add(uint256(_amount));
+        } else {
+            newOrderedAmount = alreadyOrderedAmount.sub(uint256(-_amount));
         }
+
+        uint256 newStakeAmount = stakeAmount(_fromPoolStakingAddress, staker).sub(newOrderedAmount);
+
+        // The amount to be withdrawn must be the whole staked amount or
+        // must not exceed the diff between the entire amount and MIN_STAKE
+        if (staker == _fromPoolStakingAddress) {
+            require(newStakeAmount == 0 || newStakeAmount >= getCandidateMinStake());
+        } else {
+            require(newStakeAmount == 0 || newStakeAmount >= getDelegatorMinStake());
+        }
+
+        _setOrderedWithdrawAmount(_fromPoolStakingAddress, staker, newOrderedAmount);
+
+        // Set total ordered amount for this pool
+        alreadyOrderedAmount = orderedWithdrawAmountTotal(_fromPoolStakingAddress);
+        if (_amount > 0) {
+            newOrderedAmount = alreadyOrderedAmount.add(uint256(_amount));
+        } else {
+            newOrderedAmount = alreadyOrderedAmount.sub(uint256(-_amount));
+        }
+        _setOrderedWithdrawAmountTotal(_fromPoolStakingAddress, newOrderedAmount);
+
+        emit WithdrawalOrdered(_fromPoolStakingAddress, staker, stakingEpoch(), _amount);
     }
 
     function setErc20TokenContract(address _erc20TokenContract) public onlyOwner {
@@ -325,42 +417,47 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     function maxWithdrawAllowed(address _poolStakingAddress, address _staker) public view returns(uint256) {
         address miningAddress = miningByStakingAddress(_poolStakingAddress);
 
-        bool poolIsValidator = isValidator(miningAddress);
-
-        if (_staker == _poolStakingAddress && poolIsValidator) {
-            // A pool can't withdraw while it is a validator
+        if (!_isWithdrawAllowed(miningAddress)) {
             return 0;
         }
 
-        if (isValidatorBanned(miningAddress)) {
-            // No one can withdraw from `_poolStakingAddress` until the ban is expired
-            return 0;
-        }
-
-        if (!areStakeAndWithdrawAllowed()) {
-            return 0;
-        }
-
-        if (!poolIsValidator) {
+        if (!isValidator(miningAddress)) {
             // The whole amount can be withdrawn if the pool is not a validator
             return stakeAmount(_poolStakingAddress, _staker);
         }
 
-        if (isValidatorOnPreviousEpoch(miningAddress)) {
-            // The pool was also a validator on the previous staking epoch, so
-            // the staker can't withdraw amount staked on the previous staking epoch
-            return stakeAmount(_poolStakingAddress, _staker).sub(
-                stakeAmountByEpoch(
-                    _poolStakingAddress,
-                    _staker,
-                    stakingEpoch().sub(1) // stakingEpoch is always > 0 here
-                )
-            );
-        } else {
-            // The pool wasn't a validator on the previous staking epoch, so
-            // the staker can only withdraw amount staked on the current staking epoch
-            return stakeAmountByEpoch(_poolStakingAddress, _staker, stakingEpoch());
+        // The pool is an active validator, so the staker can
+        // withdraw staked amount minus already ordered amount
+        // but no more than amount staked during the current
+        // staking epoch
+        uint256 canWithdraw = stakeAmountMinusOrderedWithdraw(_poolStakingAddress, _staker);
+        uint256 stakedDuringEpoch = stakeAmountByCurrentEpoch(_poolStakingAddress, _staker);
+
+        if (canWithdraw > stakedDuringEpoch) {
+            canWithdraw = stakedDuringEpoch;
         }
+
+        return canWithdraw;
+    }
+
+    function maxWithdrawOrderAllowed(address _poolStakingAddress, address _staker) public view returns(uint256) {
+        address miningAddress = miningByStakingAddress(_poolStakingAddress);
+
+        if (!_isWithdrawAllowed(miningAddress)) {
+            return 0;
+        }
+
+        if (!isValidator(miningAddress)) {
+            // If the pool is a candidate (not a validator yet),
+            // no one can order withdrawal from `_poolStakingAddress`,
+            // but anyone can withdraw immediately (see `maxWithdrawAllowed()` getter)
+            return 0;
+        }
+
+        // It the pool is an active validator, the staker can
+        // order withdrawal up to their total staking amount
+        // minus already ordered amount
+        return stakeAmountMinusOrderedWithdraw(_poolStakingAddress, _staker);
     }
 
     function miningByStakingAddress(address _stakingAddress) public view returns(address) {
@@ -371,6 +468,24 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     /// directly by `ERC677BridgeTokenRewardable.transferAndCall` function.
     function onTokenTransfer(address, uint256, bytes memory) public pure returns(bool) {
         return false;
+    }
+
+    function orderedWithdrawAmount(address _poolStakingAddress, address _staker) public view returns(uint256) {
+        return uintStorage[
+            keccak256(abi.encode(ORDERED_WITHDRAW_AMOUNT, _poolStakingAddress, _staker))
+        ];
+    }
+
+    function orderedWithdrawAmountTotal(address _poolStakingAddress) public view returns(uint256) {
+        return uintStorage[
+            keccak256(abi.encode(ORDERED_WITHDRAW_AMOUNT_TOTAL, _poolStakingAddress))
+        ];
+    }
+
+    function stakeAmountTotal(address _poolStakingAddress) public view returns(uint256) {
+        return uintStorage[
+            keccak256(abi.encode(STAKE_AMOUNT_TOTAL, _poolStakingAddress))
+        ];
     }
 
     // Returns an index of the pool in the `pools` array
@@ -411,20 +526,28 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         ];
     }
 
-    function stakeAmountByEpoch(address _poolStakingAddress, address _staker, uint256 _stakingEpoch)
+    function stakeAmountByCurrentEpoch(address _poolStakingAddress, address _staker)
         public
         view
         returns(uint256)
     {
+        if (!_wasValidatorSetApplied()) {
+            return 0;
+        }
         return uintStorage[
-            keccak256(abi.encode(STAKE_AMOUNT_BY_EPOCH, _poolStakingAddress, _staker, _stakingEpoch))
+            keccak256(abi.encode(STAKE_AMOUNT_BY_CURRENT_EPOCH, _poolStakingAddress, _staker))
         ];
     }
 
-    function stakeAmountTotal(address _poolStakingAddress) public view returns(uint256) {
-        return uintStorage[
-            keccak256(abi.encode(STAKE_AMOUNT_TOTAL, _poolStakingAddress))
-        ];
+    function stakeAmountMinusOrderedWithdraw(
+        address _poolStakingAddress,
+        address _staker
+    ) public view returns(uint256) {
+        return stakeAmount(_poolStakingAddress, _staker).sub(orderedWithdrawAmount(_poolStakingAddress, _staker));
+    }
+
+    function stakeAmountTotalMinusOrderedWithdraw(address _poolStakingAddress) public view returns(uint256) {
+        return stakeAmountTotal(_poolStakingAddress).sub(orderedWithdrawAmountTotal(_poolStakingAddress));
     }
 
     function stakingByMiningAddress(address _miningAddress) public view returns(address) {
@@ -484,10 +607,12 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     bytes32 internal constant QUEUE_PV_LIST = "queuePVList";
     bytes32 internal constant QUEUE_PV_NEW_EPOCH = "queuePVNewEpoch";
     bytes32 internal constant STAKE_AMOUNT = "stakeAmount";
-    bytes32 internal constant STAKE_AMOUNT_BY_EPOCH = "stakeAmountByEpoch";
+    bytes32 internal constant STAKE_AMOUNT_BY_CURRENT_EPOCH = "stakeAmountByCurrentEpoch";
     bytes32 internal constant STAKE_AMOUNT_TOTAL = "stakeAmountTotal";
     bytes32 internal constant STAKING_BY_MINING_ADDRESS = "stakingByMiningAddress";
     bytes32 internal constant VALIDATOR_INDEX = "validatorIndex";
+    bytes32 internal constant ORDERED_WITHDRAW_AMOUNT = "orderedWithdrawAmount";
+    bytes32 internal constant ORDERED_WITHDRAW_AMOUNT_TOTAL = "orderedWithdrawAmountTotal";
 
     // Adds `_stakingAddress` to the array of pools
     function _addToPools(address _stakingAddress) internal {
@@ -556,8 +681,6 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
             _setIsValidator(_queueValidators[i], true);
         }
     }
-
-    function _banUntil() internal view returns(uint256);
 
     function _banValidator(address _miningAddress) internal {
         uintStorage[
@@ -643,7 +766,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
             _setValidatorIndex(_initialMiningAddresses[i], i);
             _setIsValidator(_initialMiningAddresses[i], true);
             _addToPools(_initialStakingAddresses[i]);
-            _setStakingAddress(_initialMiningAddresses[i], _initialStakingAddresses[i]);
+            _setMiningAddress(_initialStakingAddresses[i], _initialMiningAddresses[i]);
         }
 
         _setDelegatorMinStake(_delegatorMinStake);
@@ -663,7 +786,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         delete addressArrayStorage[POOLS_NON_EMPTY];
         delete addressArrayStorage[POOLS_EMPTY];
         for (i = 0; i < pools.length; i++) {
-            if (stakeAmount(pools[i], pools[i]) > 0) {
+            if (stakeAmountMinusOrderedWithdraw(pools[i], pools[i]) > 0) {
                 addressArrayStorage[POOLS_NON_EMPTY].push(pools[i]);
             } else {
                 addressArrayStorage[POOLS_EMPTY].push(pools[i]);
@@ -688,7 +811,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
             uint256 likelihoodSum = 0;
 
             for (i = 0; i < poolsLocalLength; i++) {
-                likelihood[i] = stakeAmountTotal(poolsLocal[i]).mul(100).div(STAKE_UNIT);
+                likelihood[i] = stakeAmountTotalMinusOrderedWithdraw(poolsLocal[i]).mul(100).div(STAKE_UNIT);
                 likelihoodSum = likelihoodSum.add(likelihood[i]);
             }
 
@@ -719,16 +842,61 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         _setValidatorSetApplyBlock(0);
     }
 
+    function _performOrderedWithdrawals(
+        address _poolStakingAddress,
+        address _staker,
+        uint256 _minAllowedStake,
+        IERC20Minting _tokenContract
+    ) internal {
+        uint256 orderedAmount = orderedWithdrawAmount(_poolStakingAddress, _staker);
+
+        if (orderedAmount > 0) {
+            uint256 currentStakeAmount = stakeAmount(_poolStakingAddress, _staker);
+
+            if (
+                currentStakeAmount >= orderedAmount &&
+                address(_tokenContract) != address(0) &&
+                orderedAmount <= _tokenContract.balanceOf(address(this)) &&
+                _withdraw(
+                    _poolStakingAddress,
+                    _staker,
+                    orderedAmount,
+                    currentStakeAmount,
+                    currentStakeAmount - orderedAmount,
+                    _minAllowedStake
+                )
+            ) {
+                _tokenContract.withdraw(_staker, orderedAmount);
+            }
+
+            _setOrderedWithdrawAmount(_poolStakingAddress, _staker, 0);
+        }
+
+        _setStakeAmountByCurrentEpoch(_poolStakingAddress, _staker, 0);
+    }
+
     function _removeMaliciousValidator(address _miningAddress) internal returns(bool) {
+        uint256 i;
+        address stakingAddress = stakingByMiningAddress(_miningAddress);
+
         // Remove malicious validator from `pools`
-        _removeFromPools(stakingByMiningAddress(_miningAddress));
+        _removeFromPools(stakingAddress);
 
         // Ban the malicious validator for the next 3 months
         _banValidator(_miningAddress);
 
+        // Remove all ordered withdrawals from the pool of this validator
+        address[] memory delegators = poolDelegators(stakingAddress);
+        for (i = 0; i < delegators.length; i++) {
+            _setOrderedWithdrawAmount(stakingAddress, delegators[i], 0);
+            _setStakeAmountByCurrentEpoch(stakingAddress, delegators[i], 0);
+        }
+        _setOrderedWithdrawAmount(stakingAddress, stakingAddress, 0);
+        _setOrderedWithdrawAmountTotal(stakingAddress, 0);
+        _setStakeAmountByCurrentEpoch(stakingAddress, stakingAddress, 0);
+
         address[] storage miningAddresses = addressArrayStorage[PENDING_VALIDATORS];
         bool isPendingValidator = false;
-        uint256 i;
 
         for (i = 0; i < miningAddresses.length; i++) {
             if (miningAddresses[i] == _miningAddress) {
@@ -824,8 +992,32 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         _setPoolDelegatorIndex(_poolStakingAddress, _delegator, 0);
     }
 
+    function _setMiningAddress(address _stakingAddress, address _miningAddress) internal {
+        require(_stakingAddress != address(0));
+        require(_miningAddress != address(0));
+        require(_stakingAddress != _miningAddress);
+        require(miningByStakingAddress(_stakingAddress) == address(0));
+        require(miningByStakingAddress(_miningAddress) == address(0));
+        require(stakingByMiningAddress(_stakingAddress) == address(0));
+        require(stakingByMiningAddress(_miningAddress) == address(0));
+        addressStorage[keccak256(abi.encode(MINING_BY_STAKING_ADDRESS, _stakingAddress))] = _miningAddress;
+        addressStorage[keccak256(abi.encode(STAKING_BY_MINING_ADDRESS, _miningAddress))] = _stakingAddress;
+    }
+
     function _setPreviousValidators(address[] memory _miningAddresses) internal {
         addressArrayStorage[PREVIOUS_VALIDATORS] = _miningAddresses;
+    }
+
+    function _setOrderedWithdrawAmount(address _poolStakingAddress, address _staker, uint256 _amount) internal {
+        uintStorage[
+            keccak256(abi.encode(ORDERED_WITHDRAW_AMOUNT, _poolStakingAddress, _staker))
+        ] = _amount;
+    }
+
+    function _setOrderedWithdrawAmountTotal(address _poolStakingAddress, uint256 _amount) internal {
+        uintStorage[
+            keccak256(abi.encode(ORDERED_WITHDRAW_AMOUNT_TOTAL, _poolStakingAddress))
+        ] = _amount;
     }
 
     function _setStakeAmount(address _poolStakingAddress, address _staker, uint256 _amount) internal {
@@ -834,14 +1026,13 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         ] = _amount;
     }
 
-    function _setStakeAmountByEpoch(
+    function _setStakeAmountByCurrentEpoch(
         address _poolStakingAddress,
         address _staker,
-        uint256 _stakingEpoch,
         uint256 _amount
     ) internal {
         uintStorage[keccak256(abi.encode(
-            STAKE_AMOUNT_BY_EPOCH, _poolStakingAddress, _staker, _stakingEpoch
+            STAKE_AMOUNT_BY_CURRENT_EPOCH, _poolStakingAddress, _staker
         ))] = _amount;
     }
 
@@ -849,18 +1040,6 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         uintStorage[
             keccak256(abi.encode(STAKE_AMOUNT_TOTAL, _poolStakingAddress))
         ] = _amount;
-    }
-
-    function _setStakingAddress(address _miningAddress, address _stakingAddress) internal {
-        require(_miningAddress != address(0));
-        require(_stakingAddress != address(0));
-        require(_miningAddress != _stakingAddress);
-        require(miningByStakingAddress(_stakingAddress) == address(0));
-        require(miningByStakingAddress(_miningAddress) == address(0));
-        require(stakingByMiningAddress(_stakingAddress) == address(0));
-        require(stakingByMiningAddress(_miningAddress) == address(0));
-        addressStorage[keccak256(abi.encode(MINING_BY_STAKING_ADDRESS, _stakingAddress))] = _miningAddress;
-        addressStorage[keccak256(abi.encode(STAKING_BY_MINING_ADDRESS, _miningAddress))] = _stakingAddress;
     }
 
     function _setDelegatorMinStake(uint256 _minStake) internal {
@@ -890,8 +1069,6 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         require(!isValidatorBanned(poolMiningAddress));
         require(areStakeAndWithdrawAllowed());
 
-        uint256 epoch = stakingEpoch();
-
         uint256 newStakeAmount = stakeAmount(_poolStakingAddress, _staker).add(_amount);
         if (_staker == _poolStakingAddress) {
             require(newStakeAmount >= getCandidateMinStake()); // the staked amount must be at least CANDIDATE_MIN_STAKE
@@ -899,11 +1076,10 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
             require(newStakeAmount >= getDelegatorMinStake()); // the staked amount must be at least DELEGATOR_MIN_STAKE
         }
         _setStakeAmount(_poolStakingAddress, _staker, newStakeAmount);
-        _setStakeAmountByEpoch(
+        _setStakeAmountByCurrentEpoch(
             _poolStakingAddress,
             _staker,
-            epoch,
-            stakeAmountByEpoch(_poolStakingAddress, _staker, epoch).add(_amount)
+            stakeAmountByCurrentEpoch(_poolStakingAddress, _staker).add(_amount)
         );
         _setStakeAmountTotal(_poolStakingAddress, stakeAmountTotal(_poolStakingAddress).add(_amount));
 
@@ -923,26 +1099,44 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         // How much can `staker` withdraw from `_poolStakingAddress` at the moment?
         require(_amount <= maxWithdrawAllowed(_poolStakingAddress, _staker));
 
-        uint256 epoch = stakingEpoch();
+        uint256 currentStakeAmount = stakeAmount(_poolStakingAddress, _staker);
+        uint256 alreadyOrderedAmount = orderedWithdrawAmount(_poolStakingAddress, _staker);
+        uint256 resultingStakeAmount = currentStakeAmount.sub(alreadyOrderedAmount).sub(_amount);
 
+        require(_withdraw(
+            _poolStakingAddress,
+            _staker,
+            _amount,
+            currentStakeAmount,
+            resultingStakeAmount,
+            _poolStakingAddress == _staker ? getCandidateMinStake() : getDelegatorMinStake()
+        ));
+    }
+
+    function _withdraw(
+        address _poolStakingAddress,
+        address _staker,
+        uint256 _withdrawalAmount,
+        uint256 _currentStakeAmount,
+        uint256 _resultingStakeAmount,
+        uint256 _minAllowedStake
+    ) internal returns(bool) {
         // The amount to be withdrawn must be the whole staked amount or
         // must not exceed the diff between the entire amount and MIN_STAKE
-        uint256 newStakeAmount = stakeAmount(_poolStakingAddress, _staker).sub(_amount);
-        if (newStakeAmount > 0) {
-            if (_staker == _poolStakingAddress) {
-                require(newStakeAmount >= getCandidateMinStake());
-            } else {
-                require(newStakeAmount >= getDelegatorMinStake());
-            }
+        if (_resultingStakeAmount > 0 && _resultingStakeAmount < _minAllowedStake) {
+            return false;
         }
+
+        uint256 newStakeAmount = _currentStakeAmount.sub(_withdrawalAmount);
         _setStakeAmount(_poolStakingAddress, _staker, newStakeAmount);
-        uint256 amountByEpoch = stakeAmountByEpoch(_poolStakingAddress, _staker, epoch);
-        if (_amount <= amountByEpoch) {
-            _setStakeAmountByEpoch(_poolStakingAddress, _staker, epoch, amountByEpoch - _amount);
-        } else {
-            _setStakeAmountByEpoch(_poolStakingAddress, _staker, epoch, 0);
-        }
-        _setStakeAmountTotal(_poolStakingAddress, stakeAmountTotal(_poolStakingAddress).sub(_amount));
+
+        uint256 amountByEpoch = stakeAmountByCurrentEpoch(_poolStakingAddress, _staker);
+        _setStakeAmountByCurrentEpoch(
+            _poolStakingAddress,
+            _staker,
+            amountByEpoch >= _withdrawalAmount ? amountByEpoch - _withdrawalAmount : 0
+        );
+        _setStakeAmountTotal(_poolStakingAddress, stakeAmountTotal(_poolStakingAddress).sub(_withdrawalAmount));
 
         if (newStakeAmount == 0) { // the whole amount has been withdrawn
             if (_staker == _poolStakingAddress) {
@@ -957,7 +1151,11 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
                 _removeFromPoolsInactive(_poolStakingAddress);
             }
         }
+
+        return true;
     }
+
+    function _banUntil() internal view returns(uint256);
 
     function _getCurrentBlockNumber() internal view returns(uint256) {
         return block.number;
@@ -978,5 +1176,23 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
             r -= int256(_likelihood[uint256(++index)]);
         } while (r > 0);
         return uint256(index);
+    }
+
+    function _isWithdrawAllowed(address _miningAddress) internal view returns(bool) {
+        if (isValidatorBanned(_miningAddress)) {
+            // No one can withdraw from `_poolStakingAddress` until the ban is expired
+            return false;
+        }
+
+        if (!areStakeAndWithdrawAllowed()) {
+            return false;
+        }
+
+        return true;
+    }
+
+    function _wasValidatorSetApplied() internal view returns(bool) {
+        uint256 applyBlock = validatorSetApplyBlock();
+        return applyBlock != 0 && _getCurrentBlockNumber() > applyBlock;
     }
 }

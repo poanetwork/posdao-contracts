@@ -113,18 +113,32 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
                 stakingEpoch,
                 validatorStakingAddress,
                 validatorStakingAddress,
-                validatorSet.stakeAmount(validatorStakingAddress, validatorStakingAddress)
+                validatorSet.stakeAmountMinusOrderedWithdraw(validatorStakingAddress, validatorStakingAddress)
             );
+            delete addressArrayStorage[DELEGATORS_TEMPORARY_ARRAY];
             delegators = validatorSet.poolDelegators(validatorStakingAddress);
             for (s = 0; s < delegators.length; s++) {
+                uint256 delegatorStakeAmount = validatorSet.stakeAmountMinusOrderedWithdraw(
+                    validatorStakingAddress,
+                    delegators[s]
+                );
+                if (delegatorStakeAmount == 0) {
+                    continue;
+                }
                 _setSnapshotStakeAmount(
                     stakingEpoch,
                     validatorStakingAddress,
                     delegators[s],
-                    validatorSet.stakeAmount(validatorStakingAddress, delegators[s])
+                    delegatorStakeAmount
                 );
+                addressArrayStorage[DELEGATORS_TEMPORARY_ARRAY].push(delegators[s]);
             }
-            _setSnapshotDelegators(stakingEpoch, validatorStakingAddress, delegators);
+            _setSnapshotDelegators(
+                stakingEpoch,
+                validatorStakingAddress,
+                addressArrayStorage[DELEGATORS_TEMPORARY_ARRAY]
+            );
+            delete addressArrayStorage[DELEGATORS_TEMPORARY_ARRAY];
         }
     }
 
@@ -221,6 +235,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
 
     // =============================================== Private ========================================================
 
+    bytes32 internal constant DELEGATORS_TEMPORARY_ARRAY = keccak256("delegatorsTemporaryArray");
     bytes32 internal constant ERC_TO_NATIVE_BRIDGES_ALLOWED = keccak256("ercToNativeBridgesAllowed");
     bytes32 internal constant EXTRA_RECEIVERS = keccak256("extraReceivers");
     bytes32 internal constant MINTED_TOTALLY = keccak256("mintedTotally");

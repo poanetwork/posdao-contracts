@@ -152,7 +152,7 @@ contract('ValidatorSetAuRa', async accounts => {
       const amount = stakeUnit.mul(new BN(2));
       await validatorSetAuRa.addPool(amount, candidateMiningAddress, {from: candidateStakingAddress}).should.be.fulfilled;
       amount.should.be.bignumber.equal(await validatorSetAuRa.stakeAmount.call(candidateStakingAddress, candidateStakingAddress));
-      amount.should.be.bignumber.equal(await validatorSetAuRa.stakeAmountByEpoch.call(candidateStakingAddress, candidateStakingAddress, 0));
+      amount.should.be.bignumber.equal(await validatorSetAuRa.stakeAmountByCurrentEpoch.call(candidateStakingAddress, candidateStakingAddress));
       amount.should.be.bignumber.equal(await validatorSetAuRa.stakeAmountTotal.call(candidateStakingAddress));
     });
     it('should be able to add more than one pool', async () => {
