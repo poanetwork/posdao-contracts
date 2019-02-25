@@ -71,28 +71,12 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
 
     function reportMalicious(address _maliciousMiningAddress, uint256 _blockNumber, bytes calldata) external {
         address reportingMiningAddress = msg.sender;
-        uint256 currentBlock = _getCurrentBlockNumber();
 
-        require(isReportValidatorValid(_maliciousMiningAddress));
-        require(_blockNumber <= currentBlock); // avoid reporting about future blocks
-
-        uint256 ancientBlocksLimit = 100;
-        if (currentBlock >= ancientBlocksLimit) {
-            require(_blockNumber >= currentBlock - ancientBlocksLimit); // avoid reporting about ancient blocks
-        }
-
-        require(isReportValidatorValid(reportingMiningAddress));
+        require(reportMaliciousCallable(reportingMiningAddress, _maliciousMiningAddress, _blockNumber));
 
         address[] storage reportedValidators = addressArrayStorage[keccak256(abi.encode(
             MALICE_REPORTED_FOR_BLOCK, _maliciousMiningAddress, _blockNumber
         ))];
-
-        // Don't allow reporting validator to report about malicious validator more than once
-        for (uint256 m = 0; m < reportedValidators.length; m++) {
-            if (reportedValidators[m] == reportingMiningAddress) {
-                revert();
-            }
-        }
 
         reportedValidators.push(reportingMiningAddress);
 
@@ -124,6 +108,37 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
         return addressArrayStorage[keccak256(abi.encode(
             MALICE_REPORTED_FOR_BLOCK, _maliciousMiningAddress, _blockNumber
         ))];
+    }
+
+    function reportMaliciousCallable(
+        address _reportingMiningAddress,
+        address _maliciousMiningAddress,
+        uint256 _blockNumber
+    ) public view returns(bool) {
+        if (!isReportValidatorValid(_reportingMiningAddress)) return false;
+        if (!isReportValidatorValid(_maliciousMiningAddress)) return false;
+
+        uint256 currentBlock = _getCurrentBlockNumber();
+
+        if (_blockNumber > currentBlock) return false; // avoid reporting about future blocks
+
+        uint256 ancientBlocksLimit = 100;
+        if (currentBlock > ancientBlocksLimit && _blockNumber < currentBlock - ancientBlocksLimit) {
+            return false; // avoid reporting about ancient blocks
+        }
+
+        address[] storage reportedValidators = addressArrayStorage[keccak256(abi.encode(
+            MALICE_REPORTED_FOR_BLOCK, _maliciousMiningAddress, _blockNumber
+        ))];
+
+        // Don't allow reporting validator to report about malicious validator more than once
+        for (uint256 m = 0; m < reportedValidators.length; m++) {
+            if (reportedValidators[m] == _reportingMiningAddress) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     function stakeWithdrawDisallowPeriod() public view returns(uint256) {

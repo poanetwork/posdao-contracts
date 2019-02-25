@@ -2,6 +2,7 @@ pragma solidity 0.5.2;
 
 import "./interfaces/ITxPermission.sol";
 import "./interfaces/IValidatorSet.sol";
+import "./interfaces/IValidatorSetAuRa.sol";
 import "./eternal-storage/OwnedEternalStorage.sol";
 
 
@@ -107,7 +108,8 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
 
         // Get called function's signature
         bytes4 signature = bytes4(0);
-        for (uint256 i = 0; _data.length >= 4 && i < 4; i++) {
+        uint256 i;
+        for (i = 0; _data.length >= 4 && i < 4; i++) {
             signature |= bytes4(_data[i]) >> i*8;
         }
 
@@ -123,8 +125,30 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
                 // if `emitInitiateChangeCallable()` returns `true`
                 return (validatorSet.emitInitiateChangeCallable() ? CALL : NONE, false);
             } else if (signature == bytes4(keccak256("reportMalicious(address,uint256,bytes)"))) {
-                // The `reportMalicious()` can only be called by validator's mining address
-                return (validatorSet.isReportValidatorValid(_sender) ? CALL : NONE, false);
+                uint256 abiParamsLength = _data.length - 4;
+
+                if (abiParamsLength > 64) {
+                    abiParamsLength = 64;
+                }
+
+                bytes memory abiParams = new bytes(abiParamsLength);
+
+                for (i = 0; i < abiParamsLength; i++) {
+                    abiParams[i] = _data[i + 4];
+                }
+
+                (
+                    address maliciousMiningAddress,
+                    uint256 blockNumber
+                ) = abi.decode(
+                    abiParams,
+                    (address, uint256)
+                );
+
+                // The `reportMalicious()` can only be called by validator's mining address when the calling is allowed
+                return (IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).reportMaliciousCallable(
+                    _sender, maliciousMiningAddress, blockNumber
+                ) ? CALL : NONE, false);
             } else if (_gasPrice > 0) {
                 // The other functions of ValidatorSet contract can be called
                 // by anyone except validators' mining addresses if gasPrice is not zero

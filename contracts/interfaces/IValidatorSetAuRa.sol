@@ -14,6 +14,7 @@ interface IValidatorSetAuRa {
         uint256
     ) external;
     function removeMaliciousValidator(address) external;
+    function reportMaliciousCallable(address, address, uint256) external view returns(bool);
     function stakeWithdrawDisallowPeriod() external view returns(uint256);
     function stakingEpochDuration() external view returns(uint256);
     function stakingEpochStartBlock() external view returns(uint256);
