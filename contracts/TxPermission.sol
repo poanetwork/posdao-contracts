@@ -1,5 +1,6 @@
 pragma solidity 0.5.2;
 
+import "./interfaces/IRandomAuRa.sol";
 import "./interfaces/ITxPermission.sol";
 import "./interfaces/IValidatorSet.sol";
 import "./interfaces/IValidatorSetAuRa.sol";
@@ -108,14 +109,28 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
 
         // Get called function's signature
         bytes4 signature = bytes4(0);
+        bytes memory abiParams;
         uint256 i;
         for (i = 0; _data.length >= 4 && i < 4; i++) {
             signature |= bytes4(_data[i]) >> i*8;
         }
 
         if (_to == RANDOM_CONTRACT) {
-            // The functions of Random contract can only be called by validator's mining address
-            return (validatorSet.isValidator(_sender) ? CALL : NONE, false);
+            abiParams = new bytes(_data.length - 4 > 32 ? 32 : _data.length - 4);
+
+            for (i = 0; i < abiParams.length; i++) {
+                abiParams[i] = _data[i + 4];
+            }
+
+            if (signature == bytes4(keccak256("commitHash(bytes32,bytes)"))) {
+                (bytes32 secretHash) = abi.decode(abiParams, (bytes32));
+                return (IRandomAuRa(RANDOM_CONTRACT).commitHashCallable(_sender, secretHash) ? CALL : NONE, false);
+            } else if (signature == bytes4(keccak256("revealSecret(uint256)"))) {
+                (uint256 secret) = abi.decode(abiParams, (uint256));
+                return (IRandomAuRa(RANDOM_CONTRACT).revealSecretCallable(_sender, secret) ? CALL : NONE, false);
+            } else {
+                return (NONE, false);
+            }
         }
 
         if (_to == VALIDATOR_SET_CONTRACT) {
@@ -125,7 +140,7 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
                 // if `emitInitiateChangeCallable()` returns `true`
                 return (validatorSet.emitInitiateChangeCallable() ? CALL : NONE, false);
             } else if (signature == bytes4(keccak256("reportMalicious(address,uint256,bytes)"))) {
-                bytes memory abiParams = new bytes(_data.length - 4 > 64 ? 64 : _data.length - 4);
+                abiParams = new bytes(_data.length - 4 > 64 ? 64 : _data.length - 4);
 
                 for (i = 0; i < abiParams.length; i++) {
                     abiParams[i] = _data[i + 4];

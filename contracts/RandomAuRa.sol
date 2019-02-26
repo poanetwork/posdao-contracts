@@ -17,16 +17,12 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     // =============================================== Setters ========================================================
 
     function commitHash(bytes32 _secretHash, bytes calldata _cipher) external {
-        require(isCommitPhase()); // must only be called in `commits phase`
-        require(_secretHash != bytes32(0));
-
         address miningAddress = msg.sender;
-        require(IValidatorSet(VALIDATOR_SET_CONTRACT).isValidator(miningAddress));
+
+        require(commitHashCallable(miningAddress, _secretHash));
+        require(block.coinbase == miningAddress); // make sure validator node is live
 
         uint256 collectRound = currentCollectRound();
-
-        require(block.coinbase == miningAddress); // make sure validator node is live
-        require(!isCommitted(collectRound, miningAddress)); // cannot commit more than once
 
         _setCommit(collectRound, miningAddress, _secretHash);
         _setCipher(collectRound, miningAddress, _cipher);
@@ -34,22 +30,13 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     }
 
     function revealSecret(uint256 _secret) external {
-        require(isRevealPhase()); // must only be called in `reveals phase`
-
-        bytes32 secretHash = keccak256(abi.encodePacked(_secret));
-        require(secretHash != bytes32(0));
-
         address miningAddress = msg.sender;
-        require(IValidatorSet(VALIDATOR_SET_CONTRACT).isValidator(miningAddress));
 
-        uint256 collectRound = currentCollectRound();
-
+        require(revealSecretCallable(miningAddress, _secret));
         require(block.coinbase == miningAddress); // make sure validator node is live
-        require(!sentReveal(collectRound, miningAddress)); // cannot reveal more than once during the same collectRound
-        require(secretHash == getCommit(collectRound, miningAddress)); // the hash must be commited
 
         _setCurrentSeed(_getCurrentSeed() ^ _secret);
-        _setSentReveal(collectRound, miningAddress, true);
+        _setSentReveal(currentCollectRound(), miningAddress, true);
     }
 
     /// Initializes the contract at the start of the network.
@@ -153,6 +140,40 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
     function isRevealPhase() public view returns(bool) {
         return !isCommitPhase();
+    }
+
+    function commitHashCallable(address _miningAddress, bytes32 _secretHash) public view returns(bool) {
+        if (!isCommitPhase()) return false; // must only be called in `commits phase`
+
+        if (_secretHash == bytes32(0)) return false;
+
+        if (!IValidatorSet(VALIDATOR_SET_CONTRACT).isValidator(_miningAddress)) return false;
+
+        if (isCommitted(currentCollectRound(), _miningAddress)) return false; // cannot commit more than once
+
+        return true;
+    }
+
+    function revealSecretCallable(address _miningAddress, uint256 _secret) public view returns(bool) {
+        if (!isRevealPhase()) return false; // must only be called in `reveals phase`
+
+        bytes32 secretHash = keccak256(abi.encodePacked(_secret));
+
+        if (secretHash == bytes32(0)) return false;
+
+        if (!IValidatorSet(VALIDATOR_SET_CONTRACT).isValidator(_miningAddress)) return false;
+
+        uint256 collectRound = currentCollectRound();
+
+        if (sentReveal(collectRound, _miningAddress)) {
+            return false; // cannot reveal more than once during the same collectRound
+        }
+
+        if (secretHash != getCommit(collectRound, _miningAddress)) {
+            return false; // the hash must be commited
+        }
+
+        return true;
     }
 
     function revealSkips(uint256 _stakingEpoch, address _miningAddress) public view returns(uint256) {
