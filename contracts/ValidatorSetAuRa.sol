@@ -74,7 +74,23 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
 
         _incrementReportingCounter(reportingMiningAddress);
 
-        if (!reportMaliciousCallable(reportingMiningAddress, _maliciousMiningAddress, _blockNumber)) return;
+        (
+            bool callable,
+            bool removeReportingValidator
+        ) = reportMaliciousCallable(
+            reportingMiningAddress,
+            _maliciousMiningAddress,
+            _blockNumber
+        );
+
+        if (!callable) {
+            if (removeReportingValidator) {
+                // Reporting validator reported too often, so
+                // treat them as malicious as well
+                _removeMaliciousValidatorAuRa(reportingMiningAddress);
+            }
+            return;
+        }
 
         address[] storage reportedValidators = addressArrayStorage[keccak256(abi.encode(
             MALICE_REPORTED_FOR_BLOCK, _maliciousMiningAddress, _blockNumber
@@ -124,9 +140,9 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
         address _reportingMiningAddress,
         address _maliciousMiningAddress,
         uint256 _blockNumber
-    ) public view returns(bool) {
-        if (!isReportValidatorValid(_reportingMiningAddress)) return false;
-        if (!isReportValidatorValid(_maliciousMiningAddress)) return false;
+    ) public view returns(bool, bool) {
+        if (!isReportValidatorValid(_reportingMiningAddress)) return (false, false);
+        if (!isReportValidatorValid(_maliciousMiningAddress)) return (false, false);
 
         uint256 validatorsNumber = getValidators().length;
 
@@ -140,18 +156,18 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
                 averageReportsNumber = (reportsTotalNumber - reportsNumber) / (validatorsNumber - 1);
             }
 
-            if (reportsNumber > MAX_VALIDATORS * 50 && reportsNumber > averageReportsNumber * 10) {
-                return false;
+            if (reportsNumber > validatorsNumber * 50 && reportsNumber > averageReportsNumber * 10) {
+                return (false, true);
             }
         }
 
         uint256 currentBlock = _getCurrentBlockNumber();
 
-        if (_blockNumber > currentBlock) return false; // avoid reporting about future blocks
+        if (_blockNumber > currentBlock) return (false, false); // avoid reporting about future blocks
 
         uint256 ancientBlocksLimit = 100;
         if (currentBlock > ancientBlocksLimit && _blockNumber < currentBlock - ancientBlocksLimit) {
-            return false; // avoid reporting about ancient blocks
+            return (false, false); // avoid reporting about ancient blocks
         }
 
         address[] storage reportedValidators = addressArrayStorage[keccak256(abi.encode(
@@ -161,11 +177,11 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
         // Don't allow reporting validator to report about malicious validator more than once
         for (uint256 m = 0; m < reportedValidators.length; m++) {
             if (reportedValidators[m] == _reportingMiningAddress) {
-                return false;
+                return (false, false);
             }
         }
 
-        return true;
+        return (true, false);
     }
 
     function stakeWithdrawDisallowPeriod() public view returns(uint256) {

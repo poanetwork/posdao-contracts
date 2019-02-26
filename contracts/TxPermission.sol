@@ -125,15 +125,9 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
                 // if `emitInitiateChangeCallable()` returns `true`
                 return (validatorSet.emitInitiateChangeCallable() ? CALL : NONE, false);
             } else if (signature == bytes4(keccak256("reportMalicious(address,uint256,bytes)"))) {
-                uint256 abiParamsLength = _data.length - 4;
+                bytes memory abiParams = new bytes(_data.length - 4 > 64 ? 64 : _data.length - 4);
 
-                if (abiParamsLength > 64) {
-                    abiParamsLength = 64;
-                }
-
-                bytes memory abiParams = new bytes(abiParamsLength);
-
-                for (i = 0; i < abiParamsLength; i++) {
+                for (i = 0; i < abiParams.length; i++) {
                     abiParams[i] = _data[i + 4];
                 }
 
@@ -146,9 +140,11 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
                 );
 
                 // The `reportMalicious()` can only be called by validator's mining address when the calling is allowed
-                return (IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).reportMaliciousCallable(
+                (bool callable,) = IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).reportMaliciousCallable(
                     _sender, maliciousMiningAddress, blockNumber
-                ) ? CALL : NONE, false);
+                );
+
+                return (callable ? CALL : NONE, false);
             } else if (_gasPrice > 0) {
                 // The other functions of ValidatorSet contract can be called
                 // by anyone except validators' mining addresses if gasPrice is not zero
