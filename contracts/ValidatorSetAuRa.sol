@@ -72,7 +72,9 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
     function reportMalicious(address _maliciousMiningAddress, uint256 _blockNumber, bytes calldata) external {
         address reportingMiningAddress = msg.sender;
 
-        require(reportMaliciousCallable(reportingMiningAddress, _maliciousMiningAddress, _blockNumber));
+        _incrementReportingCounter(reportingMiningAddress);
+
+        if (!reportMaliciousCallable(reportingMiningAddress, _maliciousMiningAddress, _blockNumber)) return;
 
         address[] storage reportedValidators = addressArrayStorage[keccak256(abi.encode(
             MALICE_REPORTED_FOR_BLOCK, _maliciousMiningAddress, _blockNumber
@@ -110,6 +112,14 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
         ))];
     }
 
+    function reportingCounter(address _reportingMiningAddress, uint256 _stakingEpoch) public view returns(uint256) {
+        return uintStorage[keccak256(abi.encode(REPORTING_COUNTER, _reportingMiningAddress, _stakingEpoch))];
+    }
+
+    function reportingCounterTotal(uint256 _stakingEpoch) public view returns(uint256) {
+        return uintStorage[keccak256(abi.encode(REPORTING_COUNTER_TOTAL, _stakingEpoch))];
+    }
+
     function reportMaliciousCallable(
         address _reportingMiningAddress,
         address _maliciousMiningAddress,
@@ -117,6 +127,23 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
     ) public view returns(bool) {
         if (!isReportValidatorValid(_reportingMiningAddress)) return false;
         if (!isReportValidatorValid(_maliciousMiningAddress)) return false;
+
+        uint256 validatorsNumber = getValidators().length;
+
+        if (validatorsNumber > 1) {
+            uint256 currentStakingEpoch = stakingEpoch();
+            uint256 reportsNumber = reportingCounter(_reportingMiningAddress, currentStakingEpoch);
+            uint256 reportsTotalNumber = reportingCounterTotal(currentStakingEpoch);
+            uint256 averageReportsNumber = 0;
+
+            if (reportsTotalNumber >= reportsNumber) {
+                averageReportsNumber = (reportsTotalNumber - reportsNumber) / (validatorsNumber - 1);
+            }
+
+            if (reportsNumber > MAX_VALIDATORS * 50 && reportsNumber > averageReportsNumber * 10) {
+                return false;
+            }
+        }
 
         uint256 currentBlock = _getCurrentBlockNumber();
 
@@ -163,10 +190,34 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
     bytes32 internal constant STAKE_WITHDRAW_DISALLOW_PERIOD = keccak256("stakeWithdrawDisallowPeriod");
     bytes32 internal constant STAKING_EPOCH_DURATION = keccak256("stakingEpochDuration");
     bytes32 internal constant STAKING_EPOCH_START_BLOCK = keccak256("stakingEpochStartBlock");
+
     bytes32 internal constant MALICE_REPORTED_FOR_BLOCK = "maliceReportedForBlock";
+    bytes32 internal constant REPORTING_COUNTER = "reportingCounter";
+    bytes32 internal constant REPORTING_COUNTER_TOTAL = "reportingCounterTotal";
 
     function _banUntil() internal view returns(uint256) {
         return block.number + 1555200; // 90 days (for 5 seconds block)
+    }
+
+    function _clearReportingCounter(address _reportingMiningAddress) internal {
+        uint256 currentStakingEpoch = stakingEpoch();
+        uint256 total = reportingCounterTotal(currentStakingEpoch);
+        uint256 counter = reportingCounter(_reportingMiningAddress, currentStakingEpoch);
+
+        uintStorage[keccak256(abi.encode(REPORTING_COUNTER, _reportingMiningAddress, currentStakingEpoch))] = 0;
+
+        if (total >= counter) {
+            uintStorage[keccak256(abi.encode(REPORTING_COUNTER_TOTAL, currentStakingEpoch))] -= counter;
+        } else {
+            uintStorage[keccak256(abi.encode(REPORTING_COUNTER_TOTAL, currentStakingEpoch))] = 0;
+        }
+    }
+
+    function _incrementReportingCounter(address _reportingMiningAddress) internal {
+        if (!isReportValidatorValid(_reportingMiningAddress)) return;
+        uint256 currentStakingEpoch = stakingEpoch();
+        uintStorage[keccak256(abi.encode(REPORTING_COUNTER, _reportingMiningAddress, currentStakingEpoch))]++;
+        uintStorage[keccak256(abi.encode(REPORTING_COUNTER_TOTAL, currentStakingEpoch))]++;
     }
 
     function _removeMaliciousValidatorAuRa(address _miningAddress) internal {
@@ -179,6 +230,7 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
             // From this moment `getPendingValidators()` will return the new validator set
             _incrementChangeRequestCount();
             _enqueuePendingValidators(false);
+            _clearReportingCounter(_miningAddress);
         }
     }
 
