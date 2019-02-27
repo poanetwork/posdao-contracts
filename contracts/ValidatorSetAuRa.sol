@@ -36,6 +36,7 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
         address _erc20TokenContract,
         address[] calldata _initialMiningAddresses,
         address[] calldata _initialStakingAddresses,
+        bool _firstValidatorIsUnremovable, // must be `false` for production network
         uint256 _delegatorMinStake, // in STAKE_UNITs
         uint256 _candidateMinStake, // in STAKE_UNITs
         uint256 _stakingEpochDuration, // in blocks (e.g., 120960 = 1 week)
@@ -50,6 +51,7 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
             _erc20TokenContract,
             _initialMiningAddresses,
             _initialStakingAddresses,
+            _firstValidatorIsUnremovable,
             _delegatorMinStake,
             _candidateMinStake
         );

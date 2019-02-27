@@ -107,6 +107,11 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
     // =============================================== Setters ========================================================
 
+    function clearUnremovableValidator() external {
+        require(msg.sender == unremovableValidator() || msg.sender == _owner);
+        _setUnremovableValidator(address(0));
+    }
+
     function emitInitiateChange() external {
         require(emitInitiateChangeCallable());
         (address[] memory newSet, bool newStakingEpoch) = _dequeuePendingValidators();
@@ -150,6 +155,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         address stakingAddress = msg.sender;
         // initial validator cannot remove their pool during the initial staking epoch
         require(stakingEpoch() > 0 || !isValidator(miningByStakingAddress(stakingAddress)));
+        require(stakingAddress != unremovableValidator());
         _removeFromPools(stakingAddress);
     }
 
@@ -559,6 +565,10 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         return uintStorage[STAKING_EPOCH];
     }
 
+    function unremovableValidator() public view returns(address stakingAddress) {
+        stakingAddress = addressStorage[UNREMOVABLE_STAKING_ADDRESS];
+    }
+
     // Returns the index of validator in the `currentValidators`
     function validatorIndex(address _miningAddress) public view returns(uint256) {
         return uintStorage[
@@ -592,6 +602,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     bytes32 internal constant QUEUE_VALIDATORS_NEW_STAKING_EPOCH = keccak256("queueValidatorsNewStakingEpoch");
     bytes32 internal constant RANDOM_CONTRACT = keccak256("randomContract");
     bytes32 internal constant STAKING_EPOCH = keccak256("stakingEpoch");
+    bytes32 internal constant UNREMOVABLE_STAKING_ADDRESS = keccak256("unremovableStakingAddress");
     bytes32 internal constant VALIDATOR_SET_APPLY_BLOCK = keccak256("validatorSetApplyBlock");
 
     bytes32 internal constant BANNED_UNTIL = "bannedUntil";
@@ -740,6 +751,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         address _erc20TokenContract,
         address[] memory _initialMiningAddresses,
         address[] memory _initialStakingAddresses,
+        bool _firstValidatorIsUnremovable, // must be `false` for production network
         uint256 _delegatorMinStake,
         uint256 _candidateMinStake
     ) internal {
@@ -769,6 +781,10 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
             _setMiningAddress(_initialStakingAddresses[i], _initialMiningAddresses[i]);
         }
 
+        if (_firstValidatorIsUnremovable) {
+            _setUnremovableValidator(_initialStakingAddresses[0]);
+        }
+
         _setDelegatorMinStake(_delegatorMinStake);
         _setCandidateMinStake(_candidateMinStake);
 
@@ -782,10 +798,15 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         address[] memory pools = getPools();
         uint256 i;
 
+        address unremovableStakingAddress = unremovableValidator();
+
         // Filter pools and leave only non-empty
         delete addressArrayStorage[POOLS_NON_EMPTY];
         delete addressArrayStorage[POOLS_EMPTY];
         for (i = 0; i < pools.length; i++) {
+            if (pools[i] == unremovableStakingAddress) {
+                continue;
+            }
             if (stakeAmountMinusOrderedWithdraw(pools[i], pools[i]) > 0) {
                 addressArrayStorage[POOLS_NON_EMPTY].push(pools[i]);
             } else {
@@ -795,10 +816,12 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         pools = addressArrayStorage[POOLS_NON_EMPTY];
 
         // Choose new validators
-        if (pools.length <= MAX_VALIDATORS) {
+        if (pools.length < MAX_VALIDATORS) {
             if (pools.length > 0) {
-                _setPendingValidators(pools);
+                _setPendingValidators(pools, unremovableStakingAddress);
             }
+        } else if (pools.length == MAX_VALIDATORS && unremovableStakingAddress == address(0)) {
+            _setPendingValidators(pools, address(0));
         } else {
             uint256 randomNumber = uint256(keccak256(abi.encode(IRandom(randomContract()).getCurrentSeed())));
 
@@ -806,16 +829,18 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
             uint256 poolsLocalLength = poolsLocal.length;
 
             uint256[] memory likelihood = new uint256[](poolsLocalLength);
-            address[] memory newValidators = new address[](MAX_VALIDATORS);
-
             uint256 likelihoodSum = 0;
 
             for (i = 0; i < poolsLocalLength; i++) {
-                likelihood[i] = stakeAmountTotalMinusOrderedWithdraw(poolsLocal[i]).mul(100).div(STAKE_UNIT);
-                likelihoodSum = likelihoodSum.add(likelihood[i]);
+                likelihood[i] = stakeAmountTotalMinusOrderedWithdraw(poolsLocal[i]) * 100 / STAKE_UNIT;
+                likelihoodSum += likelihood[i];
             }
 
-            for (i = 0; i < MAX_VALIDATORS; i++) {
+            address[] memory newValidators = new address[](
+                unremovableStakingAddress == address(0) ? MAX_VALIDATORS : MAX_VALIDATORS - 1
+            );
+
+            for (i = 0; i < newValidators.length; i++) {
                 uint256 randomPoolIndex = _getRandomIndex(
                     likelihood,
                     likelihoodSum,
@@ -829,7 +854,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
                 randomNumber = uint256(keccak256(abi.encode(randomNumber)));
             }
 
-            _setPendingValidators(newValidators);
+            _setPendingValidators(newValidators, unremovableStakingAddress);
         }
 
         // From this moment `getPendingValidators()` will return the new validator set
@@ -878,6 +903,10 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     function _removeMaliciousValidator(address _miningAddress) internal returns(bool) {
         uint256 i;
         address stakingAddress = stakingByMiningAddress(_miningAddress);
+
+        if (stakingAddress == unremovableValidator()) {
+            return false;
+        }
 
         // Remove malicious validator from `pools`
         _removeFromPools(stakingAddress);
@@ -935,10 +964,14 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         boolStorage[keccak256(abi.encode(IS_VALIDATOR_ON_PREVIOUS_EPOCH, _miningAddress))] = _isValidator;
     }
 
-    function _setPendingValidators(address[] memory _stakingAddresses) internal {
+    function _setPendingValidators(address[] memory _stakingAddresses, address _unremovableStakingAddress) internal {
         uint256 i;
 
         delete addressArrayStorage[PENDING_VALIDATORS];
+
+        if (_unremovableStakingAddress != address(0)) {
+            addressArrayStorage[PENDING_VALIDATORS].push(miningByStakingAddress(_unremovableStakingAddress));
+        }
 
         for (i = 0; i < _stakingAddresses.length; i++) {
             addressArrayStorage[PENDING_VALIDATORS].push(miningByStakingAddress(_stakingAddresses[i]));
@@ -1050,6 +1083,10 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         uintStorage[CANDIDATE_MIN_STAKE] = _minStake * STAKE_UNIT;
     }
 
+    function _setUnremovableValidator(address _stakingAddress) internal {
+        addressStorage[UNREMOVABLE_STAKING_ADDRESS] = _stakingAddress;
+    }
+
     function _setValidatorIndex(address _miningAddress, uint256 _index) internal {
         uintStorage[
             keccak256(abi.encode(VALIDATOR_INDEX, _miningAddress))
@@ -1074,6 +1111,10 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
             require(newStakeAmount >= getCandidateMinStake()); // the staked amount must be at least CANDIDATE_MIN_STAKE
         } else {
             require(newStakeAmount >= getDelegatorMinStake()); // the staked amount must be at least DELEGATOR_MIN_STAKE
+
+            // The delegator cannot stake into the pool of the candidate which hasn't self-staked.
+            // Also, that candidate shouldn't want to withdraw all his funds.
+            require(stakeAmountMinusOrderedWithdraw(_poolStakingAddress, _poolStakingAddress) > 0);
         }
         _setStakeAmount(_poolStakingAddress, _staker, newStakeAmount);
         _setStakeAmountByCurrentEpoch(
@@ -1140,8 +1181,10 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
         if (newStakeAmount == 0) { // the whole amount has been withdrawn
             if (_staker == _poolStakingAddress) {
-                // Remove `_poolStakingAddress` from the array of pools
-                _removeFromPools(_poolStakingAddress);
+                if (_poolStakingAddress != unremovableValidator()) {
+                    // Remove `_poolStakingAddress` from the array of pools
+                    _removeFromPools(_poolStakingAddress);
+                }
             } else {
                 // Remove `_staker` from the array of pool's delegators
                 _removePoolDelegator(_poolStakingAddress, _staker);

@@ -44,6 +44,7 @@ contract('ValidatorSetAuRa', async accounts => {
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialValidators, // _initialMiningAddresses
         initialStakingAddresses, // _initialStakingAddresses
+        false, // _firstValidatorIsUnremovable
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
@@ -240,6 +241,7 @@ contract('ValidatorSetAuRa', async accounts => {
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialValidators, // _initialMiningAddresses
         initialStakingAddresses, // _initialStakingAddresses
+        false, // _firstValidatorIsUnremovable
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
@@ -303,6 +305,7 @@ contract('ValidatorSetAuRa', async accounts => {
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialValidators, // _initialMiningAddresses
         initialStakingAddresses, // _initialStakingAddresses
+        false, // _firstValidatorIsUnremovable
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
@@ -316,6 +319,7 @@ contract('ValidatorSetAuRa', async accounts => {
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialValidators, // _initialMiningAddresses
         initialStakingAddresses, // _initialStakingAddresses
+        false, // _firstValidatorIsUnremovable
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
@@ -329,6 +333,7 @@ contract('ValidatorSetAuRa', async accounts => {
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialValidators, // _initialMiningAddresses
         initialStakingAddresses, // _initialStakingAddresses
+        false, // _firstValidatorIsUnremovable
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
@@ -342,6 +347,7 @@ contract('ValidatorSetAuRa', async accounts => {
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         [], // _initialMiningAddresses
         initialStakingAddresses, // _initialStakingAddresses
+        false, // _firstValidatorIsUnremovable
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
@@ -355,6 +361,7 @@ contract('ValidatorSetAuRa', async accounts => {
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialValidators, // _initialMiningAddresses
         initialStakingAddresses, // _initialStakingAddresses
+        false, // _firstValidatorIsUnremovable
         0, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
@@ -368,6 +375,7 @@ contract('ValidatorSetAuRa', async accounts => {
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialValidators, // _initialMiningAddresses
         initialStakingAddresses, // _initialStakingAddresses
+        false, // _firstValidatorIsUnremovable
         1, // _delegatorMinStake
         0, // _candidateMinStake
         120960, // _stakingEpochDuration
@@ -381,6 +389,7 @@ contract('ValidatorSetAuRa', async accounts => {
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialValidators, // _initialMiningAddresses
         initialStakingAddresses, // _initialStakingAddresses
+        false, // _firstValidatorIsUnremovable
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
@@ -392,6 +401,7 @@ contract('ValidatorSetAuRa', async accounts => {
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialValidators, // _initialMiningAddresses
         initialStakingAddresses, // _initialStakingAddresses
+        false, // _firstValidatorIsUnremovable
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
@@ -405,6 +415,7 @@ contract('ValidatorSetAuRa', async accounts => {
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialValidators, // _initialMiningAddresses
         initialStakingAddresses, // _initialStakingAddresses
+        false, // _firstValidatorIsUnremovable
         1, // _delegatorMinStake
         1, // _candidateMinStake
         0, // _stakingEpochDuration
@@ -418,6 +429,7 @@ contract('ValidatorSetAuRa', async accounts => {
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialValidators, // _initialMiningAddresses
         initialStakingAddresses, // _initialStakingAddresses
+        false, // _firstValidatorIsUnremovable
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
@@ -431,6 +443,7 @@ contract('ValidatorSetAuRa', async accounts => {
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialValidators, // _initialMiningAddresses
         initialStakingAddresses, // _initialStakingAddresses
+        false, // _firstValidatorIsUnremovable
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
@@ -442,6 +455,7 @@ contract('ValidatorSetAuRa', async accounts => {
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialValidators, // _initialMiningAddresses
         initialStakingAddresses, // _initialStakingAddresses
+        false, // _firstValidatorIsUnremovable
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
@@ -456,6 +470,7 @@ contract('ValidatorSetAuRa', async accounts => {
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialValidators, // _initialMiningAddresses
         initialStakingAddressesShort, // _initialStakingAddresses
+        false, // _firstValidatorIsUnremovable
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
@@ -470,6 +485,7 @@ contract('ValidatorSetAuRa', async accounts => {
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialValidators, // _initialMiningAddresses
         initialValidators, // _initialStakingAddresses
+        false, // _firstValidatorIsUnremovable
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
@@ -484,6 +500,7 @@ contract('ValidatorSetAuRa', async accounts => {
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialValidators, // _initialMiningAddresses
         initialStakingAddresses, // _initialStakingAddresses
+        false, // _firstValidatorIsUnremovable
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
@@ -498,6 +515,7 @@ contract('ValidatorSetAuRa', async accounts => {
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialValidators, // _initialMiningAddresses
         initialStakingAddresses, // _initialStakingAddresses
+        false, // _firstValidatorIsUnremovable
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
@@ -527,6 +545,7 @@ contract('ValidatorSetAuRa', async accounts => {
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialValidators, // _initialMiningAddresses
         initialStakingAddresses, // _initialStakingAddresses
+        false, // _firstValidatorIsUnremovable
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
