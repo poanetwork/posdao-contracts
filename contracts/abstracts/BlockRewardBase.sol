@@ -421,17 +421,21 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
 
         // Calculate reward for validator
         receivers[s] = _validatorStakingAddress;
-        if (validatorHasMore30Per) {
-            rewards[s] = _poolReward.mul(validatorStake).div(totalStaked);
-        } else {
-            rewards[s] = _poolReward.mul(3).div(10);
-        }
+        if (validatorStake > 0) {
+            if (validatorHasMore30Per) {
+                rewards[s] = _poolReward.mul(validatorStake).div(totalStaked);
+            } else {
+                rewards[s] = _poolReward.mul(3).div(10);
+            }
 
-        // Give remainder to validator
-        for (s = 0; s < rewards.length; s++) {
-            _poolReward -= rewards[s];
+            // Give remainder to validator
+            for (s = 0; s < rewards.length; s++) {
+                _poolReward -= rewards[s];
+            }
+            rewards[s - 1] += _poolReward;
+        } else {
+            rewards[s] = 0;
         }
-        rewards[s - 1] += _poolReward;
     }
 
     function _getBridgeNativeFee(uint256 _stakingEpoch) internal view returns(uint256) {

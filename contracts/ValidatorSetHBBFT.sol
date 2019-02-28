@@ -25,6 +25,7 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
         address _erc20TokenContract,
         address[] calldata _initialMiningAddresses,
         address[] calldata _initialStakingAddresses,
+        bool _firstValidatorIsUnremovable, // must be `false` for production network
         uint256 _delegatorMinStake,
         uint256 _candidateMinStake
     ) external {
@@ -34,6 +35,7 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
             _erc20TokenContract,
             _initialMiningAddresses,
             _initialStakingAddresses,
+            _firstValidatorIsUnremovable,
             _delegatorMinStake,
             _candidateMinStake
         );

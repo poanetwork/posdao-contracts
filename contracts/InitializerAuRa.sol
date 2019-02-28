@@ -17,6 +17,7 @@ contract InitializerAuRa {
         address _owner,
         address[] memory _miningAddresses,
         address[] memory _stakingAddresses,
+        bool _firstValidatorIsUnremovable, // must be `false` for production network
         uint256 _delegatorMinStake,
         uint256 _candidateMinStake,
         uint256 _stakingEpochDuration,
@@ -30,6 +31,7 @@ contract InitializerAuRa {
             _erc20TokenContract,
             _miningAddresses,
             _stakingAddresses,
+            _firstValidatorIsUnremovable,
             _delegatorMinStake,
             _candidateMinStake,
             _stakingEpochDuration,

@@ -16,6 +16,7 @@ contract InitializerHBBFT {
         address _owner,
         address[] memory _miningAddresses,
         address[] memory _stakingAddresses,
+        bool _firstValidatorIsUnremovable, // must be `false` for production network
         uint256 _delegatorMinStake,
         uint256 _candidateMinStake
     ) public {
@@ -26,6 +27,7 @@ contract InitializerHBBFT {
             _erc20TokenContract,
             _miningAddresses,
             _stakingAddresses,
+            _firstValidatorIsUnremovable,
             _delegatorMinStake,
             _candidateMinStake
         );
