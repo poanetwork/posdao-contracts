@@ -26,8 +26,8 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         _;
     }
 
-    modifier onlyNativeToErcBridge {
-        require(_isNativeToErcBridge(msg.sender));
+    modifier onlyXToErcBridge {
+        require(_isErcToErcBridge(msg.sender) || _isNativeToErcBridge(msg.sender));
         _;
     }
 
@@ -43,12 +43,14 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
 
     // =============================================== Setters ========================================================
 
+    // This function can only be called by erc-to-native
     function addBridgeNativeFeeReceivers(uint256 _amount) external onlyErcToNativeBridge {
         require(_amount != 0);
         _addBridgeNativeFee(_getStakingEpoch(), _amount);
     }
 
-    function addBridgeTokenFeeReceivers(uint256 _amount) external onlyNativeToErcBridge {
+    // This function can only be called by native-to-erc or erc-to-erc bridge
+    function addBridgeTokenFeeReceivers(uint256 _amount) external onlyXToErcBridge {
         require(_amount != 0);
         _addBridgeTokenFee(_getStakingEpoch(), _amount);
     }
@@ -71,6 +73,10 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
 
     function setNativeToErcBridgesAllowed(address[] calldata _bridgesAllowed) external onlyOwner {
         addressArrayStorage[NATIVE_TO_ERC_BRIDGES_ALLOWED] = _bridgesAllowed;
+    }
+
+    function setErcToErcBridgesAllowed(address[] calldata _bridgesAllowed) external onlyOwner {
+        addressArrayStorage[ERC_TO_ERC_BRIDGES_ALLOWED] = _bridgesAllowed;
     }
 
     function setSnapshot() external onlyValidatorSet {
@@ -148,6 +154,10 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         return uintStorage[
             keccak256(abi.encode(BRIDGE_AMOUNT, _bridge))
         ];
+    }
+
+    function ercToErcBridgesAllowed() public view returns(address[] memory ) {
+        return addressArrayStorage[ERC_TO_ERC_BRIDGES_ALLOWED];
     }
 
     function ercToNativeBridgesAllowed() public view returns(address[] memory) {
@@ -236,6 +246,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     // =============================================== Private ========================================================
 
     bytes32 internal constant DELEGATORS_TEMPORARY_ARRAY = keccak256("delegatorsTemporaryArray");
+    bytes32 internal constant ERC_TO_ERC_BRIDGES_ALLOWED = keccak256("ercToErcBridgesAllowed");
     bytes32 internal constant ERC_TO_NATIVE_BRIDGES_ALLOWED = keccak256("ercToNativeBridgesAllowed");
     bytes32 internal constant EXTRA_RECEIVERS = keccak256("extraReceivers");
     bytes32 internal constant MINTED_TOTALLY = keccak256("mintedTotally");
@@ -464,6 +475,18 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
 
     function _isErcToNativeBridge(address _addr) internal view returns(bool) {
         address[] memory bridges = ercToNativeBridgesAllowed();
+
+        for (uint256 i = 0; i < bridges.length; i++) {
+            if (_addr == bridges[i]) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    function _isErcToErcBridge(address _addr) internal view returns(bool) {
+        address[] memory bridges = ercToErcBridgesAllowed();
 
         for (uint256 i = 0; i < bridges.length; i++) {
             if (_addr == bridges[i]) {
