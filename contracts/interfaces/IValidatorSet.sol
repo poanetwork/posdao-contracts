@@ -2,23 +2,28 @@ pragma solidity 0.5.2;
 
 
 interface IValidatorSet {
+    function initialize(
+        address,
+        address,
+        address,
+        address[] calldata,
+        address[] calldata,
+        bool
+    ) external;
     function newValidatorSet() external;
-    function performOrderedWithdrawals() external;
+    function setStakingAddress(address, address) external;
     function blockRewardContract() external view returns(address);
     function changeRequestCount() external view returns(uint256);
     function emitInitiateChangeCallable() external view returns(bool);
-    function erc20TokenContract() external view returns(address);
-    function getPendingValidators() external view returns(address[] memory);
     function getPreviousValidators() external view returns(address[] memory);
     function getValidators() external view returns(address[] memory);
     function isReportValidatorValid(address) external view returns(bool);
     function isValidator(address) external view returns(bool);
-    function isValidatorOnPreviousEpoch(address) external view returns(bool);
-    function poolDelegators(address) external view returns(address[] memory);
+    function isValidatorBanned(address) external view returns(bool);
+    function miningByStakingAddress(address) external view returns(address);
     function randomContract() external view returns(address);
-    function stakeAmount(address, address) external view returns(uint256);
-    function stakeAmountMinusOrderedWithdraw(address, address) external view returns(uint256);
     function stakingByMiningAddress(address) external view returns(address);
-    function stakingEpoch() external view returns(uint256);
+    function stakingContract() external view returns(address);
+    function unremovableValidator() external view returns(address);
     function validatorSetApplyBlock() external view returns(uint256);
 }

@@ -1,44 +1,18 @@
 pragma solidity 0.5.2;
+pragma experimental ABIEncoderV2;
 
 import "./abstracts/ValidatorSetBase.sol";
+import "./interfaces/IValidatorSetHBBFT.sol";
 
 
-contract ValidatorSetHBBFT is ValidatorSetBase {
+contract ValidatorSetHBBFT is IValidatorSetHBBFT, ValidatorSetBase {
 
     // TODO: add a description for each function
 
     // =============================================== Setters ========================================================
 
-    function addPool(bytes calldata _publicKey, uint256 _amount, address _miningAddress) external {
-        address stakingAddress = msg.sender;
-        _setMiningAddress(stakingAddress, _miningAddress);
-        stake(stakingAddress, _amount);
-        savePublicKey(_publicKey);
-    }
-
-    /// Creates an initial set of validators at the start of the network.
-    /// Must be called by the constructor of `InitializerHBBFT` contract on genesis block.
-    /// This is used instead of `constructor()` because this contract is upgradable.
-    function initialize(
-        address _blockRewardContract,
-        address _randomContract,
-        address _erc20TokenContract,
-        address[] calldata _initialMiningAddresses,
-        address[] calldata _initialStakingAddresses,
-        bool _firstValidatorIsUnremovable, // must be `false` for production network
-        uint256 _delegatorMinStake,
-        uint256 _candidateMinStake
-    ) external {
-        super._initialize(
-            _blockRewardContract,
-            _randomContract,
-            _erc20TokenContract,
-            _initialMiningAddresses,
-            _initialStakingAddresses,
-            _firstValidatorIsUnremovable,
-            _delegatorMinStake,
-            _candidateMinStake
-        );
+    function clearMaliceReported(address _miningAddress) external onlyStakingContract {
+        delete addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED, _miningAddress))];
     }
 
     function newValidatorSet() external onlySystem {
@@ -105,23 +79,23 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
         }
     }
 
-    function savePublicKey(bytes memory _key) public {
-        address stakingAddress = msg.sender;
-        require(_key.length == 48); // https://github.com/poanetwork/threshold_crypto/issues/63
-        require(stakeAmount(stakingAddress, stakingAddress) != 0);
-        address miningAddress = miningByStakingAddress(stakingAddress);
-        bytesStorage[keccak256(abi.encode(PUBLIC_KEY, miningAddress))] = _key;
+    function savePublicKey(address _miningAddress, bytes calldata _key) external onlyStakingContract {
+        _savePublicKey(_miningAddress, _key);
+    }
 
-        if (!isValidatorBanned(miningAddress)) {
-            _addToPools(stakingAddress);
+    function initializePublicKeys(bytes[] memory _keys) public {
+        require(_getCurrentBlockNumber() == 0); // initialization must be done on genesis block
+
+        address[] memory miningAddresses = getValidators();
+
+        require(_keys.length == miningAddresses.length);
+
+        for (uint256 i = 0; i < _keys.length; i++) {
+            _savePublicKey(miningAddresses[i], _keys[i]);
         }
     }
 
     // =============================================== Getters ========================================================
-
-    function areStakeAndWithdrawAllowed() public view returns(bool) {
-        return _wasValidatorSetApplied();
-    }
 
     function isValidatorBanned(address _miningAddress) public view returns(bool) {
         return now < bannedUntil(_miningAddress);
@@ -143,17 +117,12 @@ contract ValidatorSetHBBFT is ValidatorSetBase {
     bytes32 internal constant MALICE_REPORTED = "maliceReported";
     bytes32 internal constant PUBLIC_KEY = "publicKey";
 
-    // Adds `_stakingAddress` to the array of pools
-    function _addToPools(address _stakingAddress) internal {
-        address miningAddress = miningByStakingAddress(_stakingAddress);
-        if (publicKey(miningAddress).length == 0) {
-            return;
-        }
-        super._addToPools(_stakingAddress);
-        delete addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED, miningAddress))];
-    }
-
     function _banUntil() internal view returns(uint256) {
         return now + 90 days;
+    }
+
+    function _savePublicKey(address _miningAddress, bytes memory _key) internal {
+        require(_key.length == 48); // https://github.com/poanetwork/threshold_crypto/issues/63
+        bytesStorage[keccak256(abi.encode(PUBLIC_KEY, _miningAddress))] = _key;
     }
 }

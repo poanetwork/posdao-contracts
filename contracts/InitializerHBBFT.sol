@@ -1,38 +1,44 @@
 pragma solidity 0.5.2;
+pragma experimental ABIEncoderV2;
 
+import "./abstracts/ContractsAddresses.sol";
+import "./interfaces/IValidatorSet.sol";
 import "./interfaces/IValidatorSetHBBFT.sol";
+import "./interfaces/IStakingHBBFT.sol";
 import "./interfaces/ITxPermission.sol";
 import "./interfaces/ICertifier.sol";
 
 
-contract InitializerHBBFT {
+contract InitializerHBBFT is ContractsAddresses {
     constructor(
-        IValidatorSetHBBFT _validatorSetContract,
-        address _blockRewardContract,
-        address _randomContract,
-        ITxPermission _permissionContract,
-        ICertifier _certifierContract,
         address _erc20TokenContract,
         address _owner,
         address[] memory _miningAddresses,
         address[] memory _stakingAddresses,
+        bytes[] memory _publicKeys,
         bool _firstValidatorIsUnremovable, // must be `false` for production network
         uint256 _delegatorMinStake,
         uint256 _candidateMinStake
     ) public {
-        require(address(_validatorSetContract) != address(0));
-        _validatorSetContract.initialize(
-            _blockRewardContract,
-            _randomContract,
-            _erc20TokenContract,
+        IValidatorSet(VALIDATOR_SET_CONTRACT).initialize(
+            BLOCK_REWARD_CONTRACT,
+            RANDOM_CONTRACT,
+            STAKING_CONTRACT,
             _miningAddresses,
             _stakingAddresses,
-            _firstValidatorIsUnremovable,
+            _firstValidatorIsUnremovable
+        );
+        IValidatorSetHBBFT(VALIDATOR_SET_CONTRACT).initializePublicKeys(
+            _publicKeys
+        );
+        IStakingHBBFT(STAKING_CONTRACT).initialize(
+            _erc20TokenContract,
+            _stakingAddresses,
             _delegatorMinStake,
             _candidateMinStake
         );
-        _permissionContract.initialize(_owner);
-        _certifierContract.initialize(_owner);
+        ITxPermission(PERMISSION_CONTRACT).initialize(_owner);
+        ICertifier(CERTIFIER_CONTRACT).initialize(_owner);
         selfdestruct(msg.sender);
     }
 }

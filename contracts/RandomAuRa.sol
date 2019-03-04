@@ -3,6 +3,8 @@ pragma solidity 0.5.2;
 import "./abstracts/RandomBase.sol";
 import "./interfaces/IRandomAuRa.sol";
 import "./interfaces/IValidatorSetAuRa.sol";
+import "./interfaces/IStaking.sol";
+import "./interfaces/IStakingAuRa.sol";
 
 
 contract RandomAuRa is RandomBase, IRandomAuRa {
@@ -61,9 +63,11 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         address validator;
         uint256 i;
 
-        uint256 stakingEpoch = IValidatorSet(VALIDATOR_SET_CONTRACT).stakingEpoch();
+        address stakingContract = IValidatorSet(VALIDATOR_SET_CONTRACT).stakingContract();
+
+        uint256 stakingEpoch = IStaking(stakingContract).stakingEpoch();
         uint256 applyBlock = IValidatorSet(VALIDATOR_SET_CONTRACT).validatorSetApplyBlock();
-        uint256 endBlock = IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).stakingEpochEndBlock();
+        uint256 endBlock = IStakingAuRa(stakingContract).stakingEpochEndBlock();
         uint256 currentRound = currentCollectRound();
 
         if (applyBlock != 0 && block.number > applyBlock + collectRoundLength() * 2) {
@@ -81,7 +85,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         // If this is the last collection round in the current staking epoch
         if (block.number == endBlock || block.number + collectRoundLength() > endBlock) {
             uint256 maxRevealSkipsAllowed =
-                IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).stakeWithdrawDisallowPeriod() / collectRoundLength();
+                IStakingAuRa(stakingContract).stakeWithdrawDisallowPeriod() / collectRoundLength();
 
             if (maxRevealSkipsAllowed > 0) {
                 maxRevealSkipsAllowed--;

@@ -2,6 +2,7 @@ pragma solidity 0.5.2;
 
 import "./abstracts/ValidatorSetBase.sol";
 import "./interfaces/IValidatorSetAuRa.sol";
+import "./interfaces/IStakingAuRa.sol";
 
 
 contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
@@ -14,57 +15,24 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
 
     // ============================================== Modifiers =======================================================
 
+    modifier onlyBlockRewardContract() {
+        require(msg.sender == blockRewardContract());
+        _;
+    }
+
     modifier onlyRandomContract() {
-        require(msg.sender == address(randomContract()));
+        require(msg.sender == randomContract());
         _;
     }
 
     // =============================================== Setters ========================================================
 
-    function addPool(uint256 _amount, address _miningAddress) external {
-        address stakingAddress = msg.sender;
-        _setMiningAddress(stakingAddress, _miningAddress);
-        stake(stakingAddress, _amount);
-    }
-
-    /// Creates an initial set of validators at the start of the network.
-    /// Must be called by the constructor of `InitializerAuRa` contract on genesis block.
-    /// This is used instead of `constructor()` because this contract is upgradable.
-    function initialize(
-        address _blockRewardContract,
-        address _randomContract,
-        address _erc20TokenContract,
-        address[] calldata _initialMiningAddresses,
-        address[] calldata _initialStakingAddresses,
-        bool _firstValidatorIsUnremovable, // must be `false` for production network
-        uint256 _delegatorMinStake, // in STAKE_UNITs
-        uint256 _candidateMinStake, // in STAKE_UNITs
-        uint256 _stakingEpochDuration, // in blocks (e.g., 120960 = 1 week)
-        uint256 _stakeWithdrawDisallowPeriod // in blocks (e.g., 4320 = 6 hours)
-    ) external {
-        require(_stakingEpochDuration != 0);
-        require(_stakingEpochDuration > _stakeWithdrawDisallowPeriod);
-        require(_stakeWithdrawDisallowPeriod != 0);
-        super._initialize(
-            _blockRewardContract,
-            _randomContract,
-            _erc20TokenContract,
-            _initialMiningAddresses,
-            _initialStakingAddresses,
-            _firstValidatorIsUnremovable,
-            _delegatorMinStake,
-            _candidateMinStake
-        );
-        _setStakingEpochDuration(_stakingEpochDuration);
-        _setStakeWithdrawDisallowPeriod(_stakeWithdrawDisallowPeriod);
-        _setStakingEpochStartBlock(_getCurrentBlockNumber());
-    }
-
     function newValidatorSet() external onlyBlockRewardContract {
         uint256 currentBlock = _getCurrentBlockNumber();
-        if (currentBlock != stakingEpochEndBlock()) return;
+        IStakingAuRa stakingContract = IStakingAuRa(stakingContract());
+        if (currentBlock != stakingContract.stakingEpochEndBlock()) return;
         super._newValidatorSet();
-        _setStakingEpochStartBlock(currentBlock + 1);
+        stakingContract.setStakingEpochStartBlock(currentBlock + 1);
     }
 
     function removeMaliciousValidator(address _miningAddress) external onlyRandomContract {
@@ -111,12 +79,6 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
 
     // =============================================== Getters ========================================================
 
-    function areStakeAndWithdrawAllowed() public view returns(bool) {
-        uint256 currentBlock = _getCurrentBlockNumber();
-        uint256 allowedDuration = stakingEpochDuration() - stakeWithdrawDisallowPeriod();
-        return _wasValidatorSetApplied() && currentBlock.sub(stakingEpochStartBlock()) <= allowedDuration;
-    }
-
     function isValidatorBanned(address _miningAddress) public view returns(bool) {
         return _getCurrentBlockNumber() < bannedUntil(_miningAddress);
     }
@@ -149,7 +111,7 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
         uint256 validatorsNumber = getValidators().length;
 
         if (validatorsNumber > 1) {
-            uint256 currentStakingEpoch = stakingEpoch();
+            uint256 currentStakingEpoch = IStaking(stakingContract()).stakingEpoch();
             uint256 reportsNumber = reportingCounter(_reportingMiningAddress, currentStakingEpoch);
             uint256 reportsTotalNumber = reportingCounterTotal(currentStakingEpoch);
             uint256 averageReportsNumber = 0;
@@ -186,28 +148,7 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
         return (true, false);
     }
 
-    function stakeWithdrawDisallowPeriod() public view returns(uint256) {
-        return uintStorage[STAKE_WITHDRAW_DISALLOW_PERIOD];
-    }
-
-    function stakingEpochDuration() public view returns(uint256) {
-        return uintStorage[STAKING_EPOCH_DURATION];
-    }
-
-    function stakingEpochStartBlock() public view returns(uint256) {
-        return uintStorage[STAKING_EPOCH_START_BLOCK];
-    }
-
-    function stakingEpochEndBlock() public view returns(uint256) {
-        uint256 startBlock = stakingEpochStartBlock();
-        return startBlock + stakingEpochDuration() - (startBlock == 0 ? 0 : 1);
-    }
-
     // =============================================== Private ========================================================
-
-    bytes32 internal constant STAKE_WITHDRAW_DISALLOW_PERIOD = keccak256("stakeWithdrawDisallowPeriod");
-    bytes32 internal constant STAKING_EPOCH_DURATION = keccak256("stakingEpochDuration");
-    bytes32 internal constant STAKING_EPOCH_START_BLOCK = keccak256("stakingEpochStartBlock");
 
     bytes32 internal constant MALICE_REPORTED_FOR_BLOCK = "maliceReportedForBlock";
     bytes32 internal constant REPORTING_COUNTER = "reportingCounter";
@@ -218,7 +159,7 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
     }
 
     function _clearReportingCounter(address _reportingMiningAddress) internal {
-        uint256 currentStakingEpoch = stakingEpoch();
+        uint256 currentStakingEpoch = IStaking(stakingContract()).stakingEpoch();
         uint256 total = reportingCounterTotal(currentStakingEpoch);
         uint256 counter = reportingCounter(_reportingMiningAddress, currentStakingEpoch);
 
@@ -233,7 +174,7 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
 
     function _incrementReportingCounter(address _reportingMiningAddress) internal {
         if (!isReportValidatorValid(_reportingMiningAddress)) return;
-        uint256 currentStakingEpoch = stakingEpoch();
+        uint256 currentStakingEpoch = IStaking(stakingContract()).stakingEpoch();
         uintStorage[keccak256(abi.encode(REPORTING_COUNTER, _reportingMiningAddress, currentStakingEpoch))]++;
         uintStorage[keccak256(abi.encode(REPORTING_COUNTER_TOTAL, currentStakingEpoch))]++;
     }
@@ -250,17 +191,5 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
             _enqueuePendingValidators(false);
             _clearReportingCounter(_miningAddress);
         }
-    }
-
-    function _setStakeWithdrawDisallowPeriod(uint256 _period) internal {
-        uintStorage[STAKE_WITHDRAW_DISALLOW_PERIOD] = _period;
-    }
-
-    function _setStakingEpochDuration(uint256 _duration) internal {
-        uintStorage[STAKING_EPOCH_DURATION] = _duration;
-    }
-
-    function _setStakingEpochStartBlock(uint256 _blockNumber) internal {
-        uintStorage[STAKING_EPOCH_START_BLOCK] = _blockNumber;
     }
 }
