@@ -155,7 +155,7 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
     bytes32 internal constant REPORTING_COUNTER_TOTAL = "reportingCounterTotal";
 
     function _banUntil() internal view returns(uint256) {
-        return block.number + 1555200; // 90 days (for 5 seconds block)
+        return _getCurrentBlockNumber() + 1555200; // 90 days (for 5 seconds block)
     }
 
     function _clearReportingCounter(address _reportingMiningAddress) internal {

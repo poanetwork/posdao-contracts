@@ -30,6 +30,7 @@ contract InitializerAuRa is ContractsAddresses {
             _firstValidatorIsUnremovable
         );
         IStakingAuRa(STAKING_CONTRACT).initialize(
+            VALIDATOR_SET_CONTRACT,
             _erc20TokenContract,
             _stakingAddresses,
             _delegatorMinStake,

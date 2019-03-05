@@ -12,13 +12,14 @@ contract StakingAuRa is IStakingAuRa, StakingBase {
 
     function addPool(uint256 _amount, address _miningAddress) external {
         address stakingAddress = msg.sender;
-        VALIDATOR_SET_CONTRACT.setStakingAddress(_miningAddress, stakingAddress);
+        validatorSetContract().setStakingAddress(_miningAddress, stakingAddress);
         stake(stakingAddress, _amount);
     }
 
     /// Must be called by the constructor of `InitializerAuRa` contract on genesis block.
     /// This is used instead of `constructor()` because this contract is upgradable.
     function initialize(
+        address _validatorSetContract,
         address _erc20TokenContract,
         address[] calldata _initialStakingAddresses,
         uint256 _delegatorMinStake, // in STAKE_UNITs
@@ -30,6 +31,7 @@ contract StakingAuRa is IStakingAuRa, StakingBase {
         require(_stakingEpochDuration > _stakeWithdrawDisallowPeriod);
         require(_stakeWithdrawDisallowPeriod != 0);
         super._initialize(
+            _validatorSetContract,
             _erc20TokenContract,
             _initialStakingAddresses,
             _delegatorMinStake,

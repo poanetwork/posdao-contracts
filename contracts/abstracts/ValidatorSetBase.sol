@@ -54,7 +54,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         require(emitInitiateChangeCallable());
         (address[] memory newSet, bool newStakingEpoch) = _dequeuePendingValidators();
         if (newSet.length > 0) {
-            emit InitiateChange(blockhash(block.number - 1), newSet);
+            emit InitiateChange(blockhash(_getCurrentBlockNumber() - 1), newSet);
             _setInitiateChangeAllowed(false);
             _setQueueValidators(newSet, newStakingEpoch);
         }
@@ -118,7 +118,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
         address[] storage currentValidators = addressArrayStorage[CURRENT_VALIDATORS];
         address[] storage pendingValidators = addressArrayStorage[PENDING_VALIDATORS];
-        require(currentValidators.length == 0);
+        require(currentValidators.length == 0); // initialization can only be done once
 
         // Add initial validators to the `currentValidators` array
         for (uint256 i = 0; i < _initialMiningAddresses.length; i++) {
@@ -316,7 +316,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         uint256 queueLast = uintStorage[QUEUE_PV_LAST];
 
         for (uint256 i = queueLast; i >= queueFirst; i--) {
-            if (uintStorage[keccak256(abi.encode(QUEUE_PV_BLOCK, i))] == block.number) {
+            if (uintStorage[keccak256(abi.encode(QUEUE_PV_BLOCK, i))] == _getCurrentBlockNumber()) {
                 addressArrayStorage[keccak256(abi.encode(QUEUE_PV_LIST, i))] = getPendingValidators();
                 if (_newStakingEpoch) {
                     boolStorage[keccak256(abi.encode(QUEUE_PV_NEW_EPOCH, i))] = true;
@@ -328,7 +328,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         queueLast++;
         addressArrayStorage[keccak256(abi.encode(QUEUE_PV_LIST, queueLast))] = getPendingValidators();
         boolStorage[keccak256(abi.encode(QUEUE_PV_NEW_EPOCH, queueLast))] = _newStakingEpoch;
-        uintStorage[keccak256(abi.encode(QUEUE_PV_BLOCK, queueLast))] = block.number;
+        uintStorage[keccak256(abi.encode(QUEUE_PV_BLOCK, queueLast))] = _getCurrentBlockNumber();
         uintStorage[QUEUE_PV_LAST] = queueLast;
     }
 

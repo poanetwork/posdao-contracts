@@ -32,6 +32,7 @@ contract InitializerHBBFT is ContractsAddresses {
             _publicKeys
         );
         IStakingHBBFT(STAKING_CONTRACT).initialize(
+            VALIDATOR_SET_CONTRACT,
             _erc20TokenContract,
             _stakingAddresses,
             _delegatorMinStake,

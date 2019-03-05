@@ -14,18 +14,6 @@ contract ValidatorSetAuRaMock is ValidatorSetAuRa {
 
     // =============================================== Setters ========================================================
 
-    function addToPoolsMock(address _stakingAddress) public {
-        _addToPools(_stakingAddress);
-    }
-
-    function addToPoolsInactiveMock(address _stakingAddress) public {
-        _addToPoolsInactive(_stakingAddress);
-    }
-
-    function resetErc20TokenContract() public {
-        addressStorage[ERC20_TOKEN_CONTRACT] = address(0);
-    }
-
     function setCurrentBlockNumber(uint256 _blockNumber) public {
         uintStorage[keccak256("currentBlockNumber")] = _blockNumber;
     }
@@ -52,10 +40,6 @@ contract ValidatorSetAuRaMock is ValidatorSetAuRa {
 
     function _getCurrentBlockNumber() internal view returns(uint256) {
         return uintStorage[keccak256("currentBlockNumber")];
-    }
-
-    function _getMaxCandidates() internal pure returns(uint256) {
-        return 100;
     }
 
     function _getSystemAddress() internal view returns(address) {

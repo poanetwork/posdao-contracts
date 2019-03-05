@@ -18,9 +18,6 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     uint256 public constant MAX_CANDIDATES = 2000;
     uint256 public constant STAKE_UNIT = 1 ether;
 
-    // This address must be set before deploy
-    IValidatorSet public constant VALIDATOR_SET_CONTRACT = IValidatorSet(0x1000000000000000000000000000000000000001);
-
     // ================================================ Events ========================================================
 
     /// @dev Emitted by `stake` function to signal that the staker made a stake of the specified
@@ -85,12 +82,12 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     }
 
     modifier onlyBlockRewardContract() {
-        require(msg.sender == VALIDATOR_SET_CONTRACT.blockRewardContract());
+        require(msg.sender == validatorSetContract().blockRewardContract());
         _;
     }
 
     modifier onlyValidatorSetContract() {
-        require(msg.sender == address(VALIDATOR_SET_CONTRACT));
+        require(msg.sender == address(validatorSetContract()));
         _;
     }
 
@@ -101,17 +98,18 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     }
 
     function performOrderedWithdrawals() external onlyBlockRewardContract {
-        if (VALIDATOR_SET_CONTRACT.validatorSetApplyBlock() != _getCurrentBlockNumber()) return;
+        if (validatorSetContract().validatorSetApplyBlock() != _getCurrentBlockNumber()) return;
 
         uint256 candidateMinStake = getCandidateMinStake();
         uint256 delegatorMinStake = getDelegatorMinStake();
         IERC20Minting tokenContract = IERC20Minting(erc20TokenContract());
-        address unremovableStakingAddress = VALIDATOR_SET_CONTRACT.unremovableValidator();
+        IValidatorSet validatorSetContract = validatorSetContract();
+        address unremovableStakingAddress = validatorSetContract.unremovableValidator();
 
-        address[] memory validators = VALIDATOR_SET_CONTRACT.getPreviousValidators();
+        address[] memory validators = validatorSetContract.getPreviousValidators();
 
         for (uint256 i = 0; i < validators.length; i++) {
-            address poolStakingAddress = VALIDATOR_SET_CONTRACT.stakingByMiningAddress(validators[i]);
+            address poolStakingAddress = validatorSetContract.stakingByMiningAddress(validators[i]);
 
             // Withdraw validator's stake
             _performOrderedWithdrawals(
@@ -161,11 +159,12 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     }
 
     function removePool() public gasPriceIsValid {
+        IValidatorSet validatorSetContract = validatorSetContract();
         address stakingAddress = msg.sender;
-        address miningAddress = VALIDATOR_SET_CONTRACT.miningByStakingAddress(stakingAddress);
+        address miningAddress = validatorSetContract.miningByStakingAddress(stakingAddress);
         // initial validator cannot remove their pool during the initial staking epoch
-        require(stakingEpoch() > 0 || !VALIDATOR_SET_CONTRACT.isValidator(miningAddress));
-        require(stakingAddress != VALIDATOR_SET_CONTRACT.unremovableValidator());
+        require(stakingEpoch() > 0 || !validatorSetContract.isValidator(miningAddress));
+        require(stakingAddress != validatorSetContract.unremovableValidator());
         _removeFromPools(stakingAddress);
     }
 
@@ -185,7 +184,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         emit StakeMoved(_fromPoolStakingAddress, _toPoolStakingAddress, staker, stakingEpoch(), _amount);
     }
 
-    /// @dev Moves the tokens from staker address to ValidatorSet address
+    /// @dev Moves the tokens from staker address to Staking contract address
     /// on the account of staking address of the pool.
     /// @param _toPoolStakingAddress The staking address of the pool.
     /// @param _amount The amount of the stake.
@@ -198,7 +197,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         emit Staked(_toPoolStakingAddress, staker, stakingEpoch(), _amount);
     }
 
-    /// @dev Moves the tokens from ValidatorSet address (from the account of
+    /// @dev Moves the tokens from Staking contract address (from the account of
     /// staking address of the pool) to staker address.
     /// @param _fromPoolStakingAddress The staking address of the pool.
     /// @param _amount The amount of the withdrawal.
@@ -211,7 +210,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         emit Withdrawn(_fromPoolStakingAddress, staker, stakingEpoch(), _amount);
     }
 
-    /// @dev Makes an order of tokens withdrawal from ValidatorSet address
+    /// @dev Makes an order of tokens withdrawal from Staking contract address
     /// (from the account of staking address of the pool) to staker address.
     /// The tokens will be automatically withdrawn at the beginning of the
     /// next staking epoch.
@@ -319,13 +318,14 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     }
 
     function maxWithdrawAllowed(address _poolStakingAddress, address _staker) public view returns(uint256) {
-        address miningAddress = VALIDATOR_SET_CONTRACT.miningByStakingAddress(_poolStakingAddress);
+        IValidatorSet validatorSetContract = validatorSetContract();
+        address miningAddress = validatorSetContract.miningByStakingAddress(_poolStakingAddress);
 
         if (!_isWithdrawAllowed(miningAddress)) {
             return 0;
         }
 
-        if (!VALIDATOR_SET_CONTRACT.isValidator(miningAddress)) {
+        if (!validatorSetContract.isValidator(miningAddress)) {
             // The whole amount can be withdrawn if the pool is not a validator
             return stakeAmount(_poolStakingAddress, _staker);
         }
@@ -345,13 +345,14 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     }
 
     function maxWithdrawOrderAllowed(address _poolStakingAddress, address _staker) public view returns(uint256) {
-        address miningAddress = VALIDATOR_SET_CONTRACT.miningByStakingAddress(_poolStakingAddress);
+        IValidatorSet validatorSetContract = validatorSetContract();
+        address miningAddress = validatorSetContract.miningByStakingAddress(_poolStakingAddress);
 
         if (!_isWithdrawAllowed(miningAddress)) {
             return 0;
         }
 
-        if (!VALIDATOR_SET_CONTRACT.isValidator(miningAddress)) {
+        if (!validatorSetContract.isValidator(miningAddress)) {
             // If the pool is a candidate (not a validator yet),
             // no one can order withdrawal from `_poolStakingAddress`,
             // but anyone can withdraw immediately (see `maxWithdrawAllowed()` getter)
@@ -451,6 +452,10 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         return uintStorage[STAKING_EPOCH];
     }
 
+    function validatorSetContract() public view returns(IValidatorSet) {
+        return IValidatorSet(addressStorage[VALIDATOR_SET_CONTRACT]);
+    }
+
     // =============================================== Private ========================================================
 
     bytes32 internal constant CANDIDATE_MIN_STAKE = keccak256("candidateMinStake");
@@ -459,6 +464,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     bytes32 internal constant POOLS = keccak256("pools");
     bytes32 internal constant POOLS_INACTIVE = keccak256("poolsInactive");
     bytes32 internal constant STAKING_EPOCH = keccak256("stakingEpoch");
+    bytes32 internal constant VALIDATOR_SET_CONTRACT = keccak256("validatorSetContract");
 
     bytes32 internal constant IS_POOL_ACTIVE = "isPoolActive";
     bytes32 internal constant POOL_DELEGATORS = "poolDelegators";
@@ -521,19 +527,24 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     }
 
     function _initialize(
+        address _validatorSetContract,
         address _erc20TokenContract,
         address[] memory _initialStakingAddresses,
         uint256 _delegatorMinStake,
         uint256 _candidateMinStake
     ) internal {
         require(_getCurrentBlockNumber() == 0); // initialization must be done on genesis block
+        require(address(validatorSetContract()) == address(0)); // initialization can only be done once
+        require(_validatorSetContract != address(0));
         require(_initialStakingAddresses.length > 0);
         require(_delegatorMinStake != 0);
         require(_candidateMinStake != 0);
 
+        addressStorage[VALIDATOR_SET_CONTRACT] = _validatorSetContract;
         addressStorage[ERC20_TOKEN_CONTRACT] = _erc20TokenContract;
 
         for (uint256 i = 0; i < _initialStakingAddresses.length; i++) {
+            require(_initialStakingAddresses[i] != address(0));
             _addToPools(_initialStakingAddresses[i]);
         }
 
@@ -661,12 +672,13 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     }
 
     function _stake(address _poolStakingAddress, address _staker, uint256 _amount) internal {
-        address poolMiningAddress = VALIDATOR_SET_CONTRACT.miningByStakingAddress(_poolStakingAddress);
+        IValidatorSet validatorSet = validatorSetContract();
+        address poolMiningAddress = validatorSet.miningByStakingAddress(_poolStakingAddress);
 
         require(poolMiningAddress != address(0));
         require(_poolStakingAddress != address(0));
         require(_amount != 0);
-        require(!VALIDATOR_SET_CONTRACT.isValidatorBanned(poolMiningAddress));
+        require(!validatorSet.isValidatorBanned(poolMiningAddress));
         require(areStakeAndWithdrawAllowed());
 
         uint256 newStakeAmount = stakeAmount(_poolStakingAddress, _staker).add(_amount);
@@ -714,7 +726,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
             currentStakeAmount,
             resultingStakeAmount,
             _poolStakingAddress == _staker ? getCandidateMinStake() : getDelegatorMinStake(),
-            VALIDATOR_SET_CONTRACT.unremovableValidator()
+            validatorSetContract().unremovableValidator()
         ));
     }
 
@@ -772,7 +784,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     }
 
     function _isWithdrawAllowed(address _miningAddress) internal view returns(bool) {
-        if (VALIDATOR_SET_CONTRACT.isValidatorBanned(_miningAddress)) {
+        if (validatorSetContract().isValidatorBanned(_miningAddress)) {
             // No one can withdraw from `_poolStakingAddress` until the ban is expired
             return false;
         }
@@ -785,7 +797,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     }
 
     function _wasValidatorSetApplied() internal view returns(bool) {
-        uint256 applyBlock = VALIDATOR_SET_CONTRACT.validatorSetApplyBlock();
+        uint256 applyBlock = validatorSetContract().validatorSetApplyBlock();
         return applyBlock != 0 && _getCurrentBlockNumber() > applyBlock;
     }
 }
