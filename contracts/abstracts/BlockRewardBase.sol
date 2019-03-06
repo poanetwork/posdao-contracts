@@ -49,7 +49,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         _;
     }
 
-    /// @notice Only allows the modified function to be called from a system transaction.
+    /// @notice Only allows the reward function to be called from a system transaction.
     /// @dev Such transactions are never stored on the blockchain, and so must be agreed to by all parties.
     modifier onlySystem {
         require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
@@ -65,7 +65,9 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
 
     // =============================================== Setters ========================================================
 
-    /// @notice Adds `_amount` to the native fee received by all bridge receivers.
+    /// @notice This function is called by a bridge when the bridge needs to
+    /// mint the specified amount of fee (in the form of ERC20) to distribute
+    /// among the validator’s pools.
     /// @dev Can only be called by the ERC20 to Native Bridge.
     function addBridgeNativeFeeReceivers(uint256 _amount) external onlyErcToNativeBridge {
         require(_amount != 0);
@@ -79,7 +81,9 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         _addBridgeTokenFee(_getStakingEpoch(), _amount);
     }
 
-    /// @notice Adds `_amount` to the native fee received by `_receiver`.
+    /// @notice This function is used by a bridge when the bridge needs to
+    /// mint the specified amount of native coins for the specified address by
+    /// `reward` function.
     /// @dev Can only be called by the ERC20 to Native Bridge.
     function addExtraReceiver(uint256 _amount, address _receiver) external onlyErcToNativeBridge {
         require(_amount != 0);
