@@ -180,10 +180,6 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
     }
 
     function isSenderAllowed(address _sender) public view returns(bool) {
-        if (_owner == _sender) {
-            // Allow the owner to make any transactions
-            return true;
-        }
 
         uint256 allowedSendersLength = addressArrayStorage[ALLOWED_SENDERS].length;
 
