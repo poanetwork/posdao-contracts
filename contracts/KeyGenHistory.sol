@@ -1,6 +1,7 @@
 pragma solidity 0.5.2;
 
 import "./interfaces/IValidatorSet.sol";
+import "./interfaces/IStaking.sol";
 import "./eternal-storage/OwnedEternalStorage.sol";
 import "./libs/SafeMath.sol";
 
@@ -43,8 +44,9 @@ contract KeyGenHistory is OwnedEternalStorage {
     // should have enough balance to call this function.
     function writePart(bytes memory _part) public onlyValidator {
         IValidatorSet validatorSetContract = validatorSet();
+        IStaking stakingContract = IStaking(validatorSetContract.stakingContract());
 
-        uint256 stakingEpoch = validatorSetContract.stakingEpoch();
+        uint256 stakingEpoch = stakingContract.stakingEpoch();
         uint256 changeRequestCount = validatorSetContract.changeRequestCount();
 
         require(!validatorWrotePart(changeRequestCount, msg.sender));
@@ -58,8 +60,9 @@ contract KeyGenHistory is OwnedEternalStorage {
     // should have enough balance to call this function.
     function writeAck(bytes memory _ack) public onlyValidator {
         IValidatorSet validatorSetContract = validatorSet();
+        IStaking stakingContract = IStaking(validatorSetContract.stakingContract());
 
-        uint256 stakingEpoch = validatorSetContract.stakingEpoch();
+        uint256 stakingEpoch = stakingContract.stakingEpoch();
         uint256 changeRequestCount = validatorSetContract.changeRequestCount();
 
         emit AckWritten(msg.sender, _ack, stakingEpoch, changeRequestCount);

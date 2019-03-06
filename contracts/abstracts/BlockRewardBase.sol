@@ -2,6 +2,7 @@ pragma solidity 0.5.2;
 
 import "../interfaces/IBlockReward.sol";
 import "../interfaces/IValidatorSet.sol";
+import "../interfaces/IStaking.sol";
 import "../eternal-storage/OwnedEternalStorage.sol";
 import "../libs/SafeMath.sol";
 
@@ -79,8 +80,9 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         addressArrayStorage[ERC_TO_ERC_BRIDGES_ALLOWED] = _bridgesAllowed;
     }
 
-    function setSnapshot() external onlyValidatorSet {
+    function setSnapshot(uint256 _stakingEpoch) external onlyValidatorSet {
         IValidatorSet validatorSet = IValidatorSet(VALIDATOR_SET_CONTRACT);
+        IStaking staking = IStaking(validatorSet.stakingContract());
 
         address validatorStakingAddress;
         address[] memory validatorsStakingAddresses;
@@ -88,11 +90,9 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         uint256 i;
         uint256 s;
 
-        uint256 stakingEpoch = validatorSet.stakingEpoch();
-
         // Clear the snapshot of the staking epoch before last
-        if (stakingEpoch >= 2) {
-            uint256 stakingEpochBeforeLast = stakingEpoch - 2;
+        if (_stakingEpoch >= 2) {
+            uint256 stakingEpochBeforeLast = _stakingEpoch - 2;
 
             validatorsStakingAddresses = snapshotStakingAddresses(stakingEpochBeforeLast);
             for (i = 0; i < validatorsStakingAddresses.length; i++) {
@@ -112,19 +112,19 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         for (i = 0; i < validators.length; i++) {
             validatorsStakingAddresses[i] = validatorSet.stakingByMiningAddress(validators[i]);
         }
-        _setSnapshotStakingAddresses(stakingEpoch, validatorsStakingAddresses);
+        _setSnapshotStakingAddresses(_stakingEpoch, validatorsStakingAddresses);
         for (i = 0; i < validatorsStakingAddresses.length; i++) {
             validatorStakingAddress = validatorsStakingAddresses[i];
             _setSnapshotStakeAmount(
-                stakingEpoch,
+                _stakingEpoch,
                 validatorStakingAddress,
                 validatorStakingAddress,
-                validatorSet.stakeAmountMinusOrderedWithdraw(validatorStakingAddress, validatorStakingAddress)
+                staking.stakeAmountMinusOrderedWithdraw(validatorStakingAddress, validatorStakingAddress)
             );
             delete addressArrayStorage[DELEGATORS_TEMPORARY_ARRAY];
-            delegators = validatorSet.poolDelegators(validatorStakingAddress);
+            delegators = staking.poolDelegators(validatorStakingAddress);
             for (s = 0; s < delegators.length; s++) {
-                uint256 delegatorStakeAmount = validatorSet.stakeAmountMinusOrderedWithdraw(
+                uint256 delegatorStakeAmount = staking.stakeAmountMinusOrderedWithdraw(
                     validatorStakingAddress,
                     delegators[s]
                 );
@@ -132,7 +132,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
                     continue;
                 }
                 _setSnapshotStakeAmount(
-                    stakingEpoch,
+                    _stakingEpoch,
                     validatorStakingAddress,
                     delegators[s],
                     delegatorStakeAmount
@@ -140,7 +140,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
                 addressArrayStorage[DELEGATORS_TEMPORARY_ARRAY].push(delegators[s]);
             }
             _setSnapshotDelegators(
-                stakingEpoch,
+                _stakingEpoch,
                 validatorStakingAddress,
                 addressArrayStorage[DELEGATORS_TEMPORARY_ARRAY]
             );
@@ -459,8 +459,9 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
 
     function _getStakingEpoch() internal view returns(uint256) {
         IValidatorSet validatorSetContract = IValidatorSet(VALIDATOR_SET_CONTRACT);
+        IStaking stakingContract = IStaking(validatorSetContract.stakingContract());
 
-        uint256 stakingEpoch = validatorSetContract.stakingEpoch();
+        uint256 stakingEpoch = stakingContract.stakingEpoch();
 
         if (stakingEpoch == 0) {
             return 0;

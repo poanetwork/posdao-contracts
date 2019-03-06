@@ -2,6 +2,7 @@ pragma solidity 0.5.2;
 
 import "./abstracts/BlockRewardBase.sol";
 import "./interfaces/IERC20Minting.sol";
+import "./interfaces/IStaking.sol";
 
 
 contract BlockRewardHBBFT is BlockRewardBase {
@@ -37,7 +38,12 @@ contract BlockRewardHBBFT is BlockRewardBase {
 
     // Mint ERC20 tokens for each delegator of each active validator
     function _mintTokensForDelegators(address[] memory benefactors) internal {
-        IERC20Minting erc20Contract = IERC20Minting(IValidatorSet(VALIDATOR_SET_CONTRACT).erc20TokenContract());
+        IStaking stakingContract = IStaking(
+            IValidatorSet(VALIDATOR_SET_CONTRACT).stakingContract()
+        );
+        IERC20Minting erc20Contract = IERC20Minting(
+            stakingContract.erc20TokenContract()
+        );
 
         if (BLOCK_REWARD == 0) return;
         if (address(erc20Contract) == address(0)) return;

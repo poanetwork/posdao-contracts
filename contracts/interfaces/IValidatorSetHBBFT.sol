@@ -1,15 +1,9 @@
 pragma solidity 0.5.2;
+pragma experimental ABIEncoderV2;
 
 
 interface IValidatorSetHBBFT {
-    function initialize(
-        address,
-        address,
-        address,
-        address[] calldata,
-        address[] calldata,
-        bool,
-        uint256,
-        uint256
-    ) external;
+    function clearMaliceReported(address) external;
+    function initializePublicKeys(bytes[] calldata) external;
+    function savePublicKey(address, bytes calldata) external;
 }

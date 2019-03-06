@@ -26,6 +26,7 @@ async function main() {
   const contracts = [
     'EternalStorageProxy',
     'ValidatorSetAuRa',
+    'StakingAuRa',
     'BlockRewardAuRa',
     'RandomAuRa',
     'TxPermission',
@@ -71,6 +72,20 @@ async function main() {
   spec.accounts['0x1000000000000000000000000000000000000000'] = {
     balance: '0',
     constructor: '0x' + contractsCompiled['ValidatorSetAuRa'].bytecode
+  };
+
+  // Build StakingAuRa contract
+  deploy = await contract.deploy({data: '0x' + eternalStorageProxyCompiled.bytecode, arguments: [
+    '0x1100000000000000000000000000000000000000', // implementation address
+    owner
+  ]});
+  spec.accounts['0x1100000000000000000000000000000000000001'] = {
+    balance: '0',
+    constructor: await deploy.encodeABI()
+  };
+  spec.accounts['0x1100000000000000000000000000000000000000'] = {
+    balance: '0',
+    constructor: '0x' + contractsCompiled['StakingAuRa'].bytecode
   };
 
   // Build BlockRewardAuRa contract
@@ -147,11 +162,6 @@ async function main() {
   // Build InitializerAuRa contract
   contract = new web3.eth.Contract(contractsCompiled['InitializerAuRa'].abi);
   deploy = await contract.deploy({data: '0x' + contractsCompiled['InitializerAuRa'].bytecode, arguments: [
-    '0x1000000000000000000000000000000000000001', // _validatorSetContract
-    '0x2000000000000000000000000000000000000001', // _blockRewardContract
-    '0x3000000000000000000000000000000000000001', // _randomContract
-    '0x4000000000000000000000000000000000000001', // _permissionContract
-    '0x5000000000000000000000000000000000000001', // _certifierContract
     '0x0000000000000000000000000000000000000000', // _erc20TokenContract
     owner, // _owner
     initialValidators, // _miningAddresses

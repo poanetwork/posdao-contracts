@@ -27,8 +27,10 @@ contract BlockRewardAuRa is BlockRewardBase {
         // Remove malicious validators if any.
         IRandomAuRa(validatorSetContract.randomContract()).onBlockClose();
 
+        IStaking stakingContract = IStaking(validatorSetContract.stakingContract());
+
         // Perform ordered withdrawals at the starting of a new staking epoch
-        validatorSetContract.performOrderedWithdrawals();
+        stakingContract.performOrderedWithdrawals();
 
         // Start new staking epoch every `stakingEpochDuration()` blocks
         validatorSetContract.newValidatorSet();
@@ -57,7 +59,7 @@ contract BlockRewardAuRa is BlockRewardBase {
 
         // Distribute bridge's token fee
         IERC20Minting erc20TokenContract = IERC20Minting(
-            validatorSetContract.erc20TokenContract()
+            stakingContract.erc20TokenContract()
         );
         if (address(erc20TokenContract) != address(0)) {
             (receivers, rewards) = _distributeBridgeFee(stakingEpoch, false, false);
