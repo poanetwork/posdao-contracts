@@ -91,8 +91,8 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     }
 
     /// @notice This function is used by a bridge when the bridge needs to
-    /// mint the specified amount of native coins for the specified address by
-    /// `reward` function.
+    /// mint the specified amount of native coins for the specified address
+    /// using the `reward` function.
     /// @dev Can only be called by the ERC20 to Native Bridge.
     function addExtraReceiver(uint256 _amount, address _receiver) external onlyErcToNativeBridge {
         require(_amount != 0);
