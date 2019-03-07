@@ -55,8 +55,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         _;
     }
 
-    /// @notice Only allows the reward function to be called from a system
-    /// transaction.
+    /// @notice Only allows the reward function to be called by the system.
     /// @dev Such transactions are never stored on the blockchain, and so
     /// must be agreed to by all parties.
     modifier onlySystem {
