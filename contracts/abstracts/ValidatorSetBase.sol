@@ -88,7 +88,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
                 IStaking(stakingContract()).stakingEpoch()
             );
         } else if (queueValidators.length > 0) {
-            // Apply new validator set after `reportMalicious` is called
+            // Apply new validator set after malicious validator is discovered
             _applyQueueValidators(queueValidators);
         }
         _setInitiateChangeAllowed(true);
@@ -144,6 +144,11 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     }
 
     // =============================================== Getters ========================================================
+
+    // Returns how many times the given address was banned
+    function banCounter(address _miningAddress) public view returns(uint256) {
+        return uintStorage[keccak256(abi.encode(BAN_COUNTER, _miningAddress))];
+    }
 
     /// @dev Returns the block number or unix timestamp (depending on
     /// consensus algorithm) from which the address will be unbanned.
@@ -223,7 +228,9 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         return boolStorage[keccak256(abi.encode(IS_VALIDATOR_ON_PREVIOUS_EPOCH, _miningAddress))];
     }
 
-    function isValidatorBanned(address _miningAddress) public view returns(bool);
+    function isValidatorBanned(address _miningAddress) public view returns(bool) {
+        return _banStart() < bannedUntil(_miningAddress);
+    }
 
     function miningByStakingAddress(address _stakingAddress) public view returns(address) {
         return addressStorage[keccak256(abi.encode(MINING_BY_STAKING_ADDRESS, _stakingAddress))];
@@ -243,6 +250,11 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
     function unremovableValidator() public view returns(address stakingAddress) {
         stakingAddress = addressStorage[UNREMOVABLE_STAKING_ADDRESS];
+    }
+
+    // Returns how many staking epochs the given address became a validator
+    function validatorCounter(address _miningAddress) public view returns(uint256) {
+        return uintStorage[keccak256(abi.encode(VALIDATOR_COUNTER, _miningAddress))];
     }
 
     // Returns the index of validator in the `currentValidators`
@@ -276,6 +288,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     bytes32 internal constant UNREMOVABLE_STAKING_ADDRESS = keccak256("unremovableStakingAddress");
     bytes32 internal constant VALIDATOR_SET_APPLY_BLOCK = keccak256("validatorSetApplyBlock");
 
+    bytes32 internal constant BAN_COUNTER = "banCounter";
     bytes32 internal constant BANNED_UNTIL = "bannedUntil";
     bytes32 internal constant IS_VALIDATOR = "isValidator";
     bytes32 internal constant IS_VALIDATOR_ON_PREVIOUS_EPOCH = "isValidatorOnPreviousEpoch";
@@ -284,6 +297,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     bytes32 internal constant QUEUE_PV_LIST = "queuePVList";
     bytes32 internal constant QUEUE_PV_NEW_EPOCH = "queuePVNewEpoch";
     bytes32 internal constant STAKING_BY_MINING_ADDRESS = "stakingByMiningAddress";
+    bytes32 internal constant VALIDATOR_COUNTER = "validatorCounter";
     bytes32 internal constant VALIDATOR_INDEX = "validatorIndex";
 
     function _applyQueueValidators(address[] memory _queueValidators) internal {
@@ -306,9 +320,11 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     }
 
     function _banValidator(address _miningAddress) internal {
-        uintStorage[
-            keccak256(abi.encode(BANNED_UNTIL, _miningAddress))
-        ] = _banUntil();
+        if (_banStart() > bannedUntil(_miningAddress)) {
+            uintStorage[keccak256(abi.encode(BAN_COUNTER, _miningAddress))]++;
+        }
+
+        uintStorage[keccak256(abi.encode(BANNED_UNTIL, _miningAddress))] = _banUntil();
     }
 
     function _enqueuePendingValidators(bool _newStakingEpoch) internal {
@@ -474,6 +490,10 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
     function _setIsValidator(address _miningAddress, bool _isValidator) internal {
         boolStorage[keccak256(abi.encode(IS_VALIDATOR, _miningAddress))] = _isValidator;
+
+        if (_isValidator) {
+            uintStorage[keccak256(abi.encode(VALIDATOR_COUNTER, _miningAddress))]++;
+        }
     }
 
     function _setIsValidatorOnPreviousEpoch(address _miningAddress, bool _isValidator) internal {
@@ -533,6 +553,8 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     function _setValidatorSetApplyBlock(uint256 _blockNumber) internal {
         uintStorage[VALIDATOR_SET_APPLY_BLOCK] = _blockNumber;
     }
+
+    function _banStart() internal view returns(uint256);
 
     function _banUntil() internal view returns(uint256);
 

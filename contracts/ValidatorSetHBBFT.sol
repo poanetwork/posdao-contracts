@@ -97,10 +97,6 @@ contract ValidatorSetHBBFT is IValidatorSetHBBFT, ValidatorSetBase {
 
     // =============================================== Getters ========================================================
 
-    function isValidatorBanned(address _miningAddress) public view returns(bool) {
-        return now < bannedUntil(_miningAddress);
-    }
-
     function maliceReported(address _miningAddress) public view returns(address[] memory) {
         return addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED, _miningAddress))];
     }
@@ -117,8 +113,12 @@ contract ValidatorSetHBBFT is IValidatorSetHBBFT, ValidatorSetBase {
     bytes32 internal constant MALICE_REPORTED = "maliceReported";
     bytes32 internal constant PUBLIC_KEY = "publicKey";
 
+    function _banStart() internal view returns(uint256) {
+        return now;
+    }
+
     function _banUntil() internal view returns(uint256) {
-        return now + 90 days;
+        return _banStart() + 90 days;
     }
 
     function _savePublicKey(address _miningAddress, bytes memory _key) internal {

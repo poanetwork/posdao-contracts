@@ -79,10 +79,6 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
 
     // =============================================== Getters ========================================================
 
-    function isValidatorBanned(address _miningAddress) public view returns(bool) {
-        return _getCurrentBlockNumber() < bannedUntil(_miningAddress);
-    }
-
     function maliceReportedForBlock(
         address _maliciousMiningAddress,
         uint256 _blockNumber
@@ -154,8 +150,12 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
     bytes32 internal constant REPORTING_COUNTER = "reportingCounter";
     bytes32 internal constant REPORTING_COUNTER_TOTAL = "reportingCounterTotal";
 
+    function _banStart() internal view returns(uint256) {
+        return _getCurrentBlockNumber();
+    }
+
     function _banUntil() internal view returns(uint256) {
-        return _getCurrentBlockNumber() + 1555200; // 90 days (for 5 seconds block)
+        return _banStart() + 1555200; // 90 days (for 5 seconds block)
     }
 
     function _clearReportingCounter(address _reportingMiningAddress) internal {
