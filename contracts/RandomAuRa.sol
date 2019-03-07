@@ -23,7 +23,6 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
         require(commitHashCallable(miningAddress, _secretHash));
         require(block.coinbase == miningAddress); // make sure validator node is live
-        assert(VALIDATOR_SET_CONTRACT.isValidator(miningAddress)); // block.coinbase MUST be a validator!
 
         uint256 collectRound = currentCollectRound();
 
