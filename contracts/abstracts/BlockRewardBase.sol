@@ -89,6 +89,8 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         address[] memory delegators;
         uint256 i;
         uint256 s;
+        uint256 stakeAmount;
+        uint256 totalStakeAmount = 0;
 
         // Clear the snapshot of the staking epoch before last
         if (_stakingEpoch >= 2) {
@@ -104,6 +106,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
                 }
                 _clearSnapshotDelegators(stakingEpochBeforeLast, validatorStakingAddress);
             }
+            _setSnapshotTotalStakeAmount(stakingEpochBeforeLast, 0);
         }
 
         // Set a new snapshot of the current staking epoch
@@ -115,28 +118,31 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         _setSnapshotStakingAddresses(_stakingEpoch, validatorsStakingAddresses);
         for (i = 0; i < validatorsStakingAddresses.length; i++) {
             validatorStakingAddress = validatorsStakingAddresses[i];
+            stakeAmount = staking.stakeAmountMinusOrderedWithdraw(validatorStakingAddress, validatorStakingAddress);
             _setSnapshotStakeAmount(
                 _stakingEpoch,
                 validatorStakingAddress,
                 validatorStakingAddress,
-                staking.stakeAmountMinusOrderedWithdraw(validatorStakingAddress, validatorStakingAddress)
+                stakeAmount
             );
+            totalStakeAmount += stakeAmount;
             delete addressArrayStorage[DELEGATORS_TEMPORARY_ARRAY];
             delegators = staking.poolDelegators(validatorStakingAddress);
             for (s = 0; s < delegators.length; s++) {
-                uint256 delegatorStakeAmount = staking.stakeAmountMinusOrderedWithdraw(
+                stakeAmount = staking.stakeAmountMinusOrderedWithdraw(
                     validatorStakingAddress,
                     delegators[s]
                 );
-                if (delegatorStakeAmount == 0) {
+                if (stakeAmount == 0) {
                     continue;
                 }
                 _setSnapshotStakeAmount(
                     _stakingEpoch,
                     validatorStakingAddress,
                     delegators[s],
-                    delegatorStakeAmount
+                    stakeAmount
                 );
+                totalStakeAmount += stakeAmount;
                 addressArrayStorage[DELEGATORS_TEMPORARY_ARRAY].push(delegators[s]);
             }
             _setSnapshotDelegators(
@@ -146,6 +152,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
             );
             delete addressArrayStorage[DELEGATORS_TEMPORARY_ARRAY];
         }
+        _setSnapshotTotalStakeAmount(_stakingEpoch, totalStakeAmount);
     }
 
     // =============================================== Getters ========================================================
@@ -243,6 +250,12 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         ];
     }
 
+    function snapshotTotalStakeAmount(uint256 _stakingEpoch) public view returns(uint256) {
+        return uintStorage[
+            keccak256(abi.encode(SNAPSHOT_TOTAL_STAKE_AMOUNT, _stakingEpoch))
+        ];
+    }
+
     // =============================================== Private ========================================================
 
     bytes32 internal constant DELEGATORS_TEMPORARY_ARRAY = keccak256("delegatorsTemporaryArray");
@@ -263,6 +276,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     bytes32 internal constant SNAPSHOT_DELEGATORS = "snapshotDelegators";
     bytes32 internal constant SNAPSHOT_STAKE_AMOUNT = "snapshotStakeAmount";
     bytes32 internal constant SNAPSHOT_STAKING_ADDRESSES = "snapshotStakingAddresses";
+    bytes32 internal constant SNAPSHOT_TOTAL_STAKE_AMOUNT = "snapshotTotalStakeAmount";
 
     function _addBridgeNativeFee(uint256 _stakingEpoch, uint256 _amount) internal {
         bytes32 hash = keccak256(abi.encode(BRIDGE_NATIVE_FEE, _stakingEpoch));
@@ -397,6 +411,12 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         addressArrayStorage[
             keccak256(abi.encode(SNAPSHOT_STAKING_ADDRESSES, _stakingEpoch))
         ] = _stakingAddresses;
+    }
+
+    function _setSnapshotTotalStakeAmount(uint256 _stakingEpoch, uint256 _amount) internal {
+        uintStorage[
+            keccak256(abi.encode(SNAPSHOT_TOTAL_STAKE_AMOUNT, _stakingEpoch))
+        ] = _amount;
     }
 
     function _distributePoolReward(

@@ -57,11 +57,11 @@ contract BlockRewardAuRa is BlockRewardBase {
             }
         }
 
-        // Distribute bridge's token fee
         IERC20Minting erc20TokenContract = IERC20Minting(
             stakingContract.erc20TokenContract()
         );
         if (address(erc20TokenContract) != address(0)) {
+            // Distribute bridge's token fee
             (receivers, rewards) = _distributeBridgeFee(stakingEpoch, false, false);
             if (receivers.length > 0) {
                 erc20TokenContract.mintReward(receivers, rewards);
@@ -72,6 +72,12 @@ contract BlockRewardAuRa is BlockRewardBase {
                 if (receivers.length > 0) {
                     erc20TokenContract.mintReward(receivers, rewards);
                 }
+            }
+
+            // 1%/year staking token inflation
+            (receivers, rewards) = _distributeInflation(stakingEpoch);
+            if (receivers.length > 0) {
+                erc20TokenContract.mintReward(receivers, rewards);
             }
         }
 
@@ -93,24 +99,10 @@ contract BlockRewardAuRa is BlockRewardBase {
         return (receivers, rewards);
     }
 
-    function _distributeBridgeFee(uint256 _stakingEpoch, bool _previousEpoch, bool _native)
+    function _distributeAmount(uint256 _stakingEpoch, bool _previousEpoch, uint256 _amount)
         internal
         returns(address[] memory receivers, uint256[] memory rewards)
     {
-        uint256 bridgeFeeAmount;
-
-        if (_native) {
-            bridgeFeeAmount = _getBridgeNativeFee(_stakingEpoch);
-            _clearBridgeNativeFee(_stakingEpoch);
-        } else {
-            bridgeFeeAmount = _getBridgeTokenFee(_stakingEpoch);
-            _clearBridgeTokenFee(_stakingEpoch);
-        }
-
-        if (bridgeFeeAmount == 0) {
-            return (new address[](0), new uint256[](0));
-        }
-
         IValidatorSet validatorSetContract = IValidatorSet(VALIDATOR_SET_CONTRACT);
         address[] memory validators;
         uint256 poolReward;
@@ -125,8 +117,8 @@ contract BlockRewardAuRa is BlockRewardBase {
         if (_stakingEpoch == 0) {
             // On initial staking epoch only initial validators get reward
 
-            poolReward = bridgeFeeAmount / validators.length;
-            remainder = bridgeFeeAmount % validators.length;
+            poolReward = _amount / validators.length;
+            remainder = _amount % validators.length;
 
             receivers = new address[](validators.length);
             rewards = new uint256[](validators.length);
@@ -139,8 +131,8 @@ contract BlockRewardAuRa is BlockRewardBase {
 
             return (receivers, rewards);
         } else {
-            poolReward = bridgeFeeAmount / snapshotStakingAddresses(_stakingEpoch).length;
-            remainder = bridgeFeeAmount % snapshotStakingAddresses(_stakingEpoch).length;
+            poolReward = _amount / snapshotStakingAddresses(_stakingEpoch).length;
+            remainder = _amount % snapshotStakingAddresses(_stakingEpoch).length;
 
             for (i = 0; i < validators.length; i++) {
                 // Distribute the reward among validators and their delegators
@@ -165,6 +157,40 @@ contract BlockRewardAuRa is BlockRewardBase {
             delete addressArrayStorage[DISTRIBUTE_TEMPORARY_ARRAY];
             delete uintArrayStorage[DISTRIBUTE_TEMPORARY_ARRAY];
         }
+    }
+
+    function _distributeBridgeFee(uint256 _stakingEpoch, bool _previousEpoch, bool _native)
+        internal
+        returns(address[] memory receivers, uint256[] memory rewards)
+    {
+        uint256 bridgeFeeAmount;
+
+        if (_native) {
+            bridgeFeeAmount = _getBridgeNativeFee(_stakingEpoch);
+            _clearBridgeNativeFee(_stakingEpoch);
+        } else {
+            bridgeFeeAmount = _getBridgeTokenFee(_stakingEpoch);
+            _clearBridgeTokenFee(_stakingEpoch);
+        }
+
+        if (bridgeFeeAmount == 0) {
+            return (new address[](0), new uint256[](0));
+        }
+
+        return _distributeAmount(_stakingEpoch, _previousEpoch, bridgeFeeAmount);
+    }
+
+    function _distributeInflation(uint256 _stakingEpoch)
+        internal
+        returns(address[] memory receivers, uint256[] memory rewards)
+    {
+        uint256 amount = snapshotTotalStakeAmount(_stakingEpoch) * 1585489599 / 1 ether; // 1% per year
+
+        if (amount == 0) {
+            return (new address[](0), new uint256[](0));
+        }
+
+        return _distributeAmount(_stakingEpoch, false, amount);
     }
 
     bytes32 internal constant DISTRIBUTE_TEMPORARY_ARRAY = keccak256("distributeTemporaryArray");
