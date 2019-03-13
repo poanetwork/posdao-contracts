@@ -151,7 +151,8 @@ async function main() {
   // Build Registry contract
   contract = new web3.eth.Contract(contractsCompiled['Registry'].abi);
   deploy = await contract.deploy({data: '0x' + contractsCompiled['Registry'].bytecode, arguments: [
-    '0x5000000000000000000000000000000000000001' // the address of Certifier contract
+    '0x5000000000000000000000000000000000000001', // the address of Certifier contract
+    owner
   ]});
   spec.accounts['0x6000000000000000000000000000000000000000'] = {
     balance: '0',
