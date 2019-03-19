@@ -355,14 +355,22 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         if (!validatorSetContract.isValidator(miningAddress)) {
             // If the pool is a candidate (not a validator yet),
             // no one can order withdrawal from `_poolStakingAddress`,
-            // but anyone can withdraw immediately (see `maxWithdrawAllowed()` getter)
+            // but anyone can withdraw immediately
+            // (see the `maxWithdrawAllowed()` getter)
             return 0;
         }
 
-        // It the pool is an active validator, the staker can
+        // If the pool is an active validator, the staker can
         // order withdrawal up to their total staking amount
-        // minus already ordered amount
-        return stakeAmountMinusOrderedWithdraw(_poolStakingAddress, _staker);
+        // minus already ordered amount minus amount staked
+        // during the current staking epoch
+        return stakeAmountMinusOrderedWithdraw(
+            _poolStakingAddress,
+            _staker
+        ).sub(stakeAmountByCurrentEpoch(
+            _poolStakingAddress,
+            _staker
+        ));
     }
 
     /// @dev Prevents sending tokens to `Staking` contract address
