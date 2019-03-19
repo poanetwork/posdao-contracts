@@ -631,6 +631,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         ];
         if (delegators.length == 0) return;
         uint256 indexToRemove = poolDelegatorIndex(_poolStakingAddress, _delegator);
+        if (delegators[indexToRemove] != _delegator) return;
         delegators[indexToRemove] = delegators[delegators.length - 1];
         _setPoolDelegatorIndex(_poolStakingAddress, delegators[indexToRemove], indexToRemove);
         delegators.length--;
