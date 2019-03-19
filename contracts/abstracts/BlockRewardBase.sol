@@ -106,6 +106,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
                 }
                 _clearSnapshotDelegators(stakingEpochBeforeLast, validatorStakingAddress);
             }
+            _clearSnapshotStakingAddresses(stakingEpochBeforeLast);
             _setSnapshotTotalStakeAmount(stakingEpochBeforeLast, 0);
         }
 
@@ -126,8 +127,10 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
                 stakeAmount
             );
             totalStakeAmount += stakeAmount;
-            delete addressArrayStorage[DELEGATORS_TEMPORARY_ARRAY];
             delegators = staking.poolDelegators(validatorStakingAddress);
+            address[] storage snapshotDelegators = addressArrayStorage[keccak256(abi.encode(
+                SNAPSHOT_DELEGATORS, _stakingEpoch, validatorStakingAddress
+            ))];
             for (s = 0; s < delegators.length; s++) {
                 stakeAmount = staking.stakeAmountMinusOrderedWithdraw(
                     validatorStakingAddress,
@@ -143,14 +146,8 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
                     stakeAmount
                 );
                 totalStakeAmount += stakeAmount;
-                addressArrayStorage[DELEGATORS_TEMPORARY_ARRAY].push(delegators[s]);
+                snapshotDelegators.push(delegators[s]);
             }
-            _setSnapshotDelegators(
-                _stakingEpoch,
-                validatorStakingAddress,
-                addressArrayStorage[DELEGATORS_TEMPORARY_ARRAY]
-            );
-            delete addressArrayStorage[DELEGATORS_TEMPORARY_ARRAY];
         }
         _setSnapshotTotalStakeAmount(_stakingEpoch, totalStakeAmount);
     }
@@ -258,7 +255,6 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
 
     // =============================================== Private ========================================================
 
-    bytes32 internal constant DELEGATORS_TEMPORARY_ARRAY = keccak256("delegatorsTemporaryArray");
     bytes32 internal constant ERC_TO_ERC_BRIDGES_ALLOWED = keccak256("ercToErcBridgesAllowed");
     bytes32 internal constant ERC_TO_NATIVE_BRIDGES_ALLOWED = keccak256("ercToNativeBridgesAllowed");
     bytes32 internal constant EXTRA_RECEIVERS = keccak256("extraReceivers");
@@ -317,6 +313,12 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         delete addressArrayStorage[keccak256(abi.encode(
             SNAPSHOT_DELEGATORS, _stakingEpoch, _validatorStakingAddress
         ))];
+    }
+
+    function _clearSnapshotStakingAddresses(uint256 _stakingEpoch) internal {
+        delete addressArrayStorage[
+            keccak256(abi.encode(SNAPSHOT_STAKING_ADDRESSES, _stakingEpoch))
+        ];
     }
 
     // Accrue native coins to bridge's receivers if any
@@ -395,16 +397,6 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         uintStorage[keccak256(abi.encode(
             SNAPSHOT_STAKE_AMOUNT, _stakingEpoch, _validatorStakingAddress, _delegator
         ))] = _amount;
-    }
-
-    function _setSnapshotDelegators(
-        uint256 _stakingEpoch,
-        address _validatorStakingAddress,
-        address[] memory _delegators
-    ) internal {
-        addressArrayStorage[keccak256(abi.encode(
-            SNAPSHOT_DELEGATORS, _stakingEpoch, _validatorStakingAddress
-        ))] = _delegators;
     }
 
     function _setSnapshotStakingAddresses(uint256 _stakingEpoch, address[] memory _stakingAddresses) internal {
