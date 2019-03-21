@@ -276,8 +276,6 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     bytes32 internal constant CURRENT_VALIDATORS = keccak256("currentValidators");
     bytes32 internal constant INITIATE_CHANGE_ALLOWED = keccak256("initiateChangeAllowed");
     bytes32 internal constant PENDING_VALIDATORS = keccak256("pendingValidators");
-    bytes32 internal constant POOLS_EMPTY = keccak256("poolsEmpty");
-    bytes32 internal constant POOLS_NON_EMPTY = keccak256("poolsNonEmpty");
     bytes32 internal constant PREVIOUS_VALIDATORS = keccak256("previousValidators");
     bytes32 internal constant QUEUE_PV_FIRST = keccak256("queuePVFirst");
     bytes32 internal constant QUEUE_PV_LAST = keccak256("queuePVLast");
@@ -372,45 +370,55 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     function _newValidatorSet() internal {
         IStaking staking = IStaking(stakingContract());
         address[] memory pools = staking.getPools();
+        address[] memory poolsEmpty = new address[](pools.length);
+        address[] memory poolsNonEmpty = new address[](pools.length);
+        uint256 poolsEmptyLength = 0;
+        uint256 poolsNonEmptyLength = 0;
         uint256 i;
 
         address unremovableStakingAddress = unremovableValidator();
 
-        // Filter pools and leave only non-empty
-        delete addressArrayStorage[POOLS_NON_EMPTY];
-        delete addressArrayStorage[POOLS_EMPTY];
+        // Split the pools on empty and non-empty
         for (i = 0; i < pools.length; i++) {
             if (pools[i] == unremovableStakingAddress) {
                 continue;
             }
-            if (staking.stakeAmountMinusOrderedWithdraw(pools[i], pools[i]) > 0) {
-                addressArrayStorage[POOLS_NON_EMPTY].push(pools[i]);
+            if (staking.stakeAmountMinusOrderedWithdraw(pools[i], pools[i]) != 0) {
+                poolsNonEmpty[poolsNonEmptyLength++] = pools[i];
             } else {
-                addressArrayStorage[POOLS_EMPTY].push(pools[i]);
+                poolsEmpty[poolsEmptyLength++] = pools[i];
             }
         }
-        pools = addressArrayStorage[POOLS_NON_EMPTY];
 
         // Choose new validators
-        if (pools.length < MAX_VALIDATORS) {
-            if (pools.length > 0) {
-                _setPendingValidators(pools, unremovableStakingAddress);
+        if (poolsNonEmptyLength < MAX_VALIDATORS) {
+            if (poolsNonEmptyLength > 0) {
+                _setPendingValidators(
+                    poolsNonEmpty,
+                    poolsNonEmptyLength,
+                    poolsEmpty,
+                    poolsEmptyLength,
+                    unremovableStakingAddress
+                );
             }
-        } else if (pools.length == MAX_VALIDATORS && unremovableStakingAddress == address(0)) {
-            _setPendingValidators(pools, address(0));
+        } else if (poolsNonEmptyLength == MAX_VALIDATORS && unremovableStakingAddress == address(0)) {
+            _setPendingValidators(
+                poolsNonEmpty,
+                poolsNonEmptyLength,
+                poolsEmpty,
+                poolsEmptyLength,
+                address(0)
+            );
         } else {
             uint256 randomNumber = uint256(keccak256(abi.encode(IRandom(randomContract()).getCurrentSeed())));
 
-            address[] memory poolsLocal = pools;
-            uint256 poolsLocalLength = poolsLocal.length;
-
-            uint256[] memory likelihood = new uint256[](poolsLocalLength);
+            uint256[] memory likelihood = new uint256[](poolsNonEmptyLength);
             uint256 likelihoodSum = 0;
 
             uint256 stakeUnit = staking.STAKE_UNIT();
 
-            for (i = 0; i < poolsLocalLength; i++) {
-                likelihood[i] = staking.stakeAmountTotalMinusOrderedWithdraw(poolsLocal[i]) * 100 / stakeUnit;
+            for (i = 0; i < poolsNonEmptyLength; i++) {
+                likelihood[i] = staking.stakeAmountTotalMinusOrderedWithdraw(poolsNonEmpty[i]) * 100 / stakeUnit;
                 likelihoodSum += likelihood[i];
             }
 
@@ -424,24 +432,30 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
                     likelihoodSum,
                     randomNumber
                 );
-                newValidators[i] = poolsLocal[randomPoolIndex];
+                newValidators[i] = poolsNonEmpty[randomPoolIndex];
                 likelihoodSum -= likelihood[randomPoolIndex];
-                poolsLocalLength--;
-                poolsLocal[randomPoolIndex] = poolsLocal[poolsLocalLength];
-                likelihood[randomPoolIndex] = likelihood[poolsLocalLength];
+                poolsNonEmptyLength--;
+                poolsNonEmpty[randomPoolIndex] = poolsNonEmpty[poolsNonEmptyLength];
+                likelihood[randomPoolIndex] = likelihood[poolsNonEmptyLength];
                 randomNumber = uint256(keccak256(abi.encode(randomNumber)));
             }
 
-            _setPendingValidators(newValidators, unremovableStakingAddress);
+            _setPendingValidators(
+                newValidators,
+                newValidators.length,
+                poolsEmpty,
+                poolsEmptyLength,
+                unremovableStakingAddress
+            );
         }
 
         // From this moment `getPendingValidators()` will return the new validator set
 
-        // Increment counters
         staking.incrementStakingEpoch();
-        _incrementChangeRequestCount();
 
+        _incrementChangeRequestCount();
         _enqueuePendingValidators(true);
+
         _setValidatorSetApplyBlock(0);
     }
 
@@ -500,7 +514,13 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         boolStorage[keccak256(abi.encode(IS_VALIDATOR_ON_PREVIOUS_EPOCH, _miningAddress))] = _isValidator;
     }
 
-    function _setPendingValidators(address[] memory _stakingAddresses, address _unremovableStakingAddress) internal {
+    function _setPendingValidators(
+        address[] memory _stakingAddresses,
+        uint256 _stakingAddressesLength,
+        address[] memory _poolsEmpty,
+        uint256 _poolsEmptyLength,
+        address _unremovableStakingAddress
+    ) internal {
         uint256 i;
 
         delete addressArrayStorage[PENDING_VALIDATORS];
@@ -509,13 +529,13 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
             addressArrayStorage[PENDING_VALIDATORS].push(miningByStakingAddress(_unremovableStakingAddress));
         }
 
-        for (i = 0; i < _stakingAddresses.length; i++) {
+        for (i = 0; i < _stakingAddressesLength; i++) {
             addressArrayStorage[PENDING_VALIDATORS].push(miningByStakingAddress(_stakingAddresses[i]));
         }
 
         IStaking staking = IStaking(stakingContract());
-        for (i = 0; i < addressArrayStorage[POOLS_EMPTY].length; i++) {
-            staking.removeFromPools(addressArrayStorage[POOLS_EMPTY][i]);
+        for (i = 0; i < _poolsEmptyLength; i++) {
+            staking.removeFromPools(_poolsEmpty[i]);
         }
     }
 
