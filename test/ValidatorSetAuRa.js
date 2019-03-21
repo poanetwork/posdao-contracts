@@ -268,16 +268,12 @@ contract('ValidatorSetAuRa', async accounts => {
       await validatorSetAuRa.newValidatorSet({from: blockRewardAuRa}).should.be.fulfilled;
       (await stakingAuRa.stakingEpoch.call()).should.be.bignumber.equal(new BN(1));
     });
-    it('should increment changeRequestCount', async () => {
-      (await validatorSetAuRa.changeRequestCount.call()).should.be.bignumber.equal(new BN(0));
-      await validatorSetAuRa.newValidatorSet({from: blockRewardAuRa}).should.be.fulfilled;
-      (await validatorSetAuRa.changeRequestCount.call()).should.be.bignumber.equal(new BN(1));
-    });
     it('should reset validatorSetApplyBlock', async () => {
       (await validatorSetAuRa.validatorSetApplyBlock.call()).should.be.bignumber.equal(new BN(1));
       await validatorSetAuRa.newValidatorSet({from: blockRewardAuRa}).should.be.fulfilled;
       (await validatorSetAuRa.validatorSetApplyBlock.call()).should.be.bignumber.equal(new BN(0));
     });
+    /*
     it('should enqueue initial validators', async () => {
       // Emulate calling `finalizeChange()` at network startup
       await validatorSetAuRa.setCurrentBlockNumber(1).should.be.fulfilled;
@@ -307,6 +303,7 @@ contract('ValidatorSetAuRa', async accounts => {
       queueResult[0].should.be.deep.equal(initialValidators);
       queueResult[1].should.be.equal(true);
     });
+    */
     it('should enqueue only one validator which has non-empty pool', async () => {
       const stakeUnit = await stakingAuRa.STAKE_UNIT.call();
       const mintAmount = stakeUnit.mul(new BN(2));

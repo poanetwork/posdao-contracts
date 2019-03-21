@@ -83,10 +83,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
             _setValidatorSetApplyBlock(_getCurrentBlockNumber());
 
-            // Set a new snapshot inside BlockReward contract
-            IBlockReward(blockRewardContract()).setSnapshot(
-                IStaking(stakingContract()).stakingEpoch()
-            );
+            IBlockReward(blockRewardContract()).setPendingValidatorsEnqueued(false);
         } else if (queueValidators.length > 0) {
             // Apply new validator set after malicious validator is discovered
             _applyQueueValidators(queueValidators);
@@ -452,10 +449,6 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         // From this moment `getPendingValidators()` will return the new validator set
 
         staking.incrementStakingEpoch();
-
-        _incrementChangeRequestCount();
-        _enqueuePendingValidators(true);
-
         _setValidatorSetApplyBlock(0);
     }
 

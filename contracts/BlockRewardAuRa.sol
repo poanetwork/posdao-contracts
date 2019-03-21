@@ -3,6 +3,7 @@ pragma solidity 0.5.2;
 import "./abstracts/BlockRewardBase.sol";
 import "./interfaces/IERC20Minting.sol";
 import "./interfaces/IRandomAuRa.sol";
+import "./interfaces/IValidatorSetAuRa.sol";
 
 
 contract BlockRewardAuRa is BlockRewardBase {
@@ -32,13 +33,34 @@ contract BlockRewardAuRa is BlockRewardBase {
         // Perform ordered withdrawals at the starting of a new staking epoch
         stakingContract.performOrderedWithdrawals();
 
+        uint256 i;
+
+        if (block.number == 1) {
+            uintStorage[QUEUE_NV_FIRST] = 1;
+            uintStorage[QUEUE_NV_LAST] = 0;
+        }
+
         // Start new staking epoch every `stakingEpochDuration()` blocks
-        validatorSetContract.newValidatorSet();
+        if (validatorSetContract.newValidatorSet()) {
+            address[] memory newValidatorSet = validatorSetContract.getPendingValidators();
+
+            for (i = 0; i < newValidatorSet.length; i++) {
+                _enqueueNewValidator(newValidatorSet[i]);
+            }
+        } else if (validatorSetContract.validatorSetApplyBlock() == 0) {
+            address newValidator = _dequeueNewValidator();
+
+            if (newValidator != address(0)) {
+                _setSnapshot(validatorSetContract.stakingByMiningAddress(newValidator), stakingContract);
+            } else if (!pendingValidatorsEnqueued()) {
+                IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).enqueuePendingValidators();
+                _setPendingValidatorsEnqueued(true);
+            }
+        }
 
         // Distribute fees
         address[] memory receivers;
         uint256[] memory rewards;
-        uint256 i;
 
         uint256 stakingEpoch = _getStakingEpoch();
 
@@ -97,6 +119,20 @@ contract BlockRewardAuRa is BlockRewardBase {
         delete uintArrayStorage[REWARD_TEMPORARY_ARRAY];
 
         return (receivers, rewards);
+    }
+
+    function _dequeueNewValidator() internal returns(address newValidator) {
+        uint256 queueFirst = uintStorage[QUEUE_NV_FIRST];
+        uint256 queueLast = uintStorage[QUEUE_NV_LAST];
+
+        if (queueLast < queueFirst) {
+            newValidator = address(0);
+        } else {
+            bytes32 hash = keccak256(abi.encode(QUEUE_NV_LIST, queueFirst));
+            newValidator = addressStorage[hash];
+            delete addressStorage[hash];
+            uintStorage[QUEUE_NV_FIRST]++;
+        }
     }
 
     function _distributeAmount(uint256 _stakingEpoch, bool _previousEpoch, uint256 _amount)
@@ -184,7 +220,15 @@ contract BlockRewardAuRa is BlockRewardBase {
         return _distributeAmount(_stakingEpoch, _previousEpoch, bridgeFeeAmount);
     }
 
+    function _enqueueNewValidator(address _newValidator) internal {
+        addressStorage[keccak256(abi.encode(QUEUE_NV_LIST, ++uintStorage[QUEUE_NV_LAST]))] = _newValidator;
+    }
+
     bytes32 internal constant DISTRIBUTE_TEMPORARY_ARRAY = keccak256("distributeTemporaryArray");
+    bytes32 internal constant QUEUE_NV_FIRST = keccak256("queueNVFirst");
+    bytes32 internal constant QUEUE_NV_LAST = keccak256("queueNVLast");
     bytes32 internal constant REWARD_TEMPORARY_ARRAY = keccak256("rewardTemporaryArray");
+
+    bytes32 internal constant QUEUE_NV_LIST = "queueNVList";
 
 }

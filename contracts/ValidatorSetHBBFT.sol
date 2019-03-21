@@ -15,8 +15,11 @@ contract ValidatorSetHBBFT is IValidatorSetHBBFT, ValidatorSetBase {
         delete addressArrayStorage[keccak256(abi.encode(MALICE_REPORTED, _miningAddress))];
     }
 
-    function newValidatorSet() external onlySystem {
+    function newValidatorSet() external onlySystem returns(bool) {
         super._newValidatorSet();
+        _incrementChangeRequestCount();
+        _enqueuePendingValidators(true);
+        return true;
     }
 
     function reportMaliciousValidators(
