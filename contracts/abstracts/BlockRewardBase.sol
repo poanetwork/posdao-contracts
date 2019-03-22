@@ -47,13 +47,13 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     // This function can only be called by erc-to-native
     function addBridgeNativeFeeReceivers(uint256 _amount) external onlyErcToNativeBridge {
         require(_amount != 0);
-        _addBridgeNativeFee(_getStakingEpoch(), _amount);
+        _addBridgeNativeFee(_amount);
     }
 
     // This function can only be called by native-to-erc or erc-to-erc bridge
     function addBridgeTokenFeeReceivers(uint256 _amount) external onlyXToErcBridge {
         require(_amount != 0);
-        _addBridgeTokenFee(_getStakingEpoch(), _amount);
+        _addBridgeTokenFee(_amount);
     }
 
     function addExtraReceiver(uint256 _amount, address _receiver) external onlyErcToNativeBridge {
@@ -158,67 +158,56 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         return boolStorage[PENDING_VALIDATORS_ENQUEUED];
     }
 
-    function snapshotStakeAmount(
-        uint256 _stakingEpoch,
-        address _validatorStakingAddress,
-        address _delegator
-    ) public view returns(uint256) {
-        return uintStorage[
-            keccak256(abi.encode(SNAPSHOT_STAKE_AMOUNT, _stakingEpoch, _validatorStakingAddress, _delegator))
+    function snapshotRewardPercents(address _validatorStakingAddress) public view returns(uint256[] memory) {
+        return uintArrayStorage[
+            keccak256(abi.encode(SNAPSHOT_REWARD_PERCENTS, _validatorStakingAddress))
         ];
     }
 
-    function snapshotDelegators(
-        uint256 _stakingEpoch,
-        address _validatorStakingAddress
-    ) public view returns(address[] memory) {
+    function snapshotStakers(address _validatorStakingAddress) public view returns(address[] memory) {
         return addressArrayStorage[
-            keccak256(abi.encode(SNAPSHOT_DELEGATORS, _stakingEpoch, _validatorStakingAddress))
+            keccak256(abi.encode(SNAPSHOT_STAKERS, _validatorStakingAddress))
         ];
     }
 
-    function snapshotStakingAddresses(uint256 _stakingEpoch) public view returns(address[] memory) {
-        return addressArrayStorage[
-            keccak256(abi.encode(SNAPSHOT_STAKING_ADDRESSES, _stakingEpoch))
-        ];
+    function snapshotStakingAddresses() public view returns(address[] memory) {
+        return addressArrayStorage[SNAPSHOT_STAKING_ADDRESSES];
     }
 
-    function snapshotTotalStakeAmount(uint256 _stakingEpoch) public view returns(uint256) {
-        return uintStorage[
-            keccak256(abi.encode(SNAPSHOT_TOTAL_STAKE_AMOUNT, _stakingEpoch))
-        ];
+    function snapshotTotalStakeAmount() public view returns(uint256) {
+        return uintStorage[SNAPSHOT_TOTAL_STAKE_AMOUNT];
     }
 
     // =============================================== Private ========================================================
 
+    bytes32 internal constant BRIDGE_NATIVE_FEE = keccak256("bridgeNativeFee");
+    bytes32 internal constant BRIDGE_TOKEN_FEE = keccak256("bridgeTokenFee");
     bytes32 internal constant ERC_TO_ERC_BRIDGES_ALLOWED = keccak256("ercToErcBridgesAllowed");
     bytes32 internal constant ERC_TO_NATIVE_BRIDGES_ALLOWED = keccak256("ercToNativeBridgesAllowed");
     bytes32 internal constant EXTRA_RECEIVERS = keccak256("extraReceivers");
     bytes32 internal constant MINTED_TOTALLY = keccak256("mintedTotally");
     bytes32 internal constant NATIVE_TO_ERC_BRIDGES_ALLOWED = keccak256("nativeToErcBridgesAllowed");
     bytes32 internal constant PENDING_VALIDATORS_ENQUEUED = keccak256("pendingValidatorsEnqueued");
+    bytes32 internal constant SNAPSHOT_STAKING_ADDRESSES = keccak256("snapshotStakingAddresses");
+    bytes32 internal constant SNAPSHOT_TOTAL_STAKE_AMOUNT = keccak256("snapshotTotalStakeAmount");
 
     bytes32 internal constant BRIDGE_AMOUNT = "bridgeAmount";
-    bytes32 internal constant BRIDGE_NATIVE_FEE = "bridgeNativeFee";
-    bytes32 internal constant BRIDGE_TOKEN_FEE = "bridgeTokenFee";
     bytes32 internal constant EXTRA_RECEIVER_AMOUNT = "extraReceiverAmount";
     bytes32 internal constant MINTED_FOR_ACCOUNT = "mintedForAccount";
     bytes32 internal constant MINTED_FOR_ACCOUNT_IN_BLOCK = "mintedForAccountInBlock";
     bytes32 internal constant MINTED_IN_BLOCK = "mintedInBlock";
     bytes32 internal constant MINTED_TOTALLY_BY_BRIDGE = "mintedTotallyByBridge";
-    bytes32 internal constant SNAPSHOT_DELEGATORS = "snapshotDelegators";
-    bytes32 internal constant SNAPSHOT_STAKE_AMOUNT = "snapshotStakeAmount";
-    bytes32 internal constant SNAPSHOT_STAKING_ADDRESSES = "snapshotStakingAddresses";
-    bytes32 internal constant SNAPSHOT_TOTAL_STAKE_AMOUNT = "snapshotTotalStakeAmount";
+    bytes32 internal constant SNAPSHOT_REWARD_PERCENTS = "snapshotRewardPercents";
+    bytes32 internal constant SNAPSHOT_STAKERS = "snapshotStakers";
 
-    function _addBridgeNativeFee(uint256 _stakingEpoch, uint256 _amount) internal {
-        bytes32 hash = keccak256(abi.encode(BRIDGE_NATIVE_FEE, _stakingEpoch));
-        uintStorage[hash] = uintStorage[hash].add(_amount);
+    uint256 internal constant REWARD_PERCENT_MULTIPLIER = 1000000;
+
+    function _addBridgeNativeFee(uint256 _amount) internal {
+        uintStorage[BRIDGE_NATIVE_FEE] = uintStorage[BRIDGE_NATIVE_FEE].add(_amount);
     }
 
-    function _addBridgeTokenFee(uint256 _stakingEpoch, uint256 _amount) internal {
-        bytes32 hash = keccak256(abi.encode(BRIDGE_TOKEN_FEE, _stakingEpoch));
-        uintStorage[hash] = uintStorage[hash].add(_amount);
+    function _addBridgeTokenFee(uint256 _amount) internal {
+        uintStorage[BRIDGE_TOKEN_FEE] = uintStorage[BRIDGE_TOKEN_FEE].add(_amount);
     }
 
     function _addExtraReceiver(address _receiver) internal {
@@ -230,28 +219,12 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         uintStorage[hash] = uintStorage[hash].add(_amount);
     }
 
-    function _addSnapshotStakingAddress(uint256 _stakingEpoch, address _stakingAddress) internal {
-        addressArrayStorage[
-            keccak256(abi.encode(SNAPSHOT_STAKING_ADDRESSES, _stakingEpoch))
-        ].push(_stakingAddress);
+    function _clearBridgeNativeFee() internal {
+        uintStorage[BRIDGE_NATIVE_FEE] = 0;
     }
 
-    function _addSnapshotTotalStakeAmount(uint256 _stakingEpoch, uint256 _amount) internal {
-        uintStorage[
-            keccak256(abi.encode(SNAPSHOT_TOTAL_STAKE_AMOUNT, _stakingEpoch))
-        ] += _amount;
-    }
-
-    function _clearBridgeNativeFee(uint256 _stakingEpoch) internal {
-        uintStorage[
-            keccak256(abi.encode(BRIDGE_NATIVE_FEE, _stakingEpoch))
-        ] = 0;
-    }
-
-    function _clearBridgeTokenFee(uint256 _stakingEpoch) internal {
-        uintStorage[
-            keccak256(abi.encode(BRIDGE_TOKEN_FEE, _stakingEpoch))
-        ] = 0;
+    function _clearBridgeTokenFee() internal {
+        uintStorage[BRIDGE_TOKEN_FEE] = 0;
     }
 
     function _clearExtraReceivers() internal {
@@ -330,114 +303,64 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     }
 
     function _setSnapshot(address _stakingAddress, IStaking _stakingContract) internal {
-        uint256 stakingEpoch = _stakingContract.stakingEpoch();
-
-        uint256 stakeAmount = _stakingContract.stakeAmountMinusOrderedWithdraw(_stakingAddress, _stakingAddress);
-        uint256 totalStakeAmount = stakeAmount;
-
-        _addSnapshotStakingAddress(stakingEpoch, _stakingAddress);
-        _setSnapshotStakeAmount(stakingEpoch, _stakingAddress, _stakingAddress, stakeAmount);
+        uint256 validatorStake = _stakingContract.stakeAmountMinusOrderedWithdraw(_stakingAddress, _stakingAddress);
+        uint256 totalStaked = _stakingContract.stakeAmountTotalMinusOrderedWithdraw(_stakingAddress);
+        uint256 delegatorsAmount = totalStaked - validatorStake;
+        bool validatorHasMore30Per = validatorStake.mul(7) > delegatorsAmount.mul(3);
         
         address[] memory delegators = _stakingContract.poolDelegators(_stakingAddress);
+        address[] memory stakers = new address[](delegators.length + 1);
+        uint256[] memory rewardPercents = new uint256[](delegators.length + 1);
+        uint256 i;
 
-        for (uint256 i = 0; i < delegators.length; i++) {
-            stakeAmount = _stakingContract.stakeAmountMinusOrderedWithdraw(_stakingAddress, delegators[i]);
-            if (stakeAmount == 0) continue;
-            _setSnapshotStakeAmount(stakingEpoch, _stakingAddress, delegators[i], stakeAmount);
-            totalStakeAmount += stakeAmount;
+        // Calculate reward percent for each delegator
+        for (i = 0; i < delegators.length; i++) {
+            stakers[i] = delegators[i];
+            uint256 delegatorStake = _stakingContract.stakeAmountMinusOrderedWithdraw(_stakingAddress, delegators[i]);
+            
+            if (delegatorStake == 0) {
+                rewardPercents[i] = 0;
+                continue;
+            }
+
+            if (validatorHasMore30Per) {
+                rewardPercents[i] = REWARD_PERCENT_MULTIPLIER.mul(delegatorStake).div(totalStaked);
+            } else {
+                rewardPercents[i] = REWARD_PERCENT_MULTIPLIER.mul(delegatorStake).mul(7).div(delegatorsAmount.mul(10));
+            }
+        }
+
+        // Calculate reward percent for validator
+        stakers[i] = _stakingAddress;
+        if (validatorStake > 0) {
+            if (validatorHasMore30Per) {
+                rewardPercents[i] = REWARD_PERCENT_MULTIPLIER.mul(validatorStake).div(totalStaked);
+            } else {
+                rewardPercents[i] = REWARD_PERCENT_MULTIPLIER.mul(3).div(10);
+            }
+        } else {
+            rewardPercents[i] = 0;
         }
 
         addressArrayStorage[keccak256(abi.encode(
-            SNAPSHOT_DELEGATORS, stakingEpoch, _stakingAddress
-        ))] = delegators;
+            SNAPSHOT_STAKERS, _stakingAddress
+        ))] = stakers;
 
-        _addSnapshotTotalStakeAmount(stakingEpoch, totalStakeAmount);
+        uintArrayStorage[keccak256(abi.encode(
+            SNAPSHOT_REWARD_PERCENTS, _stakingAddress
+        ))] = rewardPercents;
+
+        addressArrayStorage[SNAPSHOT_STAKING_ADDRESSES].push(_stakingAddress);
+
+        uintStorage[SNAPSHOT_TOTAL_STAKE_AMOUNT] += totalStaked;
     }
 
-    function _setSnapshotStakeAmount(
-        uint256 _stakingEpoch,
-        address _validatorStakingAddress,
-        address _delegator,
-        uint256 _amount
-    ) internal {
-        uintStorage[keccak256(abi.encode(
-            SNAPSHOT_STAKE_AMOUNT, _stakingEpoch, _validatorStakingAddress, _delegator
-        ))] = _amount;
+    function _getBridgeNativeFee() internal view returns(uint256) {
+        return uintStorage[BRIDGE_NATIVE_FEE];
     }
 
-    function _distributePoolReward(
-        uint256 _stakingEpoch,
-        address _validatorStakingAddress,
-        uint256 _poolReward
-    ) internal view returns(address[] memory receivers, uint256[] memory rewards) {
-        uint256 s;
-        address[] memory delegators = snapshotDelegators(_stakingEpoch, _validatorStakingAddress);
-        receivers = new address[](delegators.length.add(1));
-        rewards = new uint256[](receivers.length);
-
-        uint256 validatorStake = snapshotStakeAmount(_stakingEpoch, _validatorStakingAddress, _validatorStakingAddress);
-        uint256 delegatorsAmount = 0;
-
-        for (s = 0; s < delegators.length; s++) {
-            delegatorsAmount += snapshotStakeAmount(_stakingEpoch, _validatorStakingAddress, delegators[s]);
-        }
-
-        uint256 totalStaked = validatorStake + delegatorsAmount;
-        bool validatorHasMore30Per = validatorStake.mul(7) > delegatorsAmount.mul(3);
-
-        // Calculate reward for each delegator
-        for (s = 0; s < delegators.length; s++) {
-            uint256 delegatorStake = snapshotStakeAmount(_stakingEpoch, _validatorStakingAddress, delegators[s]);
-            receivers[s] = delegators[s];
-            if (validatorHasMore30Per) {
-                rewards[s] = _poolReward.mul(delegatorStake).div(totalStaked);
-            } else {
-                rewards[s] = _poolReward.mul(delegatorStake).mul(7).div(delegatorsAmount.mul(10));
-            }
-        }
-
-        // Calculate reward for validator
-        receivers[s] = _validatorStakingAddress;
-        if (validatorStake > 0) {
-            if (validatorHasMore30Per) {
-                rewards[s] = _poolReward.mul(validatorStake).div(totalStaked);
-            } else {
-                rewards[s] = _poolReward.mul(3).div(10);
-            }
-
-            // Give remainder to validator
-            for (s = 0; s < rewards.length; s++) {
-                _poolReward -= rewards[s];
-            }
-            rewards[s - 1] += _poolReward;
-        } else {
-            rewards[s] = 0;
-        }
-    }
-
-    function _getBridgeNativeFee(uint256 _stakingEpoch) internal view returns(uint256) {
-        return uintStorage[keccak256(abi.encode(BRIDGE_NATIVE_FEE, _stakingEpoch))];
-    }
-
-    function _getBridgeTokenFee(uint256 _stakingEpoch) internal view returns(uint256) {
-        return uintStorage[keccak256(abi.encode(BRIDGE_TOKEN_FEE, _stakingEpoch))];
-    }
-
-    function _getStakingEpoch() internal view returns(uint256) {
-        IValidatorSet validatorSetContract = IValidatorSet(VALIDATOR_SET_CONTRACT);
-        IStaking stakingContract = IStaking(validatorSetContract.stakingContract());
-
-        uint256 stakingEpoch = stakingContract.stakingEpoch();
-
-        if (stakingEpoch == 0) {
-            return 0;
-        }
-
-        if (validatorSetContract.validatorSetApplyBlock() == 0) {
-            stakingEpoch--; // use the previous staking epoch because the current one is not applied yet
-        }
-
-        return stakingEpoch;
+    function _getBridgeTokenFee() internal view returns(uint256) {
+        return uintStorage[BRIDGE_TOKEN_FEE];
     }
 
     function _isErcToNativeBridge(address _addr) internal view returns(bool) {

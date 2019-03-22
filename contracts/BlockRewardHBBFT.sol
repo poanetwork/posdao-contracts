@@ -18,16 +18,18 @@ contract BlockRewardHBBFT is BlockRewardBase {
 
     // =============================================== Setters ========================================================
 
-    function reward(address[] calldata benefactors, uint16[] calldata/*kind*/)
+    function reward(address[] calldata, uint16[] calldata)
         external
         onlySystem
         returns (address[] memory, uint256[] memory)
     {
+        /*
         // Mint ERC20 tokens to validators and their delegators as block reward.
         // This is not bridge's fee distribution.
         // This call makes sense only if `BLOCK_REWARD` and `ERC20_TOKEN_CONTRACT`
         // constants are not equal to zero.
         _mintTokensForDelegators(benefactors);
+        */
 
         // We don't accrue any block reward in native coins to validator here.
         // We just mint native coins by bridge if needed.
@@ -36,6 +38,7 @@ contract BlockRewardHBBFT is BlockRewardBase {
 
     // =============================================== Private ========================================================
 
+    /*
     // Mint ERC20 tokens for each delegator of each active validator
     function _mintTokensForDelegators(address[] memory benefactors) internal {
         IStaking stakingContract = IStaking(
@@ -54,8 +57,8 @@ contract BlockRewardHBBFT is BlockRewardBase {
             return;
         }
 
-        uint256 poolReward = BLOCK_REWARD / snapshotStakingAddresses(stakingEpoch).length;
-        uint256 remainder = BLOCK_REWARD % snapshotStakingAddresses(stakingEpoch).length;
+        uint256 poolReward = BLOCK_REWARD / snapshotStakingAddresses().length;
+        uint256 remainder = BLOCK_REWARD % snapshotStakingAddresses().length;
 
         for (uint256 i = 0; i < benefactors.length; i++) {
             (
@@ -72,4 +75,5 @@ contract BlockRewardHBBFT is BlockRewardBase {
             emit RewardedERC20ByBlock(receivers, rewards);
         }
     }
+    */
 }
