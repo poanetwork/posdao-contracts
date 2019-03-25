@@ -18,7 +18,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     // ================================================ Events ========================================================
 
     event AddedReceiver(uint256 amount, address indexed receiver, address indexed bridge);
-    event MintedByBridge(address[] receivers, uint256[] rewards);
+    event MintedNative(address[] receivers, uint256[] rewards);
 
     // ============================================== Modifiers =======================================================
 
@@ -112,6 +112,14 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
 
     function extraReceiversLength() public view returns(uint256) {
         return addressArrayStorage[EXTRA_RECEIVERS].length;
+    }
+
+    function getBridgeNativeFee() public view returns(uint256) {
+        return uintStorage[BRIDGE_NATIVE_FEE];
+    }
+
+    function getBridgeTokenFee() public view returns(uint256) {
+        return uintStorage[BRIDGE_TOKEN_FEE];
     }
 
     function mintedForAccount(address _account)
@@ -219,27 +227,22 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         uintStorage[hash] = uintStorage[hash].add(_amount);
     }
 
-    function _clearBridgeNativeFee() internal {
-        uintStorage[BRIDGE_NATIVE_FEE] = 0;
-    }
-
-    function _clearBridgeTokenFee() internal {
-        uintStorage[BRIDGE_TOKEN_FEE] = 0;
-    }
-
     function _clearExtraReceivers() internal {
         addressArrayStorage[EXTRA_RECEIVERS].length = 0;
     }
 
     // Accrue native coins to bridge's receivers if any
-    function _mintNativeCoinsByErcToNativeBridge()
+    function _mintNativeCoinsByErcToNativeBridge(
+        address[] memory _bridgeFeeReceivers,
+        uint256[] memory _bridgeFeeRewards
+    )
         internal
         returns(address[] memory receivers, uint256[] memory rewards)
     {
         uint256 extraLength = extraReceiversLength();
 
-        receivers = new address[](extraLength);
-        rewards = new uint256[](extraLength);
+        receivers = new address[](extraLength + _bridgeFeeReceivers.length);
+        rewards = new uint256[](receivers.length);
 
         uint256 i;
 
@@ -263,9 +266,18 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
             }
         }
 
-        _clearExtraReceivers();
+        if (extraLength != 0) {
+            _clearExtraReceivers();
+        }
 
-        emit MintedByBridge(receivers, rewards);
+        uint256 j = 0;
+        for (i = extraLength; i < receivers.length; i++) {
+            receivers[i] = _bridgeFeeReceivers[j];
+            rewards[i] = _bridgeFeeRewards[j];
+            j++;
+        }
+
+        emit MintedNative(receivers, rewards);
 
         return (receivers, rewards);
     }
@@ -310,7 +322,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         
         address[] memory delegators = _stakingContract.poolDelegators(_stakingAddress);
         address[] memory stakers = new address[](delegators.length + 1);
-        uint256[] memory rewardPercents = new uint256[](delegators.length + 1);
+        uint256[] memory rewardPercents = new uint256[](stakers.length);
         uint256 i;
 
         // Calculate reward percent for each delegator
@@ -353,14 +365,6 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         addressArrayStorage[SNAPSHOT_STAKING_ADDRESSES].push(_stakingAddress);
 
         uintStorage[SNAPSHOT_TOTAL_STAKE_AMOUNT] += totalStaked;
-    }
-
-    function _getBridgeNativeFee() internal view returns(uint256) {
-        return uintStorage[BRIDGE_NATIVE_FEE];
-    }
-
-    function _getBridgeTokenFee() internal view returns(uint256) {
-        return uintStorage[BRIDGE_TOKEN_FEE];
     }
 
     function _isErcToNativeBridge(address _addr) internal view returns(bool) {

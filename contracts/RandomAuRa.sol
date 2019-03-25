@@ -54,7 +54,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         _setCollectRoundLength(_collectRoundLength);
     }
 
-    function onBlockClose() external onlyBlockReward {
+    function onFinishCollectRound() external onlyBlockReward {
         if (block.number % collectRoundLength() != collectRoundLength() - 1) return;
 
         // This is the last block of the current collection round

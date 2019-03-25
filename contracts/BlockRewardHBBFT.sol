@@ -31,9 +31,8 @@ contract BlockRewardHBBFT is BlockRewardBase {
         _mintTokensForDelegators(benefactors);
         */
 
-        // We don't accrue any block reward in native coins to validator here.
-        // We just mint native coins by bridge if needed.
-        return _mintNativeCoinsByErcToNativeBridge();
+        // Mint native coins by bridge if needed.
+        return _mintNativeCoinsByErcToNativeBridge(new address[](0), new uint256[](0));
     }
 
     // =============================================== Private ========================================================

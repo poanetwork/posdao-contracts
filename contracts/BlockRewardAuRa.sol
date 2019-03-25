@@ -3,6 +3,7 @@ pragma solidity 0.5.2;
 import "./abstracts/BlockRewardBase.sol";
 import "./interfaces/IERC20Minting.sol";
 import "./interfaces/IRandomAuRa.sol";
+import "./interfaces/IStakingAuRa.sol";
 import "./interfaces/IValidatorSetAuRa.sol";
 
 
@@ -13,9 +14,9 @@ contract BlockRewardAuRa is BlockRewardBase {
         onlySystem
         returns(address[] memory, uint256[] memory)
     {
-        require(benefactors.length == kind.length);
-        require(benefactors.length == 1);
-        require(kind[0] == 0);
+        if (benefactors.length != kind.length || benefactors.length != 1 || kind[0] != 0) {
+            return (new address[](0), new uint256[](0));
+        }
 
         IValidatorSet validatorSetContract = IValidatorSet(VALIDATOR_SET_CONTRACT);
 
@@ -26,7 +27,7 @@ contract BlockRewardAuRa is BlockRewardBase {
 
         // Publish current random number at the end of the current collection round.
         // Remove malicious validators if any.
-        IRandomAuRa(validatorSetContract.randomContract()).onBlockClose();
+        IRandomAuRa(validatorSetContract.randomContract()).onFinishCollectRound();
 
         IStaking stakingContract = IStaking(validatorSetContract.stakingContract());
 
@@ -38,6 +39,8 @@ contract BlockRewardAuRa is BlockRewardBase {
             uintStorage[QUEUE_NV_LAST] = 0;
         }
 
+        address[] memory receiversNative = new address[](0);
+        uint256[] memory rewardsNative = new uint256[](0);
         uint256 i;
 
         if (validatorSetContract.newValidatorSet()) {
@@ -49,7 +52,9 @@ contract BlockRewardAuRa is BlockRewardBase {
             }
 
             delete addressArrayStorage[SNAPSHOT_STAKING_ADDRESSES];
-            delete uintStorage[SNAPSHOT_TOTAL_STAKE_AMOUNT];
+            uintStorage[SNAPSHOT_TOTAL_STAKE_AMOUNT] = 0;
+            uintStorage[ROUND_POOL_NATIVE_REWARD] = 0;
+            uintStorage[ROUND_POOL_TOKEN_REWARD] = 0;
         } else if (validatorSetContract.validatorSetApplyBlock() == 0) {
             address newValidator = _dequeueNewValidator();
 
@@ -59,43 +64,43 @@ contract BlockRewardAuRa is BlockRewardBase {
                 IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).enqueuePendingValidators();
                 _setPendingValidatorsEnqueued(true);
             }
-        } else {
-            _distributeRewards(
+        } else if (stakingContract.stakingEpoch() != 0) {
+            (receiversNative, rewardsNative) = _distributeRewards(
                 benefactors[0],
-                stakingContract.stakingEpoch(),
-                stakingContract.erc20TokenContract()
+                stakingContract.erc20TokenContract(),
+                IStakingAuRa(address(stakingContract))
             );
         }
 
         uintStorage[PREVIOUS_VALIDATOR_INDEX] = validatorSetContract.validatorIndex(benefactors[0]);
 
-        // We don't accrue any block reward in native coins to validator here.
-        // We just mint native coins by bridge if needed.
-        address[] memory receivers;
-        uint256[] memory rewards;
-        (receivers, rewards) = _mintNativeCoinsByErcToNativeBridge();
-        for (i = 0; i < receivers.length; i++) {
-            addressArrayStorage[REWARD_TEMPORARY_ARRAY].push(receivers[i]);
-            uintArrayStorage[REWARD_TEMPORARY_ARRAY].push(rewards[i]);
-        }
+        // Mint native coins by bridge if needed.
+        return _mintNativeCoinsByErcToNativeBridge(receiversNative, rewardsNative);
+    }
 
-        // Move the arrays of receivers and their rewards from storage to memory
-        receivers = addressArrayStorage[REWARD_TEMPORARY_ARRAY];
-        rewards = uintArrayStorage[REWARD_TEMPORARY_ARRAY];
+    function getNativeRewardUndistributed() public view returns(uint256) {
+        return uintStorage[NATIVE_REWARD_UNDISTRIBUTED];
+    }
 
-        delete addressArrayStorage[REWARD_TEMPORARY_ARRAY];
-        delete uintArrayStorage[REWARD_TEMPORARY_ARRAY];
+    function getRoundPoolNativeReward() public view returns(uint256) {
+        return uintStorage[ROUND_POOL_NATIVE_REWARD];
+    }
 
-        return (receivers, rewards);
+    function getRoundPoolTokenReward() public view returns(uint256) {
+        return uintStorage[ROUND_POOL_TOKEN_REWARD];
+    }
+
+    function getTokenRewardUndistributed() public view returns(uint256) {
+        return uintStorage[TOKEN_REWARD_UNDISTRIBUTED];
     }
 
     function _distributeRewards(
         address _miningAddress,
-        uint256 _stakingEpoch,
-        address _erc20TokenContract
-    ) internal {
-        uint256 poolNativeReward = 0;
+        address _erc20TokenContract,
+        IStakingAuRa _stakingContract
+    ) internal returns(address[] memory receivers, uint256[] memory rewards) {
         uint256 poolTokenReward = 0;
+        uint256 poolNativeReward = 0;
 
         if (
             IValidatorSet(VALIDATOR_SET_CONTRACT).validatorIndex(_miningAddress) <=
@@ -103,80 +108,62 @@ contract BlockRewardAuRa is BlockRewardBase {
         ) {
             // New Authority Round started
 
-            uint256 poolsCount;
+            uint256 poolsCount = IValidatorSet(VALIDATOR_SET_CONTRACT).getValidators().length;
+
+            if (block.number + poolsCount > _stakingContract.stakingEpochEndBlock()) {
+                // Don't distribute rewards during the last incomplete Authority Round
+                // in the current staking epoch
+                uintStorage[ROUND_POOL_NATIVE_REWARD] = 0;
+                uintStorage[ROUND_POOL_TOKEN_REWARD] = 0;
+                return (new address[](0), new uint256[](0));
+            }
+
             uint256 totalReward;
 
-            if (_stakingEpoch != 0) {
-                poolsCount = snapshotStakingAddresses().length;
-            } else {
-                poolsCount = IValidatorSet(VALIDATOR_SET_CONTRACT).getValidators().length;
-            }
-
-            totalReward = _getBridgeNativeFee();
-            if (totalReward != 0) {
-                _clearBridgeNativeFee();
-
-                totalReward += _getNativeRewardUndistributed();
-                poolNativeReward = totalReward / poolsCount;
-
-                _setNativeRewardUndistributed(totalReward);
-            }
-            _setRoundPoolNativeReward(poolNativeReward);
-
             if (_erc20TokenContract != address(0)) {
-                totalReward = _getBridgeTokenFee();
+                totalReward = uintStorage[BRIDGE_TOKEN_FEE];
                 totalReward += snapshotTotalStakeAmount() * 1585489599 / 1 ether; // 1% per year inflation
                 if (totalReward != 0) {
-                    _clearBridgeTokenFee();
+                    uintStorage[BRIDGE_TOKEN_FEE] = 0;
 
-                    totalReward += _getTokenRewardUndistributed();
+                    totalReward += uintStorage[TOKEN_REWARD_UNDISTRIBUTED];
                     poolTokenReward = totalReward / poolsCount;
 
-                    _setTokenRewardUndistributed(totalReward);
+                    uintStorage[TOKEN_REWARD_UNDISTRIBUTED] = totalReward;
                 }
-                _setRoundPoolTokenReward(poolTokenReward);
+                uintStorage[ROUND_POOL_TOKEN_REWARD] = poolTokenReward;
             }
+
+            totalReward = uintStorage[BRIDGE_NATIVE_FEE];
+            if (totalReward != 0) {
+                uintStorage[BRIDGE_NATIVE_FEE] = 0;
+
+                totalReward += uintStorage[NATIVE_REWARD_UNDISTRIBUTED];
+                poolNativeReward = totalReward / poolsCount;
+
+                uintStorage[NATIVE_REWARD_UNDISTRIBUTED] = totalReward;
+            }
+            uintStorage[ROUND_POOL_NATIVE_REWARD] = poolNativeReward;
         } else {
-            poolNativeReward = _getRoundPoolNativeReward();
-            poolTokenReward = _getRoundPoolTokenReward();
+            poolTokenReward = uintStorage[ROUND_POOL_TOKEN_REWARD];
+            poolNativeReward = uintStorage[ROUND_POOL_NATIVE_REWARD];
         }
 
-        address[] memory receivers;
-        uint256[] memory rewards;
-        uint256[] memory rewardPercents;
+        if (poolTokenReward == 0 && poolNativeReward == 0) {
+            return (new address[](0), new uint256[](0));
+        }
+
         address validatorStakingAddress = IValidatorSet(VALIDATOR_SET_CONTRACT).stakingByMiningAddress(_miningAddress);
 
-        if (_stakingEpoch > 0) {
-            // Distribute the reward among validator and their delegators
-            receivers = snapshotStakers(validatorStakingAddress);
-            rewardPercents = snapshotRewardPercents(validatorStakingAddress);
-        } else {
-            // Give the reward to the validator
-            receivers = new address[](1);
-            rewardPercents = new uint256[](1);
-            receivers[0] = validatorStakingAddress;
-            rewardPercents[0] = REWARD_PERCENT_MULTIPLIER;
-        }
-
+        receivers = addressArrayStorage[keccak256(abi.encode(SNAPSHOT_STAKERS, validatorStakingAddress))];
         rewards = new uint256[](receivers.length);
+        uint256[] storage rewardPercents = uintArrayStorage[
+            keccak256(abi.encode(SNAPSHOT_REWARD_PERCENTS, validatorStakingAddress))
+        ];
 
-        if (rewardPercents.length > 0) {
+        if (rewardPercents.length != 0) {
             uint256 remainder;
             uint256 i;
-
-            if (poolNativeReward != 0) {
-                remainder = poolNativeReward;
-
-                for (i = 0; i < rewardPercents.length; i++) {
-                    rewards[i] = poolNativeReward * rewardPercents[i] / REWARD_PERCENT_MULTIPLIER;
-                    remainder -= rewards[i];
-                }
-                rewards[i - 1] += remainder;
-
-                addressArrayStorage[REWARD_TEMPORARY_ARRAY] = receivers;
-                uintArrayStorage[REWARD_TEMPORARY_ARRAY] = rewards;
-                _subNativeRewardUndistributed(poolNativeReward);
-            }
 
             if (_erc20TokenContract != address(0) && poolTokenReward != 0) {
                 remainder = poolTokenReward;
@@ -189,6 +176,20 @@ contract BlockRewardAuRa is BlockRewardBase {
 
                 IERC20Minting(_erc20TokenContract).mintReward(receivers, rewards);
                 _subTokenRewardUndistributed(poolTokenReward);
+            }
+
+            if (poolNativeReward != 0) {
+                remainder = poolNativeReward;
+
+                for (i = 0; i < rewardPercents.length; i++) {
+                    rewards[i] = poolNativeReward * rewardPercents[i] / REWARD_PERCENT_MULTIPLIER;
+                    remainder -= rewards[i];
+                }
+                rewards[i - 1] += remainder;
+
+                _subNativeRewardUndistributed(poolNativeReward);
+            } else {
+                return (new address[](0), new uint256[](0));
             }
         }
     }
@@ -211,51 +212,26 @@ contract BlockRewardAuRa is BlockRewardBase {
         addressStorage[keccak256(abi.encode(QUEUE_NV_LIST, ++uintStorage[QUEUE_NV_LAST]))] = _newValidator;
     }
 
-    function _getNativeRewardUndistributed() internal view returns(uint256) {
-        return uintStorage[NATIVE_REWARD_UNDISTRIBUTED];
-    }
-
-    function _getRoundPoolNativeReward() internal view returns(uint256) {
-        return uintStorage[ROUND_POOL_NATIVE_REWARD];
-    }
-
-    function _getRoundPoolTokenReward() internal view returns(uint256) {
-        return uintStorage[ROUND_POOL_TOKEN_REWARD];
-    }
-
-    function _getTokenRewardUndistributed() internal view returns(uint256) {
-        return uintStorage[TOKEN_REWARD_UNDISTRIBUTED];
-    }
-
-    function _setNativeRewardUndistributed(uint256 _reward) internal {
-        uintStorage[NATIVE_REWARD_UNDISTRIBUTED] = _reward;
-    }
-
-    function _setRoundPoolNativeReward(uint256 _poolReward) internal {
-        uintStorage[ROUND_POOL_NATIVE_REWARD] = _poolReward;
-    }
-
-    function _setRoundPoolTokenReward(uint256 _poolReward) internal {
-        uintStorage[ROUND_POOL_TOKEN_REWARD] = _poolReward;
-    }
-
-    function _setTokenRewardUndistributed(uint256 _reward) internal {
-        uintStorage[TOKEN_REWARD_UNDISTRIBUTED] = _reward;
-    }
-
     function _subNativeRewardUndistributed(uint256 _minus) internal {
-        uintStorage[NATIVE_REWARD_UNDISTRIBUTED] -= _minus;
+        if (uintStorage[NATIVE_REWARD_UNDISTRIBUTED] < _minus) {
+            uintStorage[NATIVE_REWARD_UNDISTRIBUTED] = 0;
+        } else {
+            uintStorage[NATIVE_REWARD_UNDISTRIBUTED] -= _minus;
+        }
     }
 
     function _subTokenRewardUndistributed(uint256 _minus) internal {
-        uintStorage[TOKEN_REWARD_UNDISTRIBUTED] -= _minus;
+        if (uintStorage[TOKEN_REWARD_UNDISTRIBUTED] < _minus) {
+            uintStorage[TOKEN_REWARD_UNDISTRIBUTED] = 0;
+        } else {
+            uintStorage[TOKEN_REWARD_UNDISTRIBUTED] -= _minus;
+        }
     }
 
     bytes32 internal constant NATIVE_REWARD_UNDISTRIBUTED = keccak256("nativeRewardUndistributed");
     bytes32 internal constant PREVIOUS_VALIDATOR_INDEX = keccak256("previousValidatorIndex");
     bytes32 internal constant QUEUE_NV_FIRST = keccak256("queueNVFirst");
     bytes32 internal constant QUEUE_NV_LAST = keccak256("queueNVLast");
-    bytes32 internal constant REWARD_TEMPORARY_ARRAY = keccak256("rewardTemporaryArray");
     bytes32 internal constant ROUND_POOL_NATIVE_REWARD = keccak256("roundPoolNativeReward");
     bytes32 internal constant ROUND_POOL_TOKEN_REWARD = keccak256("roundPoolTokenReward");
     bytes32 internal constant TOKEN_REWARD_UNDISTRIBUTED = keccak256("tokenRewardUndistributed");
