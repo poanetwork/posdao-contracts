@@ -59,12 +59,8 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     function addExtraReceiver(uint256 _amount, address _receiver) external onlyErcToNativeBridge {
         require(_amount != 0);
         require(_receiver != address(0));
-        uint256 oldAmount = extraReceiverAmount(_receiver);
-        if (oldAmount == 0) {
-            _addExtraReceiver(_receiver);
-        }
-        _setExtraReceiverAmount(oldAmount.add(_amount), _receiver);
-        _setBridgeAmount(bridgeAmount(msg.sender).add(_amount), msg.sender);
+        require(boolStorage[QUEUE_ER_INITIALIZED]);
+        _enqueueExtraReceiver(_amount, _receiver, msg.sender);
         emit AddedReceiver(_amount, _receiver, msg.sender);
     }
 
@@ -86,12 +82,6 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
 
     // =============================================== Getters ========================================================
 
-    function bridgeAmount(address _bridge) public view returns(uint256) {
-        return uintStorage[
-            keccak256(abi.encode(BRIDGE_AMOUNT, _bridge))
-        ];
-    }
-
     function ercToErcBridgesAllowed() public view returns(address[] memory ) {
         return addressArrayStorage[ERC_TO_ERC_BRIDGES_ALLOWED];
     }
@@ -100,18 +90,8 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         return addressArrayStorage[ERC_TO_NATIVE_BRIDGES_ALLOWED];
     }
 
-    function extraReceiverByIndex(uint256 _index) public view returns(address) {
-        return addressArrayStorage[EXTRA_RECEIVERS][_index];
-    }
-
-    function extraReceiverAmount(address _receiver) public view returns(uint256) {
-        return uintStorage[
-            keccak256(abi.encode(EXTRA_RECEIVER_AMOUNT, _receiver))
-        ];
-    }
-
-    function extraReceiversLength() public view returns(uint256) {
-        return addressArrayStorage[EXTRA_RECEIVERS].length;
+    function extraReceiversQueueSize() public view returns(uint256) {
+        return _extraReceiversQueueSize();
     }
 
     function getBridgeNativeFee() public view returns(uint256) {
@@ -192,22 +172,26 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     bytes32 internal constant BRIDGE_TOKEN_FEE = keccak256("bridgeTokenFee");
     bytes32 internal constant ERC_TO_ERC_BRIDGES_ALLOWED = keccak256("ercToErcBridgesAllowed");
     bytes32 internal constant ERC_TO_NATIVE_BRIDGES_ALLOWED = keccak256("ercToNativeBridgesAllowed");
-    bytes32 internal constant EXTRA_RECEIVERS = keccak256("extraReceivers");
     bytes32 internal constant MINTED_TOTALLY = keccak256("mintedTotally");
     bytes32 internal constant NATIVE_TO_ERC_BRIDGES_ALLOWED = keccak256("nativeToErcBridgesAllowed");
     bytes32 internal constant PENDING_VALIDATORS_ENQUEUED = keccak256("pendingValidatorsEnqueued");
+    bytes32 internal constant QUEUE_ER_FIRST = keccak256("queueERFirst");
+    bytes32 internal constant QUEUE_ER_INITIALIZED = keccak256("queueERInitialized");
+    bytes32 internal constant QUEUE_ER_LAST = keccak256("queueERLast");
     bytes32 internal constant SNAPSHOT_STAKING_ADDRESSES = keccak256("snapshotStakingAddresses");
     bytes32 internal constant SNAPSHOT_TOTAL_STAKE_AMOUNT = keccak256("snapshotTotalStakeAmount");
 
-    bytes32 internal constant BRIDGE_AMOUNT = "bridgeAmount";
-    bytes32 internal constant EXTRA_RECEIVER_AMOUNT = "extraReceiverAmount";
     bytes32 internal constant MINTED_FOR_ACCOUNT = "mintedForAccount";
     bytes32 internal constant MINTED_FOR_ACCOUNT_IN_BLOCK = "mintedForAccountInBlock";
     bytes32 internal constant MINTED_IN_BLOCK = "mintedInBlock";
     bytes32 internal constant MINTED_TOTALLY_BY_BRIDGE = "mintedTotallyByBridge";
+    bytes32 internal constant QUEUE_ER_AMOUNT = "queueERAmount";
+    bytes32 internal constant QUEUE_ER_BRIDGE = "queueERBridge";
+    bytes32 internal constant QUEUE_ER_RECEIVER = "queueERReceiver";
     bytes32 internal constant SNAPSHOT_REWARD_PERCENTS = "snapshotRewardPercents";
     bytes32 internal constant SNAPSHOT_STAKERS = "snapshotStakers";
 
+    uint256 internal constant MAX_EXTRA_RECEIVERS_PER_BLOCK = 25;
     uint256 internal constant REWARD_PERCENT_MULTIPLIER = 1000000;
 
     function _addBridgeNativeFee(uint256 _amount) internal {
@@ -218,19 +202,6 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         uintStorage[BRIDGE_TOKEN_FEE] = uintStorage[BRIDGE_TOKEN_FEE].add(_amount);
     }
 
-    function _addExtraReceiver(address _receiver) internal {
-        addressArrayStorage[EXTRA_RECEIVERS].push(_receiver);
-    }
-
-    function _addMintedTotallyByBridge(uint256 _amount, address _bridge) internal {
-        bytes32 hash = keccak256(abi.encode(MINTED_TOTALLY_BY_BRIDGE, _bridge));
-        uintStorage[hash] = uintStorage[hash].add(_amount);
-    }
-
-    function _clearExtraReceivers() internal {
-        addressArrayStorage[EXTRA_RECEIVERS].length = 0;
-    }
-
     // Accrue native coins to bridge's receivers if any
     function _mintNativeCoinsByErcToNativeBridge(
         address[] memory _bridgeFeeReceivers,
@@ -239,38 +210,25 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         internal
         returns(address[] memory receivers, uint256[] memory rewards)
     {
-        uint256 extraLength = extraReceiversLength();
+        uint256 extraLength = _extraReceiversQueueSize();
+
+        if (extraLength > MAX_EXTRA_RECEIVERS_PER_BLOCK) {
+            extraLength = MAX_EXTRA_RECEIVERS_PER_BLOCK;
+        }
 
         receivers = new address[](extraLength + _bridgeFeeReceivers.length);
         rewards = new uint256[](receivers.length);
 
         uint256 i;
+        uint256 j = 0;
 
         for (i = 0; i < extraLength; i++) {
-            address extraAddress = extraReceiverByIndex(i);
-            uint256 extraAmount = extraReceiverAmount(extraAddress);
-            _setExtraReceiverAmount(0, extraAddress);
-            receivers[i] = extraAddress;
-            rewards[i] = extraAmount;
-            _setMinted(extraAmount, extraAddress);
+            (uint256 amount, address receiver, address bridge) = _dequeueExtraReceiver();
+            receivers[i] = receiver;
+            rewards[i] = amount;
+            _setMinted(amount, receiver, bridge);
         }
 
-        address[] memory bridgesAllowed = ercToNativeBridgesAllowed();
-        for (i = 0; i < bridgesAllowed.length; i++) {
-            address bridgeAddress = bridgesAllowed[i];
-            uint256 bridgeAmountForBlock = bridgeAmount(bridgeAddress);
-
-            if (bridgeAmountForBlock > 0) {
-                _setBridgeAmount(0, bridgeAddress);
-                _addMintedTotallyByBridge(bridgeAmountForBlock, bridgeAddress);
-            }
-        }
-
-        if (extraLength != 0) {
-            _clearExtraReceivers();
-        }
-
-        uint256 j = 0;
         for (i = extraLength; i < receivers.length; i++) {
             receivers[i] = _bridgeFeeReceivers[j];
             rewards[i] = _bridgeFeeRewards[j];
@@ -282,32 +240,42 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         return (receivers, rewards);
     }
 
-    function _setBridgeAmount(uint256 _amount, address _bridge) internal {
-        uintStorage[
-            keccak256(abi.encode(BRIDGE_AMOUNT, _bridge))
-        ] = _amount;
+    function _dequeueExtraReceiver() internal returns(uint256 amount, address receiver, address bridge) {
+        uint256 queueFirst = uintStorage[QUEUE_ER_FIRST];
+        uint256 queueLast = uintStorage[QUEUE_ER_LAST];
+
+        if (queueLast < queueFirst) {
+            amount = 0;
+            receiver = address(0);
+            bridge = address(0);
+        } else {
+            bytes32 amountHash = keccak256(abi.encode(QUEUE_ER_AMOUNT, queueFirst));
+            bytes32 receiverHash = keccak256(abi.encode(QUEUE_ER_RECEIVER, queueFirst));
+            bytes32 bridgeHash = keccak256(abi.encode(QUEUE_ER_BRIDGE, queueFirst));
+            amount = uintStorage[amountHash];
+            receiver = addressStorage[receiverHash];
+            bridge = addressStorage[bridgeHash];
+            delete uintStorage[amountHash];
+            delete addressStorage[receiverHash];
+            delete addressStorage[bridgeHash];
+            uintStorage[QUEUE_ER_FIRST]++;
+        }
     }
 
-    function _setExtraReceiverAmount(uint256 _amount, address _receiver) internal {
-        uintStorage[
-            keccak256(abi.encode(EXTRA_RECEIVER_AMOUNT, _receiver))
-        ] = _amount;
+    function _enqueueExtraReceiver(uint256 _amount, address _receiver, address _bridge) internal {
+        uint256 queueLast = uintStorage[QUEUE_ER_LAST] + 1;
+        uintStorage[keccak256(abi.encode(QUEUE_ER_AMOUNT, queueLast))] = _amount;
+        addressStorage[keccak256(abi.encode(QUEUE_ER_RECEIVER, queueLast))] = _receiver;
+        addressStorage[keccak256(abi.encode(QUEUE_ER_BRIDGE, queueLast))] = _bridge;
+        uintStorage[QUEUE_ER_LAST] = queueLast;
     }
 
-    function _setMinted(uint256 _amount, address _account) internal {
-        bytes32 hash;
-
-        hash = keccak256(abi.encode(MINTED_FOR_ACCOUNT_IN_BLOCK, _account, block.number));
-        uintStorage[hash] = _amount;
-
-        hash = keccak256(abi.encode(MINTED_FOR_ACCOUNT, _account));
-        uintStorage[hash] = uintStorage[hash].add(_amount);
-
-        hash = keccak256(abi.encode(MINTED_IN_BLOCK, block.number));
-        uintStorage[hash] = uintStorage[hash].add(_amount);
-
-        hash = MINTED_TOTALLY;
-        uintStorage[hash] = uintStorage[hash].add(_amount);
+    function _setMinted(uint256 _amount, address _account, address _bridge) internal {
+        uintStorage[keccak256(abi.encode(MINTED_FOR_ACCOUNT_IN_BLOCK, _account, block.number))] = _amount;
+        uintStorage[keccak256(abi.encode(MINTED_FOR_ACCOUNT, _account))] += _amount;
+        uintStorage[keccak256(abi.encode(MINTED_IN_BLOCK, block.number))] += _amount;
+        uintStorage[keccak256(abi.encode(MINTED_TOTALLY_BY_BRIDGE, _bridge))] += _amount;
+        uintStorage[MINTED_TOTALLY] += _amount;
     }
 
     function _setPendingValidatorsEnqueued(bool _enqueued) internal {
@@ -365,6 +333,10 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         addressArrayStorage[SNAPSHOT_STAKING_ADDRESSES].push(_stakingAddress);
 
         uintStorage[SNAPSHOT_TOTAL_STAKE_AMOUNT] += totalStaked;
+    }
+
+    function _extraReceiversQueueSize() internal view returns(uint256) {
+        return uintStorage[QUEUE_ER_LAST] + 1 - uintStorage[QUEUE_ER_FIRST];
     }
 
     function _isErcToNativeBridge(address _addr) internal view returns(bool) {

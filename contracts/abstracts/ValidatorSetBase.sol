@@ -15,7 +15,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
     // ============================================== Constants =======================================================
 
-    uint256 public constant MAX_VALIDATORS = 20;
+    uint256 public constant MAX_VALIDATORS = 22;
 
     // ================================================ Events ========================================================
 

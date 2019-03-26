@@ -34,9 +34,15 @@ contract BlockRewardAuRa is BlockRewardBase {
         // Perform ordered withdrawals at the starting of a new staking epoch
         stakingContract.performOrderedWithdrawals();
 
-        if (block.number == 1) {
+        if (!boolStorage[QUEUE_NV_INITIALIZED]) {
             uintStorage[QUEUE_NV_FIRST] = 1;
             uintStorage[QUEUE_NV_LAST] = 0;
+            boolStorage[QUEUE_NV_INITIALIZED] = true;
+        }
+        if (!boolStorage[QUEUE_ER_INITIALIZED]) {
+            uintStorage[QUEUE_ER_FIRST] = 1;
+            uintStorage[QUEUE_ER_LAST] = 0;
+            boolStorage[QUEUE_ER_INITIALIZED] = true;
         }
 
         address[] memory receiversNative = new address[](0);
@@ -231,6 +237,7 @@ contract BlockRewardAuRa is BlockRewardBase {
     bytes32 internal constant NATIVE_REWARD_UNDISTRIBUTED = keccak256("nativeRewardUndistributed");
     bytes32 internal constant PREVIOUS_VALIDATOR_INDEX = keccak256("previousValidatorIndex");
     bytes32 internal constant QUEUE_NV_FIRST = keccak256("queueNVFirst");
+    bytes32 internal constant QUEUE_NV_INITIALIZED = keccak256("queueNVInitialized");
     bytes32 internal constant QUEUE_NV_LAST = keccak256("queueNVLast");
     bytes32 internal constant ROUND_POOL_NATIVE_REWARD = keccak256("roundPoolNativeReward");
     bytes32 internal constant ROUND_POOL_TOKEN_REWARD = keccak256("roundPoolTokenReward");
