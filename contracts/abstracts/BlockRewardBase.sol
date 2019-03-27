@@ -23,12 +23,15 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     // ============================================== Modifiers =======================================================
 
     modifier onlyErcToNativeBridge {
-        require(_isErcToNativeBridge(msg.sender));
+        require(boolStorage[keccak256(abi.encode(ERC_TO_NATIVE_BRIDGE_ALLOWED, msg.sender))]);
         _;
     }
 
     modifier onlyXToErcBridge {
-        require(_isErcToErcBridge(msg.sender) || _isNativeToErcBridge(msg.sender));
+        require(
+            boolStorage[keccak256(abi.encode(ERC_TO_ERC_BRIDGE_ALLOWED, msg.sender))] ||
+            boolStorage[keccak256(abi.encode(NATIVE_TO_ERC_BRIDGE_ALLOWED, msg.sender))]
+        );
         _;
     }
 
@@ -65,15 +68,48 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     }
 
     function setErcToNativeBridgesAllowed(address[] calldata _bridgesAllowed) external onlyOwner {
+        uint256 i;
+
+        address[] storage oldBridgesAllowed = addressArrayStorage[ERC_TO_NATIVE_BRIDGES_ALLOWED];
+        for (i = 0; i < oldBridgesAllowed.length; i++) {
+            boolStorage[keccak256(abi.encode(ERC_TO_NATIVE_BRIDGE_ALLOWED, oldBridgesAllowed[i]))] = false;
+        }
+
         addressArrayStorage[ERC_TO_NATIVE_BRIDGES_ALLOWED] = _bridgesAllowed;
+
+        for (i = 0; i < _bridgesAllowed.length; i++) {
+            boolStorage[keccak256(abi.encode(ERC_TO_NATIVE_BRIDGE_ALLOWED, _bridgesAllowed[i]))] = true;
+        }
     }
 
     function setNativeToErcBridgesAllowed(address[] calldata _bridgesAllowed) external onlyOwner {
+        uint256 i;
+
+        address[] storage oldBridgesAllowed = addressArrayStorage[NATIVE_TO_ERC_BRIDGES_ALLOWED];
+        for (i = 0; i < oldBridgesAllowed.length; i++) {
+            boolStorage[keccak256(abi.encode(NATIVE_TO_ERC_BRIDGE_ALLOWED, oldBridgesAllowed[i]))] = false;
+        }
+
         addressArrayStorage[NATIVE_TO_ERC_BRIDGES_ALLOWED] = _bridgesAllowed;
+
+        for (i = 0; i < _bridgesAllowed.length; i++) {
+            boolStorage[keccak256(abi.encode(NATIVE_TO_ERC_BRIDGE_ALLOWED, _bridgesAllowed[i]))] = true;
+        }
     }
 
     function setErcToErcBridgesAllowed(address[] calldata _bridgesAllowed) external onlyOwner {
+        uint256 i;
+
+        address[] storage oldBridgesAllowed = addressArrayStorage[ERC_TO_ERC_BRIDGES_ALLOWED];
+        for (i = 0; i < oldBridgesAllowed.length; i++) {
+            boolStorage[keccak256(abi.encode(ERC_TO_ERC_BRIDGE_ALLOWED, oldBridgesAllowed[i]))] = false;
+        }
+
         addressArrayStorage[ERC_TO_ERC_BRIDGES_ALLOWED] = _bridgesAllowed;
+
+        for (i = 0; i < _bridgesAllowed.length; i++) {
+            boolStorage[keccak256(abi.encode(ERC_TO_ERC_BRIDGE_ALLOWED, _bridgesAllowed[i]))] = true;
+        }
     }
 
     function setPendingValidatorsEnqueued(bool _enqueued) external onlyValidatorSet {
@@ -181,10 +217,13 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     bytes32 internal constant SNAPSHOT_STAKING_ADDRESSES = keccak256("snapshotStakingAddresses");
     bytes32 internal constant SNAPSHOT_TOTAL_STAKE_AMOUNT = keccak256("snapshotTotalStakeAmount");
 
+    bytes32 internal constant ERC_TO_ERC_BRIDGE_ALLOWED = "ercToErcBridgeAllowed";
+    bytes32 internal constant ERC_TO_NATIVE_BRIDGE_ALLOWED = "ercToNativeBridgeAllowed";
     bytes32 internal constant MINTED_FOR_ACCOUNT = "mintedForAccount";
     bytes32 internal constant MINTED_FOR_ACCOUNT_IN_BLOCK = "mintedForAccountInBlock";
     bytes32 internal constant MINTED_IN_BLOCK = "mintedInBlock";
     bytes32 internal constant MINTED_TOTALLY_BY_BRIDGE = "mintedTotallyByBridge";
+    bytes32 internal constant NATIVE_TO_ERC_BRIDGE_ALLOWED = "nativeToErcBridgeAllowed";
     bytes32 internal constant QUEUE_ER_AMOUNT = "queueERAmount";
     bytes32 internal constant QUEUE_ER_BRIDGE = "queueERBridge";
     bytes32 internal constant QUEUE_ER_RECEIVER = "queueERReceiver";
@@ -337,41 +376,5 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
 
     function _extraReceiversQueueSize() internal view returns(uint256) {
         return uintStorage[QUEUE_ER_LAST] + 1 - uintStorage[QUEUE_ER_FIRST];
-    }
-
-    function _isErcToNativeBridge(address _addr) internal view returns(bool) {
-        address[] memory bridges = ercToNativeBridgesAllowed();
-
-        for (uint256 i = 0; i < bridges.length; i++) {
-            if (_addr == bridges[i]) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    function _isErcToErcBridge(address _addr) internal view returns(bool) {
-        address[] memory bridges = ercToErcBridgesAllowed();
-
-        for (uint256 i = 0; i < bridges.length; i++) {
-            if (_addr == bridges[i]) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    function _isNativeToErcBridge(address _addr) internal view returns(bool) {
-        address[] memory bridges = nativeToErcBridgesAllowed();
-
-        for (uint256 i = 0; i < bridges.length; i++) {
-            if (_addr == bridges[i]) {
-                return true;
-            }
-        }
-
-        return false;
     }
 }

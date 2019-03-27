@@ -242,18 +242,16 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         } else {
             newOrderedAmount = alreadyOrderedAmount.sub(uint256(-_amount));
         }
-
-        uint256 newStakeAmount = stakeAmount(_fromPoolStakingAddress, staker).sub(newOrderedAmount);
+        _setOrderedWithdrawAmount(_fromPoolStakingAddress, staker, newOrderedAmount);
 
         // The amount to be withdrawn must be the whole staked amount or
         // must not exceed the diff between the entire amount and MIN_STAKE
+        uint256 newStakeAmount = stakeAmount(_fromPoolStakingAddress, staker).sub(newOrderedAmount);
         if (staker == _fromPoolStakingAddress) {
             require(newStakeAmount == 0 || newStakeAmount >= getCandidateMinStake());
         } else {
             require(newStakeAmount == 0 || newStakeAmount >= getDelegatorMinStake());
         }
-
-        _setOrderedWithdrawAmount(_fromPoolStakingAddress, staker, newOrderedAmount);
 
         // Set total ordered amount for this pool
         alreadyOrderedAmount = orderedWithdrawAmountTotal(_fromPoolStakingAddress);
