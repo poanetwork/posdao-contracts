@@ -273,37 +273,37 @@ contract('ValidatorSetAuRa', async accounts => {
       await validatorSetAuRa.newValidatorSet({from: blockRewardAuRa}).should.be.fulfilled;
       (await validatorSetAuRa.validatorSetApplyBlock.call()).should.be.bignumber.equal(new BN(0));
     });
-    /*
-    it('should enqueue initial validators', async () => {
-      // Emulate calling `finalizeChange()` at network startup
-      await validatorSetAuRa.setCurrentBlockNumber(1).should.be.fulfilled;
-      (await validatorSetAuRa.initiateChangeAllowed.call()).should.be.equal(false);
-      await validatorSetAuRa.setSystemAddress(owner).should.be.fulfilled;
-      await validatorSetAuRa.finalizeChange({from: owner}).should.be.fulfilled;
-      (await validatorSetAuRa.initiateChangeAllowed.call()).should.be.equal(true);
+    
+    // it('should enqueue initial validators', async () => {
+    //   // Emulate calling `finalizeChange()` at network startup
+    //   await validatorSetAuRa.setCurrentBlockNumber(1).should.be.fulfilled;
+    //   (await validatorSetAuRa.initiateChangeAllowed.call()).should.be.equal(false);
+    //   await validatorSetAuRa.setSystemAddress(owner).should.be.fulfilled;
+    //   await validatorSetAuRa.finalizeChange({from: owner}).should.be.fulfilled;
+    //   (await validatorSetAuRa.initiateChangeAllowed.call()).should.be.equal(true);
 
-      // Emulate calling `newValidatorSet()` at the last block of staking epoch
-      await stakingAuRa.setCurrentBlockNumber(120960).should.be.fulfilled;
-      await validatorSetAuRa.setCurrentBlockNumber(120960).should.be.fulfilled;
-      (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(false);
-      await validatorSetAuRa.newValidatorSet({from: blockRewardAuRa}).should.be.fulfilled;
-      (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(true);
+    //   // Emulate calling `newValidatorSet()` at the last block of staking epoch
+    //   await stakingAuRa.setCurrentBlockNumber(120960).should.be.fulfilled;
+    //   await validatorSetAuRa.setCurrentBlockNumber(120960).should.be.fulfilled;
+    //   (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(false);
+    //   await validatorSetAuRa.newValidatorSet({from: blockRewardAuRa}).should.be.fulfilled;
+    //   (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(true);
 
-      // Emulate calling `emitInitiateChange()` at the beginning of the next staking epoch
-      await stakingAuRa.setCurrentBlockNumber(120961).should.be.fulfilled;
-      await validatorSetAuRa.setCurrentBlockNumber(120961).should.be.fulfilled;
-      const {logs} = await validatorSetAuRa.emitInitiateChange().should.be.fulfilled;
-      logs[0].event.should.equal("InitiateChange");
-      logs[0].args.newSet.should.be.deep.equal(initialValidators);
-      (await validatorSetAuRa.initiateChangeAllowed.call()).should.be.equal(false);
-      (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(false);
+    //   // Emulate calling `emitInitiateChange()` at the beginning of the next staking epoch
+    //   await stakingAuRa.setCurrentBlockNumber(120961).should.be.fulfilled;
+    //   await validatorSetAuRa.setCurrentBlockNumber(120961).should.be.fulfilled;
+    //   const {logs} = await validatorSetAuRa.emitInitiateChange().should.be.fulfilled;
+    //   logs[0].event.should.equal("InitiateChange");
+    //   logs[0].args.newSet.should.be.deep.equal(initialValidators);
+    //   (await validatorSetAuRa.initiateChangeAllowed.call()).should.be.equal(false);
+    //   (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(false);
 
-      // Check the returned value of `getQueueValidators()`
-      const queueResult = await validatorSetAuRa.getQueueValidators.call();
-      queueResult[0].should.be.deep.equal(initialValidators);
-      queueResult[1].should.be.equal(true);
-    });
-    */
+    //   // Check the returned value of `getQueueValidators()`
+    //   const queueResult = await validatorSetAuRa.getQueueValidators.call();
+    //   queueResult[0].should.be.deep.equal(initialValidators);
+    //   queueResult[1].should.be.equal(true);
+    // });
+    
     it('should enqueue only one validator which has non-empty pool', async () => {
       const stakeUnit = await stakingAuRa.STAKE_UNIT.call();
       const mintAmount = stakeUnit.mul(new BN(2));
@@ -343,7 +343,10 @@ contract('ValidatorSetAuRa', async accounts => {
       validatorSetAuRa = await ValidatorSetAuRa.new();
       validatorSetAuRa = await EternalStorageProxy.new(validatorSetAuRa.address, owner);
       validatorSetAuRa = await ValidatorSetAuRa.at(validatorSetAuRa.address);
-      await stakingAuRa.setValidatorSetAddress(validatorSetAuRa.address).should.be.fulfilled;
+
+      stakingAuRa = await StakingAuRa.new();
+      stakingAuRa = await EternalStorageProxy.new(stakingAuRa.address, owner);
+      stakingAuRa = await StakingAuRa.at(stakingAuRa.address);
 
       await validatorSetAuRa.setCurrentBlockNumber(0).should.be.fulfilled;
       await validatorSetAuRa.initialize(
@@ -354,6 +357,18 @@ contract('ValidatorSetAuRa', async accounts => {
         initialStakingAddresses, // _initialStakingAddresses
         true // _firstValidatorIsUnremovable
       ).should.be.fulfilled;
+
+      await stakingAuRa.setCurrentBlockNumber(0).should.be.fulfilled;
+      await stakingAuRa.initialize(
+        validatorSetAuRa.address, // _validatorSetContract
+        '0x0000000000000000000000000000000000000000', // _erc20TokenContract
+        initialStakingAddresses, // _initialStakingAddresses
+        1, // _delegatorMinStake
+        1, // _candidateMinStake
+        120960, // _stakingEpochDuration
+        4320 // _stakeWithdrawDisallowPeriod
+      ).should.be.fulfilled;
+      await stakingAuRa.setValidatorSetAddress(validatorSetAuRa.address).should.be.fulfilled;
 
       const stakeUnit = await stakingAuRa.STAKE_UNIT.call();
       const mintAmount = stakeUnit.mul(new BN(2));

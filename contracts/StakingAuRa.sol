@@ -10,10 +10,10 @@ contract StakingAuRa is IStakingAuRa, StakingBase {
 
     // =============================================== Setters ========================================================
 
-    function addPool(uint256 _amount, address _miningAddress) external {
+    function addPool(uint256 _amount, address _miningAddress) external gasPriceIsValid {
         address stakingAddress = msg.sender;
         validatorSetContract().setStakingAddress(_miningAddress, stakingAddress);
-        stake(stakingAddress, _amount);
+        _stake(stakingAddress, _amount);
     }
 
     /// Must be called by the constructor of `InitializerAuRa` contract on genesis block.

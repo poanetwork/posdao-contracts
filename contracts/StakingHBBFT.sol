@@ -15,7 +15,7 @@ contract StakingHBBFT is IStakingHBBFT, StakingBase {
         address stakingAddress = msg.sender;
         IValidatorSetHBBFT(address(validatorSetContract())).savePublicKey(_miningAddress, _publicKey);
         validatorSetContract().setStakingAddress(_miningAddress, stakingAddress);
-        stake(stakingAddress, _amount);
+        _stake(stakingAddress, _amount);
     }
 
     /// Must be called by the constructor of `InitializerHBBFT` contract on genesis block.
@@ -45,8 +45,8 @@ contract StakingHBBFT is IStakingHBBFT, StakingBase {
     // =============================================== Private ========================================================
 
     // Adds `_stakingAddress` to the array of pools
-    function _addToPools(address _stakingAddress) internal {
-        super._addToPools(_stakingAddress);
+    function _addPoolActive(address _stakingAddress, bool _toBeElected) internal {
+        super._addPoolActive(_stakingAddress, _toBeElected);
         IValidatorSet validatorSetContract = validatorSetContract();
         IValidatorSetHBBFT(address(validatorSetContract)).clearMaliceReported(
             validatorSetContract.miningByStakingAddress(_stakingAddress)

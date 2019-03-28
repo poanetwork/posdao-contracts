@@ -197,6 +197,10 @@ contract('StakingAuRa', async accounts => {
       new BN(3).should.be.bignumber.equal(await stakingAuRa.poolIndex.call(candidate1StakingAddress));
       new BN(4).should.be.bignumber.equal(await stakingAuRa.poolIndex.call(candidate2StakingAddress));
 
+      // Check indexes in the `poolsToBeElected` list
+      new BN(0).should.be.bignumber.equal(await stakingAuRa.poolToBeElectedIndex.call(candidate1StakingAddress));
+      new BN(1).should.be.bignumber.equal(await stakingAuRa.poolToBeElectedIndex.call(candidate2StakingAddress));
+
       // Check pools' existence
       const validators = await validatorSetAuRa.getValidators.call();
 
@@ -221,7 +225,7 @@ contract('StakingAuRa', async accounts => {
         }
 
         // Add a new pool
-        await stakingAuRa.addToPoolsMock(candidateStakingAddress).should.be.fulfilled;
+        await stakingAuRa.addPoolActiveMock(candidateStakingAddress).should.be.fulfilled;
         new BN(p).should.be.bignumber.equal(await stakingAuRa.poolIndex.call(candidateStakingAddress));
       }
 
@@ -230,7 +234,7 @@ contract('StakingAuRa', async accounts => {
       false.should.be.equal(await stakingAuRa.doesPoolExist.call(candidateStakingAddress));
     });
     it('should remove added pool from the list of inactive pools', async () => {
-      await stakingAuRa.addToPoolsInactiveMock(candidateStakingAddress).should.be.fulfilled;
+      await stakingAuRa.addPoolInactiveMock(candidateStakingAddress).should.be.fulfilled;
       (await stakingAuRa.getPoolsInactive.call()).should.be.deep.equal([candidateStakingAddress]);
       await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.fulfilled;
       true.should.be.equal(await stakingAuRa.doesPoolExist.call(candidateStakingAddress));
@@ -251,7 +255,7 @@ contract('StakingAuRa', async accounts => {
     });
     it('should initialize successfully', async () => {
       await stakingAuRa.initialize(
-        '0x1000000000000000000000000000000000000001', // _validatorSetContract
+        validatorSetAuRa.address, // _validatorSetContract
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialStakingAddresses, // _initialStakingAddresses
         1, // _delegatorMinStake
@@ -268,7 +272,7 @@ contract('StakingAuRa', async accounts => {
       new BN(0).should.be.bignumber.equal(
         await stakingAuRa.stakingEpochStartBlock.call()
       );
-      '0x1000000000000000000000000000000000000001'.should.be.equal(
+      validatorSetAuRa.address.should.be.equal(
         await stakingAuRa.validatorSetContract.call()
       );
       '0x0000000000000000000000000000000000000000'.should.be.equal(
@@ -280,6 +284,9 @@ contract('StakingAuRa', async accounts => {
         );
         true.should.be.equal(
           await stakingAuRa.isPoolActive.call(initialStakingAddresses[i])
+        );
+        new BN(i).should.be.bignumber.equal(
+          await stakingAuRa.poolToBeRemovedIndex.call(initialStakingAddresses[i])
         );
       }
       (await stakingAuRa.getPools.call()).should.be.deep.equal(initialStakingAddresses);
@@ -293,7 +300,7 @@ contract('StakingAuRa', async accounts => {
     it('should fail if the current block number is not zero', async () => {
       await stakingAuRa.setCurrentBlockNumber(1);
       await stakingAuRa.initialize(
-        '0x1000000000000000000000000000000000000001', // _validatorSetContract
+        validatorSetAuRa.address, // _validatorSetContract
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialStakingAddresses, // _initialStakingAddresses
         1, // _delegatorMinStake
@@ -315,7 +322,7 @@ contract('StakingAuRa', async accounts => {
     });
     it('should fail if delegatorMinStake is zero', async () => {
       await stakingAuRa.initialize(
-        '0x1000000000000000000000000000000000000001', // _validatorSetContract
+        validatorSetAuRa.address, // _validatorSetContract
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialStakingAddresses, // _initialStakingAddresses
         0, // _delegatorMinStake
@@ -326,7 +333,7 @@ contract('StakingAuRa', async accounts => {
     });
     it('should fail if candidateMinStake is zero', async () => {
       await stakingAuRa.initialize(
-        '0x1000000000000000000000000000000000000001', // _validatorSetContract
+        validatorSetAuRa.address, // _validatorSetContract
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialStakingAddresses, // _initialStakingAddresses
         1, // _delegatorMinStake
@@ -337,7 +344,7 @@ contract('StakingAuRa', async accounts => {
     });
     it('should fail if already initialized', async () => {
       await stakingAuRa.initialize(
-        '0x1000000000000000000000000000000000000001', // _validatorSetContract
+        validatorSetAuRa.address, // _validatorSetContract
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialStakingAddresses, // _initialStakingAddresses
         1, // _delegatorMinStake
@@ -346,7 +353,7 @@ contract('StakingAuRa', async accounts => {
         4320 // _stakeWithdrawDisallowPeriod
       ).should.be.fulfilled;
       await stakingAuRa.initialize(
-        '0x1000000000000000000000000000000000000001', // _validatorSetContract
+        validatorSetAuRa.address, // _validatorSetContract
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialStakingAddresses, // _initialStakingAddresses
         1, // _delegatorMinStake
@@ -357,7 +364,7 @@ contract('StakingAuRa', async accounts => {
     });
     it('should fail if stakingEpochDuration is 0', async () => {
       await stakingAuRa.initialize(
-        '0x1000000000000000000000000000000000000001', // _validatorSetContract
+        validatorSetAuRa.address, // _validatorSetContract
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialStakingAddresses, // _initialStakingAddresses
         1, // _delegatorMinStake
@@ -368,7 +375,7 @@ contract('StakingAuRa', async accounts => {
     });
     it('should fail if stakeWithdrawDisallowPeriod is 0', async () => {
       await stakingAuRa.initialize(
-        '0x1000000000000000000000000000000000000001', // _validatorSetContract
+        validatorSetAuRa.address, // _validatorSetContract
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialStakingAddresses, // _initialStakingAddresses
         1, // _delegatorMinStake
@@ -379,7 +386,7 @@ contract('StakingAuRa', async accounts => {
     });
     it('should fail if stakeWithdrawDisallowPeriod >= stakingEpochDuration', async () => {
       await stakingAuRa.initialize(
-        '0x1000000000000000000000000000000000000001', // _validatorSetContract
+        validatorSetAuRa.address, // _validatorSetContract
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialStakingAddresses, // _initialStakingAddresses
         1, // _delegatorMinStake
@@ -388,7 +395,7 @@ contract('StakingAuRa', async accounts => {
         120960 // _stakeWithdrawDisallowPeriod
       ).should.be.rejectedWith(ERROR_MSG);
       await stakingAuRa.initialize(
-        '0x1000000000000000000000000000000000000001', // _validatorSetContract
+        validatorSetAuRa.address, // _validatorSetContract
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialStakingAddresses, // _initialStakingAddresses
         1, // _delegatorMinStake
@@ -400,7 +407,7 @@ contract('StakingAuRa', async accounts => {
     it('should fail if some staking address is 0', async () => {
       initialStakingAddresses[0] = '0x0000000000000000000000000000000000000000';
       await stakingAuRa.initialize(
-        '0x1000000000000000000000000000000000000001', // _validatorSetContract
+        validatorSetAuRa.address, // _validatorSetContract
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialStakingAddresses, // _initialStakingAddresses
         1, // _delegatorMinStake

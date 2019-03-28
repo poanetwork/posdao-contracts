@@ -14,12 +14,12 @@ contract StakingAuRaMock is StakingAuRa {
 
     // =============================================== Setters ========================================================
 
-    function addToPoolsMock(address _stakingAddress) public {
-        _addToPools(_stakingAddress);
+    function addPoolActiveMock(address _stakingAddress) public {
+        _addPoolActive(_stakingAddress, true);
     }
 
-    function addToPoolsInactiveMock(address _stakingAddress) public {
-        _addToPoolsInactive(_stakingAddress);
+    function addPoolInactiveMock(address _stakingAddress) public {
+        _addPoolInactive(_stakingAddress);
     }
 
     function resetErc20TokenContract() public {

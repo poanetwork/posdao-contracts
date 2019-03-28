@@ -140,12 +140,12 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         }
     }
 
-    function removeFromPools(address _stakingAddress) external onlyValidatorSetContract {
-        _removeFromPools(_stakingAddress);
+    function removePool(address _stakingAddress) external onlyValidatorSetContract {
+        _removePool(_stakingAddress);
     }
 
     function removeMaliciousValidator(address _stakingAddress) external onlyValidatorSetContract {
-        _removeFromPools(_stakingAddress);
+        _removePool(_stakingAddress);
 
         // Remove all ordered withdrawals from the pool of this validator
         address[] memory delegators = poolDelegators(_stakingAddress);
@@ -158,14 +158,14 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         _setStakeAmountByCurrentEpoch(_stakingAddress, _stakingAddress, 0);
     }
 
-    function removePool() public gasPriceIsValid {
+    function removePool() external gasPriceIsValid {
         IValidatorSet validatorSetContract = validatorSetContract();
         address stakingAddress = msg.sender;
         address miningAddress = validatorSetContract.miningByStakingAddress(stakingAddress);
         // initial validator cannot remove their pool during the initial staking epoch
         require(stakingEpoch() > 0 || !validatorSetContract.isValidator(miningAddress));
         require(stakingAddress != validatorSetContract.unremovableValidator());
-        _removeFromPools(stakingAddress);
+        _removePool(stakingAddress);
     }
 
     /// @dev Moves the tokens from one pool to another.
@@ -176,7 +176,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         address _fromPoolStakingAddress,
         address _toPoolStakingAddress,
         uint256 _amount
-    ) public gasPriceIsValid {
+    ) external gasPriceIsValid {
         require(_fromPoolStakingAddress != _toPoolStakingAddress);
         address staker = msg.sender;
         _withdraw(_fromPoolStakingAddress, staker, _amount);
@@ -188,20 +188,15 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     /// on the account of staking address of the pool.
     /// @param _toPoolStakingAddress The staking address of the pool.
     /// @param _amount The amount of the stake.
-    function stake(address _toPoolStakingAddress, uint256 _amount) public gasPriceIsValid {
-        IERC20Minting tokenContract = IERC20Minting(erc20TokenContract());
-        require(address(tokenContract) != address(0));
-        address staker = msg.sender;
-        _stake(_toPoolStakingAddress, staker, _amount);
-        tokenContract.stake(staker, _amount);
-        emit Staked(_toPoolStakingAddress, staker, stakingEpoch(), _amount);
+    function stake(address _toPoolStakingAddress, uint256 _amount) external gasPriceIsValid {
+        _stake(_toPoolStakingAddress, _amount);
     }
 
     /// @dev Moves the tokens from Staking contract address (from the account of
     /// staking address of the pool) to staker address.
     /// @param _fromPoolStakingAddress The staking address of the pool.
     /// @param _amount The amount of the withdrawal.
-    function withdraw(address _fromPoolStakingAddress, uint256 _amount) public gasPriceIsValid {
+    function withdraw(address _fromPoolStakingAddress, uint256 _amount) external gasPriceIsValid {
         IERC20Minting tokenContract = IERC20Minting(erc20TokenContract());
         require(address(tokenContract) != address(0));
         address staker = msg.sender;
@@ -219,13 +214,14 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     /// that the staker wants to set or increase their withdrawal amount.
     /// Negative value means that the staker wants to decrease their
     /// withdrawal amount which was set before.
-    function orderWithdraw(address _fromPoolStakingAddress, int256 _amount) public gasPriceIsValid {
+    function orderWithdraw(address _fromPoolStakingAddress, int256 _amount) external gasPriceIsValid {
         IERC20Minting tokenContract = IERC20Minting(erc20TokenContract());
+        IValidatorSet validatorSetContract = validatorSetContract();
         require(address(tokenContract) != address(0));
 
         require(_fromPoolStakingAddress != address(0));
         require(_amount != 0);
-        require(areStakeAndWithdrawAllowed());
+        require(_isWithdrawAllowed(validatorSetContract.miningByStakingAddress(_fromPoolStakingAddress)));
 
         address staker = msg.sender;
 
@@ -249,6 +245,16 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         uint256 newStakeAmount = stakeAmount(_fromPoolStakingAddress, staker).sub(newOrderedAmount);
         if (staker == _fromPoolStakingAddress) {
             require(newStakeAmount == 0 || newStakeAmount >= getCandidateMinStake());
+
+            address unremovableStakingAddress = validatorSetContract.unremovableValidator();
+
+            if (_amount > 0) {
+                if (newStakeAmount == 0 && _fromPoolStakingAddress != unremovableStakingAddress) {
+                    _addPoolToBeRemoved(_fromPoolStakingAddress);
+                }
+            } else {
+                _addPoolActive(_fromPoolStakingAddress, _fromPoolStakingAddress != unremovableStakingAddress);
+            }
         } else {
             require(newStakeAmount == 0 || newStakeAmount >= getDelegatorMinStake());
         }
@@ -262,23 +268,54 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         }
         _setOrderedWithdrawAmountTotal(_fromPoolStakingAddress, newOrderedAmount);
 
+        _setLikelihood(_fromPoolStakingAddress);
+
         emit WithdrawalOrdered(_fromPoolStakingAddress, staker, stakingEpoch(), _amount);
     }
 
-    function setErc20TokenContract(address _erc20TokenContract) public onlyOwner {
+    function setErc20TokenContract(address _erc20TokenContract) external onlyOwner {
         require(_erc20TokenContract != address(0));
         addressStorage[ERC20_TOKEN_CONTRACT] = _erc20TokenContract;
     }
 
-    function setCandidateMinStake(uint256 _minStake) public onlyOwner {
+    function setCandidateMinStake(uint256 _minStake) external onlyOwner {
         _setCandidateMinStake(_minStake);
     }
 
-    function setDelegatorMinStake(uint256 _minStake) public onlyOwner {
+    function setDelegatorMinStake(uint256 _minStake) external onlyOwner {
         _setDelegatorMinStake(_minStake);
     }
 
     // =============================================== Getters ========================================================
+
+    // Returns the list of current pools (candidates and validators)
+    // (their staking addresses)
+    function getPools() external view returns(address[] memory) {
+        return addressArrayStorage[POOLS];
+    }
+
+    // Returns the list of pools which are inactive or banned
+    // (their staking addresses)
+    function getPoolsInactive() external view returns(address[] memory) {
+        return addressArrayStorage[POOLS_INACTIVE];
+    }
+
+    // Returns the list of pool likelihoods
+    function getPoolsLikelihood() external view returns(uint256[] memory) {
+        return uintArrayStorage[POOLS_LIKELIHOOD];
+    }
+
+    // Returns the list of pools to be elected (candidates and validators)
+    // (their staking addresses)
+    function getPoolsToBeElected() external view returns(address[] memory) {
+        return addressArrayStorage[POOLS_TO_BE_ELECTED];
+    }
+
+    // Returns the list of pools to be removed (candidates and validators)
+    // (their staking addresses)
+    function getPoolsToBeRemoved() external view returns(address[] memory) {
+        return addressArrayStorage[POOLS_TO_BE_REMOVED];
+    }
 
     function areStakeAndWithdrawAllowed() public view returns(bool);
 
@@ -288,18 +325,6 @@ contract StakingBase is OwnedEternalStorage, IStaking {
 
     function erc20TokenContract() public view returns(address) {
         return addressStorage[ERC20_TOKEN_CONTRACT];
-    }
-
-    // Returns the list of current pools (candidates and validators)
-    // (their staking addresses)
-    function getPools() public view returns(address[] memory) {
-        return addressArrayStorage[POOLS];
-    }
-
-    // Returns the list of pools which are inactive or banned
-    // (their staking addresses)
-    function getPoolsInactive() public view returns(address[] memory) {
-        return addressArrayStorage[POOLS_INACTIVE];
     }
 
     function getCandidateMinStake() public view returns(uint256) {
@@ -395,6 +420,20 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         ];
     }
 
+    // Returns the list of the current delegators in the specified pool
+    function poolDelegators(address _poolStakingAddress) public view returns(address[] memory) {
+        return addressArrayStorage[
+            keccak256(abi.encode(POOL_DELEGATORS, _poolStakingAddress))
+        ];
+    }
+
+    // Returns delegator's index in `poolDelegators` array
+    function poolDelegatorIndex(address _poolStakingAddress, address _delegator) public view returns(uint256) {
+        return uintStorage[
+            keccak256(abi.encode(POOL_DELEGATOR_INDEX, _poolStakingAddress, _delegator))
+        ];
+    }
+
     // Returns an index of the pool in the `pools` array
     function poolIndex(address _stakingAddress) public view returns(uint256) {
         return uintStorage[
@@ -409,17 +448,17 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         ];
     }
 
-    // Returns the list of the current delegators in the specified pool
-    function poolDelegators(address _poolStakingAddress) public view returns(address[] memory) {
-        return addressArrayStorage[
-            keccak256(abi.encode(POOL_DELEGATORS, _poolStakingAddress))
+    // Returns an index of the pool in the `poolsToBeElected` array
+    function poolToBeElectedIndex(address _stakingAddress) public view returns(uint256) {
+        return uintStorage[
+            keccak256(abi.encode(POOL_TO_BE_ELECTED_INDEX, _stakingAddress))
         ];
     }
 
-    // Returns delegator's index in `poolDelegators` array
-    function poolDelegatorIndex(address _poolStakingAddress, address _delegator) public view returns(uint256) {
+    // Returns an index of the pool in the `poolsToBeRemoved` array
+    function poolToBeRemovedIndex(address _stakingAddress) public view returns(uint256) {
         return uintStorage[
-            keccak256(abi.encode(POOL_DELEGATOR_INDEX, _poolStakingAddress, _delegator))
+            keccak256(abi.encode(POOL_TO_BE_REMOVED_INDEX, _stakingAddress))
         ];
     }
 
@@ -469,6 +508,9 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     bytes32 internal constant ERC20_TOKEN_CONTRACT = keccak256("erc20TokenContract");
     bytes32 internal constant POOLS = keccak256("pools");
     bytes32 internal constant POOLS_INACTIVE = keccak256("poolsInactive");
+    bytes32 internal constant POOLS_LIKELIHOOD = keccak256("poolsLikelihood");
+    bytes32 internal constant POOLS_TO_BE_ELECTED = keccak256("poolsToBeElected");
+    bytes32 internal constant POOLS_TO_BE_REMOVED = keccak256("poolsToBeRemoved");
     bytes32 internal constant STAKING_EPOCH = keccak256("stakingEpoch");
     bytes32 internal constant VALIDATOR_SET_CONTRACT = keccak256("validatorSetContract");
 
@@ -477,6 +519,8 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     bytes32 internal constant POOL_DELEGATOR_INDEX = "poolDelegatorIndex";
     bytes32 internal constant POOL_INDEX = "poolIndex";
     bytes32 internal constant POOL_INACTIVE_INDEX = "poolInactiveIndex";
+    bytes32 internal constant POOL_TO_BE_ELECTED_INDEX = "poolToBeElectedIndex";
+    bytes32 internal constant POOL_TO_BE_REMOVED_INDEX = "poolToBeRemovedIndex";
     bytes32 internal constant STAKE_AMOUNT = "stakeAmount";
     bytes32 internal constant STAKE_AMOUNT_BY_CURRENT_EPOCH = "stakeAmountByCurrentEpoch";
     bytes32 internal constant STAKE_AMOUNT_TOTAL = "stakeAmountTotal";
@@ -484,7 +528,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     bytes32 internal constant ORDERED_WITHDRAW_AMOUNT_TOTAL = "orderedWithdrawAmountTotal";
 
     // Adds `_stakingAddress` to the array of pools
-    function _addToPools(address _stakingAddress) internal {
+    function _addPoolActive(address _stakingAddress, bool _toBeElected) internal {
         if (!doesPoolExist(_stakingAddress)) {
             address[] storage pools = addressArrayStorage[POOLS];
             _setPoolIndex(_stakingAddress, pools.length);
@@ -492,20 +536,71 @@ contract StakingBase is OwnedEternalStorage, IStaking {
             require(pools.length <= _getMaxCandidates());
             _setIsPoolActive(_stakingAddress, true);
         }
-        _removeFromPoolsInactive(_stakingAddress);
+        _removePoolInactive(_stakingAddress);
+        if (_toBeElected) {
+            _addPoolToBeElected(_stakingAddress);
+        }
     }
 
     // Adds `_stakingAddress` to the array of inactive pools
-    function _addToPoolsInactive(address _stakingAddress) internal {
-        address[] storage poolsInactive = addressArrayStorage[POOLS_INACTIVE];
-        if (poolsInactive.length == 0 || poolsInactive[poolInactiveIndex(_stakingAddress)] != _stakingAddress) {
-            _setPoolInactiveIndex(_stakingAddress, poolsInactive.length);
-            poolsInactive.push(_stakingAddress);
+    function _addPoolInactive(address _stakingAddress) internal {
+        address[] storage pools = addressArrayStorage[POOLS_INACTIVE];
+        if (pools.length == 0 || pools[poolInactiveIndex(_stakingAddress)] != _stakingAddress) {
+            _setPoolInactiveIndex(_stakingAddress, pools.length);
+            pools.push(_stakingAddress);
+        }
+    }
+
+    // Adds `_stakingAddress` to the array of pools to be elected by the `newValidatorSet` function
+    function _addPoolToBeElected(address _stakingAddress) internal {
+        address[] storage pools = addressArrayStorage[POOLS_TO_BE_ELECTED];
+        if (pools.length == 0 || pools[poolToBeElectedIndex(_stakingAddress)] != _stakingAddress) {
+            _setPoolToBeElectedIndex(_stakingAddress, pools.length);
+            pools.push(_stakingAddress);
+            uintArrayStorage[POOLS_LIKELIHOOD].push(0);
+        }
+        _deletePoolToBeRemoved(_stakingAddress);
+    }
+
+    // Adds `_stakingAddress` to the array of pools to be removed by the `newValidatorSet` function
+    function _addPoolToBeRemoved(address _stakingAddress) internal {
+        address[] storage pools = addressArrayStorage[POOLS_TO_BE_REMOVED];
+        if (pools.length == 0 || pools[poolToBeRemovedIndex(_stakingAddress)] != _stakingAddress) {
+            _setPoolToBeRemovedIndex(_stakingAddress, pools.length);
+            pools.push(_stakingAddress);
+        }
+        _deletePoolToBeElected(_stakingAddress);
+    }
+
+    // Removes `_stakingAddress` from the array of pools to be elected
+    function _deletePoolToBeElected(address _stakingAddress) internal {
+        address[] storage pools = addressArrayStorage[POOLS_TO_BE_ELECTED];
+        uint256 indexToDelete = poolToBeElectedIndex(_stakingAddress);
+        if (pools.length > 0 && pools[indexToDelete] == _stakingAddress) {
+            uint256[] storage likelihood = uintArrayStorage[POOLS_LIKELIHOOD];
+            pools[indexToDelete] = pools[pools.length - 1];
+            likelihood[indexToDelete] = likelihood[pools.length - 1];
+            _setPoolToBeElectedIndex(pools[indexToDelete], indexToDelete);
+            _setPoolToBeElectedIndex(_stakingAddress, 0);
+            pools.length--;
+            likelihood.length--;
+        }
+    }
+
+    // Removes `_stakingAddress` from the array of pools to be removed
+    function _deletePoolToBeRemoved(address _stakingAddress) internal {
+        address[] storage pools = addressArrayStorage[POOLS_TO_BE_REMOVED];
+        uint256 indexToDelete = poolToBeRemovedIndex(_stakingAddress);
+        if (pools.length > 0 && pools[indexToDelete] == _stakingAddress) {
+            pools[indexToDelete] = pools[pools.length - 1];
+            _setPoolToBeRemovedIndex(pools[indexToDelete], indexToDelete);
+            pools.length--;
+            _setPoolToBeRemovedIndex(_stakingAddress, 0);
         }
     }
 
     // Removes `_stakingAddress` from the array of pools
-    function _removeFromPools(address _stakingAddress) internal {
+    function _removePool(address _stakingAddress) internal {
         uint256 indexToRemove = poolIndex(_stakingAddress);
         address[] storage pools = addressArrayStorage[POOLS];
         if (pools.length > 0 && pools[indexToRemove] == _stakingAddress) {
@@ -515,19 +610,21 @@ contract StakingBase is OwnedEternalStorage, IStaking {
             _setPoolIndex(_stakingAddress, 0);
             _setIsPoolActive(_stakingAddress, false);
             if (stakeAmountTotal(_stakingAddress) != 0) {
-                _addToPoolsInactive(_stakingAddress);
+                _addPoolInactive(_stakingAddress);
             }
         }
+        _deletePoolToBeElected(_stakingAddress);
+        _deletePoolToBeRemoved(_stakingAddress);
     }
 
     // Removes `_stakingAddress` from the array of inactive pools
-    function _removeFromPoolsInactive(address _stakingAddress) internal {
-        address[] storage poolsInactive = addressArrayStorage[POOLS_INACTIVE];
+    function _removePoolInactive(address _stakingAddress) internal {
+        address[] storage pools = addressArrayStorage[POOLS_INACTIVE];
         uint256 indexToRemove = poolInactiveIndex(_stakingAddress);
-        if (poolsInactive.length > 0 && poolsInactive[indexToRemove] == _stakingAddress) {
-            poolsInactive[indexToRemove] = poolsInactive[poolsInactive.length - 1];
-            _setPoolInactiveIndex(poolsInactive[indexToRemove], indexToRemove);
-            poolsInactive.length--;
+        if (pools.length > 0 && pools[indexToRemove] == _stakingAddress) {
+            pools[indexToRemove] = pools[pools.length - 1];
+            _setPoolInactiveIndex(pools[indexToRemove], indexToRemove);
+            pools.length--;
             _setPoolInactiveIndex(_stakingAddress, 0);
         }
     }
@@ -549,9 +646,14 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         addressStorage[VALIDATOR_SET_CONTRACT] = _validatorSetContract;
         addressStorage[ERC20_TOKEN_CONTRACT] = _erc20TokenContract;
 
+        address unremovableStakingAddress = IValidatorSet(_validatorSetContract).unremovableValidator();
+
         for (uint256 i = 0; i < _initialStakingAddresses.length; i++) {
             require(_initialStakingAddresses[i] != address(0));
-            _addToPools(_initialStakingAddresses[i]);
+            _addPoolActive(_initialStakingAddresses[i], false);
+            if (_initialStakingAddresses[i] != unremovableStakingAddress) {
+                _addPoolToBeRemoved(_initialStakingAddresses[i]);
+            }
         }
 
         _setDelegatorMinStake(_delegatorMinStake);
@@ -597,6 +699,10 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         boolStorage[keccak256(abi.encode(IS_POOL_ACTIVE, _stakingAddress))] = _isPoolActive;
     }
 
+    function _setPoolDelegatorIndex(address _poolStakingAddress, address _delegator, uint256 _index) internal {
+        uintStorage[keccak256(abi.encode(POOL_DELEGATOR_INDEX, _poolStakingAddress, _delegator))] = _index;
+    }
+
     function _setPoolIndex(address _stakingAddress, uint256 _index) internal {
         uintStorage[
             keccak256(abi.encode(POOL_INDEX, _stakingAddress))
@@ -609,8 +715,16 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         ] = _index;
     }
 
-    function _setPoolDelegatorIndex(address _poolStakingAddress, address _delegator, uint256 _index) internal {
-        uintStorage[keccak256(abi.encode(POOL_DELEGATOR_INDEX, _poolStakingAddress, _delegator))] = _index;
+    function _setPoolToBeElectedIndex(address _stakingAddress, uint256 _index) internal {
+        uintStorage[
+            keccak256(abi.encode(POOL_TO_BE_ELECTED_INDEX, _stakingAddress))
+        ] = _index;
+    }
+
+    function _setPoolToBeRemovedIndex(address _stakingAddress, uint256 _index) internal {
+        uintStorage[
+            keccak256(abi.encode(POOL_TO_BE_REMOVED_INDEX, _stakingAddress))
+        ] = _index;
     }
 
     // Add `_delegator` to the array of pool's delegators
@@ -634,6 +748,15 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         _setPoolDelegatorIndex(_poolStakingAddress, delegators[indexToRemove], indexToRemove);
         delegators.length--;
         _setPoolDelegatorIndex(_poolStakingAddress, _delegator, 0);
+    }
+
+    function _setLikelihood(address _poolStakingAddress) internal {
+        (bool isToBeElected, uint256 index) = _isPoolToBeElected(_poolStakingAddress);
+
+        if (!isToBeElected) return;
+
+        uintArrayStorage[POOLS_LIKELIHOOD][index] =
+            stakeAmountTotalMinusOrderedWithdraw(_poolStakingAddress) * 100 / STAKE_UNIT;
     }
 
     function _setOrderedWithdrawAmount(address _poolStakingAddress, address _staker, uint256 _amount) internal {
@@ -678,6 +801,15 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         uintStorage[CANDIDATE_MIN_STAKE] = _minStake * STAKE_UNIT;
     }
 
+    function _stake(address _toPoolStakingAddress, uint256 _amount) internal {
+        IERC20Minting tokenContract = IERC20Minting(erc20TokenContract());
+        require(address(tokenContract) != address(0));
+        address staker = msg.sender;
+        _stake(_toPoolStakingAddress, staker, _amount);
+        tokenContract.stake(staker, _amount);
+        emit Staked(_toPoolStakingAddress, staker, stakingEpoch(), _amount);
+    }
+
     function _stake(address _poolStakingAddress, address _staker, uint256 _amount) internal {
         IValidatorSet validatorSet = validatorSetContract();
         address poolMiningAddress = validatorSet.miningByStakingAddress(_poolStakingAddress);
@@ -696,7 +828,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
 
             // The delegator cannot stake into the pool of the candidate which hasn't self-staked.
             // Also, that candidate shouldn't want to withdraw all his funds.
-            require(stakeAmountMinusOrderedWithdraw(_poolStakingAddress, _poolStakingAddress) > 0);
+            require(stakeAmountMinusOrderedWithdraw(_poolStakingAddress, _poolStakingAddress) != 0);
         }
         _setStakeAmount(_poolStakingAddress, _staker, newStakeAmount);
         _setStakeAmountByCurrentEpoch(
@@ -708,11 +840,13 @@ contract StakingBase is OwnedEternalStorage, IStaking {
 
         if (_staker == _poolStakingAddress) { // `staker` makes a stake for himself and becomes a candidate
             // Add `_poolStakingAddress` to the array of pools
-            _addToPools(_poolStakingAddress);
+            _addPoolActive(_poolStakingAddress, _poolStakingAddress != validatorSet.unremovableValidator());
         } else if (newStakeAmount == _amount) { // if the stake is first
             // Add `_staker` to the array of pool's delegators
             _addPoolDelegator(_poolStakingAddress, _staker);
         }
+
+        _setLikelihood(_poolStakingAddress);
     }
 
     function _withdraw(address _poolStakingAddress, address _staker, uint256 _amount) internal {
@@ -726,6 +860,9 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         uint256 alreadyOrderedAmount = orderedWithdrawAmount(_poolStakingAddress, _staker);
         uint256 resultingStakeAmount = currentStakeAmount.sub(alreadyOrderedAmount).sub(_amount);
 
+        IValidatorSet validatorSet = validatorSetContract();
+        address unremovableStakingAddress = validatorSet.unremovableValidator();
+
         require(_withdraw(
             _poolStakingAddress,
             _staker,
@@ -733,8 +870,20 @@ contract StakingBase is OwnedEternalStorage, IStaking {
             currentStakeAmount,
             resultingStakeAmount,
             _poolStakingAddress == _staker ? getCandidateMinStake() : getDelegatorMinStake(),
-            validatorSetContract().unremovableValidator()
+            unremovableStakingAddress
         ));
+
+        if (
+            _poolStakingAddress == _staker &&
+            resultingStakeAmount == 0 &&
+            _poolStakingAddress != unremovableStakingAddress
+        ) {
+            if (validatorSet.isValidator(validatorSet.miningByStakingAddress(_poolStakingAddress))) {
+                _addPoolToBeRemoved(_poolStakingAddress);
+            } else {
+                _removePool(_poolStakingAddress);
+            }
+        }
     }
 
     function _withdraw(
@@ -767,7 +916,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
             if (_staker == _poolStakingAddress) {
                 if (_poolStakingAddress != _unremovableStakingAddress) {
                     // Remove `_poolStakingAddress` from the array of pools
-                    _removeFromPools(_poolStakingAddress);
+                    _removePool(_poolStakingAddress);
                 }
             } else {
                 // Remove `_staker` from the array of pool's delegators
@@ -775,9 +924,11 @@ contract StakingBase is OwnedEternalStorage, IStaking {
             }
 
             if (stakeAmountTotal(_poolStakingAddress) == 0) {
-                _removeFromPoolsInactive(_poolStakingAddress);
+                _removePoolInactive(_poolStakingAddress);
             }
         }
+
+        _setLikelihood(_poolStakingAddress);
 
         return true;
     }
@@ -788,6 +939,17 @@ contract StakingBase is OwnedEternalStorage, IStaking {
 
     function _getMaxCandidates() internal pure returns(uint256) {
         return MAX_CANDIDATES;
+    }
+
+    function _isPoolToBeElected(address _stakingAddress) internal view returns(bool, uint256) {
+        address[] storage pools = addressArrayStorage[POOLS_TO_BE_ELECTED];
+        if (pools.length != 0) {
+            uint256 index = poolToBeElectedIndex(_stakingAddress);
+            if (pools[index] == _stakingAddress) {
+                return (true, index);
+            }
+        }
+        return (false, 0);
     }
 
     function _isWithdrawAllowed(address _miningAddress) internal view returns(bool) {

@@ -366,85 +366,47 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
     function _newValidatorSet() internal {
         IStaking staking = IStaking(stakingContract());
-        address[] memory pools = staking.getPools();
-        address[] memory poolsEmpty = new address[](pools.length);
-        address[] memory poolsNonEmpty = new address[](pools.length);
-        uint256 poolsEmptyLength = 0;
-        uint256 poolsNonEmptyLength = 0;
-        uint256 i;
-
+        address[] memory poolsToBeElected = staking.getPoolsToBeElected();
+        address[] memory poolsToBeRemoved = staking.getPoolsToBeRemoved();
         address unremovableStakingAddress = unremovableValidator();
 
-        // Split the pools on empty and non-empty
-        for (i = 0; i < pools.length; i++) {
-            if (pools[i] == unremovableStakingAddress) {
-                continue;
-            }
-            if (staking.stakeAmountMinusOrderedWithdraw(pools[i], pools[i]) != 0) {
-                poolsNonEmpty[poolsNonEmptyLength++] = pools[i];
-            } else {
-                poolsEmpty[poolsEmptyLength++] = pools[i];
-            }
-        }
-
         // Choose new validators
-        if (poolsNonEmptyLength < MAX_VALIDATORS) {
-            if (poolsNonEmptyLength > 0) {
-                _setPendingValidators(
-                    poolsNonEmpty,
-                    poolsNonEmptyLength,
-                    poolsEmpty,
-                    poolsEmptyLength,
-                    unremovableStakingAddress
-                );
-            }
-        } else if (poolsNonEmptyLength == MAX_VALIDATORS && unremovableStakingAddress == address(0)) {
-            _setPendingValidators(
-                poolsNonEmpty,
-                poolsNonEmptyLength,
-                poolsEmpty,
-                poolsEmptyLength,
-                address(0)
-            );
-        } else {
-            uint256 randomNumber = uint256(keccak256(abi.encode(IRandom(randomContract()).getCurrentSeed())));
+        if (
+            poolsToBeElected.length >= MAX_VALIDATORS &&
+            (poolsToBeElected.length != MAX_VALIDATORS || unremovableStakingAddress != address(0))
+        ) {
+            uint256 randomNumber = IRandom(randomContract()).getCurrentSeed();
+            uint256 i;
 
-            uint256[] memory likelihood = new uint256[](poolsNonEmptyLength);
-            uint256 likelihoodSum = 0;
-
-            uint256 stakeUnit = staking.STAKE_UNIT();
-
-            for (i = 0; i < poolsNonEmptyLength; i++) {
-                likelihood[i] = staking.stakeAmountTotalMinusOrderedWithdraw(poolsNonEmpty[i]) * 100 / stakeUnit;
-                likelihoodSum += likelihood[i];
-            }
-
+            uint256[] memory likelihood = staking.getPoolsLikelihood();
             address[] memory newValidators = new address[](
                 unremovableStakingAddress == address(0) ? MAX_VALIDATORS : MAX_VALIDATORS - 1
             );
 
+            uint256 likelihoodSum = 0;
+            for (i = 0; i < poolsToBeElected.length; i++) {
+                likelihoodSum += likelihood[i];
+            }
+
+            uint256 poolsToBeElectedLength = poolsToBeElected.length;
             for (i = 0; i < newValidators.length; i++) {
+                randomNumber = uint256(keccak256(abi.encode(randomNumber)));
                 uint256 randomPoolIndex = _getRandomIndex(
                     likelihood,
                     likelihoodSum,
                     randomNumber
                 );
-                newValidators[i] = poolsNonEmpty[randomPoolIndex];
+                newValidators[i] = poolsToBeElected[randomPoolIndex];
                 likelihoodSum -= likelihood[randomPoolIndex];
-                poolsNonEmptyLength--;
-                poolsNonEmpty[randomPoolIndex] = poolsNonEmpty[poolsNonEmptyLength];
-                likelihood[randomPoolIndex] = likelihood[poolsNonEmptyLength];
-                randomNumber = uint256(keccak256(abi.encode(randomNumber)));
+                poolsToBeElectedLength--;
+                poolsToBeElected[randomPoolIndex] = poolsToBeElected[poolsToBeElectedLength];
+                likelihood[randomPoolIndex] = likelihood[poolsToBeElectedLength];
             }
 
-            _setPendingValidators(
-                newValidators,
-                newValidators.length,
-                poolsEmpty,
-                poolsEmptyLength,
-                unremovableStakingAddress
-            );
+            poolsToBeElected = newValidators;
         }
+
+        _setPendingValidators(staking, poolsToBeElected, poolsToBeRemoved, unremovableStakingAddress);
 
         // From this moment `getPendingValidators()` will return the new validator set
 
@@ -508,12 +470,13 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     }
 
     function _setPendingValidators(
+        IStaking _stakingContract,
         address[] memory _stakingAddresses,
-        uint256 _stakingAddressesLength,
-        address[] memory _poolsEmpty,
-        uint256 _poolsEmptyLength,
+        address[] memory _poolsToBeRemoved,
         address _unremovableStakingAddress
     ) internal {
+        if (_stakingAddresses.length == 0) return;
+
         uint256 i;
 
         delete addressArrayStorage[PENDING_VALIDATORS];
@@ -522,13 +485,12 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
             addressArrayStorage[PENDING_VALIDATORS].push(miningByStakingAddress(_unremovableStakingAddress));
         }
 
-        for (i = 0; i < _stakingAddressesLength; i++) {
+        for (i = 0; i < _stakingAddresses.length; i++) {
             addressArrayStorage[PENDING_VALIDATORS].push(miningByStakingAddress(_stakingAddresses[i]));
         }
 
-        IStaking staking = IStaking(stakingContract());
-        for (i = 0; i < _poolsEmptyLength; i++) {
-            staking.removeFromPools(_poolsEmpty[i]);
+        for (i = 0; i < _poolsToBeRemoved.length; i++) {
+            _stakingContract.removePool(_poolsToBeRemoved[i]);
         }
     }
 
