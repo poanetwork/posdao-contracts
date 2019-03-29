@@ -15,7 +15,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     // ============================================== Constants =======================================================
 
     // These values must be set before deploy
-    uint256 public constant MAX_CANDIDATES = 2000;
+    uint256 public constant MAX_CANDIDATES = 1900;
     uint256 public constant STAKE_UNIT = 1 ether;
 
     // ================================================ Events ========================================================
@@ -301,8 +301,8 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     }
 
     // Returns the list of pool likelihoods
-    function getPoolsLikelihood() external view returns(uint256[] memory) {
-        return uintArrayStorage[POOLS_LIKELIHOOD];
+    function getPoolsLikelihood() external view returns(int256[] memory, int256) {
+        return (intArrayStorage[POOLS_LIKELIHOOD], intStorage[POOLS_LIKELIHOOD_SUM]);
     }
 
     // Returns the list of pools to be elected (candidates and validators)
@@ -509,6 +509,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     bytes32 internal constant POOLS = keccak256("pools");
     bytes32 internal constant POOLS_INACTIVE = keccak256("poolsInactive");
     bytes32 internal constant POOLS_LIKELIHOOD = keccak256("poolsLikelihood");
+    bytes32 internal constant POOLS_LIKELIHOOD_SUM = keccak256("poolsLikelihoodSum");
     bytes32 internal constant POOLS_TO_BE_ELECTED = keccak256("poolsToBeElected");
     bytes32 internal constant POOLS_TO_BE_REMOVED = keccak256("poolsToBeRemoved");
     bytes32 internal constant STAKING_EPOCH = keccak256("stakingEpoch");
@@ -557,7 +558,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         if (pools.length == 0 || pools[poolToBeElectedIndex(_stakingAddress)] != _stakingAddress) {
             _setPoolToBeElectedIndex(_stakingAddress, pools.length);
             pools.push(_stakingAddress);
-            uintArrayStorage[POOLS_LIKELIHOOD].push(0);
+            intArrayStorage[POOLS_LIKELIHOOD].push(0);
         }
         _deletePoolToBeRemoved(_stakingAddress);
     }
@@ -577,7 +578,8 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         address[] storage pools = addressArrayStorage[POOLS_TO_BE_ELECTED];
         uint256 indexToDelete = poolToBeElectedIndex(_stakingAddress);
         if (pools.length > 0 && pools[indexToDelete] == _stakingAddress) {
-            uint256[] storage likelihood = uintArrayStorage[POOLS_LIKELIHOOD];
+            int256[] storage likelihood = intArrayStorage[POOLS_LIKELIHOOD];
+            intStorage[POOLS_LIKELIHOOD_SUM] -= likelihood[indexToDelete];
             pools[indexToDelete] = pools[pools.length - 1];
             likelihood[indexToDelete] = likelihood[pools.length - 1];
             _setPoolToBeElectedIndex(pools[indexToDelete], indexToDelete);
@@ -755,8 +757,11 @@ contract StakingBase is OwnedEternalStorage, IStaking {
 
         if (!isToBeElected) return;
 
-        uintArrayStorage[POOLS_LIKELIHOOD][index] =
-            stakeAmountTotalMinusOrderedWithdraw(_poolStakingAddress) * 100 / STAKE_UNIT;
+        int256 oldValue = intArrayStorage[POOLS_LIKELIHOOD][index];
+        int256 newValue = int256(stakeAmountTotalMinusOrderedWithdraw(_poolStakingAddress) * 100 / STAKE_UNIT);
+
+        intArrayStorage[POOLS_LIKELIHOOD][index] = newValue;
+        intStorage[POOLS_LIKELIHOOD_SUM] += newValue - oldValue;
     }
 
     function _setOrderedWithdrawAmount(address _poolStakingAddress, address _staker, uint256 _amount) internal {
