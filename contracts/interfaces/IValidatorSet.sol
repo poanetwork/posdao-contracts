@@ -10,7 +10,7 @@ interface IValidatorSet {
         address[] calldata,
         bool
     ) external;
-    function newValidatorSet() external returns(bool);
+    function newValidatorSet() external returns(bool, uint256);
     function setStakingAddress(address, address) external;
     function blockRewardContract() external view returns(address);
     function changeRequestCount() external view returns(uint256);

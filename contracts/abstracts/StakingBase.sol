@@ -15,7 +15,8 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     // ============================================== Constants =======================================================
 
     // These values must be set before deploy
-    uint256 public constant MAX_CANDIDATES = 1900;
+    uint256 public constant MAX_CANDIDATES = 1500;
+    uint256 public constant MAX_DELEGATORS_PER_POOL = 100;
     uint256 public constant STAKE_UNIT = 1 ether;
 
     // ================================================ Events ========================================================
@@ -104,7 +105,6 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         uint256 delegatorMinStake = getDelegatorMinStake();
         IERC20Minting tokenContract = IERC20Minting(erc20TokenContract());
         IValidatorSet validatorSetContract = validatorSetContract();
-        address unremovableStakingAddress = validatorSetContract.unremovableValidator();
 
         address[] memory validators = validatorSetContract.getPreviousValidators();
 
@@ -116,8 +116,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
                 poolStakingAddress,
                 poolStakingAddress,
                 candidateMinStake,
-                tokenContract,
-                unremovableStakingAddress
+                tokenContract
             );
 
             // Withdraw delegators' stakes
@@ -130,8 +129,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
                     poolStakingAddress,
                     delegators[d],
                     delegatorMinStake,
-                    tokenContract,
-                    unremovableStakingAddress
+                    tokenContract
                 );
             }
 
@@ -257,6 +255,14 @@ contract StakingBase is OwnedEternalStorage, IStaking {
             }
         } else {
             require(newStakeAmount == 0 || newStakeAmount >= getDelegatorMinStake());
+
+            if (_amount > 0) {
+                if (newStakeAmount == 0) {
+                    _removePoolDelegator(_fromPoolStakingAddress, staker);
+                }
+            } else {
+                _addPoolDelegator(_fromPoolStakingAddress, staker);
+            }
         }
 
         // Set total ordered amount for this pool
@@ -319,10 +325,6 @@ contract StakingBase is OwnedEternalStorage, IStaking {
 
     function areStakeAndWithdrawAllowed() public view returns(bool);
 
-    function doesPoolExist(address _stakingAddress) public view returns(bool) {
-        return isPoolActive(_stakingAddress);
-    }
-
     function erc20TokenContract() public view returns(address) {
         return addressStorage[ERC20_TOKEN_CONTRACT];
     }
@@ -337,7 +339,8 @@ contract StakingBase is OwnedEternalStorage, IStaking {
 
     // Returns the flag whether the address is in the `pools` array
     function isPoolActive(address _stakingAddress) public view returns(bool) {
-        return boolStorage[keccak256(abi.encode(IS_POOL_ACTIVE, _stakingAddress))];
+        address[] storage pools = addressArrayStorage[POOLS];
+        return pools.length != 0 && pools[poolIndex(_stakingAddress)] == _stakingAddress;
     }
 
     function maxWithdrawAllowed(address _poolStakingAddress, address _staker) public view returns(uint256) {
@@ -348,16 +351,18 @@ contract StakingBase is OwnedEternalStorage, IStaking {
             return 0;
         }
 
+        uint256 canWithdraw = stakeAmountMinusOrderedWithdraw(_poolStakingAddress, _staker);
+
         if (!validatorSetContract.isValidator(miningAddress)) {
-            // The whole amount can be withdrawn if the pool is not a validator
-            return stakeAmount(_poolStakingAddress, _staker);
+            // The pool is not an active validator, so the staker can
+            // withdraw staked amount minus already ordered amount
+            return canWithdraw;
         }
 
         // The pool is an active validator, so the staker can
         // withdraw staked amount minus already ordered amount
         // but no more than amount staked during the current
         // staking epoch
-        uint256 canWithdraw = stakeAmountMinusOrderedWithdraw(_poolStakingAddress, _staker);
         uint256 stakedDuringEpoch = stakeAmountByCurrentEpoch(_poolStakingAddress, _staker);
 
         if (canWithdraw > stakedDuringEpoch) {
@@ -431,6 +436,13 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     function poolDelegatorIndex(address _poolStakingAddress, address _delegator) public view returns(uint256) {
         return uintStorage[
             keccak256(abi.encode(POOL_DELEGATOR_INDEX, _poolStakingAddress, _delegator))
+        ];
+    }
+
+    // Returns delegator's index in `poolDelegatorsInactive` array
+    function poolDelegatorInactiveIndex(address _poolStakingAddress, address _delegator) public view returns(uint256) {
+        return uintStorage[
+            keccak256(abi.encode(POOL_DELEGATOR_INACTIVE_INDEX, _poolStakingAddress, _delegator))
         ];
     }
 
@@ -515,9 +527,10 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     bytes32 internal constant STAKING_EPOCH = keccak256("stakingEpoch");
     bytes32 internal constant VALIDATOR_SET_CONTRACT = keccak256("validatorSetContract");
 
-    bytes32 internal constant IS_POOL_ACTIVE = "isPoolActive";
     bytes32 internal constant POOL_DELEGATORS = "poolDelegators";
+    bytes32 internal constant POOL_DELEGATORS_INACTIVE = "poolDelegatorsInactive";
     bytes32 internal constant POOL_DELEGATOR_INDEX = "poolDelegatorIndex";
+    bytes32 internal constant POOL_DELEGATOR_INACTIVE_INDEX = "poolDelegatorInactiveIndex";
     bytes32 internal constant POOL_INDEX = "poolIndex";
     bytes32 internal constant POOL_INACTIVE_INDEX = "poolInactiveIndex";
     bytes32 internal constant POOL_TO_BE_ELECTED_INDEX = "poolToBeElectedIndex";
@@ -530,12 +543,11 @@ contract StakingBase is OwnedEternalStorage, IStaking {
 
     // Adds `_stakingAddress` to the array of pools
     function _addPoolActive(address _stakingAddress, bool _toBeElected) internal {
-        if (!doesPoolExist(_stakingAddress)) {
-            address[] storage pools = addressArrayStorage[POOLS];
+        address[] storage pools = addressArrayStorage[POOLS];
+        if (!isPoolActive(_stakingAddress)) {
             _setPoolIndex(_stakingAddress, pools.length);
             pools.push(_stakingAddress);
             require(pools.length <= _getMaxCandidates());
-            _setIsPoolActive(_stakingAddress, true);
         }
         _removePoolInactive(_stakingAddress);
         if (_toBeElected) {
@@ -596,8 +608,8 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         if (pools.length > 0 && pools[indexToDelete] == _stakingAddress) {
             pools[indexToDelete] = pools[pools.length - 1];
             _setPoolToBeRemovedIndex(pools[indexToDelete], indexToDelete);
-            pools.length--;
             _setPoolToBeRemovedIndex(_stakingAddress, 0);
+            pools.length--;
         }
     }
 
@@ -608,12 +620,13 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         if (pools.length > 0 && pools[indexToRemove] == _stakingAddress) {
             pools[indexToRemove] = pools[pools.length - 1];
             _setPoolIndex(pools[indexToRemove], indexToRemove);
-            pools.length--;
             _setPoolIndex(_stakingAddress, 0);
-            _setIsPoolActive(_stakingAddress, false);
-            if (stakeAmountTotal(_stakingAddress) != 0) {
-                _addPoolInactive(_stakingAddress);
-            }
+            pools.length--;
+        }
+        if (stakeAmountTotal(_stakingAddress) != 0) {
+            _addPoolInactive(_stakingAddress);
+        } else {
+            _removePoolInactive(_stakingAddress);
         }
         _deletePoolToBeElected(_stakingAddress);
         _deletePoolToBeRemoved(_stakingAddress);
@@ -626,8 +639,8 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         if (pools.length > 0 && pools[indexToRemove] == _stakingAddress) {
             pools[indexToRemove] = pools[pools.length - 1];
             _setPoolInactiveIndex(pools[indexToRemove], indexToRemove);
-            pools.length--;
             _setPoolInactiveIndex(_stakingAddress, 0);
+            pools.length--;
         }
     }
 
@@ -666,8 +679,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         address _poolStakingAddress,
         address _staker,
         uint256 _minAllowedStake,
-        IERC20Minting _tokenContract,
-        address _unremovableStakingAddress
+        IERC20Minting _tokenContract
     ) internal {
         uint256 orderedAmount = orderedWithdrawAmount(_poolStakingAddress, _staker);
 
@@ -684,8 +696,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
                     orderedAmount,
                     currentStakeAmount,
                     currentStakeAmount - orderedAmount,
-                    _minAllowedStake,
-                    _unremovableStakingAddress
+                    _minAllowedStake
                 )
             ) {
                 _tokenContract.withdraw(_staker, orderedAmount);
@@ -697,12 +708,12 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         _setStakeAmountByCurrentEpoch(_poolStakingAddress, _staker, 0);
     }
 
-    function _setIsPoolActive(address _stakingAddress, bool _isPoolActive) internal {
-        boolStorage[keccak256(abi.encode(IS_POOL_ACTIVE, _stakingAddress))] = _isPoolActive;
-    }
-
     function _setPoolDelegatorIndex(address _poolStakingAddress, address _delegator, uint256 _index) internal {
         uintStorage[keccak256(abi.encode(POOL_DELEGATOR_INDEX, _poolStakingAddress, _delegator))] = _index;
+    }
+
+    function _setPoolDelegatorInactiveIndex(address _poolStakingAddress, address _delegator, uint256 _index) internal {
+        uintStorage[keccak256(abi.encode(POOL_DELEGATOR_INACTIVE_INDEX, _poolStakingAddress, _delegator))] = _index;
     }
 
     function _setPoolIndex(address _stakingAddress, uint256 _index) internal {
@@ -734,8 +745,26 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         address[] storage delegators = addressArrayStorage[
             keccak256(abi.encode(POOL_DELEGATORS, _poolStakingAddress))
         ];
-        _setPoolDelegatorIndex(_poolStakingAddress, _delegator, delegators.length);
-        delegators.push(_delegator);
+        if (delegators.length == 0 || delegators[poolDelegatorIndex(_poolStakingAddress, _delegator)] != _delegator) {
+            _setPoolDelegatorIndex(_poolStakingAddress, _delegator, delegators.length);
+            delegators.push(_delegator);
+            require(delegators.length <= MAX_DELEGATORS_PER_POOL);
+        }
+        _removePoolDelegatorInactive(_poolStakingAddress, _delegator);
+    }
+
+    // Add `_delegator` to the array of pool's inactive delegators
+    function _addPoolDelegatorInactive(address _poolStakingAddress, address _delegator) internal {
+        address[] storage delegators = addressArrayStorage[
+            keccak256(abi.encode(POOL_DELEGATORS_INACTIVE, _poolStakingAddress))
+        ];
+        if (
+            delegators.length == 0 ||
+            delegators[poolDelegatorInactiveIndex(_poolStakingAddress, _delegator)] != _delegator
+        ) {
+            _setPoolDelegatorInactiveIndex(_poolStakingAddress, _delegator, delegators.length);
+            delegators.push(_delegator);
+        }
     }
 
     // Remove `_delegator` from the array of pool's delegators
@@ -743,13 +772,32 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         address[] storage delegators = addressArrayStorage[
             keccak256(abi.encode(POOL_DELEGATORS, _poolStakingAddress))
         ];
-        if (delegators.length == 0) return;
         uint256 indexToRemove = poolDelegatorIndex(_poolStakingAddress, _delegator);
-        if (delegators[indexToRemove] != _delegator) return;
-        delegators[indexToRemove] = delegators[delegators.length - 1];
-        _setPoolDelegatorIndex(_poolStakingAddress, delegators[indexToRemove], indexToRemove);
-        delegators.length--;
-        _setPoolDelegatorIndex(_poolStakingAddress, _delegator, 0);
+        if (delegators.length != 0 && delegators[indexToRemove] == _delegator) {
+            delegators[indexToRemove] = delegators[delegators.length - 1];
+            _setPoolDelegatorIndex(_poolStakingAddress, delegators[indexToRemove], indexToRemove);
+            _setPoolDelegatorIndex(_poolStakingAddress, _delegator, 0);
+            delegators.length--;
+        }
+        if (stakeAmount(_poolStakingAddress, _delegator) != 0) {
+            _addPoolDelegatorInactive(_poolStakingAddress, _delegator);
+        } else {
+            _removePoolDelegatorInactive(_poolStakingAddress, _delegator);
+        }
+    }
+
+    // Remove `_delegator` from the array of pool's inactive delegators
+    function _removePoolDelegatorInactive(address _poolStakingAddress, address _delegator) internal {
+        address[] storage delegators = addressArrayStorage[
+            keccak256(abi.encode(POOL_DELEGATORS_INACTIVE, _poolStakingAddress))
+        ];
+        uint256 indexToRemove = poolDelegatorInactiveIndex(_poolStakingAddress, _delegator);
+        if (delegators.length != 0 && delegators[indexToRemove] == _delegator) {
+            delegators[indexToRemove] = delegators[delegators.length - 1];
+            _setPoolDelegatorInactiveIndex(_poolStakingAddress, delegators[indexToRemove], indexToRemove);
+            _setPoolDelegatorInactiveIndex(_poolStakingAddress, _delegator, 0);
+            delegators.length--;
+        }
     }
 
     function _setLikelihood(address _poolStakingAddress) internal {
@@ -846,7 +894,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         if (_staker == _poolStakingAddress) { // `staker` makes a stake for himself and becomes a candidate
             // Add `_poolStakingAddress` to the array of pools
             _addPoolActive(_poolStakingAddress, _poolStakingAddress != validatorSet.unremovableValidator());
-        } else if (newStakeAmount == _amount) { // if the stake is first
+        } else {
             // Add `_staker` to the array of pool's delegators
             _addPoolDelegator(_poolStakingAddress, _staker);
         }
@@ -865,28 +913,29 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         uint256 alreadyOrderedAmount = orderedWithdrawAmount(_poolStakingAddress, _staker);
         uint256 resultingStakeAmount = currentStakeAmount.sub(alreadyOrderedAmount).sub(_amount);
 
-        IValidatorSet validatorSet = validatorSetContract();
-        address unremovableStakingAddress = validatorSet.unremovableValidator();
-
         require(_withdraw(
             _poolStakingAddress,
             _staker,
             _amount,
             currentStakeAmount,
             resultingStakeAmount,
-            _poolStakingAddress == _staker ? getCandidateMinStake() : getDelegatorMinStake(),
-            unremovableStakingAddress
+            _poolStakingAddress == _staker ? getCandidateMinStake() : getDelegatorMinStake()
         ));
 
-        if (
-            _poolStakingAddress == _staker &&
-            resultingStakeAmount == 0 &&
-            _poolStakingAddress != unremovableStakingAddress
-        ) {
-            if (validatorSet.isValidator(validatorSet.miningByStakingAddress(_poolStakingAddress))) {
-                _addPoolToBeRemoved(_poolStakingAddress);
+        if (resultingStakeAmount == 0) {
+            if (_staker == _poolStakingAddress) {
+                IValidatorSet validatorSet = validatorSetContract();
+                address unremovableStakingAddress = validatorSet.unremovableValidator();
+
+                if (_poolStakingAddress != unremovableStakingAddress) {
+                    if (validatorSet.isValidator(validatorSet.miningByStakingAddress(_poolStakingAddress))) {
+                        _addPoolToBeRemoved(_poolStakingAddress);
+                    } else {
+                        _removePool(_poolStakingAddress);
+                    }
+                }
             } else {
-                _removePool(_poolStakingAddress);
+                _removePoolDelegator(_poolStakingAddress, _staker);
             }
         }
     }
@@ -897,8 +946,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         uint256 _withdrawalAmount,
         uint256 _currentStakeAmount,
         uint256 _resultingStakeAmount,
-        uint256 _minAllowedStake,
-        address _unremovableStakingAddress
+        uint256 _minAllowedStake
     ) internal returns(bool) {
         // The amount to be withdrawn must be the whole staked amount or
         // must not exceed the diff between the entire amount and MIN_STAKE
@@ -916,22 +964,6 @@ contract StakingBase is OwnedEternalStorage, IStaking {
             amountByEpoch >= _withdrawalAmount ? amountByEpoch - _withdrawalAmount : 0
         );
         _setStakeAmountTotal(_poolStakingAddress, stakeAmountTotal(_poolStakingAddress).sub(_withdrawalAmount));
-
-        if (newStakeAmount == 0) { // the whole amount has been withdrawn
-            if (_staker == _poolStakingAddress) {
-                if (_poolStakingAddress != _unremovableStakingAddress) {
-                    // Remove `_poolStakingAddress` from the array of pools
-                    _removePool(_poolStakingAddress);
-                }
-            } else {
-                // Remove `_staker` from the array of pool's delegators
-                _removePoolDelegator(_poolStakingAddress, _staker);
-            }
-
-            if (stakeAmountTotal(_poolStakingAddress) == 0) {
-                _removePoolInactive(_poolStakingAddress);
-            }
-        }
 
         _setLikelihood(_poolStakingAddress);
 

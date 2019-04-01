@@ -364,7 +364,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         uintStorage[CHANGE_REQUEST_COUNT]++;
     }
 
-    function _newValidatorSet() internal {
+    function _newValidatorSet() internal returns(uint256) {
         IStaking staking = IStaking(stakingContract());
         address[] memory poolsToBeElected = staking.getPoolsToBeElected();
         address[] memory poolsToBeRemoved = staking.getPoolsToBeRemoved();
@@ -406,6 +406,8 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
         staking.incrementStakingEpoch();
         _setValidatorSetApplyBlock(0);
+
+        return poolsToBeElected.length;
     }
 
     function _removeMaliciousValidator(address _miningAddress) internal returns(bool) {

@@ -32,13 +32,13 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
         _enqueuePendingValidators(true);
     }
 
-    function newValidatorSet() external onlyBlockRewardContract returns(bool) {
+    function newValidatorSet() external onlyBlockRewardContract returns(bool, uint256) {
         uint256 currentBlock = _getCurrentBlockNumber();
         IStakingAuRa stakingContract = IStakingAuRa(stakingContract());
-        if (currentBlock != stakingContract.stakingEpochEndBlock()) return false;
-        super._newValidatorSet();
+        if (currentBlock != stakingContract.stakingEpochEndBlock()) return (false, 0);
+        uint256 poolsToBeElectedLength = super._newValidatorSet();
         stakingContract.setStakingEpochStartBlock(currentBlock + 1);
-        return true;
+        return (true, poolsToBeElectedLength);
     }
 
     function removeMaliciousValidator(address _miningAddress) external onlyRandomContract {

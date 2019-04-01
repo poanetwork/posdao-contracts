@@ -94,9 +94,9 @@ contract('StakingAuRa', async accounts => {
       await validatorSetAuRa.setCurrentBlockNumber(2).should.be.fulfilled;
     });
     it('should create a new pool', async () => {
-      false.should.be.equal(await stakingAuRa.doesPoolExist.call(candidateStakingAddress));
+      false.should.be.equal(await stakingAuRa.isPoolActive.call(candidateStakingAddress));
       await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.fulfilled;
-      true.should.be.equal(await stakingAuRa.doesPoolExist.call(candidateStakingAddress));
+      true.should.be.equal(await stakingAuRa.isPoolActive.call(candidateStakingAddress));
     });
     it('should fail if mining address is 0', async () => {
       await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), '0x0000000000000000000000000000000000000000', {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
@@ -138,14 +138,14 @@ contract('StakingAuRa', async accounts => {
 
       // Try to add a new pool
       await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
-      false.should.be.equal(await stakingAuRa.doesPoolExist.call(candidateStakingAddress));
+      false.should.be.equal(await stakingAuRa.isPoolActive.call(candidateStakingAddress));
 
       // Pass ERC20 contract address to ValidatorSet contract
       await stakingAuRa.setErc20TokenContract(erc20Token.address, {from: owner}).should.be.fulfilled;
 
       // Add a new pool
       await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.fulfilled;
-      true.should.be.equal(await stakingAuRa.doesPoolExist.call(candidateStakingAddress));
+      true.should.be.equal(await stakingAuRa.isPoolActive.call(candidateStakingAddress));
     });
     it('should fail if staking amount is 0', async () => {
       await stakingAuRa.addPool(new BN(0), candidateMiningAddress, {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
@@ -231,13 +231,13 @@ contract('StakingAuRa', async accounts => {
 
       // Try to add a new pool outside of max limit
       await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
-      false.should.be.equal(await stakingAuRa.doesPoolExist.call(candidateStakingAddress));
+      false.should.be.equal(await stakingAuRa.isPoolActive.call(candidateStakingAddress));
     });
     it('should remove added pool from the list of inactive pools', async () => {
       await stakingAuRa.addPoolInactiveMock(candidateStakingAddress).should.be.fulfilled;
       (await stakingAuRa.getPoolsInactive.call()).should.be.deep.equal([candidateStakingAddress]);
       await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.fulfilled;
-      true.should.be.equal(await stakingAuRa.doesPoolExist.call(candidateStakingAddress));
+      true.should.be.equal(await stakingAuRa.isPoolActive.call(candidateStakingAddress));
       (await stakingAuRa.getPoolsInactive.call()).length.should.be.equal(0);
     });
   });

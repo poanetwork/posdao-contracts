@@ -230,7 +230,6 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     bytes32 internal constant SNAPSHOT_REWARD_PERCENTS = "snapshotRewardPercents";
     bytes32 internal constant SNAPSHOT_STAKERS = "snapshotStakers";
 
-    uint256 internal constant MAX_EXTRA_RECEIVERS_PER_BLOCK = 25;
     uint256 internal constant REWARD_PERCENT_MULTIPLIER = 1000000;
 
     function _addBridgeNativeFee(uint256 _amount) internal {
@@ -244,15 +243,16 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     // Accrue native coins to bridge's receivers if any
     function _mintNativeCoinsByErcToNativeBridge(
         address[] memory _bridgeFeeReceivers,
-        uint256[] memory _bridgeFeeRewards
+        uint256[] memory _bridgeFeeRewards,
+        uint256 _queueLimit
     )
         internal
         returns(address[] memory receivers, uint256[] memory rewards)
     {
         uint256 extraLength = _extraReceiversQueueSize();
 
-        if (extraLength > MAX_EXTRA_RECEIVERS_PER_BLOCK) {
-            extraLength = MAX_EXTRA_RECEIVERS_PER_BLOCK;
+        if (extraLength > _queueLimit) {
+            extraLength = _queueLimit;
         }
 
         receivers = new address[](extraLength + _bridgeFeeReceivers.length);
@@ -324,17 +324,18 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     function _setSnapshot(address _stakingAddress, IStaking _stakingContract) internal {
         uint256 validatorStake = _stakingContract.stakeAmountMinusOrderedWithdraw(_stakingAddress, _stakingAddress);
         uint256 totalStaked = _stakingContract.stakeAmountTotalMinusOrderedWithdraw(_stakingAddress);
-        uint256 delegatorsAmount = totalStaked - validatorStake;
-        bool validatorHasMore30Per = validatorStake.mul(7) > delegatorsAmount.mul(3);
-        
+        uint256 delegatorsAmount = totalStaked >= validatorStake ? totalStaked - validatorStake : 0;
+        bool validatorHasMore30Per = validatorStake * 7 > delegatorsAmount * 3;
+
         address[] memory delegators = _stakingContract.poolDelegators(_stakingAddress);
-        address[] memory stakers = new address[](delegators.length + 1);
+        address[] memory stakers = new address[](delegators.length + 1); // delegators plus validator
         uint256[] memory rewardPercents = new uint256[](stakers.length);
         uint256 i;
 
         // Calculate reward percent for each delegator
         for (i = 0; i < delegators.length; i++) {
             stakers[i] = delegators[i];
+
             uint256 delegatorStake = _stakingContract.stakeAmountMinusOrderedWithdraw(_stakingAddress, delegators[i]);
             
             if (delegatorStake == 0) {
@@ -343,19 +344,27 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
             }
 
             if (validatorHasMore30Per) {
-                rewardPercents[i] = REWARD_PERCENT_MULTIPLIER.mul(delegatorStake).div(totalStaked);
+                if (totalStaked == 0) {
+                    rewardPercents[i] = 0;
+                } else {
+                    rewardPercents[i] = REWARD_PERCENT_MULTIPLIER * delegatorStake / totalStaked;
+                }
             } else {
-                rewardPercents[i] = REWARD_PERCENT_MULTIPLIER.mul(delegatorStake).mul(7).div(delegatorsAmount.mul(10));
+                if (delegatorsAmount == 0) {
+                    rewardPercents[i] = 0;
+                } else {
+                    rewardPercents[i] = REWARD_PERCENT_MULTIPLIER * delegatorStake * 7 / (delegatorsAmount * 10);
+                }
             }
         }
 
         // Calculate reward percent for validator
         stakers[i] = _stakingAddress;
-        if (validatorStake > 0) {
+        if (validatorStake != 0 && totalStaked != 0) {
             if (validatorHasMore30Per) {
-                rewardPercents[i] = REWARD_PERCENT_MULTIPLIER.mul(validatorStake).div(totalStaked);
+                rewardPercents[i] = REWARD_PERCENT_MULTIPLIER * validatorStake / totalStaked;
             } else {
-                rewardPercents[i] = REWARD_PERCENT_MULTIPLIER.mul(3).div(10);
+                rewardPercents[i] = REWARD_PERCENT_MULTIPLIER * 3 / 10;
             }
         } else {
             rewardPercents[i] = 0;

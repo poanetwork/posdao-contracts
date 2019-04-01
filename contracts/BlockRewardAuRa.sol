@@ -47,13 +47,15 @@ contract BlockRewardAuRa is BlockRewardBase {
 
         address[] memory receiversNative = new address[](0);
         uint256[] memory rewardsNative = new uint256[](0);
-        uint256 i;
+        uint256 bridgeQueueLimit = 25;
 
-        if (validatorSetContract.newValidatorSet()) {
+        (bool newValidatorSetCalled, uint256 poolsToBeElectedLength) = validatorSetContract.newValidatorSet();
+
+        if (newValidatorSetCalled) {
             // Start new staking epoch every `stakingEpochDuration()` blocks
             address[] memory newValidatorSet = validatorSetContract.getPendingValidators();
 
-            for (i = 0; i < newValidatorSet.length; i++) {
+            for (uint256 i = 0; i < newValidatorSet.length; i++) {
                 _enqueueNewValidator(newValidatorSet[i]);
             }
 
@@ -61,6 +63,12 @@ contract BlockRewardAuRa is BlockRewardBase {
             uintStorage[SNAPSHOT_TOTAL_STAKE_AMOUNT] = 0;
             uintStorage[ROUND_POOL_NATIVE_REWARD] = 0;
             uintStorage[ROUND_POOL_TOKEN_REWARD] = 0;
+
+            if (poolsToBeElectedLength > 1000) {
+                bridgeQueueLimit = 0;
+            } else if (poolsToBeElectedLength > 500) {
+                bridgeQueueLimit = 15;
+            }
         } else if (validatorSetContract.validatorSetApplyBlock() == 0) {
             address newValidator = _dequeueNewValidator();
 
@@ -81,7 +89,7 @@ contract BlockRewardAuRa is BlockRewardBase {
         uintStorage[PREVIOUS_VALIDATOR_INDEX] = validatorSetContract.validatorIndex(benefactors[0]);
 
         // Mint native coins by bridge if needed.
-        return _mintNativeCoinsByErcToNativeBridge(receiversNative, rewardsNative);
+        return _mintNativeCoinsByErcToNativeBridge(receiversNative, rewardsNative, bridgeQueueLimit);
     }
 
     function getNativeRewardUndistributed() public view returns(uint256) {
