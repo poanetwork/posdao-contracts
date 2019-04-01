@@ -11,7 +11,7 @@ contract StakingHBBFT is IStakingHBBFT, StakingBase {
 
     // =============================================== Setters ========================================================
 
-    function addPool(bytes calldata _publicKey, uint256 _amount, address _miningAddress) external {
+    function addPool(bytes calldata _publicKey, uint256 _amount, address _miningAddress) external gasPriceIsValid {
         address stakingAddress = msg.sender;
         IValidatorSetHBBFT(address(validatorSetContract())).savePublicKey(_miningAddress, _publicKey);
         validatorSetContract().setStakingAddress(_miningAddress, stakingAddress);

@@ -21,7 +21,20 @@ contract StakingBase is OwnedEternalStorage, IStaking {
 
     // ================================================ Events ========================================================
 
-    /// @dev Emitted by `stake` function to signal that the staker made a stake of the specified
+    /// @dev Emitted by the `claimOrderedWithdraw` function to signal that the staker withdrew the specified
+    /// amount of ordered tokens from the specified pool during the specified staking epoch.
+    /// @param fromPoolStakingAddress The pool from which the `staker` withdrew `amount`.
+    /// @param staker The address of staker who withdrew `amount`.
+    /// @param stakingEpoch The serial number of staking epoch during which the claiming was made.
+    /// @param amount The amount of the withdrawal.
+    event Claimed(
+        address indexed fromPoolStakingAddress,
+        address indexed staker,
+        uint256 indexed stakingEpoch,
+        uint256 amount
+    );
+
+    /// @dev Emitted by the `stake` function to signal that the staker made a stake of the specified
     /// amount for the specified pool during the specified staking epoch.
     /// @param toPoolStakingAddress The pool for which the `staker` made the stake.
     /// @param staker The address of staker who made the stake.
@@ -34,7 +47,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         uint256 amount
     );
 
-    /// @dev Emitted by `moveStake` function to signal that the staker moved the specified
+    /// @dev Emitted by the `moveStake` function to signal that the staker moved the specified
     /// amount of a stake from one pool to another during the specified staking epoch.
     /// @param fromPoolStakingAddress The pool from which the `staker` moved the stake.
     /// @param toPoolStakingAddress The pool to which the `staker` moved the stake.
@@ -49,7 +62,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         uint256 amount
     );
 
-    /// @dev Emitted by `orderWithdraw` function to signal that the staker ordered the withdrawal of the
+    /// @dev Emitted by the `orderWithdraw` function to signal that the staker ordered the withdrawal of the
     /// specified amount of their stake from the specified pool during the specified staking epoch.
     /// @param fromPoolStakingAddress The pool from which the `staker` ordered withdrawal of `amount`.
     /// @param staker The address of staker who ordered withdrawal of `amount`.
@@ -62,7 +75,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         int256 amount
     );
 
-    /// @dev Emitted by `withdraw` function to signal that the staker withdrew the specified
+    /// @dev Emitted by the `withdraw` function to signal that the staker withdrew the specified
     /// amount of a stake from the specified pool during the specified staking epoch.
     /// @param fromPoolStakingAddress The pool from which the `staker` withdrew `amount`.
     /// @param staker The address of staker who withdrew `amount`.
@@ -98,62 +111,8 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         uintStorage[STAKING_EPOCH]++;
     }
 
-    function performOrderedWithdrawals() external onlyBlockRewardContract {
-        if (validatorSetContract().validatorSetApplyBlock() != _getCurrentBlockNumber()) return;
-
-        uint256 candidateMinStake = getCandidateMinStake();
-        uint256 delegatorMinStake = getDelegatorMinStake();
-        IERC20Minting tokenContract = IERC20Minting(erc20TokenContract());
-        IValidatorSet validatorSetContract = validatorSetContract();
-
-        address[] memory validators = validatorSetContract.getPreviousValidators();
-
-        for (uint256 i = 0; i < validators.length; i++) {
-            address poolStakingAddress = validatorSetContract.stakingByMiningAddress(validators[i]);
-
-            // Withdraw validator's stake
-            _performOrderedWithdrawals(
-                poolStakingAddress,
-                poolStakingAddress,
-                candidateMinStake,
-                tokenContract
-            );
-
-            // Withdraw delegators' stakes
-            address[] storage delegators = addressArrayStorage[keccak256(abi.encode(
-                POOL_DELEGATORS, poolStakingAddress
-            ))];
-
-            for (uint256 d = 0; d < delegators.length; d++) {
-                _performOrderedWithdrawals(
-                    poolStakingAddress,
-                    delegators[d],
-                    delegatorMinStake,
-                    tokenContract
-                );
-            }
-
-            // Reset total ordered withdrawal amount for the pool
-            _setOrderedWithdrawAmountTotal(poolStakingAddress, 0);
-        }
-    }
-
     function removePool(address _stakingAddress) external onlyValidatorSetContract {
         _removePool(_stakingAddress);
-    }
-
-    function removeMaliciousValidator(address _stakingAddress) external onlyValidatorSetContract {
-        _removePool(_stakingAddress);
-
-        // Remove all ordered withdrawals from the pool of this validator
-        address[] memory delegators = poolDelegators(_stakingAddress);
-        for (uint256 i = 0; i < delegators.length; i++) {
-            _setOrderedWithdrawAmount(_stakingAddress, delegators[i], 0);
-            _setStakeAmountByCurrentEpoch(_stakingAddress, delegators[i], 0);
-        }
-        _setOrderedWithdrawAmount(_stakingAddress, _stakingAddress, 0);
-        _setOrderedWithdrawAmountTotal(_stakingAddress, 0);
-        _setStakeAmountByCurrentEpoch(_stakingAddress, _stakingAddress, 0);
     }
 
     function removePool() external gasPriceIsValid {
@@ -205,28 +164,25 @@ contract StakingBase is OwnedEternalStorage, IStaking {
 
     /// @dev Makes an order of tokens withdrawal from Staking contract address
     /// (from the account of staking address of the pool) to staker address.
-    /// The tokens will be automatically withdrawn at the beginning of the
-    /// next staking epoch.
-    /// @param _fromPoolStakingAddress The staking address of the pool.
+    /// The ordered tokens can be claimed after the current staking epoch.
+    /// @param _poolStakingAddress The staking address of the pool.
     /// @param _amount The amount of the withdrawal. Positive value means
     /// that the staker wants to set or increase their withdrawal amount.
     /// Negative value means that the staker wants to decrease their
     /// withdrawal amount which was set before.
-    function orderWithdraw(address _fromPoolStakingAddress, int256 _amount) external gasPriceIsValid {
-        IERC20Minting tokenContract = IERC20Minting(erc20TokenContract());
+    function orderWithdraw(address _poolStakingAddress, int256 _amount) external gasPriceIsValid {
         IValidatorSet validatorSetContract = validatorSetContract();
-        require(address(tokenContract) != address(0));
 
-        require(_fromPoolStakingAddress != address(0));
+        require(_poolStakingAddress != address(0));
         require(_amount != 0);
-        require(_isWithdrawAllowed(validatorSetContract.miningByStakingAddress(_fromPoolStakingAddress)));
+        require(_isWithdrawAllowed(validatorSetContract.miningByStakingAddress(_poolStakingAddress)));
 
         address staker = msg.sender;
 
-        // How much can `staker` order for withdrawal from `_fromPoolStakingAddress` at the moment?
-        require(_amount < 0 || uint256(_amount) <= maxWithdrawOrderAllowed(_fromPoolStakingAddress, staker));
+        // How much can `staker` order for withdrawal from `_poolStakingAddress` at the moment?
+        require(_amount < 0 || uint256(_amount) <= maxWithdrawOrderAllowed(_poolStakingAddress, staker));
 
-        uint256 alreadyOrderedAmount = orderedWithdrawAmount(_fromPoolStakingAddress, staker);
+        uint256 alreadyOrderedAmount = orderedWithdrawAmount(_poolStakingAddress, staker);
 
         require(_amount > 0 || uint256(-_amount) <= alreadyOrderedAmount);
 
@@ -236,47 +192,91 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         } else {
             newOrderedAmount = alreadyOrderedAmount.sub(uint256(-_amount));
         }
-        _setOrderedWithdrawAmount(_fromPoolStakingAddress, staker, newOrderedAmount);
+        _setOrderedWithdrawAmount(_poolStakingAddress, staker, newOrderedAmount);
 
         // The amount to be withdrawn must be the whole staked amount or
         // must not exceed the diff between the entire amount and MIN_STAKE
-        uint256 newStakeAmount = stakeAmount(_fromPoolStakingAddress, staker).sub(newOrderedAmount);
-        if (staker == _fromPoolStakingAddress) {
+        uint256 newStakeAmount = stakeAmount(_poolStakingAddress, staker).sub(newOrderedAmount);
+        if (staker == _poolStakingAddress) {
             require(newStakeAmount == 0 || newStakeAmount >= getCandidateMinStake());
 
             address unremovableStakingAddress = validatorSetContract.unremovableValidator();
 
             if (_amount > 0) {
-                if (newStakeAmount == 0 && _fromPoolStakingAddress != unremovableStakingAddress) {
-                    _addPoolToBeRemoved(_fromPoolStakingAddress);
+                if (newStakeAmount == 0 && _poolStakingAddress != unremovableStakingAddress) {
+                    _addPoolToBeRemoved(_poolStakingAddress);
                 }
             } else {
-                _addPoolActive(_fromPoolStakingAddress, _fromPoolStakingAddress != unremovableStakingAddress);
+                _addPoolActive(_poolStakingAddress, _poolStakingAddress != unremovableStakingAddress);
             }
         } else {
             require(newStakeAmount == 0 || newStakeAmount >= getDelegatorMinStake());
 
             if (_amount > 0) {
                 if (newStakeAmount == 0) {
-                    _removePoolDelegator(_fromPoolStakingAddress, staker);
+                    _removePoolDelegator(_poolStakingAddress, staker);
                 }
             } else {
-                _addPoolDelegator(_fromPoolStakingAddress, staker);
+                _addPoolDelegator(_poolStakingAddress, staker);
             }
         }
 
         // Set total ordered amount for this pool
-        alreadyOrderedAmount = orderedWithdrawAmountTotal(_fromPoolStakingAddress);
+        alreadyOrderedAmount = orderedWithdrawAmountTotal(_poolStakingAddress);
         if (_amount > 0) {
             newOrderedAmount = alreadyOrderedAmount.add(uint256(_amount));
         } else {
             newOrderedAmount = alreadyOrderedAmount.sub(uint256(-_amount));
         }
-        _setOrderedWithdrawAmountTotal(_fromPoolStakingAddress, newOrderedAmount);
+        _setOrderedWithdrawAmountTotal(_poolStakingAddress, newOrderedAmount);
 
-        _setLikelihood(_fromPoolStakingAddress);
+        uint256 epoch = stakingEpoch();
 
-        emit WithdrawalOrdered(_fromPoolStakingAddress, staker, stakingEpoch(), _amount);
+        if (_amount > 0) {
+            _setOrderWithdrawEpoch(_poolStakingAddress, staker, epoch);
+        }
+
+        _setLikelihood(_poolStakingAddress);
+
+        emit WithdrawalOrdered(_poolStakingAddress, staker, epoch, _amount);
+    }
+
+    /// @dev Withdraws the tokens ordered during the previous staking epochs.
+    /// @param _poolStakingAddress The staking address of the pool from which
+    /// the ordered tokens are being withdrawn.
+    function claimOrderedWithdraw(address _poolStakingAddress) external gasPriceIsValid {
+        IERC20Minting tokenContract = IERC20Minting(erc20TokenContract());
+        IValidatorSet validatorSetContract = validatorSetContract();
+        uint256 epoch = stakingEpoch();
+        address staker = msg.sender;
+
+        require(address(tokenContract) != address(0));
+        require(_poolStakingAddress != address(0));
+        require(epoch > orderWithdrawEpoch(_poolStakingAddress, staker));
+        require(_isWithdrawAllowed(validatorSetContract.miningByStakingAddress(_poolStakingAddress)));
+
+        uint256 claimAmount = orderedWithdrawAmount(_poolStakingAddress, staker);
+        require(claimAmount != 0);
+
+        uint256 resultingStakeAmount = stakeAmount(_poolStakingAddress, staker).sub(claimAmount);
+
+        _setOrderedWithdrawAmount(_poolStakingAddress, staker, 0);
+        _setOrderedWithdrawAmountTotal(
+            _poolStakingAddress,
+            orderedWithdrawAmountTotal(_poolStakingAddress).sub(claimAmount)
+        );
+        _setStakeAmount(_poolStakingAddress, staker, resultingStakeAmount);
+        _setStakeAmountTotal(_poolStakingAddress, stakeAmountTotal(_poolStakingAddress).sub(claimAmount));
+
+        if (resultingStakeAmount == 0) {
+            _withdrawCheckPool(_poolStakingAddress, staker);
+        }
+
+        _setLikelihood(_poolStakingAddress);
+
+        tokenContract.withdraw(staker, claimAmount);
+
+        emit Claimed(_poolStakingAddress, staker, epoch, claimAmount);
     }
 
     function setErc20TokenContract(address _erc20TokenContract) external onlyOwner {
@@ -419,6 +419,10 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         ];
     }
 
+    function orderWithdrawEpoch(address _poolStakingAddress, address _staker) public view returns(uint256) {
+        return uintStorage[keccak256(abi.encode(ORDER_WITHDRAW_EPOCH, _poolStakingAddress, _staker))];
+    }
+
     function stakeAmountTotal(address _poolStakingAddress) public view returns(uint256) {
         return uintStorage[
             keccak256(abi.encode(STAKE_AMOUNT_TOTAL, _poolStakingAddress))
@@ -485,11 +489,8 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         view
         returns(uint256)
     {
-        if (!_wasValidatorSetApplied()) {
-            return 0;
-        }
         return uintStorage[
-            keccak256(abi.encode(STAKE_AMOUNT_BY_CURRENT_EPOCH, _poolStakingAddress, _staker))
+            keccak256(abi.encode(STAKE_AMOUNT_BY_EPOCH, _poolStakingAddress, _staker, stakingEpoch()))
         ];
     }
 
@@ -536,8 +537,9 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     bytes32 internal constant POOL_TO_BE_ELECTED_INDEX = "poolToBeElectedIndex";
     bytes32 internal constant POOL_TO_BE_REMOVED_INDEX = "poolToBeRemovedIndex";
     bytes32 internal constant STAKE_AMOUNT = "stakeAmount";
-    bytes32 internal constant STAKE_AMOUNT_BY_CURRENT_EPOCH = "stakeAmountByCurrentEpoch";
+    bytes32 internal constant STAKE_AMOUNT_BY_EPOCH = "stakeAmountByEpoch";
     bytes32 internal constant STAKE_AMOUNT_TOTAL = "stakeAmountTotal";
+    bytes32 internal constant ORDER_WITHDRAW_EPOCH = "orderWithdrawEpoch";
     bytes32 internal constant ORDERED_WITHDRAW_AMOUNT = "orderedWithdrawAmount";
     bytes32 internal constant ORDERED_WITHDRAW_AMOUNT_TOTAL = "orderedWithdrawAmountTotal";
 
@@ -675,37 +677,8 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         _setCandidateMinStake(_candidateMinStake);
     }
 
-    function _performOrderedWithdrawals(
-        address _poolStakingAddress,
-        address _staker,
-        uint256 _minAllowedStake,
-        IERC20Minting _tokenContract
-    ) internal {
-        uint256 orderedAmount = orderedWithdrawAmount(_poolStakingAddress, _staker);
-
-        if (orderedAmount > 0) {
-            uint256 currentStakeAmount = stakeAmount(_poolStakingAddress, _staker);
-
-            if (
-                currentStakeAmount >= orderedAmount &&
-                address(_tokenContract) != address(0) &&
-                orderedAmount <= _tokenContract.balanceOf(address(this)) &&
-                _withdraw(
-                    _poolStakingAddress,
-                    _staker,
-                    orderedAmount,
-                    currentStakeAmount,
-                    currentStakeAmount - orderedAmount,
-                    _minAllowedStake
-                )
-            ) {
-                _tokenContract.withdraw(_staker, orderedAmount);
-            }
-
-            _setOrderedWithdrawAmount(_poolStakingAddress, _staker, 0);
-        }
-
-        _setStakeAmountByCurrentEpoch(_poolStakingAddress, _staker, 0);
+    function _setOrderWithdrawEpoch(address _poolStakingAddress, address _staker, uint256 _stakingEpoch) internal {
+        uintStorage[keccak256(abi.encode(ORDER_WITHDRAW_EPOCH, _poolStakingAddress, _staker))] = _stakingEpoch;
     }
 
     function _setPoolDelegatorIndex(address _poolStakingAddress, address _delegator, uint256 _index) internal {
@@ -836,7 +809,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         uint256 _amount
     ) internal {
         uintStorage[keccak256(abi.encode(
-            STAKE_AMOUNT_BY_CURRENT_EPOCH, _poolStakingAddress, _staker
+            STAKE_AMOUNT_BY_EPOCH, _poolStakingAddress, _staker, stakingEpoch()
         ))] = _amount;
     }
 
@@ -913,61 +886,42 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         uint256 alreadyOrderedAmount = orderedWithdrawAmount(_poolStakingAddress, _staker);
         uint256 resultingStakeAmount = currentStakeAmount.sub(alreadyOrderedAmount).sub(_amount);
 
-        require(_withdraw(
-            _poolStakingAddress,
-            _staker,
-            _amount,
-            currentStakeAmount,
-            resultingStakeAmount,
-            _poolStakingAddress == _staker ? getCandidateMinStake() : getDelegatorMinStake()
-        ));
-
-        if (resultingStakeAmount == 0) {
-            if (_staker == _poolStakingAddress) {
-                IValidatorSet validatorSet = validatorSetContract();
-                address unremovableStakingAddress = validatorSet.unremovableValidator();
-
-                if (_poolStakingAddress != unremovableStakingAddress) {
-                    if (validatorSet.isValidator(validatorSet.miningByStakingAddress(_poolStakingAddress))) {
-                        _addPoolToBeRemoved(_poolStakingAddress);
-                    } else {
-                        _removePool(_poolStakingAddress);
-                    }
-                }
-            } else {
-                _removePoolDelegator(_poolStakingAddress, _staker);
-            }
-        }
-    }
-
-    function _withdraw(
-        address _poolStakingAddress,
-        address _staker,
-        uint256 _withdrawalAmount,
-        uint256 _currentStakeAmount,
-        uint256 _resultingStakeAmount,
-        uint256 _minAllowedStake
-    ) internal returns(bool) {
         // The amount to be withdrawn must be the whole staked amount or
         // must not exceed the diff between the entire amount and MIN_STAKE
-        if (_resultingStakeAmount > 0 && _resultingStakeAmount < _minAllowedStake) {
-            return false;
-        }
+        uint256 minAllowedStake = (_poolStakingAddress == _staker) ? getCandidateMinStake() : getDelegatorMinStake();
+        require(resultingStakeAmount == 0 || resultingStakeAmount >= minAllowedStake);
 
-        uint256 newStakeAmount = _currentStakeAmount.sub(_withdrawalAmount);
-        _setStakeAmount(_poolStakingAddress, _staker, newStakeAmount);
-
+        _setStakeAmount(_poolStakingAddress, _staker, currentStakeAmount.sub(_amount));
         uint256 amountByEpoch = stakeAmountByCurrentEpoch(_poolStakingAddress, _staker);
         _setStakeAmountByCurrentEpoch(
             _poolStakingAddress,
             _staker,
-            amountByEpoch >= _withdrawalAmount ? amountByEpoch - _withdrawalAmount : 0
+            amountByEpoch >= _amount ? amountByEpoch - _amount : 0
         );
-        _setStakeAmountTotal(_poolStakingAddress, stakeAmountTotal(_poolStakingAddress).sub(_withdrawalAmount));
+        _setStakeAmountTotal(_poolStakingAddress, stakeAmountTotal(_poolStakingAddress).sub(_amount));
+
+        if (resultingStakeAmount == 0) {
+            _withdrawCheckPool(_poolStakingAddress, _staker);
+        }
 
         _setLikelihood(_poolStakingAddress);
+    }
 
-        return true;
+    function _withdrawCheckPool(address _poolStakingAddress, address _staker) internal {
+        if (_staker == _poolStakingAddress) {
+            IValidatorSet validatorSet = validatorSetContract();
+            address unremovableStakingAddress = validatorSet.unremovableValidator();
+
+            if (_poolStakingAddress != unremovableStakingAddress) {
+                if (validatorSet.isValidator(validatorSet.miningByStakingAddress(_poolStakingAddress))) {
+                    _addPoolToBeRemoved(_poolStakingAddress);
+                } else {
+                    _removePool(_poolStakingAddress);
+                }
+            }
+        } else {
+            _removePoolDelegator(_poolStakingAddress, _staker);
+        }
     }
 
     function _getCurrentBlockNumber() internal view returns(uint256) {

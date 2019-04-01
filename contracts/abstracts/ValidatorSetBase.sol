@@ -421,9 +421,8 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         // Ban the malicious validator for the next 3 months
         _banValidator(_miningAddress);
 
-        // Remove malicious validator from `pools` and remove
-        // all ordered withdrawals from the pool of this validator
-        IStaking(stakingContract()).removeMaliciousValidator(stakingAddress);
+        // Remove malicious validator from the `pools`
+        IStaking(stakingContract()).removePool(stakingAddress);
 
         address[] storage miningAddresses = addressArrayStorage[PENDING_VALIDATORS];
         bool isPendingValidator = false;

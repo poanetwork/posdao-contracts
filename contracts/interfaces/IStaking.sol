@@ -3,9 +3,7 @@ pragma solidity 0.5.2;
 
 interface IStaking {
     function incrementStakingEpoch() external;
-    function performOrderedWithdrawals() external;
     function removePool(address) external;
-    function removeMaliciousValidator(address) external;
     function erc20TokenContract() external view returns(address);
     function getPoolsLikelihood() external view returns(int256[] memory, int256);
     function getPoolsToBeElected() external view returns(address[] memory);

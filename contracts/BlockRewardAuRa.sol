@@ -29,11 +29,7 @@ contract BlockRewardAuRa is BlockRewardBase {
         // Remove malicious validators if any.
         IRandomAuRa(validatorSetContract.randomContract()).onFinishCollectRound();
 
-        IStaking stakingContract = IStaking(validatorSetContract.stakingContract());
-
-        // Perform ordered withdrawals at the starting of a new staking epoch
-        stakingContract.performOrderedWithdrawals();
-
+        // Initialize queues
         if (!boolStorage[QUEUE_NV_INITIALIZED]) {
             uintStorage[QUEUE_NV_FIRST] = 1;
             uintStorage[QUEUE_NV_LAST] = 0;
@@ -45,6 +41,7 @@ contract BlockRewardAuRa is BlockRewardBase {
             boolStorage[QUEUE_ER_INITIALIZED] = true;
         }
 
+        IStaking stakingContract = IStaking(validatorSetContract.stakingContract());
         address[] memory receiversNative = new address[](0);
         uint256[] memory rewardsNative = new uint256[](0);
         uint256 bridgeQueueLimit = 25;
