@@ -33,7 +33,7 @@ POSDAO, a Proof-of-Stake (POS) algorithm implemented as a decentralized autonomo
 
 - `RandomAuRa`: generates and stores random numbers in a [RANDAO](https://github.com/randao/randao) manner (and controls when they are revealed by Aura validators). Random numbers are used to form a new validator set at the beginning of each staking epoch by the `ValidatorSet` contract. Key functions include:
   - `commitHash` and `revealSecret`. Can only be called by the validator's node when generating and revealing their secret number (see [RANDAO](https://github.com/randao/randao) to understand principle). Each validator node must call these functions once per `collection round`. This creates a random seed which is used by `ValidatorSetAuRa` contract. See Whitepaper for more details;
-  - `onBlockClose`. This function is automatically called by the `BlockRewardAuRa` contract at the end of each `collection round`. It controls the reveal phase for validator nodes and punishes validators when they don’t reveal (see Whitepaper for more details on the `banning` protocol).
+  - `onFinishCollectRound`. This function is automatically called by the `BlockRewardAuRa` contract at the end of each `collection round`. It controls the reveal phase for validator nodes and punishes validators when they don’t reveal (see Whitepaper for more details on the `banning` protocol).
 
 - `Registry`: stores human-readable keys associated with addresses, like DNS information (see [Parity Wiki](https://wiki.parity.io/Parity-name-registry.html)). This contract is needed primarily to store the address of the `TxPermission` contract (see [Parity Wiki](https://wiki.parity.io/Permissioning.html#transaction-type) for details).
 
@@ -42,8 +42,7 @@ POSDAO, a Proof-of-Stake (POS) algorithm implemented as a decentralized autonomo
   - staking tokens by participants (delegators, candidates, or validators) into the pools;
   - storing participants’ stakes;
   - withdrawing tokens by participants from the pools;
-  - moving tokens between pools by participant;
-  - performing automatic token withdrawals at the end of a staking epoch if requested by participants.
+  - moving tokens between pools by participant.
 
 - `TxPermission`: controls the use of zero gas price by validators in service transactions, protecting the network against "transaction spamming" by malicious validators. The protection logic is declared in the `allowedTxTypes` function.
 
