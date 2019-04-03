@@ -53,7 +53,12 @@ contract BlockRewardAuRa is BlockRewardBase {
             address[] memory newValidatorSet = validatorSetContract.getPendingValidators();
 
             for (uint256 i = 0; i < newValidatorSet.length; i++) {
-                _enqueueNewValidator(newValidatorSet[i]);
+                address stakingAddress = validatorSetContract.stakingByMiningAddress(newValidatorSet[i]);
+
+                _enqueueNewValidator(stakingAddress);
+
+                delete addressArrayStorage[keccak256(abi.encode(SNAPSHOT_STAKERS, stakingAddress))];
+                delete uintArrayStorage[keccak256(abi.encode(SNAPSHOT_REWARD_PERCENTS, stakingAddress))];
             }
 
             delete addressArrayStorage[SNAPSHOT_STAKING_ADDRESSES];
@@ -67,10 +72,10 @@ contract BlockRewardAuRa is BlockRewardBase {
                 bridgeQueueLimit = 15;
             }
         } else if (validatorSetContract.validatorSetApplyBlock() == 0) {
-            address newValidator = _dequeueNewValidator();
+            address stakingAddress = _dequeueNewValidator();
 
-            if (newValidator != address(0)) {
-                _setSnapshot(validatorSetContract.stakingByMiningAddress(newValidator), stakingContract);
+            if (stakingAddress != address(0)) {
+                _setSnapshot(stakingAddress, stakingContract, (_newValidatorsQueueSize() + 1) % 2);
             } else if (!pendingValidatorsEnqueued()) {
                 IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).enqueuePendingValidators();
                 _setPendingValidatorsEnqueued(true);
@@ -89,6 +94,8 @@ contract BlockRewardAuRa is BlockRewardBase {
         return _mintNativeCoinsByErcToNativeBridge(receiversNative, rewardsNative, bridgeQueueLimit);
     }
 
+    // =============================================== Getters ========================================================
+
     function getNativeRewardUndistributed() public view returns(uint256) {
         return uintStorage[NATIVE_REWARD_UNDISTRIBUTED];
     }
@@ -104,6 +111,19 @@ contract BlockRewardAuRa is BlockRewardBase {
     function getTokenRewardUndistributed() public view returns(uint256) {
         return uintStorage[TOKEN_REWARD_UNDISTRIBUTED];
     }
+
+    // =============================================== Private ========================================================
+
+    bytes32 internal constant NATIVE_REWARD_UNDISTRIBUTED = keccak256("nativeRewardUndistributed");
+    bytes32 internal constant PREVIOUS_VALIDATOR_INDEX = keccak256("previousValidatorIndex");
+    bytes32 internal constant QUEUE_NV_FIRST = keccak256("queueNVFirst");
+    bytes32 internal constant QUEUE_NV_INITIALIZED = keccak256("queueNVInitialized");
+    bytes32 internal constant QUEUE_NV_LAST = keccak256("queueNVLast");
+    bytes32 internal constant ROUND_POOL_NATIVE_REWARD = keccak256("roundPoolNativeReward");
+    bytes32 internal constant ROUND_POOL_TOKEN_REWARD = keccak256("roundPoolTokenReward");
+    bytes32 internal constant TOKEN_REWARD_UNDISTRIBUTED = keccak256("tokenRewardUndistributed");
+
+    bytes32 internal constant QUEUE_NV_LIST = "queueNVList";
 
     function _distributeRewards(
         address _miningAddress,
@@ -183,7 +203,7 @@ contract BlockRewardAuRa is BlockRewardBase {
                     rewards[i] = poolTokenReward * rewardPercents[i] / REWARD_PERCENT_MULTIPLIER;
                     remainder -= rewards[i];
                 }
-                rewards[i - 1] += remainder;
+                rewards[0] += remainder;
 
                 IERC20Minting(_erc20TokenContract).mintReward(receivers, rewards);
                 _subTokenRewardUndistributed(poolTokenReward);
@@ -196,7 +216,7 @@ contract BlockRewardAuRa is BlockRewardBase {
                     rewards[i] = poolNativeReward * rewardPercents[i] / REWARD_PERCENT_MULTIPLIER;
                     remainder -= rewards[i];
                 }
-                rewards[i - 1] += remainder;
+                rewards[0] += remainder;
 
                 _subNativeRewardUndistributed(poolNativeReward);
             } else {
@@ -220,7 +240,10 @@ contract BlockRewardAuRa is BlockRewardBase {
     }
 
     function _enqueueNewValidator(address _newValidator) internal {
-        addressStorage[keccak256(abi.encode(QUEUE_NV_LIST, ++uintStorage[QUEUE_NV_LAST]))] = _newValidator;
+        uint256 queueLast = uintStorage[QUEUE_NV_LAST];
+        addressStorage[keccak256(abi.encode(QUEUE_NV_LIST, ++queueLast))] = _newValidator;
+        addressStorage[keccak256(abi.encode(QUEUE_NV_LIST, ++queueLast))] = _newValidator;
+        uintStorage[QUEUE_NV_LAST] = queueLast;
     }
 
     function _subNativeRewardUndistributed(uint256 _minus) internal {
@@ -239,15 +262,8 @@ contract BlockRewardAuRa is BlockRewardBase {
         }
     }
 
-    bytes32 internal constant NATIVE_REWARD_UNDISTRIBUTED = keccak256("nativeRewardUndistributed");
-    bytes32 internal constant PREVIOUS_VALIDATOR_INDEX = keccak256("previousValidatorIndex");
-    bytes32 internal constant QUEUE_NV_FIRST = keccak256("queueNVFirst");
-    bytes32 internal constant QUEUE_NV_INITIALIZED = keccak256("queueNVInitialized");
-    bytes32 internal constant QUEUE_NV_LAST = keccak256("queueNVLast");
-    bytes32 internal constant ROUND_POOL_NATIVE_REWARD = keccak256("roundPoolNativeReward");
-    bytes32 internal constant ROUND_POOL_TOKEN_REWARD = keccak256("roundPoolTokenReward");
-    bytes32 internal constant TOKEN_REWARD_UNDISTRIBUTED = keccak256("tokenRewardUndistributed");
-
-    bytes32 internal constant QUEUE_NV_LIST = "queueNVList";
+    function _newValidatorsQueueSize() internal view returns(uint256) {
+        return uintStorage[QUEUE_NV_LAST] + 1 - uintStorage[QUEUE_NV_FIRST];
+    }
 
 }

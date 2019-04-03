@@ -321,66 +321,67 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         boolStorage[PENDING_VALIDATORS_ENQUEUED] = _enqueued;
     }
 
-    function _setSnapshot(address _stakingAddress, IStaking _stakingContract) internal {
+    function _setSnapshot(address _stakingAddress, IStaking _stakingContract, uint256 _offset) internal {
         uint256 validatorStake = _stakingContract.stakeAmountMinusOrderedWithdraw(_stakingAddress, _stakingAddress);
         uint256 totalStaked = _stakingContract.stakeAmountTotalMinusOrderedWithdraw(_stakingAddress);
         uint256 delegatorsAmount = totalStaked >= validatorStake ? totalStaked - validatorStake : 0;
         bool validatorHasMore30Per = validatorStake * 7 > delegatorsAmount * 3;
 
         address[] memory delegators = _stakingContract.poolDelegators(_stakingAddress);
-        address[] memory stakers = new address[](delegators.length + 1); // delegators plus validator
-        uint256[] memory rewardPercents = new uint256[](stakers.length);
-        uint256 i;
+        uint256 rewardPercent;
+
+        address[] storage stakers = addressArrayStorage[keccak256(abi.encode(
+            SNAPSHOT_STAKERS, _stakingAddress
+        ))];
+
+        uint256[] storage rewardPercents = uintArrayStorage[keccak256(abi.encode(
+            SNAPSHOT_REWARD_PERCENTS, _stakingAddress
+        ))];
+
+        if (_offset == 0) {
+            // Calculate reward percent for validator
+            rewardPercent = 0;
+            if (validatorStake != 0 && totalStaked != 0) {
+                if (validatorHasMore30Per) {
+                    rewardPercent = REWARD_PERCENT_MULTIPLIER * validatorStake / totalStaked;
+                } else {
+                    rewardPercent = REWARD_PERCENT_MULTIPLIER * 3 / 10;
+                }
+            }
+            stakers.push(_stakingAddress);
+            rewardPercents.push(rewardPercent);
+            addressArrayStorage[SNAPSHOT_STAKING_ADDRESSES].push(_stakingAddress);
+            uintStorage[SNAPSHOT_TOTAL_STAKE_AMOUNT] += totalStaked;
+        }
+
+        uint256 from = delegators.length / 2 * _offset;
+        uint256 to = delegators.length / 2 * (_offset + 1);
+
+        if (_offset == 0) {
+            to += delegators.length % 2;
+        } else {
+            from += delegators.length % 2;
+        }
 
         // Calculate reward percent for each delegator
-        for (i = 0; i < delegators.length; i++) {
-            stakers[i] = delegators[i];
-
-            uint256 delegatorStake = _stakingContract.stakeAmountMinusOrderedWithdraw(_stakingAddress, delegators[i]);
-            
-            if (delegatorStake == 0) {
-                rewardPercents[i] = 0;
-                continue;
-            }
+        for (uint256 i = from; i < to; i++) {
+            rewardPercent = 0;
 
             if (validatorHasMore30Per) {
-                if (totalStaked == 0) {
-                    rewardPercents[i] = 0;
-                } else {
-                    rewardPercents[i] = REWARD_PERCENT_MULTIPLIER * delegatorStake / totalStaked;
+                if (totalStaked != 0) {
+                    rewardPercent = _stakingContract.stakeAmountMinusOrderedWithdraw(_stakingAddress, delegators[i]);
+                    rewardPercent = REWARD_PERCENT_MULTIPLIER * rewardPercent / totalStaked;
                 }
             } else {
-                if (delegatorsAmount == 0) {
-                    rewardPercents[i] = 0;
-                } else {
-                    rewardPercents[i] = REWARD_PERCENT_MULTIPLIER * delegatorStake * 7 / (delegatorsAmount * 10);
+                if (delegatorsAmount != 0) {
+                    rewardPercent = _stakingContract.stakeAmountMinusOrderedWithdraw(_stakingAddress, delegators[i]);
+                    rewardPercent = REWARD_PERCENT_MULTIPLIER * rewardPercent * 7 / (delegatorsAmount * 10);
                 }
             }
+
+            stakers.push(delegators[i]);
+            rewardPercents.push(rewardPercent);
         }
-
-        // Calculate reward percent for validator
-        stakers[i] = _stakingAddress;
-        if (validatorStake != 0 && totalStaked != 0) {
-            if (validatorHasMore30Per) {
-                rewardPercents[i] = REWARD_PERCENT_MULTIPLIER * validatorStake / totalStaked;
-            } else {
-                rewardPercents[i] = REWARD_PERCENT_MULTIPLIER * 3 / 10;
-            }
-        } else {
-            rewardPercents[i] = 0;
-        }
-
-        addressArrayStorage[keccak256(abi.encode(
-            SNAPSHOT_STAKERS, _stakingAddress
-        ))] = stakers;
-
-        uintArrayStorage[keccak256(abi.encode(
-            SNAPSHOT_REWARD_PERCENTS, _stakingAddress
-        ))] = rewardPercents;
-
-        addressArrayStorage[SNAPSHOT_STAKING_ADDRESSES].push(_stakingAddress);
-
-        uintStorage[SNAPSHOT_TOTAL_STAKE_AMOUNT] += totalStaked;
     }
 
     function _extraReceiversQueueSize() internal view returns(uint256) {

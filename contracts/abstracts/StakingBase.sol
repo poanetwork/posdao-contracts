@@ -16,7 +16,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
 
     // These values must be set before deploy
     uint256 public constant MAX_CANDIDATES = 1500;
-    uint256 public constant MAX_DELEGATORS_PER_POOL = 100;
+    uint256 public constant MAX_DELEGATORS_PER_POOL = 200;
     uint256 public constant STAKE_UNIT = 1 ether;
 
     // ================================================ Events ========================================================
@@ -659,6 +659,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         require(_initialStakingAddresses.length > 0);
         require(_delegatorMinStake != 0);
         require(_candidateMinStake != 0);
+        require(MAX_DELEGATORS_PER_POOL % 2 == 0);
 
         addressStorage[VALIDATOR_SET_CONTRACT] = _validatorSetContract;
         addressStorage[ERC20_TOKEN_CONTRACT] = _erc20TokenContract;
