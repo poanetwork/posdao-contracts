@@ -57,7 +57,7 @@ _Note: The following descriptions are for AuRa contracts only. HBBFT contract im
 ### Install Dependencies
 
 ```bash
-npm install
+$ npm install
 ```
 
 ### Testing
@@ -69,7 +69,7 @@ Integration test setup is available here: https://github.com/poanetwork/posdao-t
 To run unit tests:
 
 ```bash
-npm test 
+$ npm run test 
 ```
 
 ### Flatten
@@ -79,7 +79,7 @@ Flattened contracts can be used to verify the contract code in a block explorer 
 To prepare flattened version of the contracts:
 
 ```bash
-npm run flat
+$ npm run flat
 ```
 
 Once flattened, the contracts are available in the `flat` directory.
