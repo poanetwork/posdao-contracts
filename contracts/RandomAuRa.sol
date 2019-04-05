@@ -107,7 +107,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
             }
         }
 
-        // Clear info about previous collection round
+        // Clear unnecessary info about previous collection round
         _clear(currentRound);
     }
 
@@ -212,14 +212,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
         for (uint256 i = 0; i < miningAddresses.length; i++) {
             _clearCipher(collectRound, miningAddresses[i]);
-            _setCommit(collectRound, miningAddresses[i], bytes32(0));
-            _setSentReveal(collectRound, miningAddresses[i], false);
         }
-        _clearCommittedValidators(collectRound);
-    }
-
-    function _clearCommittedValidators(uint256 _collectRound) private {
-        delete addressArrayStorage[keccak256(abi.encode(COMMITTED_VALIDATORS, _collectRound))];
     }
 
     function _clearCipher(uint256 _collectRound, address _miningAddress) private {
