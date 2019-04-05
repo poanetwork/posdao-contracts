@@ -82,8 +82,6 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
             _applyQueueValidators(queueValidators);
 
             _setValidatorSetApplyBlock(_getCurrentBlockNumber());
-
-            IBlockReward(blockRewardContract()).setPendingValidatorsEnqueued(false);
         } else if (queueValidators.length > 0) {
             // Apply new validator set after malicious validator is discovered
             _applyQueueValidators(queueValidators);
@@ -406,6 +404,9 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
         staking.incrementStakingEpoch();
         _setValidatorSetApplyBlock(0);
+
+        _incrementChangeRequestCount();
+        _enqueuePendingValidators(true);
 
         return poolsToBeElected.length;
     }

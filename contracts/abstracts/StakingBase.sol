@@ -1,5 +1,6 @@
 pragma solidity 0.5.2;
 
+import "../interfaces/IBlockReward.sol";
 import "../interfaces/IERC20Minting.sol";
 import "../interfaces/IStaking.sol";
 import "../interfaces/IValidatorSet.sol";
@@ -16,7 +17,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
 
     // These values must be set before deploy
     uint256 public constant MAX_CANDIDATES = 1500;
-    uint256 public constant MAX_DELEGATORS_PER_POOL = 200;
+    uint256 public constant MAX_DELEGATORS_PER_POOL = 200; // must be divisible by BlockReward.DELEGATORS_ALIQUOT
     uint256 public constant STAKE_UNIT = 1 ether;
 
     // ================================================ Events ========================================================
@@ -659,7 +660,9 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         require(_initialStakingAddresses.length > 0);
         require(_delegatorMinStake != 0);
         require(_candidateMinStake != 0);
-        require(MAX_DELEGATORS_PER_POOL % 2 == 0);
+
+        IBlockReward blockRewardContract = IBlockReward(IValidatorSet(_validatorSetContract).blockRewardContract());
+        require(MAX_DELEGATORS_PER_POOL % blockRewardContract.DELEGATORS_ALIQUOT() == 0);
 
         addressStorage[VALIDATOR_SET_CONTRACT] = _validatorSetContract;
         addressStorage[ERC20_TOKEN_CONTRACT] = _erc20TokenContract;
@@ -955,10 +958,5 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         }
 
         return true;
-    }
-
-    function _wasValidatorSetApplied() internal view returns(bool) {
-        uint256 applyBlock = validatorSetContract().validatorSetApplyBlock();
-        return applyBlock != 0 && _getCurrentBlockNumber() > applyBlock;
     }
 }

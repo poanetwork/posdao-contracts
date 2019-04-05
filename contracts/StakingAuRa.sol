@@ -1,6 +1,7 @@
 pragma solidity 0.5.2;
 
 import "./abstracts/StakingBase.sol";
+import "./interfaces/IBlockReward.sol";
 import "./interfaces/IStakingAuRa.sol";
 
 
@@ -29,6 +30,9 @@ contract StakingAuRa is IStakingAuRa, StakingBase {
     ) external {
         require(_stakingEpochDuration != 0);
         require(_stakingEpochDuration > _stakeWithdrawDisallowPeriod);
+        IValidatorSet validatorSet = IValidatorSet(_validatorSetContract);
+        IBlockReward blockReward = IBlockReward(validatorSet.blockRewardContract());
+        require(_stakingEpochDuration >= validatorSet.MAX_VALIDATORS() * blockReward.DELEGATORS_ALIQUOT() * 2 + 1);
         require(_stakeWithdrawDisallowPeriod != 0);
         super._initialize(
             _validatorSetContract,
@@ -49,9 +53,10 @@ contract StakingAuRa is IStakingAuRa, StakingBase {
     // =============================================== Getters ========================================================
 
     function areStakeAndWithdrawAllowed() public view returns(bool) {
+        bool isSnapshotting = IBlockReward(validatorSetContract().blockRewardContract()).isSnapshotting();
         uint256 currentBlock = _getCurrentBlockNumber();
         uint256 allowedDuration = stakingEpochDuration() - stakeWithdrawDisallowPeriod();
-        return _wasValidatorSetApplied() && currentBlock.sub(stakingEpochStartBlock()) <= allowedDuration;
+        return !isSnapshotting && currentBlock.sub(stakingEpochStartBlock()) <= allowedDuration;
     }
 
     function stakeWithdrawDisallowPeriod() public view returns(uint256) {

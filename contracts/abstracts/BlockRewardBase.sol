@@ -15,6 +15,8 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     // This address must be set before deploy
     address public constant VALIDATOR_SET_CONTRACT = address(0x1000000000000000000000000000000000000001);
 
+    uint256 public constant DELEGATORS_ALIQUOT = 2;
+
     // ================================================ Events ========================================================
 
     event AddedReceiver(uint256 amount, address indexed receiver, address indexed bridge);
@@ -112,10 +114,6 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         }
     }
 
-    function setPendingValidatorsEnqueued(bool _enqueued) external onlyValidatorSet {
-        _setPendingValidatorsEnqueued(_enqueued);
-    }
-
     // =============================================== Getters ========================================================
 
     function ercToErcBridgesAllowed() public view returns(address[] memory ) {
@@ -136,6 +134,10 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
 
     function getBridgeTokenFee() public view returns(uint256) {
         return uintStorage[BRIDGE_TOKEN_FEE];
+    }
+
+    function isSnapshotting() public view returns(bool) {
+        return boolStorage[IS_SNAPSHOTTING];
     }
 
     function mintedForAccount(address _account)
@@ -178,10 +180,6 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         return addressArrayStorage[NATIVE_TO_ERC_BRIDGES_ALLOWED];
     }
 
-    function pendingValidatorsEnqueued() public view returns(bool) {
-        return boolStorage[PENDING_VALIDATORS_ENQUEUED];
-    }
-
     function snapshotRewardPercents(address _validatorStakingAddress) public view returns(uint256[] memory) {
         return uintArrayStorage[
             keccak256(abi.encode(SNAPSHOT_REWARD_PERCENTS, _validatorStakingAddress))
@@ -208,9 +206,9 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     bytes32 internal constant BRIDGE_TOKEN_FEE = keccak256("bridgeTokenFee");
     bytes32 internal constant ERC_TO_ERC_BRIDGES_ALLOWED = keccak256("ercToErcBridgesAllowed");
     bytes32 internal constant ERC_TO_NATIVE_BRIDGES_ALLOWED = keccak256("ercToNativeBridgesAllowed");
+    bytes32 internal constant IS_SNAPSHOTTING = keccak256("isSnapshotting");
     bytes32 internal constant MINTED_TOTALLY = keccak256("mintedTotally");
     bytes32 internal constant NATIVE_TO_ERC_BRIDGES_ALLOWED = keccak256("nativeToErcBridgesAllowed");
-    bytes32 internal constant PENDING_VALIDATORS_ENQUEUED = keccak256("pendingValidatorsEnqueued");
     bytes32 internal constant QUEUE_ER_FIRST = keccak256("queueERFirst");
     bytes32 internal constant QUEUE_ER_INITIALIZED = keccak256("queueERInitialized");
     bytes32 internal constant QUEUE_ER_LAST = keccak256("queueERLast");
@@ -317,10 +315,6 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         uintStorage[MINTED_TOTALLY] += _amount;
     }
 
-    function _setPendingValidatorsEnqueued(bool _enqueued) internal {
-        boolStorage[PENDING_VALIDATORS_ENQUEUED] = _enqueued;
-    }
-
     function _setSnapshot(address _stakingAddress, IStaking _stakingContract, uint256 _offset) internal {
         uint256 validatorStake = _stakingContract.stakeAmountMinusOrderedWithdraw(_stakingAddress, _stakingAddress);
         uint256 totalStaked = _stakingContract.stakeAmountTotalMinusOrderedWithdraw(_stakingAddress);
@@ -354,13 +348,13 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
             uintStorage[SNAPSHOT_TOTAL_STAKE_AMOUNT] += totalStaked;
         }
 
-        uint256 from = delegators.length / 2 * _offset;
-        uint256 to = delegators.length / 2 * (_offset + 1);
+        uint256 from = delegators.length / DELEGATORS_ALIQUOT * _offset;
+        uint256 to = delegators.length / DELEGATORS_ALIQUOT * (_offset + 1);
 
         if (_offset == 0) {
-            to += delegators.length % 2;
+            to += delegators.length % DELEGATORS_ALIQUOT;
         } else {
-            from += delegators.length % 2;
+            from += delegators.length % DELEGATORS_ALIQUOT;
         }
 
         // Calculate reward percent for each delegator

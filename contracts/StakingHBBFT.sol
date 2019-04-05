@@ -39,7 +39,7 @@ contract StakingHBBFT is IStakingHBBFT, StakingBase {
     // =============================================== Getters ========================================================
 
     function areStakeAndWithdrawAllowed() public view returns(bool) {
-        return _wasValidatorSetApplied();
+        return !IBlockReward(validatorSetContract().blockRewardContract()).isSnapshotting();
     }
 
     // =============================================== Private ========================================================

@@ -14,6 +14,10 @@ contract ValidatorSetAuRaMock is ValidatorSetAuRa {
 
     // =============================================== Setters ========================================================
 
+    function setBlockRewardContract(address _address) public {
+        addressStorage[BLOCK_REWARD_CONTRACT] = _address;
+    }
+
     function setCurrentBlockNumber(uint256 _blockNumber) public {
         uintStorage[keccak256("currentBlockNumber")] = _blockNumber;
     }

@@ -17,8 +17,6 @@ contract ValidatorSetHBBFT is IValidatorSetHBBFT, ValidatorSetBase {
 
     function newValidatorSet() external onlySystem returns(bool, uint256) {
         uint256 poolsToBeElectedLength = super._newValidatorSet();
-        _incrementChangeRequestCount();
-        _enqueuePendingValidators(true);
         return (true, poolsToBeElectedLength);
     }
 

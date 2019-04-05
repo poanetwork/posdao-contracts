@@ -1,3 +1,4 @@
+const BlockRewardAuRa = artifacts.require('BlockRewardAuRa');
 const ERC677BridgeTokenRewardable = artifacts.require('ERC677BridgeTokenRewardableMock');
 const EternalStorageProxy = artifacts.require('EternalStorageProxy');
 const RandomAuRa = artifacts.require('RandomAuRa');
@@ -14,20 +15,42 @@ require('chai')
 
 contract('StakingAuRa', async accounts => {
   let owner;
+  let initialValidators;
+  let initialStakingAddresses;
+  let blockRewardAuRa;
   let stakingAuRa;
   let validatorSetAuRa;
 
   beforeEach(async () => {
     owner = accounts[0];
-    // Deploy ValidatorSet contract
-    validatorSetAuRa = await ValidatorSetAuRa.new();
-    validatorSetAuRa = await EternalStorageProxy.new(validatorSetAuRa.address, owner);
-    validatorSetAuRa = await ValidatorSetAuRa.at(validatorSetAuRa.address);
+    initialValidators = accounts.slice(1, 3 + 1); // accounts[1...3]
+    initialStakingAddresses = accounts.slice(4, 6 + 1); // accounts[4...6]
+    initialStakingAddresses.length.should.be.equal(3);
+    initialStakingAddresses[0].should.not.be.equal('0x0000000000000000000000000000000000000000');
+    initialStakingAddresses[1].should.not.be.equal('0x0000000000000000000000000000000000000000');
+    initialStakingAddresses[2].should.not.be.equal('0x0000000000000000000000000000000000000000');
+    // Deploy BlockReward contract
+    blockRewardAuRa = await BlockRewardAuRa.new();
+    blockRewardAuRa = await EternalStorageProxy.new(blockRewardAuRa.address, owner);
+    blockRewardAuRa = await BlockRewardAuRa.at(blockRewardAuRa.address);
     // Deploy Staking contract
     stakingAuRa = await StakingAuRa.new();
     stakingAuRa = await EternalStorageProxy.new(stakingAuRa.address, owner);
     stakingAuRa = await StakingAuRa.at(stakingAuRa.address);
+    // Deploy ValidatorSet contract
+    validatorSetAuRa = await ValidatorSetAuRa.new();
+    validatorSetAuRa = await EternalStorageProxy.new(validatorSetAuRa.address, owner);
+    validatorSetAuRa = await ValidatorSetAuRa.at(validatorSetAuRa.address);
     await stakingAuRa.setValidatorSetAddress(validatorSetAuRa.address).should.be.fulfilled;
+    // Initialize ValidatorSet
+    await validatorSetAuRa.initialize(
+      blockRewardAuRa.address, // _blockRewardContract
+      '0x3000000000000000000000000000000000000001', // _randomContract
+      stakingAuRa.address, // _stakingContract
+      initialValidators, // _initialMiningAddresses
+      initialStakingAddresses, // _initialStakingAddresses
+      false // _firstValidatorIsUnremovable
+    ).should.be.fulfilled;
   });
 
   describe('addPool()', async () => {
@@ -35,24 +58,10 @@ contract('StakingAuRa', async accounts => {
     let candidateStakingAddress;
     let erc20Token;
     let stakeUnit;
-    let initialValidators;
-    let initialStakingAddresses;
 
     beforeEach(async () => {
       candidateMiningAddress = accounts[7];
       candidateStakingAddress = accounts[8];
-      initialValidators = accounts.slice(1, 3 + 1); // accounts[1...3]
-      initialStakingAddresses = accounts.slice(4, 6 + 1); // accounts[4...6]
-
-      // Initialize ValidatorSet
-      await validatorSetAuRa.initialize(
-        '0x2000000000000000000000000000000000000001', // _blockRewardContract
-        '0x3000000000000000000000000000000000000001', // _randomContract
-        stakingAuRa.address, // _stakingContract
-        initialValidators, // _initialMiningAddresses
-        initialStakingAddresses, // _initialStakingAddresses
-        false // _firstValidatorIsUnremovable
-      ).should.be.fulfilled;
 
       // Initialize Staking
       await stakingAuRa.initialize(
@@ -243,14 +252,7 @@ contract('StakingAuRa', async accounts => {
   });
 
   describe('initialize()', async () => {
-    let initialStakingAddresses;
-
     beforeEach(async () => {
-      initialStakingAddresses = accounts.slice(4, 6 + 1); // accounts[4...6]
-      initialStakingAddresses.length.should.be.equal(3);
-      initialStakingAddresses[0].should.not.be.equal('0x0000000000000000000000000000000000000000');
-      initialStakingAddresses[1].should.not.be.equal('0x0000000000000000000000000000000000000000');
-      initialStakingAddresses[2].should.not.be.equal('0x0000000000000000000000000000000000000000');
       await stakingAuRa.setCurrentBlockNumber(0);
     });
     it('should initialize successfully', async () => {

@@ -30,10 +30,10 @@ contract BlockRewardAuRa is BlockRewardBase {
         IRandomAuRa(validatorSetContract.randomContract()).onFinishCollectRound();
 
         // Initialize queues
-        if (!boolStorage[QUEUE_NV_INITIALIZED]) {
-            uintStorage[QUEUE_NV_FIRST] = 1;
-            uintStorage[QUEUE_NV_LAST] = 0;
-            boolStorage[QUEUE_NV_INITIALIZED] = true;
+        if (!boolStorage[QUEUE_V_INITIALIZED]) {
+            uintStorage[QUEUE_V_FIRST] = 1;
+            uintStorage[QUEUE_V_LAST] = 0;
+            boolStorage[QUEUE_V_INITIALIZED] = true;
         }
         if (!boolStorage[QUEUE_ER_INITIALIZED]) {
             uintStorage[QUEUE_ER_FIRST] = 1;
@@ -44,18 +44,18 @@ contract BlockRewardAuRa is BlockRewardBase {
         IStaking stakingContract = IStaking(validatorSetContract.stakingContract());
         address[] memory receiversNative = new address[](0);
         uint256[] memory rewardsNative = new uint256[](0);
-        uint256 bridgeQueueLimit = 25;
+        uint256 bridgeQueueLimit = 50;
 
+        // Start new staking epoch every `stakingEpochDuration()` blocks
         (bool newValidatorSetCalled, uint256 poolsToBeElectedLength) = validatorSetContract.newValidatorSet();
 
         if (newValidatorSetCalled) {
-            // Start new staking epoch every `stakingEpochDuration()` blocks
             address[] memory newValidatorSet = validatorSetContract.getPendingValidators();
 
             for (uint256 i = 0; i < newValidatorSet.length; i++) {
                 address stakingAddress = validatorSetContract.stakingByMiningAddress(newValidatorSet[i]);
 
-                _enqueueNewValidator(stakingAddress);
+                _enqueueValidator(stakingAddress);
 
                 delete addressArrayStorage[keccak256(abi.encode(SNAPSHOT_STAKERS, stakingAddress))];
                 delete uintArrayStorage[keccak256(abi.encode(SNAPSHOT_REWARD_PERCENTS, stakingAddress))];
@@ -63,32 +63,37 @@ contract BlockRewardAuRa is BlockRewardBase {
 
             delete addressArrayStorage[SNAPSHOT_STAKING_ADDRESSES];
             uintStorage[SNAPSHOT_TOTAL_STAKE_AMOUNT] = 0;
-            uintStorage[ROUND_POOL_NATIVE_REWARD] = 0;
-            uintStorage[ROUND_POOL_TOKEN_REWARD] = 0;
+            boolStorage[IS_SNAPSHOTTING] = (newValidatorSet.length != 0);
 
             if (poolsToBeElectedLength > 1000) {
                 bridgeQueueLimit = 0;
             } else if (poolsToBeElectedLength > 500) {
                 bridgeQueueLimit = 15;
+            } else {
+                bridgeQueueLimit = 25;
             }
-        } else if (validatorSetContract.validatorSetApplyBlock() == 0) {
-            address stakingAddress = _dequeueNewValidator();
+        } else if (boolStorage[IS_SNAPSHOTTING]) {
+            address stakingAddress = _dequeueValidator();
 
             if (stakingAddress != address(0)) {
-                _setSnapshot(stakingAddress, stakingContract, (_newValidatorsQueueSize() + 1) % 2);
-            } else if (!pendingValidatorsEnqueued()) {
-                IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).enqueuePendingValidators();
-                _setPendingValidatorsEnqueued(true);
+                uint256 validatorsQueueSize = _validatorsQueueSize();
+                _setSnapshot(stakingAddress, stakingContract, (validatorsQueueSize + 1) % DELEGATORS_ALIQUOT);
+                if (validatorsQueueSize == 0) {
+                    boolStorage[IS_SNAPSHOTTING] = false;
+                }
+                bridgeQueueLimit = 25;
             }
         } else if (stakingContract.stakingEpoch() != 0) {
-            (receiversNative, rewardsNative) = _distributeRewards(
-                benefactors[0],
+            bool noop;
+            (receiversNative, rewardsNative, noop) = _distributeRewards(
+                validatorSetContract,
                 stakingContract.erc20TokenContract(),
                 IStakingAuRa(address(stakingContract))
             );
+            if (!noop) {
+                bridgeQueueLimit = 25;
+            }
         }
-
-        uintStorage[PREVIOUS_VALIDATOR_INDEX] = validatorSetContract.validatorIndex(benefactors[0]);
 
         // Mint native coins by bridge if needed.
         return _mintNativeCoinsByErcToNativeBridge(receiversNative, rewardsNative, bridgeQueueLimit);
@@ -96,16 +101,16 @@ contract BlockRewardAuRa is BlockRewardBase {
 
     // =============================================== Getters ========================================================
 
+    function getEpochPoolNativeReward() public view returns(uint256) {
+        return uintStorage[EPOCH_POOL_NATIVE_REWARD];
+    }
+
+    function getEpochPoolTokenReward() public view returns(uint256) {
+        return uintStorage[EPOCH_POOL_TOKEN_REWARD];
+    }
+
     function getNativeRewardUndistributed() public view returns(uint256) {
         return uintStorage[NATIVE_REWARD_UNDISTRIBUTED];
-    }
-
-    function getRoundPoolNativeReward() public view returns(uint256) {
-        return uintStorage[ROUND_POOL_NATIVE_REWARD];
-    }
-
-    function getRoundPoolTokenReward() public view returns(uint256) {
-        return uintStorage[ROUND_POOL_TOKEN_REWARD];
     }
 
     function getTokenRewardUndistributed() public view returns(uint256) {
@@ -114,136 +119,174 @@ contract BlockRewardAuRa is BlockRewardBase {
 
     // =============================================== Private ========================================================
 
+    bytes32 internal constant EPOCH_POOL_NATIVE_REWARD = keccak256("epochPoolNativeReward");
+    bytes32 internal constant EPOCH_POOL_TOKEN_REWARD = keccak256("epochPoolTokenReward");
     bytes32 internal constant NATIVE_REWARD_UNDISTRIBUTED = keccak256("nativeRewardUndistributed");
-    bytes32 internal constant PREVIOUS_VALIDATOR_INDEX = keccak256("previousValidatorIndex");
-    bytes32 internal constant QUEUE_NV_FIRST = keccak256("queueNVFirst");
-    bytes32 internal constant QUEUE_NV_INITIALIZED = keccak256("queueNVInitialized");
-    bytes32 internal constant QUEUE_NV_LAST = keccak256("queueNVLast");
-    bytes32 internal constant ROUND_POOL_NATIVE_REWARD = keccak256("roundPoolNativeReward");
-    bytes32 internal constant ROUND_POOL_TOKEN_REWARD = keccak256("roundPoolTokenReward");
+    bytes32 internal constant QUEUE_V_FIRST = keccak256("queueVFirst");
+    bytes32 internal constant QUEUE_V_INITIALIZED = keccak256("queueVInitialized");
+    bytes32 internal constant QUEUE_V_LAST = keccak256("queueVLast");
     bytes32 internal constant TOKEN_REWARD_UNDISTRIBUTED = keccak256("tokenRewardUndistributed");
 
-    bytes32 internal constant QUEUE_NV_LIST = "queueNVList";
+    bytes32 internal constant QUEUE_V_LIST = "queueVList";
 
     function _distributeRewards(
-        address _miningAddress,
+        IValidatorSet _validatorSetContract,
         address _erc20TokenContract,
         IStakingAuRa _stakingContract
-    ) internal returns(address[] memory receivers, uint256[] memory rewards) {
-        uint256 poolTokenReward = 0;
-        uint256 poolNativeReward = 0;
+    ) internal returns(address[] memory receivers, uint256[] memory rewards, bool noop) {
+        uint256 i;
+        uint256 j;
+        uint256 rewardPointBlock =
+            _stakingContract.stakingEpochEndBlock() - _validatorSetContract.MAX_VALIDATORS() * DELEGATORS_ALIQUOT - 1;
 
-        if (
-            IValidatorSet(VALIDATOR_SET_CONTRACT).validatorIndex(_miningAddress) <=
-            uintStorage[PREVIOUS_VALIDATOR_INDEX]
-        ) {
-            // New Authority Round started
+        receivers = new address[](0);
+        rewards = new uint256[](0);
+        noop = true;
 
-            uint256 poolsCount = IValidatorSet(VALIDATOR_SET_CONTRACT).getValidators().length;
+        if (block.number == rewardPointBlock) {
+            address[] memory validators = _validatorSetContract.getValidators();
 
-            if (block.number + poolsCount > _stakingContract.stakingEpochEndBlock()) {
-                // Don't distribute rewards during the last incomplete Authority Round
-                // in the current staking epoch
-                uintStorage[ROUND_POOL_NATIVE_REWARD] = 0;
-                uintStorage[ROUND_POOL_TOKEN_REWARD] = 0;
-                return (new address[](0), new uint256[](0));
-            }
-
+            uint256 poolReward;
             uint256 totalReward;
 
-            if (_erc20TokenContract != address(0)) {
-                totalReward = uintStorage[BRIDGE_TOKEN_FEE];
-                totalReward += snapshotTotalStakeAmount() * 1585489599 / 1 ether; // 1% per year inflation
-                if (totalReward != 0) {
-                    uintStorage[BRIDGE_TOKEN_FEE] = 0;
+            poolReward = 0;
+            totalReward = uintStorage[BRIDGE_TOKEN_FEE];
+            // Accumulated bridge fee plus 1% per year inflation
+            totalReward += snapshotTotalStakeAmount() * _stakingContract.stakingEpochDuration() / 630720000;
+            if (totalReward != 0) {
+                uintStorage[BRIDGE_TOKEN_FEE] = 0;
 
-                    totalReward += uintStorage[TOKEN_REWARD_UNDISTRIBUTED];
-                    poolTokenReward = totalReward / poolsCount;
+                totalReward += uintStorage[TOKEN_REWARD_UNDISTRIBUTED];
 
-                    uintStorage[TOKEN_REWARD_UNDISTRIBUTED] = totalReward;
+                if (validators.length != 0) {
+                    poolReward = totalReward / validators.length;
                 }
-                uintStorage[ROUND_POOL_TOKEN_REWARD] = poolTokenReward;
-            }
 
+                uintStorage[TOKEN_REWARD_UNDISTRIBUTED] = totalReward;
+            }
+            if (_erc20TokenContract == address(0)) {
+                poolReward = 0;
+            }
+            uintStorage[EPOCH_POOL_TOKEN_REWARD] = poolReward;
+
+            poolReward = 0;
             totalReward = uintStorage[BRIDGE_NATIVE_FEE];
             if (totalReward != 0) {
                 uintStorage[BRIDGE_NATIVE_FEE] = 0;
 
                 totalReward += uintStorage[NATIVE_REWARD_UNDISTRIBUTED];
-                poolNativeReward = totalReward / poolsCount;
+
+                if (validators.length != 0) {
+                    poolReward = totalReward / validators.length;
+                }
 
                 uintStorage[NATIVE_REWARD_UNDISTRIBUTED] = totalReward;
             }
-            uintStorage[ROUND_POOL_NATIVE_REWARD] = poolNativeReward;
-        } else {
-            poolTokenReward = uintStorage[ROUND_POOL_TOKEN_REWARD];
-            poolNativeReward = uintStorage[ROUND_POOL_NATIVE_REWARD];
-        }
+            uintStorage[EPOCH_POOL_NATIVE_REWARD] = poolReward;
 
-        if (poolTokenReward == 0 && poolNativeReward == 0) {
-            return (new address[](0), new uint256[](0));
-        }
-
-        address validatorStakingAddress = IValidatorSet(VALIDATOR_SET_CONTRACT).stakingByMiningAddress(_miningAddress);
-
-        receivers = addressArrayStorage[keccak256(abi.encode(SNAPSHOT_STAKERS, validatorStakingAddress))];
-        rewards = new uint256[](receivers.length);
-        uint256[] storage rewardPercents = uintArrayStorage[
-            keccak256(abi.encode(SNAPSHOT_REWARD_PERCENTS, validatorStakingAddress))
-        ];
-
-        if (rewardPercents.length != 0) {
-            uint256 remainder;
-            uint256 i;
-
-            if (_erc20TokenContract != address(0) && poolTokenReward != 0) {
-                remainder = poolTokenReward;
-
-                for (i = 0; i < rewardPercents.length; i++) {
-                    rewards[i] = poolTokenReward * rewardPercents[i] / REWARD_PERCENT_MULTIPLIER;
-                    remainder -= rewards[i];
+            if (uintStorage[EPOCH_POOL_TOKEN_REWARD] != 0 || uintStorage[EPOCH_POOL_NATIVE_REWARD] != 0) {
+                for (i = 0; i < validators.length; i++) {
+                    _enqueueValidator(_validatorSetContract.stakingByMiningAddress(validators[i]));
                 }
-                rewards[0] += remainder;
-
-                IERC20Minting(_erc20TokenContract).mintReward(receivers, rewards);
-                _subTokenRewardUndistributed(poolTokenReward);
             }
 
-            if (poolNativeReward != 0) {
-                remainder = poolNativeReward;
+            noop = false;
+        } else if (block.number > rewardPointBlock) {
+            address stakingAddress = _dequeueValidator();
 
-                for (i = 0; i < rewardPercents.length; i++) {
-                    rewards[i] = poolNativeReward * rewardPercents[i] / REWARD_PERCENT_MULTIPLIER;
-                    remainder -= rewards[i];
-                }
-                rewards[0] += remainder;
+            if (stakingAddress == address(0)) {
+                return (receivers, rewards, true);
+            }
 
-                _subNativeRewardUndistributed(poolNativeReward);
+            if (_validatorSetContract.isValidatorBanned(_validatorSetContract.miningByStakingAddress(stakingAddress))) {
+                return (receivers, rewards, true);
+            }
+
+            address[] storage stakers = addressArrayStorage[keccak256(abi.encode(SNAPSHOT_STAKERS, stakingAddress))];
+            uint256 queueSize = _validatorsQueueSize();
+            uint256 offset = (queueSize + 1) % DELEGATORS_ALIQUOT;
+            uint256 from = stakers.length / DELEGATORS_ALIQUOT * offset;
+            uint256 to = stakers.length / DELEGATORS_ALIQUOT * (offset + 1);
+
+            if (offset == 0) {
+                to += stakers.length % DELEGATORS_ALIQUOT;
             } else {
-                return (new address[](0), new uint256[](0));
+                from += stakers.length % DELEGATORS_ALIQUOT;
+            }
+
+            if (to <= from) {
+                if (queueSize == 0) {
+                    uintStorage[EPOCH_POOL_TOKEN_REWARD] = 0;
+                    uintStorage[EPOCH_POOL_NATIVE_REWARD] = 0;
+                }
+                return (receivers, rewards, true);
+            }
+
+            uint256[] storage rewardPercents = uintArrayStorage[keccak256(abi.encode(
+                SNAPSHOT_REWARD_PERCENTS, stakingAddress
+            ))];
+            uint256 accrued;
+
+            receivers = new address[](to - from);
+            rewards = new uint256[](receivers.length);
+
+            if (uintStorage[EPOCH_POOL_TOKEN_REWARD] != 0) {
+                accrued = 0;
+                for (i = from; i < to; i++) {
+                    j = i - from;
+                    receivers[j] = stakers[i];
+                    rewards[j] = uintStorage[EPOCH_POOL_TOKEN_REWARD] * rewardPercents[i] / REWARD_PERCENT_MULTIPLIER;
+                    accrued += rewards[j];
+                }
+                IERC20Minting(_erc20TokenContract).mintReward(receivers, rewards);
+                _subTokenRewardUndistributed(accrued);
+                noop = false;
+            }
+
+            if (uintStorage[EPOCH_POOL_NATIVE_REWARD] == 0) {
+                if (queueSize == 0) {
+                    uintStorage[EPOCH_POOL_TOKEN_REWARD] = 0;
+                }
+                return (new address[](0), new uint256[](0), noop);
+            }
+
+            accrued = 0;
+            for (i = from; i < to; i++) {
+                j = i - from;
+                receivers[j] = stakers[i];
+                rewards[j] = uintStorage[EPOCH_POOL_NATIVE_REWARD] * rewardPercents[i] / REWARD_PERCENT_MULTIPLIER;
+                accrued += rewards[j];
+            }
+            _subNativeRewardUndistributed(accrued);
+            noop = false;
+
+            if (queueSize == 0) {
+                uintStorage[EPOCH_POOL_TOKEN_REWARD] = 0;
+                uintStorage[EPOCH_POOL_NATIVE_REWARD] = 0;
             }
         }
     }
 
-    function _dequeueNewValidator() internal returns(address newValidator) {
-        uint256 queueFirst = uintStorage[QUEUE_NV_FIRST];
-        uint256 queueLast = uintStorage[QUEUE_NV_LAST];
+    function _dequeueValidator() internal returns(address newValidator) {
+        uint256 queueFirst = uintStorage[QUEUE_V_FIRST];
+        uint256 queueLast = uintStorage[QUEUE_V_LAST];
 
         if (queueLast < queueFirst) {
             newValidator = address(0);
         } else {
-            bytes32 hash = keccak256(abi.encode(QUEUE_NV_LIST, queueFirst));
+            bytes32 hash = keccak256(abi.encode(QUEUE_V_LIST, queueFirst));
             newValidator = addressStorage[hash];
             delete addressStorage[hash];
-            uintStorage[QUEUE_NV_FIRST]++;
+            uintStorage[QUEUE_V_FIRST]++;
         }
     }
 
-    function _enqueueNewValidator(address _newValidator) internal {
-        uint256 queueLast = uintStorage[QUEUE_NV_LAST];
-        addressStorage[keccak256(abi.encode(QUEUE_NV_LIST, ++queueLast))] = _newValidator;
-        addressStorage[keccak256(abi.encode(QUEUE_NV_LIST, ++queueLast))] = _newValidator;
-        uintStorage[QUEUE_NV_LAST] = queueLast;
+    function _enqueueValidator(address _newValidator) internal {
+        uint256 queueLast = uintStorage[QUEUE_V_LAST];
+        for (uint256 i = 0; i < DELEGATORS_ALIQUOT; i++) {
+            addressStorage[keccak256(abi.encode(QUEUE_V_LIST, ++queueLast))] = _newValidator;
+        }
+        uintStorage[QUEUE_V_LAST] = queueLast;
     }
 
     function _subNativeRewardUndistributed(uint256 _minus) internal {
@@ -262,8 +305,8 @@ contract BlockRewardAuRa is BlockRewardBase {
         }
     }
 
-    function _newValidatorsQueueSize() internal view returns(uint256) {
-        return uintStorage[QUEUE_NV_LAST] + 1 - uintStorage[QUEUE_NV_FIRST];
+    function _validatorsQueueSize() internal view returns(uint256) {
+        return uintStorage[QUEUE_V_LAST] + 1 - uintStorage[QUEUE_V_FIRST];
     }
 
 }

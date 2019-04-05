@@ -27,11 +27,6 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
 
     // =============================================== Setters ========================================================
 
-    function enqueuePendingValidators() external onlyBlockRewardContract {
-        _incrementChangeRequestCount();
-        _enqueuePendingValidators(true);
-    }
-
     function newValidatorSet() external onlyBlockRewardContract returns(bool, uint256) {
         uint256 currentBlock = _getCurrentBlockNumber();
         IStakingAuRa stakingContract = IStakingAuRa(stakingContract());
