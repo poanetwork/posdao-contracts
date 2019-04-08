@@ -1,20 +1,16 @@
 pragma solidity 0.5.2;
 
+import "./abstracts/ContractsAddresses.sol";
+import "./interfaces/IBlockReward.sol";
 import "./interfaces/IRandomAuRa.sol";
+import "./interfaces/IStakingAuRa.sol";
 import "./interfaces/ITxPermission.sol";
 import "./interfaces/IValidatorSet.sol";
 import "./interfaces/IValidatorSetAuRa.sol";
 import "./eternal-storage/OwnedEternalStorage.sol";
 
 
-contract TxPermission is OwnedEternalStorage, ITxPermission {
-
-    // ============================================== Constants =======================================================
-
-    /// Addresses of `Random` and `ValidatorSet` contracts.
-    /// Must be set before deploy.
-    address public constant RANDOM_CONTRACT = address(0x3000000000000000000000000000000000000001);
-    address public constant VALIDATOR_SET_CONTRACT = address(0x1000000000000000000000000000000000000001);
+contract TxPermission is ContractsAddresses, OwnedEternalStorage, ITxPermission {
 
     // =============================================== Setters ========================================================
 
@@ -180,6 +176,20 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
         // In other cases let the `_sender` create any transaction with non-zero gas price,
         // but don't let them use zero gas price
         return (_gasPrice > 0 ? ALL : NONE, false);
+    }
+
+    function areTransactionsAllowed() public view returns(bool) {
+        if (IBlockReward(BLOCK_REWARD_CONTRACT).isRewarding()) {
+            return false;
+        }
+        uint256 stakingEpochEndBlock = IStakingAuRa(STAKING_CONTRACT).stakingEpochEndBlock();
+        if (block.number == stakingEpochEndBlock - 1 || block.number == stakingEpochEndBlock) {
+            return false;
+        }
+        if (IBlockReward(BLOCK_REWARD_CONTRACT).isSnapshotting()) {
+            return false;
+        }
+        return true;
     }
 
     function isSenderAllowed(address _sender) public view returns(bool) {

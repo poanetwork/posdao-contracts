@@ -143,7 +143,9 @@ contract BlockRewardAuRa is BlockRewardBase {
         rewards = new uint256[](0);
         noop = true;
 
-        if (block.number == rewardPointBlock) {
+        if (block.number == rewardPointBlock - 1) {
+            boolStorage[IS_REWARDING] = true;
+        } else if (block.number == rewardPointBlock) {
             address[] memory validators = _validatorSetContract.getValidators();
 
             uint256 poolReward;
@@ -188,6 +190,11 @@ contract BlockRewardAuRa is BlockRewardBase {
                 for (i = 0; i < validators.length; i++) {
                     _enqueueValidator(_validatorSetContract.stakingByMiningAddress(validators[i]));
                 }
+                if (validators.length == 0) {
+                    boolStorage[IS_REWARDING] = false;
+                }
+            } else {
+                boolStorage[IS_REWARDING] = false;
             }
 
             noop = false;
@@ -198,12 +205,17 @@ contract BlockRewardAuRa is BlockRewardBase {
                 return (receivers, rewards, true);
             }
 
+            uint256 queueSize = _validatorsQueueSize();
+
+            if (queueSize == 0) {
+                boolStorage[IS_REWARDING] = false;
+            }
+
             if (_validatorSetContract.isValidatorBanned(_validatorSetContract.miningByStakingAddress(stakingAddress))) {
                 return (receivers, rewards, true);
             }
 
             address[] storage stakers = addressArrayStorage[keccak256(abi.encode(SNAPSHOT_STAKERS, stakingAddress))];
-            uint256 queueSize = _validatorsQueueSize();
             uint256 offset = (queueSize + 1) % DELEGATORS_ALIQUOT;
             uint256 from = stakers.length / DELEGATORS_ALIQUOT * offset;
             uint256 to = stakers.length / DELEGATORS_ALIQUOT * (offset + 1);

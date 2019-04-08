@@ -136,6 +136,10 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         return uintStorage[BRIDGE_TOKEN_FEE];
     }
 
+    function isRewarding() public view returns(bool) {
+        return boolStorage[IS_REWARDING];
+    }
+
     function isSnapshotting() public view returns(bool) {
         return boolStorage[IS_SNAPSHOTTING];
     }
@@ -206,6 +210,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     bytes32 internal constant BRIDGE_TOKEN_FEE = keccak256("bridgeTokenFee");
     bytes32 internal constant ERC_TO_ERC_BRIDGES_ALLOWED = keccak256("ercToErcBridgesAllowed");
     bytes32 internal constant ERC_TO_NATIVE_BRIDGES_ALLOWED = keccak256("ercToNativeBridgesAllowed");
+    bytes32 internal constant IS_REWARDING = keccak256("isRewarding");
     bytes32 internal constant IS_SNAPSHOTTING = keccak256("isSnapshotting");
     bytes32 internal constant MINTED_TOTALLY = keccak256("mintedTotally");
     bytes32 internal constant NATIVE_TO_ERC_BRIDGES_ALLOWED = keccak256("nativeToErcBridgesAllowed");
