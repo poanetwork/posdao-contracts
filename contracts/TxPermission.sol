@@ -180,16 +180,16 @@ contract TxPermission is ContractsAddresses, OwnedEternalStorage, ITxPermission 
 
     function limitBlockGas() public view returns(bool) {
         if (IBlockReward(BLOCK_REWARD_CONTRACT).isRewarding()) {
-            return false;
+            return true;
         }
         uint256 stakingEpochEndBlock = IStakingAuRa(STAKING_CONTRACT).stakingEpochEndBlock();
         if (block.number == stakingEpochEndBlock - 1 || block.number == stakingEpochEndBlock) {
-            return false;
+            return true;
         }
         if (IBlockReward(BLOCK_REWARD_CONTRACT).isSnapshotting()) {
-            return false;
+            return true;
         }
-        return true;
+        return false;
     }
 
     function isSenderAllowed(address _sender) public view returns(bool) {
