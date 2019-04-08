@@ -178,7 +178,7 @@ contract TxPermission is ContractsAddresses, OwnedEternalStorage, ITxPermission 
         return (_gasPrice > 0 ? ALL : NONE, false);
     }
 
-    function areTransactionsAllowed() public view returns(bool) {
+    function limitBlockGas() public view returns(bool) {
         if (IBlockReward(BLOCK_REWARD_CONTRACT).isRewarding()) {
             return false;
         }
