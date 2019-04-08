@@ -34,7 +34,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     // ============================================== Modifiers =======================================================
 
     modifier onlyStakingContract() {
-        require(msg.sender == address(stakingContract()));
+        require(msg.sender == stakingContract());
         _;
     }
 
@@ -46,8 +46,10 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     // =============================================== Setters ========================================================
 
     function clearUnremovableValidator() external {
-        require(msg.sender == unremovableValidator() || msg.sender == _owner);
+        address unremovableStakingAddress = unremovableValidator();
+        require(msg.sender == unremovableStakingAddress || msg.sender == _owner);
         _setUnremovableValidator(address(0));
+        IStaking(stakingContract()).clearUnremovableValidator(unremovableStakingAddress);
     }
 
     function emitInitiateChange() external {

@@ -108,6 +108,16 @@ contract StakingBase is OwnedEternalStorage, IStaking {
 
     // =============================================== Setters ========================================================
 
+    function clearUnremovableValidator(address _unremovableStakingAddress) external onlyValidatorSetContract {
+        require(_unremovableStakingAddress != address(0));
+        if (stakeAmountMinusOrderedWithdraw(_unremovableStakingAddress, _unremovableStakingAddress) != 0) {
+            _addPoolToBeElected(_unremovableStakingAddress);
+            _setLikelihood(_unremovableStakingAddress);
+        } else {
+            _addPoolToBeRemoved(_unremovableStakingAddress);
+        }
+    }
+
     function incrementStakingEpoch() external onlyValidatorSetContract {
         uintStorage[STAKING_EPOCH]++;
     }

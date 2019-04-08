@@ -2,6 +2,7 @@ pragma solidity 0.5.2;
 
 
 interface IStaking {
+    function clearUnremovableValidator(address) external;
     function incrementStakingEpoch() external;
     function removePool(address) external;
     function erc20TokenContract() external view returns(address);
