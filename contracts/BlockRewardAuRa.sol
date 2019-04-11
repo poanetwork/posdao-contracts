@@ -45,6 +45,11 @@ contract BlockRewardAuRa is BlockRewardBase {
         address[] memory receiversNative = new address[](0);
         uint256[] memory rewardsNative = new uint256[](0);
         uint256 bridgeQueueLimit = 50;
+        uint256 stakingEpoch = stakingContract.stakingEpoch();
+
+        if (validatorSetContract.validatorSetApplyBlock() != 0) {
+            uintStorage[keccak256(abi.encode(BLOCKS_CREATED, stakingEpoch, benefactors[0]))]++;
+        }
 
         // Start new staking epoch every `stakingEpochDuration()` blocks
         (bool newValidatorSetCalled, uint256 poolsToBeElectedLength) = validatorSetContract.newValidatorSet();
@@ -83,12 +88,13 @@ contract BlockRewardAuRa is BlockRewardBase {
                 }
                 bridgeQueueLimit = 25;
             }
-        } else if (stakingContract.stakingEpoch() != 0) {
+        } else if (stakingEpoch != 0) {
             bool noop;
             (receiversNative, rewardsNative, noop) = _distributeRewards(
                 validatorSetContract,
                 stakingContract.erc20TokenContract(),
-                IStakingAuRa(address(stakingContract))
+                IStakingAuRa(address(stakingContract)),
+                stakingEpoch
             );
             if (!noop) {
                 bridgeQueueLimit = 25;
@@ -101,12 +107,29 @@ contract BlockRewardAuRa is BlockRewardBase {
 
     // =============================================== Getters ========================================================
 
-    function getEpochPoolNativeReward() public view returns(uint256) {
-        return uintStorage[EPOCH_POOL_NATIVE_REWARD];
+    function getBlocksCreated(
+        uint256 _stakingEpoch,
+        address _validatorMiningAddress
+    ) public view returns(uint256) {
+        return uintStorage[keccak256(abi.encode(BLOCKS_CREATED, _stakingEpoch, _validatorMiningAddress))];
     }
 
-    function getEpochPoolTokenReward() public view returns(uint256) {
-        return uintStorage[EPOCH_POOL_TOKEN_REWARD];
+    function getEpochPoolNativeReward(
+        uint256 _stakingEpoch,
+        address _poolStakingAddress
+    ) public view returns(uint256) {
+        return uintStorage[keccak256(abi.encode(
+            EPOCH_POOL_NATIVE_REWARD, _stakingEpoch, _poolStakingAddress
+        ))];
+    }
+
+    function getEpochPoolTokenReward(
+        uint256 _stakingEpoch,
+        address _poolStakingAddress
+    ) public view returns(uint256) {
+        return uintStorage[keccak256(abi.encode(
+            EPOCH_POOL_TOKEN_REWARD, _stakingEpoch, _poolStakingAddress
+        ))];
     }
 
     function getNativeRewardUndistributed() public view returns(uint256) {
@@ -119,20 +142,22 @@ contract BlockRewardAuRa is BlockRewardBase {
 
     // =============================================== Private ========================================================
 
-    bytes32 internal constant EPOCH_POOL_NATIVE_REWARD = keccak256("epochPoolNativeReward");
-    bytes32 internal constant EPOCH_POOL_TOKEN_REWARD = keccak256("epochPoolTokenReward");
     bytes32 internal constant NATIVE_REWARD_UNDISTRIBUTED = keccak256("nativeRewardUndistributed");
     bytes32 internal constant QUEUE_V_FIRST = keccak256("queueVFirst");
     bytes32 internal constant QUEUE_V_INITIALIZED = keccak256("queueVInitialized");
     bytes32 internal constant QUEUE_V_LAST = keccak256("queueVLast");
     bytes32 internal constant TOKEN_REWARD_UNDISTRIBUTED = keccak256("tokenRewardUndistributed");
 
+    bytes32 internal constant BLOCKS_CREATED = "blocksCreated";
+    bytes32 internal constant EPOCH_POOL_NATIVE_REWARD = "epochPoolNativeReward";
+    bytes32 internal constant EPOCH_POOL_TOKEN_REWARD = "epochPoolTokenReward";
     bytes32 internal constant QUEUE_V_LIST = "queueVList";
 
     function _distributeRewards(
         IValidatorSet _validatorSetContract,
         address _erc20TokenContract,
-        IStakingAuRa _stakingContract
+        IStakingAuRa _stakingContract,
+        uint256 _stakingEpoch
     ) internal returns(address[] memory receivers, uint256[] memory rewards, bool noop) {
         uint256 i;
         uint256 j;
@@ -147,48 +172,65 @@ contract BlockRewardAuRa is BlockRewardBase {
             boolStorage[IS_REWARDING] = true;
         } else if (block.number == rewardPointBlock) {
             address[] memory validators = _validatorSetContract.getValidators();
+            uint256[] memory ratio = new uint256[](validators.length);
 
-            uint256 poolReward;
             uint256 totalReward;
+            bool isRewarding = false;
 
-            poolReward = 0;
             totalReward = uintStorage[BRIDGE_TOKEN_FEE];
             // Accumulated bridge fee plus 1% per year inflation
             totalReward += snapshotTotalStakeAmount() * _stakingContract.stakingEpochDuration() / 630720000;
+            if (totalReward != 0 && _erc20TokenContract != address(0) || uintStorage[BRIDGE_NATIVE_FEE] != 0) {
+                j = 0;
+                for (i = 0; i < validators.length; i++) {
+                    ratio[i] = uintStorage[keccak256(abi.encode(
+                        BLOCKS_CREATED, _stakingEpoch, validators[i]
+                    ))];
+                    j += ratio[i];
+                    validators[i] = _validatorSetContract.stakingByMiningAddress(validators[i]);
+                }
+                if (j != 0) {
+                    for (i = 0; i < validators.length; i++) {
+                        ratio[i] = ratio[i] * REWARD_PERCENT_MULTIPLIER / j;
+                    }
+                }
+            }
             if (totalReward != 0) {
                 uintStorage[BRIDGE_TOKEN_FEE] = 0;
 
                 totalReward += uintStorage[TOKEN_REWARD_UNDISTRIBUTED];
 
-                if (validators.length != 0) {
-                    poolReward = totalReward / validators.length;
+                if (_erc20TokenContract != address(0)) {
+                    for (i = 0; i < validators.length; i++) {
+                        uintStorage[keccak256(abi.encode(
+                            EPOCH_POOL_TOKEN_REWARD, _stakingEpoch, validators[i]
+                        ))] = totalReward * ratio[i] / REWARD_PERCENT_MULTIPLIER;
+                    }
+                    isRewarding = true;
                 }
 
                 uintStorage[TOKEN_REWARD_UNDISTRIBUTED] = totalReward;
             }
-            if (_erc20TokenContract == address(0)) {
-                poolReward = 0;
-            }
-            uintStorage[EPOCH_POOL_TOKEN_REWARD] = poolReward;
 
-            poolReward = 0;
             totalReward = uintStorage[BRIDGE_NATIVE_FEE];
             if (totalReward != 0) {
                 uintStorage[BRIDGE_NATIVE_FEE] = 0;
 
                 totalReward += uintStorage[NATIVE_REWARD_UNDISTRIBUTED];
 
-                if (validators.length != 0) {
-                    poolReward = totalReward / validators.length;
+                for (i = 0; i < validators.length; i++) {
+                    uintStorage[keccak256(abi.encode(
+                        EPOCH_POOL_NATIVE_REWARD, _stakingEpoch, validators[i]
+                    ))] = totalReward * ratio[i] / REWARD_PERCENT_MULTIPLIER;
                 }
+                isRewarding = true;
 
                 uintStorage[NATIVE_REWARD_UNDISTRIBUTED] = totalReward;
             }
-            uintStorage[EPOCH_POOL_NATIVE_REWARD] = poolReward;
 
-            if (uintStorage[EPOCH_POOL_TOKEN_REWARD] != 0 || uintStorage[EPOCH_POOL_NATIVE_REWARD] != 0) {
+            if (isRewarding) {
                 for (i = 0; i < validators.length; i++) {
-                    _enqueueValidator(_validatorSetContract.stakingByMiningAddress(validators[i]));
+                    _enqueueValidator(validators[i]);
                 }
                 if (validators.length == 0) {
                     boolStorage[IS_REWARDING] = false;
@@ -205,9 +247,7 @@ contract BlockRewardAuRa is BlockRewardBase {
                 return (receivers, rewards, true);
             }
 
-            uint256 queueSize = _validatorsQueueSize();
-
-            if (queueSize == 0) {
+            if (_validatorsQueueSize() == 0) {
                 boolStorage[IS_REWARDING] = false;
             }
 
@@ -216,21 +256,18 @@ contract BlockRewardAuRa is BlockRewardBase {
             }
 
             address[] storage stakers = addressArrayStorage[keccak256(abi.encode(SNAPSHOT_STAKERS, stakingAddress))];
-            uint256 offset = (queueSize + 1) % DELEGATORS_ALIQUOT;
-            uint256 from = stakers.length / DELEGATORS_ALIQUOT * offset;
-            uint256 to = stakers.length / DELEGATORS_ALIQUOT * (offset + 1);
+            uint256[] memory range = new uint256[](3);
+            range[0] = (_validatorsQueueSize() + 1) % DELEGATORS_ALIQUOT; // offset
+            range[1] = stakers.length / DELEGATORS_ALIQUOT * range[0]; // from
+            range[2] = stakers.length / DELEGATORS_ALIQUOT * (range[0] + 1); // to
 
-            if (offset == 0) {
-                to += stakers.length % DELEGATORS_ALIQUOT;
+            if (range[0] == 0) {
+                range[2] += stakers.length % DELEGATORS_ALIQUOT;
             } else {
-                from += stakers.length % DELEGATORS_ALIQUOT;
+                range[1] += stakers.length % DELEGATORS_ALIQUOT;
             }
 
-            if (to <= from) {
-                if (queueSize == 0) {
-                    uintStorage[EPOCH_POOL_TOKEN_REWARD] = 0;
-                    uintStorage[EPOCH_POOL_NATIVE_REWARD] = 0;
-                }
+            if (range[1] >= range[2]) {
                 return (receivers, rewards, true);
             }
 
@@ -238,16 +275,20 @@ contract BlockRewardAuRa is BlockRewardBase {
                 SNAPSHOT_REWARD_PERCENTS, stakingAddress
             ))];
             uint256 accrued;
+            uint256 poolReward;
 
-            receivers = new address[](to - from);
+            receivers = new address[](range[2] - range[1]);
             rewards = new uint256[](receivers.length);
 
-            if (uintStorage[EPOCH_POOL_TOKEN_REWARD] != 0) {
+            poolReward = uintStorage[keccak256(abi.encode(
+                EPOCH_POOL_TOKEN_REWARD, _stakingEpoch, stakingAddress
+            ))];
+            if (poolReward != 0) {
                 accrued = 0;
-                for (i = from; i < to; i++) {
-                    j = i - from;
+                for (i = range[1]; i < range[2]; i++) {
+                    j = i - range[1];
                     receivers[j] = stakers[i];
-                    rewards[j] = uintStorage[EPOCH_POOL_TOKEN_REWARD] * rewardPercents[i] / REWARD_PERCENT_MULTIPLIER;
+                    rewards[j] = poolReward * rewardPercents[i] / REWARD_PERCENT_MULTIPLIER;
                     accrued += rewards[j];
                 }
                 IERC20Minting(_erc20TokenContract).mintReward(receivers, rewards);
@@ -255,26 +296,21 @@ contract BlockRewardAuRa is BlockRewardBase {
                 noop = false;
             }
 
-            if (uintStorage[EPOCH_POOL_NATIVE_REWARD] == 0) {
-                if (queueSize == 0) {
-                    uintStorage[EPOCH_POOL_TOKEN_REWARD] = 0;
+            poolReward = uintStorage[keccak256(abi.encode(
+                EPOCH_POOL_NATIVE_REWARD, _stakingEpoch, stakingAddress
+            ))];
+            if (poolReward != 0) {
+                accrued = 0;
+                for (i = range[1]; i < range[2]; i++) {
+                    j = i - range[1];
+                    receivers[j] = stakers[i];
+                    rewards[j] = poolReward * rewardPercents[i] / REWARD_PERCENT_MULTIPLIER;
+                    accrued += rewards[j];
                 }
+                _subNativeRewardUndistributed(accrued);
+                noop = false;
+            } else {
                 return (new address[](0), new uint256[](0), noop);
-            }
-
-            accrued = 0;
-            for (i = from; i < to; i++) {
-                j = i - from;
-                receivers[j] = stakers[i];
-                rewards[j] = uintStorage[EPOCH_POOL_NATIVE_REWARD] * rewardPercents[i] / REWARD_PERCENT_MULTIPLIER;
-                accrued += rewards[j];
-            }
-            _subNativeRewardUndistributed(accrued);
-            noop = false;
-
-            if (queueSize == 0) {
-                uintStorage[EPOCH_POOL_TOKEN_REWARD] = 0;
-                uintStorage[EPOCH_POOL_NATIVE_REWARD] = 0;
             }
         }
     }
