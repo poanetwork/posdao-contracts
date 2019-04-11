@@ -23,7 +23,7 @@ _Note: The following descriptions are for AuRa contracts only. HBBFT contract im
   - distributes the entrance/exit fees from the `erc-to-erc`, `native-to-erc`, and/or `erc-to-native` bridges among validators and their delegators;
   - distributes staking tokens minted by 1%/year inflation among validators and their delegators;
   - mints native coins needed for the `erc-to-native` bridge;
-  - makes a snapshot of the validators and their delegators at the beginning of each staking epoch and uses that snapshot during the staking epoch to accrue rewards to validators and their delegators.
+  - makes a snapshot of the validators and their delegators at the beginning of each staking epoch and uses that snapshot at the end of staking epoch to accrue rewards to validators and their delegators.
 
 - `Certifier`: allows validators to use a zero gas price for their service transactions (see [Parity Wiki](https://wiki.parity.io/Permissioning.html#gas-price) for more info). The following functions are considered service transactions:
   - ValidatorSet.emitInitiateChange
