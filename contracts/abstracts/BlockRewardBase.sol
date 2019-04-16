@@ -63,7 +63,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         _;
     }
 
-    /// @dev Ensures the caller is the ValidatorSet contract address
+    /// @dev Ensures the caller is the ValidatorSet contract address.
     /// (EternalStorageProxy proxy contract for ValidatorSet).
     modifier onlyValidatorSet {
         require(msg.sender == VALIDATOR_SET_CONTRACT);

@@ -10,7 +10,7 @@ import "./interfaces/IValidatorSetAuRa.sol";
 /// @dev Generates and distributes rewards according to the logic and formulas described in the white paper.
 contract BlockRewardAuRa is BlockRewardBase {
 
-    /// @dev Called the by validator's node when producing and closing a block,
+    /// @dev Called by the validator's node when producing and closing a block,
     /// see https://wiki.parity.io/Block-Reward-Contract.html.
     /// This function performs all of the automatic operations needed for controlling secrets revealing by validators,
     /// accumulating block producing statistics, starting a new staking epoch, snapshotting reward coefficients 
@@ -196,7 +196,7 @@ contract BlockRewardAuRa is BlockRewardBase {
     /// @param _erc20TokenContract The address of the ERC20 staking token contract.
     /// @param _stakingContract The address of the Staking contract.
     /// @param _stakingEpoch The number of the current staking epoch.
-    /// @param _rewardPointBlock The number of the block within the current staking epoch when the reward process
+    /// @param _rewardPointBlock The number of the block within the current staking epoch when the rewarding process
     /// should start. This number is calculated by the `_rewardPointBlock` getter.
     /// @return receivers The array of fee receivers (the fee is in native coins) which should be rewarded at the
     /// current block by the `erc-to-native` bridge.
