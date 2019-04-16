@@ -9,10 +9,16 @@ import "./interfaces/IValidatorSetAuRa.sol";
 
 contract BlockRewardAuRa is BlockRewardBase {
 
+    /// @dev Called by validator's node when producing and closing a block,
+    /// see https://wiki.parity.io/Block-Reward-Contract.html
+    /// This function performs all the automatic operations needed for controlling secrets revealing by validators,
+    /// accumulating block producing statistics, starting new staking epoch, reward coefficients snapshotting
+    /// at the beginning of a new staking epoch, rewards distributing at the end of staking epoch, and minting
+    /// native coins needed for the `erc-to-native` bridge.
     function reward(address[] calldata benefactors, uint16[] calldata kind)
         external
         onlySystem
-        returns(address[] memory, uint256[] memory)
+        returns(address[] memory receiversNative, uint256[] memory rewardsNative)
     {
         if (benefactors.length != kind.length || benefactors.length != 1 || kind[0] != 0) {
             return (new address[](0), new uint256[](0));
@@ -25,8 +31,11 @@ contract BlockRewardAuRa is BlockRewardBase {
             return (new address[](0), new uint256[](0));
         }
 
-        // Publish current random number at the end of the current collection round.
-        // Remove malicious validators if any.
+        receiversNative = new address[](0);
+        rewardsNative = new uint256[](0);
+
+        // Check the current validators at the end of each collection round whether
+        // they revealed their secrets, and remove a validator as a malicious if needed
         IRandomAuRa(validatorSetContract.randomContract()).onFinishCollectRound();
 
         // Initialize queues
@@ -42,19 +51,24 @@ contract BlockRewardAuRa is BlockRewardBase {
         }
 
         IStaking stakingContract = IStaking(validatorSetContract.stakingContract());
-        address[] memory receiversNative = new address[](0);
-        uint256[] memory rewardsNative = new uint256[](0);
         uint256 bridgeQueueLimit = 50;
         uint256 stakingEpoch = stakingContract.stakingEpoch();
+        uint256 rewardPointBlock = _rewardPointBlock(IStakingAuRa(address(stakingContract)), validatorSetContract);
 
-        if (validatorSetContract.validatorSetApplyBlock() != 0) {
-            uintStorage[keccak256(abi.encode(BLOCKS_CREATED, stakingEpoch, benefactors[0]))]++;
+        if (validatorSetContract.validatorSetApplyBlock() != 0 && block.number <= rewardPointBlock) {
+            if (stakingEpoch != 0) {
+                // Accumulate blocks producing statistics for each of the
+                // active validators during the current staking epoch
+                uintStorage[keccak256(abi.encode(BLOCKS_CREATED, stakingEpoch, benefactors[0]))]++;
+            }
         }
 
-        // Start new staking epoch every `stakingEpochDuration()` blocks
-        (bool newValidatorSetCalled, uint256 poolsToBeElectedLength) = validatorSetContract.newValidatorSet();
+        // Start a new staking epoch every `stakingEpochDuration()` blocks
+        (bool newStakingEpochHasBegun, uint256 poolsToBeElectedLength) = validatorSetContract.newValidatorSet();
 
-        if (newValidatorSetCalled) {
+        if (newStakingEpochHasBegun) {
+            // A new staking epoch has begun, so prepare for reward coefficients snapshotting
+            // process which begins right from the following block
             address[] memory newValidatorSet = validatorSetContract.getPendingValidators();
 
             for (uint256 i = 0; i < newValidatorSet.length; i++) {
@@ -78,35 +92,47 @@ contract BlockRewardAuRa is BlockRewardBase {
                 bridgeQueueLimit = 25;
             }
         } else if (boolStorage[IS_SNAPSHOTTING]) {
+            // Snapshot reward coefficients for each new validator and their delegators
+            // during the very first blocks of a new staking epoch
             address stakingAddress = _dequeueValidator();
 
             if (stakingAddress != address(0)) {
                 uint256 validatorsQueueSize = _validatorsQueueSize();
                 _setSnapshot(stakingAddress, stakingContract, (validatorsQueueSize + 1) % DELEGATORS_ALIQUOT);
                 if (validatorsQueueSize == 0) {
+                    // Snapshotting process has been finished
                     boolStorage[IS_SNAPSHOTTING] = false;
                 }
                 bridgeQueueLimit = 25;
             }
         } else if (stakingEpoch != 0) {
+            // Distribute rewards at the end of staking epoch during the last
+            // MAX_VALIDATORS * DELEGATORS_ALIQUOT blocks
             bool noop;
             (receiversNative, rewardsNative, noop) = _distributeRewards(
                 validatorSetContract,
                 stakingContract.erc20TokenContract(),
                 IStakingAuRa(address(stakingContract)),
-                stakingEpoch
+                stakingEpoch,
+                rewardPointBlock
             );
             if (!noop) {
                 bridgeQueueLimit = 25;
             }
         }
 
-        // Mint native coins by bridge if needed.
+        // Mint native coins if needed
         return _mintNativeCoinsByErcToNativeBridge(receiversNative, rewardsNative, bridgeQueueLimit);
     }
 
     // =============================================== Getters ========================================================
 
+    /// @dev Returns a number of blocks produced by the specified validator during the specified staking epoch
+    /// (beginning from the block when the `finalizeChange` function was called until the block specified by the
+    /// `_rewardPointBlock` function). This statistics is used by the `_distributeRewards` function to take into
+    /// account each validator downtime (when a validator turns off their node and doesn't produce blocks).
+    /// @param _stakingEpoch The number of staking epoch for which the statistics should be returned.
+    /// @param _validatorMiningAddress The mining address of validator for which the statistics should be returned.
     function getBlocksCreated(
         uint256 _stakingEpoch,
         address _validatorMiningAddress
@@ -114,6 +140,10 @@ contract BlockRewardAuRa is BlockRewardBase {
         return uintStorage[keccak256(abi.encode(BLOCKS_CREATED, _stakingEpoch, _validatorMiningAddress))];
     }
 
+    /// @dev Returns the reward amount to be distributed in native coins among participants (validator and their
+    /// delegators) of the specified pool at the end of the specified staking epoch.
+    /// @param _stakingEpoch The number of staking epoch for which the amount should be returned.
+    /// @param _poolStakingAddress The staking address of the pool for which the amount should be returned.
     function getEpochPoolNativeReward(
         uint256 _stakingEpoch,
         address _poolStakingAddress
@@ -123,6 +153,10 @@ contract BlockRewardAuRa is BlockRewardBase {
         ))];
     }
 
+    /// @dev Returns the reward amount to be distributed in staking tokens among participants (validator and their
+    /// delegators) of the specified pool at the end of the specified staking epoch.
+    /// @param _stakingEpoch The number of staking epoch for which the amount should be returned.
+    /// @param _poolStakingAddress The staking address of the pool for which the amount should be returned.
     function getEpochPoolTokenReward(
         uint256 _stakingEpoch,
         address _poolStakingAddress
@@ -132,10 +166,12 @@ contract BlockRewardAuRa is BlockRewardBase {
         ))];
     }
 
+    /// @dev Returns the total reward amount in native coins which is not yet distributed among participants.
     function getNativeRewardUndistributed() public view returns(uint256) {
         return uintStorage[NATIVE_REWARD_UNDISTRIBUTED];
     }
 
+    /// @dev Returns the total reward amount in staking tokens which is not yet distributed among participants.
     function getTokenRewardUndistributed() public view returns(uint256) {
         return uintStorage[TOKEN_REWARD_UNDISTRIBUTED];
     }
@@ -153,24 +189,37 @@ contract BlockRewardAuRa is BlockRewardBase {
     bytes32 internal constant EPOCH_POOL_TOKEN_REWARD = "epochPoolTokenReward";
     bytes32 internal constant QUEUE_V_LIST = "queueVList";
 
+    /// @dev Distributes rewards among participants during the last MAX_VALIDATORS * DELEGATORS_ALIQUOT
+    /// blocks of staking epoch. This function is called by the `reward` function.
+    /// @param _validatorSetContract The address of ValidatorSet contract.
+    /// @param _erc20TokenContract The address of ERC20 staking token contract.
+    /// @param _stakingContract The address of Staking contract.
+    /// @param _stakingEpoch The number of the current staking epoch.
+    /// @param _rewardPointBlock The number of the block within the current staking epoch when the rewarding process
+    /// should start. This number is calculated by the `_rewardPointBlock` getter.
+    /// @return receivers The array of fee receivers (the fee is in native coins) which should be rewarded at the
+    /// current block by the `erc-to-native` bridge.
+    /// @return rewards The array of amounts corresponding to the `receivers` array.
+    /// @return noop The boolean flag getting `true` when there were no complex operations during the
+    /// function launching. The flag is used by the `reward` function to control the load on the block inside the
+    /// `_mintNativeCoinsByErcToNativeBridge` function.
     function _distributeRewards(
         IValidatorSet _validatorSetContract,
         address _erc20TokenContract,
         IStakingAuRa _stakingContract,
-        uint256 _stakingEpoch
+        uint256 _stakingEpoch,
+        uint256 _rewardPointBlock
     ) internal returns(address[] memory receivers, uint256[] memory rewards, bool noop) {
         uint256 i;
         uint256 j;
-        uint256 rewardPointBlock =
-            _stakingContract.stakingEpochEndBlock() - _validatorSetContract.MAX_VALIDATORS() * DELEGATORS_ALIQUOT - 1;
 
         receivers = new address[](0);
         rewards = new uint256[](0);
         noop = true;
 
-        if (block.number == rewardPointBlock - 1) {
+        if (block.number == _rewardPointBlock - 1) {
             boolStorage[IS_REWARDING] = true;
-        } else if (block.number == rewardPointBlock) {
+        } else if (block.number == _rewardPointBlock) {
             address[] memory validators = _validatorSetContract.getValidators();
             uint256[] memory ratio = new uint256[](validators.length);
 
@@ -240,7 +289,7 @@ contract BlockRewardAuRa is BlockRewardBase {
             }
 
             noop = false;
-        } else if (block.number > rewardPointBlock) {
+        } else if (block.number > _rewardPointBlock) {
             address stakingAddress = _dequeueValidator();
 
             if (stakingAddress == address(0)) {
@@ -256,7 +305,7 @@ contract BlockRewardAuRa is BlockRewardBase {
             }
 
             address[] storage stakers = addressArrayStorage[keccak256(abi.encode(SNAPSHOT_STAKERS, stakingAddress))];
-            uint256[] memory range = new uint256[](3);
+            uint256[] memory range = new uint256[](3); // array instead of local vars because the stack is too deep
             range[0] = (_validatorsQueueSize() + 1) % DELEGATORS_ALIQUOT; // offset
             range[1] = stakers.length / DELEGATORS_ALIQUOT * range[0]; // from
             range[2] = stakers.length / DELEGATORS_ALIQUOT * (range[0] + 1); // to
@@ -315,28 +364,37 @@ contract BlockRewardAuRa is BlockRewardBase {
         }
     }
 
-    function _dequeueValidator() internal returns(address newValidator) {
+    /// @dev Dequeues a validator enqueued for snapshotting or rewarding process.
+    /// Used by the `reward` and `_distributeRewards` functions.
+    /// If the queue is empty, the function returns zero address.
+    function _dequeueValidator() internal returns(address validatorStakingAddress) {
         uint256 queueFirst = uintStorage[QUEUE_V_FIRST];
         uint256 queueLast = uintStorage[QUEUE_V_LAST];
 
         if (queueLast < queueFirst) {
-            newValidator = address(0);
+            validatorStakingAddress = address(0);
         } else {
             bytes32 hash = keccak256(abi.encode(QUEUE_V_LIST, queueFirst));
-            newValidator = addressStorage[hash];
+            validatorStakingAddress = addressStorage[hash];
             delete addressStorage[hash];
             uintStorage[QUEUE_V_FIRST]++;
         }
     }
 
-    function _enqueueValidator(address _newValidator) internal {
+    /// @dev Enqueues the specified validator for snapshotting or rewarding process.
+    /// Used by the `reward` and `_distributeRewards` functions. See also DELEGATORS_ALIQUOT.
+    /// @param _validatorStakingAddress The staking address of a validator to be enqueued.
+    function _enqueueValidator(address _validatorStakingAddress) internal {
         uint256 queueLast = uintStorage[QUEUE_V_LAST];
         for (uint256 i = 0; i < DELEGATORS_ALIQUOT; i++) {
-            addressStorage[keccak256(abi.encode(QUEUE_V_LIST, ++queueLast))] = _newValidator;
+            addressStorage[keccak256(abi.encode(QUEUE_V_LIST, ++queueLast))] = _validatorStakingAddress;
         }
         uintStorage[QUEUE_V_LAST] = queueLast;
     }
 
+    /// @dev Reduces an undistributed amount of native coins.
+    /// This function is used by the `_distributeRewards` function.
+    /// @param _minus The subtraction value.
     function _subNativeRewardUndistributed(uint256 _minus) internal {
         if (uintStorage[NATIVE_REWARD_UNDISTRIBUTED] < _minus) {
             uintStorage[NATIVE_REWARD_UNDISTRIBUTED] = 0;
@@ -345,6 +403,9 @@ contract BlockRewardAuRa is BlockRewardBase {
         }
     }
 
+    /// @dev Reduces an undistributed amount of staking tokens.
+    /// This function is used by the `_distributeRewards` function.
+    /// @param _minus The subtraction value.
     function _subTokenRewardUndistributed(uint256 _minus) internal {
         if (uintStorage[TOKEN_REWARD_UNDISTRIBUTED] < _minus) {
             uintStorage[TOKEN_REWARD_UNDISTRIBUTED] = 0;
@@ -353,6 +414,21 @@ contract BlockRewardAuRa is BlockRewardBase {
         }
     }
 
+    /// @dev Calculates the block number at which the rewarding process
+    /// must start at the end of the current staking epoch.
+    /// Used by the `reward` and `_distributeRewards` functions.
+    /// @param _stakingContract The address of StakingAuRa contract.
+    /// @param _validatorSetContract The address of ValidatorSet contract.
+    function _rewardPointBlock(
+        IStakingAuRa _stakingContract,
+        IValidatorSet _validatorSetContract
+    ) internal view returns(uint256) {
+        return _stakingContract.stakingEpochEndBlock() - _validatorSetContract.MAX_VALIDATORS()*DELEGATORS_ALIQUOT - 1;
+    }
+
+    /// @dev Returns the size of the validator queue used for snapshotting and rewarding processes.
+    /// See `_enqueueValidator` and `_dequeueValidator` functions.
+    /// This function is used by the `reward` and `_distributeRewards` functions.
     function _validatorsQueueSize() internal view returns(uint256) {
         return uintStorage[QUEUE_V_LAST] + 1 - uintStorage[QUEUE_V_FIRST];
     }
