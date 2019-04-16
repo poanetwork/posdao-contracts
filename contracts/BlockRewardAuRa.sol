@@ -10,11 +10,11 @@ import "./interfaces/IValidatorSetAuRa.sol";
 /// @dev Generates and distributes rewards according to the logic and formulas described in the white paper.
 contract BlockRewardAuRa is BlockRewardBase {
 
-    /// @dev Called by validator's node when producing and closing a block,
-    /// see https://wiki.parity.io/Block-Reward-Contract.html
-    /// This function performs all the automatic operations needed for controlling secrets revealing by validators,
-    /// accumulating block producing statistics, starting new staking epoch, reward coefficients snapshotting
-    /// at the beginning of a new staking epoch, rewards distributing at the end of staking epoch, and minting
+    /// @dev Called the by validator's node when producing and closing a block,
+    /// see https://wiki.parity.io/Block-Reward-Contract.html.
+    /// This function performs all of the automatic operations needed for controlling secrets revealing by validators,
+    /// accumulating block producing statistics, starting a new staking epoch, snapshotting reward coefficients 
+    /// at the beginning of a new staking epoch, rewards distributing at the end of a staking epoch, and minting
     /// native coins needed for the `erc-to-native` bridge.
     function reward(address[] calldata benefactors, uint16[] calldata kind)
         external
@@ -129,11 +129,11 @@ contract BlockRewardAuRa is BlockRewardBase {
     // =============================================== Getters ========================================================
 
     /// @dev Returns a number of blocks produced by the specified validator during the specified staking epoch
-    /// (beginning from the block when the `finalizeChange` function was called until the block specified by the
-    /// `_rewardPointBlock` function). This statistics is used by the `_distributeRewards` function to take into
-    /// account each validator downtime (when a validator turns off their node and doesn't produce blocks).
-    /// @param _stakingEpoch The number of staking epoch for which the statistics should be returned.
-    /// @param _validatorMiningAddress The mining address of validator for which the statistics should be returned.
+    /// (beginning from the block when the `finalizeChange` function is called until the block specified by the
+    /// `_rewardPointBlock` function). The results are used by the `_distributeRewards` function to track
+    /// each validator's downtime (when a validator's node is not running and doesn't produce blocks).
+    /// @param _stakingEpoch The number of the staking epoch for which the statistics should be returned.
+    /// @param _validatorMiningAddress The mining address of the validator for which the statistics should be returned.
     function getBlocksCreated(
         uint256 _stakingEpoch,
         address _validatorMiningAddress
@@ -141,9 +141,9 @@ contract BlockRewardAuRa is BlockRewardBase {
         return uintStorage[keccak256(abi.encode(BLOCKS_CREATED, _stakingEpoch, _validatorMiningAddress))];
     }
 
-    /// @dev Returns the reward amount to be distributed in native coins among participants (validator and their
+    /// @dev Returns the reward amount to be distributed in native coins among participants (the validator and their
     /// delegators) of the specified pool at the end of the specified staking epoch.
-    /// @param _stakingEpoch The number of staking epoch for which the amount should be returned.
+    /// @param _stakingEpoch The number of the staking epoch for which the amount should be returned.
     /// @param _poolStakingAddress The staking address of the pool for which the amount should be returned.
     function getEpochPoolNativeReward(
         uint256 _stakingEpoch,
@@ -154,9 +154,9 @@ contract BlockRewardAuRa is BlockRewardBase {
         ))];
     }
 
-    /// @dev Returns the reward amount to be distributed in staking tokens among participants (validator and their
+    /// @dev Returns the reward amount to be distributed in staking tokens among participants (the validator and their
     /// delegators) of the specified pool at the end of the specified staking epoch.
-    /// @param _stakingEpoch The number of staking epoch for which the amount should be returned.
+    /// @param _stakingEpoch The number of the staking epoch for which the amount should be returned.
     /// @param _poolStakingAddress The staking address of the pool for which the amount should be returned.
     function getEpochPoolTokenReward(
         uint256 _stakingEpoch,
@@ -191,18 +191,18 @@ contract BlockRewardAuRa is BlockRewardBase {
     bytes32 internal constant QUEUE_V_LIST = "queueVList";
 
     /// @dev Distributes rewards among participants during the last MAX_VALIDATORS * DELEGATORS_ALIQUOT
-    /// blocks of staking epoch. This function is called by the `reward` function.
-    /// @param _validatorSetContract The address of ValidatorSet contract.
-    /// @param _erc20TokenContract The address of ERC20 staking token contract.
-    /// @param _stakingContract The address of Staking contract.
+    /// blocks of a staking epoch. This function is called by the `reward` function.
+    /// @param _validatorSetContract The address of the ValidatorSet contract.
+    /// @param _erc20TokenContract The address of the ERC20 staking token contract.
+    /// @param _stakingContract The address of the Staking contract.
     /// @param _stakingEpoch The number of the current staking epoch.
-    /// @param _rewardPointBlock The number of the block within the current staking epoch when the rewarding process
+    /// @param _rewardPointBlock The number of the block within the current staking epoch when the reward process
     /// should start. This number is calculated by the `_rewardPointBlock` getter.
     /// @return receivers The array of fee receivers (the fee is in native coins) which should be rewarded at the
     /// current block by the `erc-to-native` bridge.
     /// @return rewards The array of amounts corresponding to the `receivers` array.
-    /// @return noop The boolean flag getting `true` when there were no complex operations during the
-    /// function launching. The flag is used by the `reward` function to control the load on the block inside the
+    /// @return noop The boolean flag which is set to `true` when there are no complex operations during the
+    /// function launch. The flag is used by the `reward` function to control the load on the block inside the
     /// `_mintNativeCoinsByErcToNativeBridge` function.
     function _distributeRewards(
         IValidatorSet _validatorSetContract,
@@ -365,9 +365,9 @@ contract BlockRewardAuRa is BlockRewardBase {
         }
     }
 
-    /// @dev Dequeues a validator enqueued for snapshotting or rewarding process.
+    /// @dev Dequeues a validator enqueued for the snapshotting or rewarding process.
     /// Used by the `reward` and `_distributeRewards` functions.
-    /// If the queue is empty, the function returns zero address.
+    /// If the queue is empty, the function returns a zero address.
     function _dequeueValidator() internal returns(address validatorStakingAddress) {
         uint256 queueFirst = uintStorage[QUEUE_V_FIRST];
         uint256 queueLast = uintStorage[QUEUE_V_LAST];
@@ -382,7 +382,7 @@ contract BlockRewardAuRa is BlockRewardBase {
         }
     }
 
-    /// @dev Enqueues the specified validator for snapshotting or rewarding process.
+    /// @dev Enqueues the specified validator for the snapshotting or rewarding process.
     /// Used by the `reward` and `_distributeRewards` functions. See also DELEGATORS_ALIQUOT.
     /// @param _validatorStakingAddress The staking address of a validator to be enqueued.
     function _enqueueValidator(address _validatorStakingAddress) internal {
@@ -415,11 +415,11 @@ contract BlockRewardAuRa is BlockRewardBase {
         }
     }
 
-    /// @dev Calculates the block number at which the rewarding process
-    /// must start at the end of the current staking epoch.
+    /// @dev Calculates the starting block number for the rewarding process
+    /// at the end of the current staking epoch.
     /// Used by the `reward` and `_distributeRewards` functions.
-    /// @param _stakingContract The address of StakingAuRa contract.
-    /// @param _validatorSetContract The address of ValidatorSet contract.
+    /// @param _stakingContract The address of the StakingAuRa contract.
+    /// @param _validatorSetContract The address of the ValidatorSet contract.
     function _rewardPointBlock(
         IStakingAuRa _stakingContract,
         IValidatorSet _validatorSetContract
@@ -427,7 +427,7 @@ contract BlockRewardAuRa is BlockRewardBase {
         return _stakingContract.stakingEpochEndBlock() - _validatorSetContract.MAX_VALIDATORS()*DELEGATORS_ALIQUOT - 1;
     }
 
-    /// @dev Returns the size of the validator queue used for snapshotting and rewarding processes.
+    /// @dev Returns the size of the validator queue used for the snapshotting and rewarding processes.
     /// See `_enqueueValidator` and `_dequeueValidator` functions.
     /// This function is used by the `reward` and `_distributeRewards` functions.
     function _validatorsQueueSize() internal view returns(uint256) {

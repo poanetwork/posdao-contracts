@@ -1,8 +1,8 @@
 pragma solidity 0.5.2;
 
 
-/// @dev This contract is just for having all the contracts addresses in one place.
-/// The contracts which need the addresses are inherited from this one.
+/// @dev This contract lists all contract addresses in one place.
+/// Contracts requiring these addresses inherit the values from here.
 contract ContractsAddresses {
     address internal constant VALIDATOR_SET_CONTRACT = address(0x1000000000000000000000000000000000000001);
     address internal constant STAKING_CONTRACT = address(0x1100000000000000000000000000000000000001);

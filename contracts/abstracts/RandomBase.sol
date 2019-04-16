@@ -12,12 +12,12 @@ contract RandomBase is OwnedEternalStorage, IRandom {
 
     // ============================================== Constants =======================================================
 
-    /// @dev The address of ValidatorSet contract (EternalStorageProxy proxy contract for ValidatorSet).
+    /// @dev ValidatorSet contract address (EternalStorageProxy proxy contract for ValidatorSet).
     address public constant VALIDATOR_SET_CONTRACT = address(0x1000000000000000000000000000000000000001);
 
     // ============================================== Modifiers =======================================================
 
-    /// @dev Ensures that the caller is the address of ValidatorSet contract
+    /// @dev Ensures the caller is the ValidatorSet contract address
     /// (EternalStorageProxy proxy contract for ValidatorSet).
     modifier onlyValidatorSetContract() {
         require(msg.sender == VALIDATOR_SET_CONTRACT);
