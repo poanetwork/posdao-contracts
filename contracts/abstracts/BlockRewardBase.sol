@@ -7,6 +7,7 @@ import "../eternal-storage/OwnedEternalStorage.sol";
 import "../libs/SafeMath.sol";
 
 
+/// @dev The base contract for the BlockRewardAuRa and BlockRewardHBBFT contracts.
 contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     using SafeMath for uint256;
 

@@ -7,6 +7,7 @@ import "./interfaces/IStakingAuRa.sol";
 import "./interfaces/IValidatorSetAuRa.sol";
 
 
+/// @dev Generates and distributes rewards according to the logic and formulas described in the white paper.
 contract BlockRewardAuRa is BlockRewardBase {
 
     /// @dev Called by validator's node when producing and closing a block,

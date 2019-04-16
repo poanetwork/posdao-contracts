@@ -6,16 +6,19 @@ import "../eternal-storage/OwnedEternalStorage.sol";
 import "../libs/SafeMath.sol";
 
 
+/// @dev The base contract for the RandomAuRa and RandomHBBFT contracts.
 contract RandomBase is OwnedEternalStorage, IRandom {
     using SafeMath for uint256;
 
     // ============================================== Constants =======================================================
 
-    // This address must be set before deploy
+    /// @dev The address of ValidatorSet contract (EternalStorageProxy proxy contract for ValidatorSet).
     address public constant VALIDATOR_SET_CONTRACT = address(0x1000000000000000000000000000000000000001);
 
     // ============================================== Modifiers =======================================================
 
+    /// @dev Ensures that the caller is the address of ValidatorSet contract
+    /// (EternalStorageProxy proxy contract for ValidatorSet).
     modifier onlyValidatorSetContract() {
         require(msg.sender == VALIDATOR_SET_CONTRACT);
         _;
@@ -23,7 +26,8 @@ contract RandomBase is OwnedEternalStorage, IRandom {
 
     // =============================================== Getters ========================================================
 
-    // This function is called by ValidatorSet contract.
+    /// @dev Returns the current random seed accumulated during RANDAO or another process (depending on
+    /// implementation). This getter can only be called by the `ValidatorSet` contract.
     function getCurrentSeed() external onlyValidatorSetContract view returns(uint256) {
         return _getCurrentSeed();
     }
@@ -32,10 +36,13 @@ contract RandomBase is OwnedEternalStorage, IRandom {
 
     bytes32 internal constant CURRENT_SEED = keccak256("currentSeed");
 
+    /// @dev Updates the current random seed.
+    /// @param _seed A new random seed.
     function _setCurrentSeed(uint256 _seed) internal {
         uintStorage[CURRENT_SEED] = _seed;
     }
 
+    /// @dev Reads the current random seed from the state.
     function _getCurrentSeed() internal view returns(uint256) {
         return uintStorage[CURRENT_SEED];
     }
