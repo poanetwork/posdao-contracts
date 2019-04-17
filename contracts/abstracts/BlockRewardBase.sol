@@ -155,14 +155,12 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
 
     // =============================================== Getters ========================================================
 
-    /// @dev Returns the array of `erc-to-erc` bridge addresses set by
-    /// the previous `setErcToErcBridgesAllowed` setter.
+    /// @dev Returns the array of `erc-to-erc` bridge addresses set by the `setErcToErcBridgesAllowed` setter.
     function ercToErcBridgesAllowed() public view returns(address[] memory) {
         return addressArrayStorage[ERC_TO_ERC_BRIDGES_ALLOWED];
     }
 
-    /// @dev Returns the array of `erc-to-native` bridge addresses set by
-    /// the previous `setErcToNativeBridgesAllowed` setter.
+    /// @dev Returns the array of `erc-to-native` bridge addresses set by the `setErcToNativeBridgesAllowed` setter.
     function ercToNativeBridgesAllowed() public view returns(address[] memory) {
         return addressArrayStorage[ERC_TO_NATIVE_BRIDGES_ALLOWED];
     }
@@ -237,8 +235,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         return uintStorage[MINTED_TOTALLY];
     }
 
-    /// @dev Returns the array of `native-to-erc` bridge addresses which were set by
-    /// the previous `setNativeToErcBridgesAllowed` setter.
+    /// @dev Returns the array of `native-to-erc` bridge addresses which were set by the `setNativeToErcBridgesAllowed` setter.
     function nativeToErcBridgesAllowed() public view returns(address[] memory) {
         return addressArrayStorage[NATIVE_TO_ERC_BRIDGES_ALLOWED];
     }
