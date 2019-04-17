@@ -13,13 +13,13 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
 
     // ============================================== Constants =======================================================
 
-    /// @dev The address of ValidatorSet contract (EternalStorageProxy proxy contract for ValidatorSet).
+    /// @dev The address of the ValidatorSet contract (EternalStorageProxy proxy contract for ValidatorSet).
     address public constant VALIDATOR_SET_CONTRACT = address(0x1000000000000000000000000000000000000001);
 
-    /// @dev The constant defining a number of parts into which the reward distribution
-    /// and stakes snapshotting processes are split for each pool. This is used for
-    /// reducing the load on each block when reward distribution (at the end of staking epoch)
-    /// and stakes snapshotting (at the beginning of staking epoch). See the `_setSnapshot`
+    /// @dev A constant that defines the number of sections the reward distribution
+    /// and stakes snapshotting processes are split into for each pool. This is used to
+    /// reduce the load on each block when reward distribution (at the end of staking epoch)
+    /// and stakes snapshotting (at the beginning of staking epoch) occur. See the `_setSnapshot`
     /// and `_distributeRewards` functions.
     uint256 public constant DELEGATORS_ALIQUOT = 2;
 
@@ -29,26 +29,26 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     /// @param amount The amount of native coins which must be minted for the `receiver` by the `erc-to-native`
     /// `bridge` with the `reward` function.
     /// @param receiver The address for which the `amount` of native coins must be minted.
-    /// @param bridge The address of the bridge which called the `addExtraReceiver` function.
+    /// @param bridge The bridge address which called the `addExtraReceiver` function.
     event AddedReceiver(uint256 amount, address indexed receiver, address indexed bridge);
 
     /// @dev Emitted by the `_mintNativeCoinsByErcToNativeBridge` function which is called by the `reward` function.
-    /// This event is only used by the unit tests because event emitting by the `reward` function is not possible.
-    /// @param receivers The array of receiver addresses for which the native coins are minted. The length of this
+    /// This event is only used by the unit tests because the `reward` function cannot emit events.
+    /// @param receivers The array of receiver addresses for which native coins are minted. The length of this
     /// array is equal to the length of the `rewards` array.
-    /// @param rewards The array of amounts which are minted for the relevant `receivers`. The length of this array
+    /// @param rewards The array of amounts minted for the relevant `receivers`. The length of this array
     /// is equal to the length of the `receivers` array.
     event MintedNative(address[] receivers, uint256[] rewards);
 
     // ============================================== Modifiers =======================================================
 
-    /// @dev Ensures that the caller is the address of `erc-to-native` bridge contract.
+    /// @dev Ensures the caller is the `erc-to-native` bridge contract address.
     modifier onlyErcToNativeBridge {
         require(boolStorage[keccak256(abi.encode(ERC_TO_NATIVE_BRIDGE_ALLOWED, msg.sender))]);
         _;
     }
 
-    /// @dev Ensures that the caller is the address of `erc-to-erc` or `native-to-erc` bridge contract.
+    /// @dev Ensures the caller is the `erc-to-erc` or `native-to-erc` bridge contract address.
     modifier onlyXToErcBridge {
         require(
             boolStorage[keccak256(abi.encode(ERC_TO_ERC_BRIDGE_ALLOWED, msg.sender))] ||
@@ -57,13 +57,13 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         _;
     }
 
-    /// @dev Ensures that the caller is the SYSTEM_ADDRESS.
+    /// @dev Ensures the caller is the SYSTEM_ADDRESS.
     modifier onlySystem {
         require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
         _;
     }
 
-    /// @dev Ensures that the caller is the address of ValidatorSet contract
+    /// @dev Ensures the caller is the ValidatorSet contract address.
     /// (EternalStorageProxy proxy contract for ValidatorSet).
     modifier onlyValidatorSet {
         require(msg.sender == VALIDATOR_SET_CONTRACT);
@@ -72,24 +72,23 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
 
     // =============================================== Setters ========================================================
 
-    /// @dev Called by the `erc-to-native` bridge contract when some amount of bridge fee should be accrued to
-    /// participants in native coins. The specified amount is used by the `_distributeRewards` function.
-    /// @param _amount The amount of fee to be accrued to participants.
+    /// @dev Called by the `erc-to-native` bridge contract when a portion of the bridge fee should be distributed to participants (validators and their delegators) in native coins. The specified amount is used by the `_distributeRewards` function.
+    /// @param _amount The fee amount distributed to participants.
     function addBridgeNativeFeeReceivers(uint256 _amount) external onlyErcToNativeBridge {
         require(_amount != 0);
         uintStorage[BRIDGE_NATIVE_FEE] = uintStorage[BRIDGE_NATIVE_FEE].add(_amount);
     }
 
-    /// @dev Called by the `erc-to-erc` or `native-to-erc` bridge contract when some amount of bridge fee should be
-    /// accrued to participants in staking tokens. The specified amount is used by the `_distributeRewards` function.
-    /// @param _amount The amount of fee to be accrued to participants.
+    /// @dev Called by the `erc-to-erc` or `native-to-erc` bridge contract when a portion of the bridge fee should be
+    /// distributed to participants in staking tokens. The specified amount is used by the `_distributeRewards` function.
+    /// @param _amount The fee amount distributed to participants.
     function addBridgeTokenFeeReceivers(uint256 _amount) external onlyXToErcBridge {
         require(_amount != 0);
         uintStorage[BRIDGE_TOKEN_FEE] = uintStorage[BRIDGE_TOKEN_FEE].add(_amount);
     }
 
-    /// @dev Called by the `erc-to-native` bridge contract when the bridge needs to mint the specified amount of native
-    /// coins for the specified address with the `reward` function.
+    /// @dev Called by the `erc-to-native` bridge contract when the bridge needs to mint a specified amount of native
+    /// coins for a specified address using the `reward` function.
     /// @param _amount The amount of native coins which must be minted for the `_receiver` address.
     /// @param _receiver The address for which the `_amount` of native coins must be minted.
     function addExtraReceiver(uint256 _amount, address _receiver) external onlyErcToNativeBridge {
@@ -100,9 +99,9 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         emit AddedReceiver(_amount, _receiver, msg.sender);
     }
 
-    /// @dev Sets the array of `erc-to-native` bridges addresses which are allowed to call some of the functions with
+    /// @dev Sets the array of `erc-to-native` bridge addresses which are allowed to call some of the functions with
     /// the `onlyErcToNativeBridge` modifier. This setter can only be called by the `owner`.
-    /// @param _bridgesAllowed The array of bridges addresses.
+    /// @param _bridgesAllowed The array of bridge addresses.
     function setErcToNativeBridgesAllowed(address[] calldata _bridgesAllowed) external onlyOwner {
         uint256 i;
 
@@ -118,9 +117,9 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         }
     }
 
-    /// @dev Sets the array of `native-to-erc` bridges addresses which are allowed to call some of the functions with
+    /// @dev Sets the array of `native-to-erc` bridge addresses which are allowed to call some of the functions with
     /// the `onlyXToErcBridge` modifier. This setter can only be called by the `owner`.
-    /// @param _bridgesAllowed The array of bridges addresses.
+    /// @param _bridgesAllowed The array of bridge addresses.
     function setNativeToErcBridgesAllowed(address[] calldata _bridgesAllowed) external onlyOwner {
         uint256 i;
 
@@ -136,9 +135,9 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         }
     }
 
-    /// @dev Sets the array of `erc-to-erc` bridges addresses which are allowed to call some of the functions with
+    /// @dev Sets the array of `erc-to-erc` bridge addresses which are allowed to call some of the functions with
     /// the `onlyXToErcBridge` modifier. This setter can only be called by the `owner`.
-    /// @param _bridgesAllowed The array of bridges addresses.
+    /// @param _bridgesAllowed The array of bridge addresses.
     function setErcToErcBridgesAllowed(address[] calldata _bridgesAllowed) external onlyOwner {
         uint256 i;
 
@@ -156,55 +155,55 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
 
     // =============================================== Getters ========================================================
 
-    /// @dev Returns the array of `erc-to-erc` bridges addresses which were set by
-    /// the `setErcToErcBridgesAllowed` setter before.
+    /// @dev Returns the array of `erc-to-erc` bridge addresses set by
+    /// the previous `setErcToErcBridgesAllowed` setter.
     function ercToErcBridgesAllowed() public view returns(address[] memory) {
         return addressArrayStorage[ERC_TO_ERC_BRIDGES_ALLOWED];
     }
 
-    /// @dev Returns the array of `erc-to-native` bridges addresses which were set by
-    /// the `setErcToNativeBridgesAllowed` setter before.
+    /// @dev Returns the array of `erc-to-native` bridge addresses set by
+    /// the previous `setErcToNativeBridgesAllowed` setter.
     function ercToNativeBridgesAllowed() public view returns(address[] memory) {
         return addressArrayStorage[ERC_TO_NATIVE_BRIDGES_ALLOWED];
     }
 
-    /// @dev Returns the current size of the address queue which is formed by the `addExtraReceiver` function.
+    /// @dev Returns the current size of the address queue created by the `addExtraReceiver` function.
     function extraReceiversQueueSize() public view returns(uint256) {
         return uintStorage[QUEUE_ER_LAST] + 1 - uintStorage[QUEUE_ER_FIRST];
     }
 
-    /// @dev Returns the current total fee amount of native coins which has been accumulated by
+    /// @dev Returns the current total fee amount of native coins accumulated by
     /// the `addBridgeNativeFeeReceivers` function.
     function getBridgeNativeFee() public view returns(uint256) {
         return uintStorage[BRIDGE_NATIVE_FEE];
     }
 
-    /// @dev Returns the current total fee amount of staking tokens which has been accumulated by
+    /// @dev Returns the current total fee amount of staking tokens accumulated by
     /// the `addBridgeTokenFeeReceivers` function.
     function getBridgeTokenFee() public view returns(uint256) {
         return uintStorage[BRIDGE_TOKEN_FEE];
     }
 
-    /// @dev Returns a boolean flag of whether the rewarding process is occuring for the current block.
+    /// @dev Returns a boolean flag indicating if the reward process is occuring for the current block.
     /// The value of this boolean flag is changed by the `_distributeRewards` function.
     function isRewarding() public view returns(bool) {
         return boolStorage[IS_REWARDING];
     }
 
-    /// @dev Returns a boolean flag of whether the snapshotting process is occuring for the current block.
+    /// @dev Returns a boolean flag indicating if the snapshotting process is occuring for the current block.
     /// The value of this boolean flag is changed by the `reward` function.
     function isSnapshotting() public view returns(bool) {
         return boolStorage[IS_SNAPSHOTTING];
     }
 
-    /// @dev Returns how many native coins were minted in total for the specified address
+    /// @dev Returns the total amount of native coins minted for the specified address
     /// by the `erc-to-native` bridges through the `addExtraReceiver` function.
     /// @param _account The address for which the getter must return the minted amount.
     function mintedForAccount(address _account) public view returns(uint256) {
         return uintStorage[keccak256(abi.encode(MINTED_FOR_ACCOUNT, _account))];
     }
 
-    /// @dev Returns how many native coins were minted at the specified block for the specified
+    /// @dev Returns the amount of native coins minted at the specified block for the specified
     /// address by the `erc-to-native` bridges through the `addExtraReceiver` function.
     /// @param _account The address for which the getter must return the amount minted at the `_blockNumber`.
     /// @param _blockNumber The block number for which the getter must return the amount minted for the `_account`.
@@ -218,37 +217,37 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         ];
     }
 
-    /// @dev Returns how many native coins in total were minted at the specified block
+    /// @dev Returns the total amount of native coins minted at the specified block
     /// by the `erc-to-native` bridges through the `addExtraReceiver` function.
     /// @param _blockNumber The block number for which the getter must return the minted amount.
     function mintedInBlock(uint256 _blockNumber) public view returns(uint256) {
         return uintStorage[keccak256(abi.encode(MINTED_IN_BLOCK, _blockNumber))];
     }
 
-    /// @dev Returns how many native coins in total were minted by the specified
+    /// @dev Returns the total amount of native coins minted by the specified
     /// `erc-to-native` bridge through the `addExtraReceiver` function.
-    /// @param _bridge The address of bridge contract.
+    /// @param _bridge The address of the bridge contract.
     function mintedTotallyByBridge(address _bridge) public view returns(uint256) {
         return uintStorage[keccak256(abi.encode(MINTED_TOTALLY_BY_BRIDGE, _bridge))];
     }
 
-    /// @dev Returns how many native coins in total were minted by the
+    /// @dev Returns the total amount of native coins minted by the
     /// `erc-to-native` bridges through the `addExtraReceiver` function.
     function mintedTotally() public view returns(uint256) {
         return uintStorage[MINTED_TOTALLY];
     }
 
-    /// @dev Returns the array of `native-to-erc` bridges addresses which were set by
-    /// the `setNativeToErcBridgesAllowed` setter before.
+    /// @dev Returns the array of `native-to-erc` bridge addresses which were set by
+    /// the previous `setNativeToErcBridgesAllowed` setter.
     function nativeToErcBridgesAllowed() public view returns(address[] memory) {
         return addressArrayStorage[NATIVE_TO_ERC_BRIDGES_ALLOWED];
     }
 
-    /// @dev Returns the array of reward coefficients which corresponds to the array of stakers
-    /// for the specified validator and the current staking epoch. The size of the returned array
-    /// is the same as the size of staker array returned by the `snapshotStakers` getter. The reward
-    /// coefficients are calculated by the `_setSnapshot` function at the beginning of staking epoch
-    /// and then used by the `_distributeRewards` function at the end of staking epoch.
+    /// @dev Returns an array of reward coefficients which corresponds to the array of stakers
+    /// for a specified validator and the current staking epoch. The size of the returned array
+    /// is the same as the size of the staker array returned by the `snapshotStakers` getter. The reward
+    /// coefficients are calculated by the `_setSnapshot` function at the beginning of the staking epoch
+    /// and then used by the `_distributeRewards` function at the end of the staking epoch.
     /// @param _validatorStakingAddress The staking address of the validator pool for which the getter
     /// must return the coefficient array.
     function snapshotRewardPercents(address _validatorStakingAddress) public view returns(uint256[] memory) {
@@ -257,9 +256,9 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         ];
     }
 
-    /// @dev Returns the array of stakers for the specified validator and the current staking epoch
+    /// @dev Returns an array of stakers for the specified validator and the current staking epoch
     /// snapshotted at the beginning of the staking epoch by the `_setSnapshot` function. This array is
-    /// used by the `_distributeRewards` function at the end of staking epoch.
+    /// used by the `_distributeRewards` function at the end of the staking epoch.
     /// @param _validatorStakingAddress The staking address of the validator pool for which the getter
     /// must return the array of stakers.
     function snapshotStakers(address _validatorStakingAddress) public view returns(address[] memory) {
@@ -268,16 +267,16 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         ];
     }
 
-    /// @dev Returns the array of the pools for which the snapshots were made
-    /// at the beginning of the current staking epoch by the `_setSnapshot` function.
+    /// @dev Returns an array of the pools snapshotted by the `_setSnapshot` function
+    /// at the beginning of the current staking epoch.
     /// The getter returns the staking addresses of the pools.
     function snapshotStakingAddresses() public view returns(address[] memory) {
         return addressArrayStorage[SNAPSHOT_STAKING_ADDRESSES];
     }
 
-    /// @dev Returns a total amount staked during the previous staking epoch. This value is used by the
-    /// `_distributeRewards` function at the end of the current staking epoch to calculate inflation amount of
-    /// the staking token for the current staking epoch.
+    /// @dev Returns the total amount staked during the previous staking epoch. This value is used by the
+    /// `_distributeRewards` function at the end of the current staking epoch to calculate the inflation amount 
+    /// for the staking token in the current staking epoch.
     function snapshotTotalStakeAmount() public view returns(uint256) {
         return uintStorage[SNAPSHOT_TOTAL_STAKE_AMOUNT];
     }
@@ -313,14 +312,14 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
 
     uint256 internal constant REWARD_PERCENT_MULTIPLIER = 1000000;
 
-    /// @dev Joins two parts of native coin receivers into a single set and returns the result
-    /// to the `reward` function: one part of receivers comes from the `erc-to-native` bridge fee distribution,
-    /// another one - from the `erc-to-native` bridge when it needs to mint native coins for the specified addresses.
+    /// @dev Joins two native coin receiver elements into a single set and returns the result
+    /// to the `reward` function: the first element comes from the `erc-to-native` bridge fee distribution,
+    /// the second from the `erc-to-native` bridge when native coins are minted for the specified addresses.
     /// Dequeues the addresses enqueued with the `addExtraReceiver` function by the `erc-to-native` bridge.
     /// Accumulates minting statistics for the `erc-to-native` bridges.
     /// @param _bridgeFeeReceivers The array of native coin receivers formed by the `_distributeRewards` function.
     /// @param _bridgeFeeRewards The array of native coin amounts to be minted for the corresponding
-    /// `_bridgeFeeReceivers`. The size if this array is equal to the size of `_bridgeFeeReceivers` array.
+    /// `_bridgeFeeReceivers`. The size of this array is equal to the size of the `_bridgeFeeReceivers` array.
     /// @param _queueLimit Max number of addresses which can be dequeued from the queue formed by the
     /// `addExtraReceiver` function.
     function _mintNativeCoinsByErcToNativeBridge(
@@ -361,10 +360,10 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         return (receivers, rewards);
     }
 
-    /// @dev Dequeues the information about native coins receiver enqueued with the `addExtraReceiver`
-    /// function by the `erc-to-native` bridge. This function is used by the `_mintNativeCoinsByErcToNativeBridge`.
+    /// @dev Dequeues the information about the native coins receiver enqueued with the `addExtraReceiver`
+    /// function by the `erc-to-native` bridge. This function is used by `_mintNativeCoinsByErcToNativeBridge`.
     /// @return amount The amount to be minted for the `receiver` address.
-    /// @return receiver The address for which the `amount` to be minted.
+    /// @return receiver The address for which the `amount` is minted.
     /// @return bridge The address of the bridge contract which called the `addExtraReceiver` function.
     function _dequeueExtraReceiver() internal returns(uint256 amount, address receiver, address bridge) {
         uint256 queueFirst = uintStorage[QUEUE_ER_FIRST];
@@ -392,7 +391,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     /// specified `erc-to-native` bridge. This function is used by the `addExtraReceiver` function.
     /// @param _amount The amount of native coins which must be minted for the `_receiver` address.
     /// @param _receiver The address for which the `_amount` of native coins must be minted.
-    /// @param _bridge The address of the bridge's contract which requested native coins minting.
+    /// @param _bridge The address of the bridge contract which requested the minting of native coins.
     function _enqueueExtraReceiver(uint256 _amount, address _receiver, address _bridge) internal {
         uint256 queueLast = uintStorage[QUEUE_ER_LAST] + 1;
         uintStorage[keccak256(abi.encode(QUEUE_ER_AMOUNT, queueLast))] = _amount;
@@ -403,8 +402,8 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
 
     /// @dev Accumulates minting statistics for the `erc-to-native` bridge.
     /// This function is used by the `_mintNativeCoinsByErcToNativeBridge` function.
-    /// @param _amount The amount being minted for the `_account` address.
-    /// @param _account The address for which the `_amount` is being minted.
+    /// @param _amount The amount minted for the `_account` address.
+    /// @param _account The address for which the `_amount` is minted.
     /// @param _bridge The address of the bridge contract which called the `addExtraReceiver` function.
     function _setMinted(uint256 _amount, address _account, address _bridge) internal {
         uintStorage[keccak256(abi.encode(MINTED_FOR_ACCOUNT_IN_BLOCK, _account, block.number))] = _amount;
@@ -414,13 +413,13 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         uintStorage[MINTED_TOTALLY] += _amount;
     }
 
-    /// @dev Calculates reward coefficient for each pool's staker and saves it so that it could be used at
-    /// the end of staking epoch when reward distribution phase. Makes the specified part of coefficients'
+    /// @dev Calculates the reward coefficient for each pool's staker and saves it so it can be used at
+    /// the end of the staking epoch for the reward distribution phase. Specifies a section of the coefficients'
     /// snapshot thus limiting the coefficient calculations for each block. This function is called by
-    /// the `reward` function at the beginning of staking epoch.
-    /// @param _stakingAddress The staking address of a pool for which the snapshot needs to be done.
+    /// the `reward` function at the beginning of the staking epoch.
+    /// @param _stakingAddress The staking address of a pool for which the snapshot must be done.
     /// @param _stakingContract The address of the `Staking` contract.
-    /// @param _offset The part of the delegator array for which the snapshot needs to be done at the current block.
+    /// @param _offset The section of the delegator array to snapshot at the current block.
     /// The `_offset` range is [0, DELEGATORS_ALIQUOT - 1]. The `_offset` value is set based on the `DELEGATORS_ALIQUOT`
     /// constant - see the code of the `reward` function.
     function _setSnapshot(address _stakingAddress, IStaking _stakingContract, uint256 _offset) internal {
