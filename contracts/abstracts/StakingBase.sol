@@ -8,6 +8,7 @@ import "../eternal-storage/OwnedEternalStorage.sol";
 import "../libs/SafeMath.sol";
 
 
+/// @dev The base contract for the StakingAuRa and StakingHBBFT contracts.
 contract StakingBase is OwnedEternalStorage, IStaking {
     using SafeMath for uint256;
 
@@ -329,14 +330,14 @@ contract StakingBase is OwnedEternalStorage, IStaking {
 
     /// @dev Sets (updates) the limit of minimal candidate stake (CANDIDATE_MIN_STAKE).
     /// Can only be called by the `owner`.
-    /// @param _minStake The value of a new limit.
+    /// @param _minStake The value of a new limit in STAKE_UNITs.
     function setCandidateMinStake(uint256 _minStake) external onlyOwner {
         _setCandidateMinStake(_minStake);
     }
 
     /// @dev Sets (updates) the limit of minimal delegator stake (DELEGATOR_MIN_STAKE).
     /// Can only be called by the `owner`.
-    /// @param _minStake The value of a new limit.
+    /// @param _minStake The value of a new limit in STAKE_UNITs.
     function setDelegatorMinStake(uint256 _minStake) external onlyOwner {
         _setDelegatorMinStake(_minStake);
     }
@@ -489,18 +490,14 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     /// @param _poolStakingAddress The pool staking address from which the amount will be withdrawn.
     /// @param _staker The staker address that ordered the withdrawal.
     function orderedWithdrawAmount(address _poolStakingAddress, address _staker) public view returns(uint256) {
-        return uintStorage[
-            keccak256(abi.encode(ORDERED_WITHDRAW_AMOUNT, _poolStakingAddress, _staker))
-        ];
+        return uintStorage[keccak256(abi.encode(ORDERED_WITHDRAW_AMOUNT, _poolStakingAddress, _staker))];
     }
 
     /// @dev Returns the current total amount of staking tokens ordered for withdrawing from
     /// the specified pool by all its stakers.
     /// @param _poolStakingAddress The pool staking address from which the amount will be withdrawn.
     function orderedWithdrawAmountTotal(address _poolStakingAddress) public view returns(uint256) {
-        return uintStorage[
-            keccak256(abi.encode(ORDERED_WITHDRAW_AMOUNT_TOTAL, _poolStakingAddress))
-        ];
+        return uintStorage[keccak256(abi.encode(ORDERED_WITHDRAW_AMOUNT_TOTAL, _poolStakingAddress))];
     }
 
     /// @dev Returns the number of staking epoch during which the specified staker ordered
@@ -517,9 +514,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     /// `stakeAmountTotalMinusOrderedWithdraw` instead).
     /// @param _poolStakingAddress The pool staking address.
     function stakeAmountTotal(address _poolStakingAddress) public view returns(uint256) {
-        return uintStorage[
-            keccak256(abi.encode(STAKE_AMOUNT_TOTAL, _poolStakingAddress))
-        ];
+        return uintStorage[keccak256(abi.encode(STAKE_AMOUNT_TOTAL, _poolStakingAddress))];
     }
 
     /// @dev Returns an array of the current active delegators of the specified pool.
@@ -537,9 +532,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     /// @return If the returned value is zero, it may mean the array doesn't contain the delegator.
     /// Make sure the delegator is in the array using the `poolDelegators` getter.
     function poolDelegatorIndex(address _poolStakingAddress, address _delegator) public view returns(uint256) {
-        return uintStorage[
-            keccak256(abi.encode(POOL_DELEGATOR_INDEX, _poolStakingAddress, _delegator))
-        ];
+        return uintStorage[keccak256(abi.encode(POOL_DELEGATOR_INDEX, _poolStakingAddress, _delegator))];
     }
 
     /// @dev Returns the delegator's index in the `poolDelegatorsInactive` array.
@@ -552,40 +545,54 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         return uintStorage[keccak256(abi.encode(POOL_DELEGATOR_INACTIVE_INDEX, _poolStakingAddress, _delegator))];
     }
 
-    // Returns an index of the pool in the `pools` array
+    /// @dev Returns the pool's index in the array returned by the `getPools` getter.
+    /// Used by the `_removePool` function.
+    /// @param _stakingAddress The pool staking address.
+    /// @return If the returned value is zero, it may mean the array doesn't contain the address.
+    /// Make sure the address is in the array using the `isPoolActive` getter.
     function poolIndex(address _stakingAddress) public view returns(uint256) {
-        return uintStorage[
-            keccak256(abi.encode(POOL_INDEX, _stakingAddress))
-        ];
+        return uintStorage[keccak256(abi.encode(POOL_INDEX, _stakingAddress))];
     }
 
-    // Returns an index of the pool in the `poolsInactive` array
+    /// @dev Returns the pool's index in the array returned by the `getPoolsInactive` getter.
+    /// Used by the `_removePoolInactive` function.
+    /// @param _stakingAddress The pool staking address.
     function poolInactiveIndex(address _stakingAddress) public view returns(uint256) {
-        return uintStorage[
-            keccak256(abi.encode(POOL_INACTIVE_INDEX, _stakingAddress))
-        ];
+        return uintStorage[keccak256(abi.encode(POOL_INACTIVE_INDEX, _stakingAddress))];
     }
 
-    // Returns an index of the pool in the `poolsToBeElected` array
+    /// @dev Returns the pool's index in the array returned by the `getPoolsToBeElected` getter.
+    /// Used by the `_deletePoolToBeElected` and `_isPoolToBeElected` functions.
+    /// @param _stakingAddress The pool staking address.
+    /// @return If the returned value is zero, it may mean the array doesn't contain the address.
+    /// Make sure the address is in the array using the `getPoolsToBeElected` getter.
     function poolToBeElectedIndex(address _stakingAddress) public view returns(uint256) {
-        return uintStorage[
-            keccak256(abi.encode(POOL_TO_BE_ELECTED_INDEX, _stakingAddress))
-        ];
+        return uintStorage[keccak256(abi.encode(POOL_TO_BE_ELECTED_INDEX, _stakingAddress))];
     }
 
-    // Returns an index of the pool in the `poolsToBeRemoved` array
+    /// @dev Returns the pool's index in the array returned by the `getPoolsToBeRemoved` getter.
+    /// Used by the `_deletePoolToBeRemoved` function.
+    /// @param _stakingAddress The pool staking address.
+    /// @return If the returned value is zero, it may mean the array doesn't contain the address.
+    /// Make sure the address is in the array using the `getPoolsToBeRemoved` getter.
     function poolToBeRemovedIndex(address _stakingAddress) public view returns(uint256) {
-        return uintStorage[
-            keccak256(abi.encode(POOL_TO_BE_REMOVED_INDEX, _stakingAddress))
-        ];
+        return uintStorage[keccak256(abi.encode(POOL_TO_BE_REMOVED_INDEX, _stakingAddress))];
     }
 
+    /// @dev Returns the amount of staking tokens currently staked into the specified pool by the specified staker.
+    /// Doesn't take into account the ordered amount to be withdrawn (use the
+    /// `stakeAmountMinusOrderedWithdraw` instead).
+    /// @param _poolStakingAddress The pool staking address.
+    /// @param _staker The staker address.
     function stakeAmount(address _poolStakingAddress, address _staker) public view returns(uint256) {
-        return uintStorage[
-            keccak256(abi.encode(STAKE_AMOUNT, _poolStakingAddress, _staker))
-        ];
+        return uintStorage[keccak256(abi.encode(STAKE_AMOUNT, _poolStakingAddress, _staker))];
     }
 
+    /// @dev Returns the amount of staking tokens staked into the specified pool by the specified staker
+    /// during the current staking epoch (see the `stakingEpoch` getter).
+    /// Used by the `stake`, `withdraw`, and `orderWithdraw` functions.
+    /// @param _poolStakingAddress The pool staking address.
+    /// @param _staker The staker address.
     function stakeAmountByCurrentEpoch(address _poolStakingAddress, address _staker)
         public
         view
@@ -596,6 +603,10 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         ];
     }
 
+    /// @dev Returns the amount of staking tokens currently staked into the specified pool by the specified staker
+    /// taking into account the ordered amount to be withdrawn. See also the `stakeAmount` and `orderedWithdrawAmount`.
+    /// @param _poolStakingAddress The pool staking address.
+    /// @param _staker The staker address.
     function stakeAmountMinusOrderedWithdraw(
         address _poolStakingAddress,
         address _staker
@@ -603,15 +614,19 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         return stakeAmount(_poolStakingAddress, _staker).sub(orderedWithdrawAmount(_poolStakingAddress, _staker));
     }
 
+    /// @dev Returns the total amount of staking tokens currently staked into the specified pool taking into account
+    /// the ordered amounts to be withdrawn. See also the `stakeAmountTotal` and `orderedWithdrawAmountTotal` getters.
+    /// @param _poolStakingAddress The pool staking address.
     function stakeAmountTotalMinusOrderedWithdraw(address _poolStakingAddress) public view returns(uint256) {
         return stakeAmountTotal(_poolStakingAddress).sub(orderedWithdrawAmountTotal(_poolStakingAddress));
     }
 
-    // Returns the internal serial number of staking epoch
+    /// @dev Returns the serial number of the current staking epoch.
     function stakingEpoch() public view returns(uint256) {
         return uintStorage[STAKING_EPOCH];
     }
 
+    /// @dev Returns the address of the `ValidatorSet` contract.
     function validatorSetContract() public view returns(IValidatorSet) {
         return IValidatorSet(addressStorage[VALIDATOR_SET_CONTRACT]);
     }
@@ -645,7 +660,11 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     bytes32 internal constant ORDERED_WITHDRAW_AMOUNT = "orderedWithdrawAmount";
     bytes32 internal constant ORDERED_WITHDRAW_AMOUNT_TOTAL = "orderedWithdrawAmountTotal";
 
-    // Adds `_stakingAddress` to the array of pools
+    /// @dev Adds the specified staking address to the array of active pools which is returned by
+    /// the `getPools` getter. Used by the `stake` and `orderWithdraw` functions.
+    /// @param _stakingAddress The pool added to the array of active pools.
+    /// @param _toBeElected The boolean flag which defines whether the specified address should be
+    /// added simultaneously to the `poolsToBeElected` array. See the `getPoolsToBeElected` getter.
     function _addPoolActive(address _stakingAddress, bool _toBeElected) internal {
         address[] storage pools = addressArrayStorage[POOLS];
         if (!isPoolActive(_stakingAddress)) {
@@ -659,7 +678,9 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         }
     }
 
-    // Adds `_stakingAddress` to the array of inactive pools
+    /// @dev Adds the specified staking address to the array of inactive pools which is returned by
+    /// the `getPoolsInactive` getter. Used by the `_removePool` function.
+    /// @param _stakingAddress The pool added to the array of inactive pools.
     function _addPoolInactive(address _stakingAddress) internal {
         address[] storage pools = addressArrayStorage[POOLS_INACTIVE];
         if (pools.length == 0 || pools[poolInactiveIndex(_stakingAddress)] != _stakingAddress) {
@@ -668,7 +689,9 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         }
     }
 
-    // Adds `_stakingAddress` to the array of pools to be elected by the `newValidatorSet` function
+    /// @dev Adds the specified staking address to the array of pools which is returned by the `getPoolsToBeElected`
+    /// getter. Used by the `_addPoolActive` function. See the `getPoolsToBeElected` getter.
+    /// @param _stakingAddress The pool added to the `poolsToBeElected` array.
     function _addPoolToBeElected(address _stakingAddress) internal {
         address[] storage pools = addressArrayStorage[POOLS_TO_BE_ELECTED];
         if (pools.length == 0 || pools[poolToBeElectedIndex(_stakingAddress)] != _stakingAddress) {
@@ -679,7 +702,9 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         _deletePoolToBeRemoved(_stakingAddress);
     }
 
-    // Adds `_stakingAddress` to the array of pools to be removed by the `newValidatorSet` function
+    /// @dev Adds the specified staking address to the array of pools which is returned by the `getPoolsToBeRemoved`
+    /// getter. Used by withdrawal functions. See the `getPoolsToBeRemoved` getter.
+    /// @param _stakingAddress The pool added to the `poolsToBeRemoved` array.
     function _addPoolToBeRemoved(address _stakingAddress) internal {
         address[] storage pools = addressArrayStorage[POOLS_TO_BE_REMOVED];
         if (pools.length == 0 || pools[poolToBeRemovedIndex(_stakingAddress)] != _stakingAddress) {
@@ -689,7 +714,10 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         _deletePoolToBeElected(_stakingAddress);
     }
 
-    // Removes `_stakingAddress` from the array of pools to be elected
+    /// @dev Deletes the specified staking address from the array of pools which is returned by the
+    /// `getPoolsToBeElected` getter. Used by the `_addPoolToBeRemoved` and `_removePool` functions.
+    /// See the `getPoolsToBeElected` getter.
+    /// @param _stakingAddress The pool deleted from the `poolsToBeElected` array.
     function _deletePoolToBeElected(address _stakingAddress) internal {
         address[] storage pools = addressArrayStorage[POOLS_TO_BE_ELECTED];
         uint256 indexToDelete = poolToBeElectedIndex(_stakingAddress);
@@ -705,7 +733,10 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         }
     }
 
-    // Removes `_stakingAddress` from the array of pools to be removed
+    /// @dev Deletes the specified staking address from the array of pools which is returned by the
+    /// `getPoolsToBeRemoved` getter. Used by the `_addPoolToBeElected` and `_removePool` functions.
+    /// See the `getPoolsToBeRemoved` getter.
+    /// @param _stakingAddress The pool deleted from the `poolsToBeRemoved` array.
     function _deletePoolToBeRemoved(address _stakingAddress) internal {
         address[] storage pools = addressArrayStorage[POOLS_TO_BE_REMOVED];
         uint256 indexToDelete = poolToBeRemovedIndex(_stakingAddress);
@@ -717,7 +748,9 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         }
     }
 
-    // Removes `_stakingAddress` from the array of pools
+    /// @dev Removes the specified staking address from the array of active pools which is returned by
+    /// the `getPools` getter. Used by the `removePool` and withdrawal functions.
+    /// @param _stakingAddress The pool removed from the array of active pools.
     function _removePool(address _stakingAddress) internal {
         uint256 indexToRemove = poolIndex(_stakingAddress);
         address[] storage pools = addressArrayStorage[POOLS];
@@ -736,7 +769,9 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         _deletePoolToBeRemoved(_stakingAddress);
     }
 
-    // Removes `_stakingAddress` from the array of inactive pools
+    /// @dev Removes the specified staking address from the array of inactive pools which is returned by
+    /// the `getPoolsInactive` getter. Used by the `_addPoolActive` and `_removePool` functions.
+    /// @param _stakingAddress The pool removed from the array of inactive pools.
     function _removePoolInactive(address _stakingAddress) internal {
         address[] storage pools = addressArrayStorage[POOLS_INACTIVE];
         uint256 indexToRemove = poolInactiveIndex(_stakingAddress);
@@ -748,6 +783,14 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         }
     }
 
+    /// @dev Initializes the network parameters on the genesis block. Used by the
+    /// `initialize` function of a child contract.
+    /// @param _validatorSetContract The address of the `ValidatorSet` contract.
+    /// @param _erc20TokenContract The address of the ERC20/677 staking token contract.
+    /// Can be zero and can be defined later using the `setErc20TokenContract` function.
+    /// @param _initialStakingAddresses The array of initial validators' staking addresses.
+    /// @param _delegatorMinStake The minimum allowed amount of delegator stake in STAKE_UNITs.
+    /// @param _candidateMinStake The minimum allowed amount of candidate/validator stake in STAKE_UNITs.
     function _initialize(
         address _validatorSetContract,
         address _erc20TokenContract,
@@ -782,43 +825,73 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         _setCandidateMinStake(_candidateMinStake);
     }
 
+    /// @dev Sets the number of staking epoch during which the specified staker ordered
+    /// the latest withdraw from the specified pool. Used by the `orderWithdraw` function
+    /// to allow claiming the just ordered amount only in the future staking epochs.
+    /// See also the `orderWithdrawEpoch` getter.
+    /// @param _poolStakingAddress The pool staking address from which the withdrawal will occur.
+    /// @param _staker The staker address that ordered the withdrawal.
+    /// @param _stakingEpoch The number of the current staking epoch.
     function _setOrderWithdrawEpoch(address _poolStakingAddress, address _staker, uint256 _stakingEpoch) internal {
         uintStorage[keccak256(abi.encode(ORDER_WITHDRAW_EPOCH, _poolStakingAddress, _staker))] = _stakingEpoch;
     }
 
+    /// @dev Sets the delegator's index in the array returned by the `poolDelegators` getter.
+    /// Used by the `_addPoolDelegator` and `_removePoolDelegator` functions.
+    /// @param _poolStakingAddress The pool staking address.
+    /// @param _delegator The delegator address.
+    /// @param _index The index of the delegator in the `poolDelegators` array.
     function _setPoolDelegatorIndex(address _poolStakingAddress, address _delegator, uint256 _index) internal {
         uintStorage[keccak256(abi.encode(POOL_DELEGATOR_INDEX, _poolStakingAddress, _delegator))] = _index;
     }
 
+    /// @dev Sets the delegator's index in the `poolDelegatorsInactive` array.
+    /// Used by the `_addPoolDelegatorInactive` and `_removePoolDelegatorInactive` functions.
+    /// @param _poolStakingAddress The pool staking address.
+    /// @param _delegator The delegator address.
+    /// @param _index The index of the delegator in the `poolDelegatorsInactive` array.
     function _setPoolDelegatorInactiveIndex(address _poolStakingAddress, address _delegator, uint256 _index) internal {
         uintStorage[keccak256(abi.encode(POOL_DELEGATOR_INACTIVE_INDEX, _poolStakingAddress, _delegator))] = _index;
     }
 
+    /// @dev Sets the index for the specified address which indicates the position of the address in the array
+    /// returned by the `getPools` getter. Used by the `_addPoolActive` and `_removePool` functions.
+    /// @param _stakingAddress The pool staking address.
+    /// @param _index The index value.
     function _setPoolIndex(address _stakingAddress, uint256 _index) internal {
-        uintStorage[
-            keccak256(abi.encode(POOL_INDEX, _stakingAddress))
-        ] = _index;
+        uintStorage[keccak256(abi.encode(POOL_INDEX, _stakingAddress))] = _index;
     }
 
+    /// @dev Sets the index for the specified address which indicates the position of the address in the array
+    /// returned by the `getPoolsInactive` getter. Used by the `_addPoolInactive` and `_removePoolInactive` functions.
+    /// @param _stakingAddress The pool staking address.
+    /// @param _index The index value.
     function _setPoolInactiveIndex(address _stakingAddress, uint256 _index) internal {
-        uintStorage[
-            keccak256(abi.encode(POOL_INACTIVE_INDEX, _stakingAddress))
-        ] = _index;
+        uintStorage[keccak256(abi.encode(POOL_INACTIVE_INDEX, _stakingAddress))] = _index;
     }
 
+    /// @dev Sets the index for the specified address which indicates the position of the address in the array
+    /// returned by the `getPoolsToBeElected` getter.
+    /// Used by the `_addPoolToBeElected` and `_deletePoolToBeElected` functions.
+    /// @param _stakingAddress The pool staking address.
+    /// @param _index The index value.
     function _setPoolToBeElectedIndex(address _stakingAddress, uint256 _index) internal {
-        uintStorage[
-            keccak256(abi.encode(POOL_TO_BE_ELECTED_INDEX, _stakingAddress))
-        ] = _index;
+        uintStorage[keccak256(abi.encode(POOL_TO_BE_ELECTED_INDEX, _stakingAddress))] = _index;
     }
 
+    /// @dev Sets the index for the specified address which indicates the position of the address in the array
+    /// returned by the `getPoolsToBeRemoved` getter.
+    /// Used by the `_addPoolToBeRemoved` and `_deletePoolToBeRemoved` functions.
+    /// @param _stakingAddress The pool staking address.
+    /// @param _index The index value.
     function _setPoolToBeRemovedIndex(address _stakingAddress, uint256 _index) internal {
-        uintStorage[
-            keccak256(abi.encode(POOL_TO_BE_REMOVED_INDEX, _stakingAddress))
-        ] = _index;
+        uintStorage[keccak256(abi.encode(POOL_TO_BE_REMOVED_INDEX, _stakingAddress))] = _index;
     }
 
-    // Add `_delegator` to the array of pool's delegators
+    /// @dev Adds the specified address to the array of the current active delegators of the specified pool.
+    /// Used by the `stake` and `orderWithdraw` functions. See the `poolDelegators` getter.
+    /// @param _poolStakingAddress The pool staking address.
+    /// @param _delegator The delegator address.
     function _addPoolDelegator(address _poolStakingAddress, address _delegator) internal {
         address[] storage delegators = addressArrayStorage[
             keccak256(abi.encode(POOL_DELEGATORS, _poolStakingAddress))
@@ -831,7 +904,10 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         _removePoolDelegatorInactive(_poolStakingAddress, _delegator);
     }
 
-    // Add `_delegator` to the array of pool's inactive delegators
+    /// @dev Adds the specified address to the array of the current inactive delegators of the specified pool.
+    /// Used by the `_removePoolDelegator` function.
+    /// @param _poolStakingAddress The pool staking address.
+    /// @param _delegator The delegator address.
     function _addPoolDelegatorInactive(address _poolStakingAddress, address _delegator) internal {
         address[] storage delegators = addressArrayStorage[
             keccak256(abi.encode(POOL_DELEGATORS_INACTIVE, _poolStakingAddress))
@@ -845,7 +921,10 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         }
     }
 
-    // Remove `_delegator` from the array of pool's delegators
+    /// @dev Removes the specified address from the array of the current active delegators of the specified pool.
+    /// Used by the withdrawal functions. See the `poolDelegators` getter.
+    /// @param _poolStakingAddress The pool staking address.
+    /// @param _delegator The delegator address.
     function _removePoolDelegator(address _poolStakingAddress, address _delegator) internal {
         address[] storage delegators = addressArrayStorage[
             keccak256(abi.encode(POOL_DELEGATORS, _poolStakingAddress))
@@ -864,7 +943,10 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         }
     }
 
-    // Remove `_delegator` from the array of pool's inactive delegators
+    /// @dev Removes the specified address from the array of the inactive delegators of the specified pool.
+    /// Used by the `_addPoolDelegator` and `_removePoolDelegator` functions.
+    /// @param _poolStakingAddress The pool staking address.
+    /// @param _delegator The delegator address.
     function _removePoolDelegatorInactive(address _poolStakingAddress, address _delegator) internal {
         address[] storage delegators = addressArrayStorage[
             keccak256(abi.encode(POOL_DELEGATORS_INACTIVE, _poolStakingAddress))
@@ -878,6 +960,10 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         }
     }
 
+    /// @dev Calculates (updates) the probability of being selected as a validator for the specified pool
+    /// and updates the total sum of probability coefficients. See the `getPoolsLikelihood` getter.
+    /// Used by the staking and withdrawal functions.
+    /// @param _poolStakingAddress The address of the pool for which the probability coefficient must be updated.
     function _setLikelihood(address _poolStakingAddress) internal {
         (bool isToBeElected, uint256 index) = _isPoolToBeElected(_poolStakingAddress);
 
@@ -890,24 +976,38 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         intStorage[POOLS_LIKELIHOOD_SUM] += newValue - oldValue;
     }
 
+    /// @dev Sets the current amount of staking tokens ordered for withdrawing from the specified
+    /// pool by the specified staker. Used by the `orderWithdraw` and `claimOrderedWithdraw` functions.
+    /// @param _poolStakingAddress The pool staking address from which the amount will be withdrawn.
+    /// @param _staker The staker address that ordered the withdrawal.
+    /// @param _amount The amount of staking tokens ordered for withdrawing.
     function _setOrderedWithdrawAmount(address _poolStakingAddress, address _staker, uint256 _amount) internal {
-        uintStorage[
-            keccak256(abi.encode(ORDERED_WITHDRAW_AMOUNT, _poolStakingAddress, _staker))
-        ] = _amount;
+        uintStorage[keccak256(abi.encode(ORDERED_WITHDRAW_AMOUNT, _poolStakingAddress, _staker))] = _amount;
     }
 
+    /// @dev Sets the total amount of staking tokens ordered for withdrawing from
+    /// the specified pool by all its stakers.
+    /// @param _poolStakingAddress The pool staking address from which the amount will be withdrawn.
+    /// @param _amount The total amount of staking tokens ordered for withdrawing.
     function _setOrderedWithdrawAmountTotal(address _poolStakingAddress, uint256 _amount) internal {
-        uintStorage[
-            keccak256(abi.encode(ORDERED_WITHDRAW_AMOUNT_TOTAL, _poolStakingAddress))
-        ] = _amount;
+        uintStorage[keccak256(abi.encode(ORDERED_WITHDRAW_AMOUNT_TOTAL, _poolStakingAddress))] = _amount;
     }
 
+    /// @dev Sets the amount of staking tokens currently staked into the specified pool by the specified staker.
+    /// Used by the `stake`, `withdraw`, and `claimOrderedWithdraw` functions. See the `stakeAmount` getter.
+    /// @param _poolStakingAddress The pool staking address.
+    /// @param _staker The staker address.
+    /// @param _amount The amount of staking tokens.
     function _setStakeAmount(address _poolStakingAddress, address _staker, uint256 _amount) internal {
-        uintStorage[
-            keccak256(abi.encode(STAKE_AMOUNT, _poolStakingAddress, _staker))
-        ] = _amount;
+        uintStorage[keccak256(abi.encode(STAKE_AMOUNT, _poolStakingAddress, _staker))] = _amount;
     }
 
+    /// @dev Sets the amount of staking tokens staked into the specified pool by the specified staker during the
+    /// current staking epoch (see the `stakingEpoch` getter). See also the `stakeAmountByCurrentEpoch` getter.
+    /// Used by the `_stake` and `_withdraw` functions.
+    /// @param _poolStakingAddress The pool staking address.
+    /// @param _staker The staker address.
+    /// @param _amount The amount of staking tokens.
     function _setStakeAmountByCurrentEpoch(
         address _poolStakingAddress,
         address _staker,
@@ -918,20 +1018,31 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         ))] = _amount;
     }
 
+    /// @dev Sets the total amount of staking tokens currently staked into the specified pool.
+    /// @param _poolStakingAddress The pool staking address.
+    /// @param _amount The total amount of staking tokens.
     function _setStakeAmountTotal(address _poolStakingAddress, uint256 _amount) internal {
-        uintStorage[
-            keccak256(abi.encode(STAKE_AMOUNT_TOTAL, _poolStakingAddress))
-        ] = _amount;
+        uintStorage[keccak256(abi.encode(STAKE_AMOUNT_TOTAL, _poolStakingAddress))] = _amount;
     }
 
+    /// @dev Sets (updates) the limit of minimal delegator stake (DELEGATOR_MIN_STAKE).
+    /// Used by the `_initialize` and `setDelegatorMinStake` functions.
+    /// @param _minStake The value of a new limit in STAKE_UNITs.
     function _setDelegatorMinStake(uint256 _minStake) internal {
         uintStorage[DELEGATOR_MIN_STAKE] = _minStake * STAKE_UNIT;
     }
 
+    /// @dev Sets (updates) the limit of minimal candidate stake (CANDIDATE_MIN_STAKE).
+    /// Used by the `_initialize` and `setCandidateMinStake` functions.
+    /// @param _minStake The value of a new limit in STAKE_UNITs.
     function _setCandidateMinStake(uint256 _minStake) internal {
         uintStorage[CANDIDATE_MIN_STAKE] = _minStake * STAKE_UNIT;
     }
 
+    /// @dev The internal function used by the `stake` and `addPool` functions.
+    /// See the `stake` public function for more details.
+    /// @param _toPoolStakingAddress The staking address of the pool into which the tokens should be staked.
+    /// @param _amount The amount of the tokens to be staked.
     function _stake(address _toPoolStakingAddress, uint256 _amount) internal {
         IERC20Minting tokenContract = IERC20Minting(erc20TokenContract());
         require(address(tokenContract) != address(0));
@@ -941,6 +1052,11 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         emit Staked(_toPoolStakingAddress, staker, stakingEpoch(), _amount);
     }
 
+    /// @dev The internal function used by the `_stake` and `moveStake` functions.
+    /// See the `stake` public function for more details.
+    /// @param _poolStakingAddress The staking address of the pool into which the tokens should be staked.
+    /// @param _staker The address of the staker.
+    /// @param _amount The amount of the tokens to be staked.
     function _stake(address _poolStakingAddress, address _staker, uint256 _amount) internal {
         IValidatorSet validatorSet = validatorSetContract();
         address poolMiningAddress = validatorSet.miningByStakingAddress(_poolStakingAddress);
@@ -980,6 +1096,11 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         _setLikelihood(_poolStakingAddress);
     }
 
+    /// @dev The internal function used by the `withdraw` and `moveStake` functions.
+    /// See the `withdraw` public function for more details.
+    /// @param _poolStakingAddress The staking address of the pool from which the tokens should be withdrawn.
+    /// @param _staker The address of the staker.
+    /// @param _amount The amount of the tokens to be withdrawn.
     function _withdraw(address _poolStakingAddress, address _staker, uint256 _amount) internal {
         require(_poolStakingAddress != address(0));
         require(_amount != 0);
@@ -1012,6 +1133,10 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         _setLikelihood(_poolStakingAddress);
     }
 
+    /// @dev The internal function used by the `_withdraw` and `claimOrderedWithdraw` functions.
+    /// Contains a common logic for these functions.
+    /// @param _poolStakingAddress The staking address of the pool from which the tokens are withdrawn.
+    /// @param _staker The address of the staker.
     function _withdrawCheckPool(address _poolStakingAddress, address _staker) internal {
         if (_staker == _poolStakingAddress) {
             IValidatorSet validatorSet = validatorSetContract();
@@ -1029,18 +1154,27 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         }
     }
 
+    /// @dev Returns the current block number. Needed mostly for unit tests.
     function _getCurrentBlockNumber() internal view returns(uint256) {
         return block.number;
     }
 
+    /// @dev Returns the max number of candidates (including validators). See the MAX_CANDIDATES constant.
+    /// Needed mostly for unit tests.
     function _getMaxCandidates() internal pure returns(uint256) {
         return MAX_CANDIDATES;
     }
 
-    function _isPoolToBeElected(address _stakingAddress) internal view returns(bool, uint256) {
+    /// @dev Determines if the specified pool is in the `poolsToBeElected` array. See the `getPoolsToBeElected` getter.
+    /// Used by the `_setLikelihood` function.
+    /// @param _stakingAddress The staking address of the pool.
+    /// @return toBeElected The boolean flag indicating whether the `_stakingAddress` is in the
+    /// `poolsToBeElected` array.
+    /// @return index A position of the item in the `poolsToBeElected` array if `toBeElected` is `true`.
+    function _isPoolToBeElected(address _stakingAddress) internal view returns(bool toBeElected, uint256 index) {
         address[] storage pools = addressArrayStorage[POOLS_TO_BE_ELECTED];
         if (pools.length != 0) {
-            uint256 index = poolToBeElectedIndex(_stakingAddress);
+            index = poolToBeElectedIndex(_stakingAddress);
             if (pools[index] == _stakingAddress) {
                 return (true, index);
             }
@@ -1048,6 +1182,9 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         return (false, 0);
     }
 
+    /// @dev Returns `true` if withdrawal from the pool of the specified validator is allowed at the moment.
+    /// Used by all withdrawal functions.
+    /// @param _miningAddress The mining address of the validator's pool.
     function _isWithdrawAllowed(address _miningAddress) internal view returns(bool) {
         if (validatorSetContract().isValidatorBanned(_miningAddress)) {
             // No one can withdraw from `_poolStakingAddress` until the ban is expired
