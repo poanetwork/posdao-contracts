@@ -27,8 +27,8 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     /// round. The validator's node must use its mining address to call this function.
     /// This function can only be called once per collection round (during the `commits phase`).
     /// @param _secretHash The Keccak-256 hash of the validator's secret.
-    /// @param _cipher The cipher of the validator's secret. Can be used by the node to restore the lost secret after the
-    /// node is restarted (see the `getCipher` getter).
+    /// @param _cipher The cipher of the validator's secret. Can be used by the node to restore the lost secret after
+    /// the node is restarted (see the `getCipher` getter).
     function commitHash(bytes32 _secretHash, bytes calldata _cipher) external {
         address miningAddress = msg.sender;
 
@@ -172,15 +172,15 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         return getCommit(_collectRound, _miningAddress) != bytes32(0);
     }
 
-    /// @dev Returns a boolean flag indicating whether the current phase of the current collection round is a `commits phase`.
-    /// Used by the validator's node to determine if it should commit the hash of the secret during
-    /// the current collection round.
+    /// @dev Returns a boolean flag indicating whether the current phase of the current collection round
+    /// is a `commits phase`. Used by the validator's node to determine if it should commit the hash of
+    /// the secret during the current collection round.
     function isCommitPhase() public view returns(bool) {
         return (block.number % collectRoundLength()) < commitPhaseLength();
     }
 
-    /// @dev Returns a boolean flag indicating whether the current phase of the current collection round is a `reveals phase`.
-    /// Used by the validator's node to determine if it should reveal the secret during
+    /// @dev Returns a boolean flag indicating whether the current phase of the current collection round
+    /// is a `reveals phase`. Used by the validator's node to determine if it should reveal the secret during
     /// the current collection round.
     function isRevealPhase() public view returns(bool) {
         return !isCommitPhase();

@@ -72,7 +72,9 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
 
     // =============================================== Setters ========================================================
 
-    /// @dev Called by the `erc-to-native` bridge contract when a portion of the bridge fee should be distributed to participants (validators and their delegators) in native coins. The specified amount is used by the `_distributeRewards` function.
+    /// @dev Called by the `erc-to-native` bridge contract when a portion of the bridge fee should be distributed to
+    /// participants (validators and their delegators) in native coins. The specified amount is used by the
+    /// `_distributeRewards` function.
     /// @param _amount The fee amount distributed to participants.
     function addBridgeNativeFeeReceivers(uint256 _amount) external onlyErcToNativeBridge {
         require(_amount != 0);
@@ -80,7 +82,8 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     }
 
     /// @dev Called by the `erc-to-erc` or `native-to-erc` bridge contract when a portion of the bridge fee should be
-    /// distributed to participants in staking tokens. The specified amount is used by the `_distributeRewards` function.
+    /// distributed to participants in staking tokens. The specified amount is used by the `_distributeRewards`
+    /// function.
     /// @param _amount The fee amount distributed to participants.
     function addBridgeTokenFeeReceivers(uint256 _amount) external onlyXToErcBridge {
         require(_amount != 0);
@@ -235,7 +238,8 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         return uintStorage[MINTED_TOTALLY];
     }
 
-    /// @dev Returns the array of `native-to-erc` bridge addresses which were set by the `setNativeToErcBridgesAllowed` setter.
+    /// @dev Returns the array of `native-to-erc` bridge addresses which were set by
+    /// the `setNativeToErcBridgesAllowed` setter.
     function nativeToErcBridgesAllowed() public view returns(address[] memory) {
         return addressArrayStorage[NATIVE_TO_ERC_BRIDGES_ALLOWED];
     }
