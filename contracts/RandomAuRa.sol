@@ -58,7 +58,6 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
     /// @dev Initializes the contract at network startup.
     /// Must be called by the constructor of the `InitializerAuRa` contract on the genesis block.
-    /// This function is used instead of `constructor()` because this contract is upgradeable.
     /// @param _collectRoundLength The length of a collection round in blocks.
     function initialize(
         uint256 _collectRoundLength // in blocks

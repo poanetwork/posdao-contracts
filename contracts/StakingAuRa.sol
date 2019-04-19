@@ -15,7 +15,8 @@ contract StakingAuRa is IStakingAuRa, StakingBase {
     /// A participant calls this function using their staking address when they want to create their pool.
     /// This is a wrapper for the `stake` function.
     /// @param _amount The amount of the tokens to be staked.
-    /// @param _miningAddress The mining address of the candidate. The mining address is bound to the staking address.
+    /// @param _miningAddress The mining address of the candidate. The mining address is bound to the staking address
+    /// (msg.sender). This address cannot be equal to `msg.sender`.
     function addPool(uint256 _amount, address _miningAddress) external gasPriceIsValid {
         address stakingAddress = msg.sender;
         validatorSetContract().setStakingAddress(_miningAddress, stakingAddress);
@@ -24,7 +25,6 @@ contract StakingAuRa is IStakingAuRa, StakingBase {
 
     /// @dev Initializes the network parameters on the genesis block.
     /// Must be called by the constructor of the `InitializerAuRa` contract on the genesis block.
-    /// Used instead of `constructor()` because this contract is upgradable.
     /// @param _validatorSetContract The address of the `ValidatorSetAuRa` contract.
     /// @param _erc20TokenContract The address of the ERC20/677 staking token contract.
     /// Can be zero and can be defined later using the `setErc20TokenContract` function.

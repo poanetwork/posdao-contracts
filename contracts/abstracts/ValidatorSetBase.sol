@@ -8,36 +8,33 @@ import "../eternal-storage/OwnedEternalStorage.sol";
 import "../libs/SafeMath.sol";
 
 
+/// @dev The base contract for the ValidatorSetAuRa and ValidatorSetHBBFT contracts.
 contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     using SafeMath for uint256;
 
-    // TODO: add a description for each function
-
     // ============================================== Constants =======================================================
 
+    /// @dev The max number of validators.
     uint256 public constant MAX_VALIDATORS = 19;
 
     // ================================================ Events ========================================================
 
-    /// Issue this log event to signal a desired change in validator set.
-    /// This will not lead to a change in active validator set until
-    /// finalizeChange is called.
-    ///
-    /// Only the last log event of any block can take effect.
-    /// If a signal is issued while another is being finalized it may never
-    /// take effect.
-    ///
-    /// parentHash here should be the parent block hash, or the
-    /// signal will not be recognized.
+    /// @dev Emitted by the `emitInitiateChange` function when a new validator set
+    /// needs to be applied in the Parity engine. See https://wiki.parity.io/Validator-Set.html
+    /// @param parentHash Should be the parent block hash, otherwise the signal won't be recognized.
+    /// @param newSet An array of new validators (their mining addresses).
     event InitiateChange(bytes32 indexed parentHash, address[] newSet);
 
     // ============================================== Modifiers =======================================================
 
+    /// @dev Ensures the caller is the Staking contract address
+    /// (EternalStorageProxy proxy contract for Staking).
     modifier onlyStakingContract() {
         require(msg.sender == stakingContract());
         _;
     }
 
+    /// @dev Ensures the caller is the SYSTEM_ADDRESS. See https://wiki.parity.io/Validator-Set.html
     modifier onlySystem() {
         require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
         _;
@@ -45,6 +42,8 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
     // =============================================== Setters ========================================================
 
+    /// @dev Makes the non-removable validator removable. Can only be called by the staking address of the
+    /// non-removable validator or by the `owner`.
     function clearUnremovableValidator() external {
         address unremovableStakingAddress = unremovableValidator();
         require(msg.sender == unremovableStakingAddress || msg.sender == _owner);
@@ -52,6 +51,12 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         IStaking(stakingContract()).clearUnremovableValidator(unremovableStakingAddress);
     }
 
+    /// @dev Emits the `InitiateChange` event to pass a new validator set to validator nodes.
+    /// Called automatically by one of the current validators nodes when the `emitInitiateChangeCallable` getter
+    /// returns `true` (when some validator needs to be removed as a malicious or the validator set needs to be
+    /// updated at the beginning of a new staking epoch). The new validator set is passed to validator nodes
+    /// through the `InitiateChange` event and saved to be used later by the `finalizeChange` function.
+    /// See https://wiki.parity.io/Validator-Set.html for more info about the `InitiateChange` event.
     function emitInitiateChange() external {
         require(emitInitiateChangeCallable());
         (address[] memory newSet, bool newStakingEpoch) = _dequeuePendingValidators();
@@ -62,11 +67,21 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         }
     }
 
+    /// @dev Called by the system when an initiated validator set change reaches finality and is activated.
+    /// Only valid when msg.sender == SUPER_USER (EIP96, 2**160 - 2). Stores a new validator set saved
+    /// before by the `emitInitiateChange` function and passed through the `InitiateChange` event.
+    /// After this function is called, the `getValidators` getter returns the new validator set.
+    /// If this function finalizes a new validator set formed by the `newValidatorSet` function,
+    /// an old validator set is also stored and then can be read by the `getPreviousValidators` getter.
+    /// The `finalizeChange` is only called once for each `InitiateChange` event emitted. The next `InitiateChange`
+    /// event is not emitted until the previous one is not yet finalized by the `finalizeChange`
+    /// (this is achieved by the queue, `emitInitiateChange` function, and `initiateChangeAllowed` boolean flag -
+    /// see the `_setInitiateChangeAllowed` function).
     function finalizeChange() external onlySystem {
         (address[] memory queueValidators, bool newStakingEpoch) = getQueueValidators();
 
         if (validatorSetApplyBlock() == 0 && newStakingEpoch) {
-            // Apply new validator set after `newValidatorSet()` is called
+            // Apply a new validator set formed by the `newValidatorSet` function
 
             address[] memory previousValidators = getPreviousValidators();
             address[] memory currentValidators = getValidators();
@@ -79,7 +94,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
             for (i = 0; i < currentValidators.length; i++) {
                 _setIsValidatorOnPreviousEpoch(currentValidators[i], true);
             }
-            _setPreviousValidators(currentValidators);
+            addressArrayStorage[PREVIOUS_VALIDATORS] = currentValidators;
 
             _applyQueueValidators(queueValidators);
 
@@ -91,16 +106,23 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         _setInitiateChangeAllowed(true);
     }
 
-    /// Creates an initial set of validators at the start of the network.
-    /// Must be called by the constructor of `InitializerAuRa` contract on genesis block.
-    /// This is used instead of `constructor()` because this contract is upgradable.
+    /// @dev Initializes the network parameters on the genesis block. Used by the
+    /// constructor of the `InitializerAuRa` or `InitializerHBBFT` contract.
+    /// @param _blockRewardContract The address of the `BlockReward` contract.
+    /// @param _randomContract The address of the `Random` contract.
+    /// @param _stakingContract The address of the `Staking` contract.
+    /// @param _initialMiningAddresses The array of initial validators' mining addresses.
+    /// @param _initialStakingAddresses The array of initial validators' staking addresses.
+    /// @param _firstValidatorIsUnremovable The boolean flag defining whether the first validator in the
+    /// `_initialMiningAddresses/_initialStakingAddresses` array is non-removable.
+    /// Must be `false` for production network.
     function initialize(
         address _blockRewardContract,
         address _randomContract,
         address _stakingContract,
         address[] calldata _initialMiningAddresses,
         address[] calldata _initialStakingAddresses,
-        bool _firstValidatorIsUnremovable // must be `false` for production network
+        bool _firstValidatorIsUnremovable
     ) external {
         require(_getCurrentBlockNumber() == 0); // initialization must be done on genesis block
         require(_blockRewardContract != address(0));
@@ -136,76 +158,103 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         uintStorage[QUEUE_PV_LAST] = 0;
     }
 
+    /// @dev Binds a mining address to the specified staking address. Called by the `Staking.addPool` function
+    /// when a user wants to become a candidate and create their pool.
+    /// See also the `miningByStakingAddress` and `stakingByMiningAddress` getters.
+    /// @param _miningAddress A mining address of the newly created pool. Cannot be equal to the `_stakingAddress`.
+    /// @param _stakingAddress A staking address of the newly created pool. Cannot be equal to the `_miningAddress`.
     function setStakingAddress(address _miningAddress, address _stakingAddress) external onlyStakingContract {
         _setStakingAddress(_miningAddress, _stakingAddress);
     }
 
     // =============================================== Getters ========================================================
 
-    // Returns how many times the given address was banned
+    /// @dev Returns how many times the given mining address was banned.
+    /// @param _miningAddress The mining address of a candidate or validator.
     function banCounter(address _miningAddress) public view returns(uint256) {
         return uintStorage[keccak256(abi.encode(BAN_COUNTER, _miningAddress))];
     }
 
-    /// @dev Returns the block number or unix timestamp (depending on
-    /// consensus algorithm) from which the address will be unbanned.
-    /// @param _miningAddress The address of participant.
-    /// @return The block number (for AuRa) or unix timestamp (for HBBFT)
-    /// from which the address will be unbanned.
+    /// @dev Returns the block number or unix timestamp (depending on the consensus algorithm)
+    /// from which the specified mining address will be unbanned.
+    /// @param _miningAddress The mining address of a participant.
+    /// @return The block number (for AuRa) or unix timestamp (for HBBFT) from which the address will be unbanned.
     function bannedUntil(address _miningAddress) public view returns(uint256) {
-        return uintStorage[
-            keccak256(abi.encode(BANNED_UNTIL, _miningAddress))
-        ];
+        return uintStorage[keccak256(abi.encode(BANNED_UNTIL, _miningAddress))];
     }
 
+    /// @dev Returns an address of the `BlockReward` contract.
     function blockRewardContract() public view returns(address) {
         return addressStorage[BLOCK_REWARD_CONTRACT];
     }
 
-    // Returns the serial number of validator set changing request
+    /// @dev Returns the serial number of a validator set changing request. The counter is incremented
+    /// by the `_incrementChangeRequestCount` function every time a validator set needs to be changed.
     function changeRequestCount() public view returns(uint256) {
         return uintStorage[CHANGE_REQUEST_COUNT];
     }
 
+    /// @dev Returns a boolean flag indicating whether the `emitInitiateChange` function can be called
+    /// at the moment. Used by a validator's node and `TxPermission` contract (to deny dummy calling).
     function emitInitiateChangeCallable() public view returns(bool) {
         return initiateChangeAllowed() && uintStorage[QUEUE_PV_LAST] >= uintStorage[QUEUE_PV_FIRST];
     }
 
-    // Returns the set of validators which was actual at the end of previous staking epoch
-    // (their mining addresses)
+    /// @dev Returns a validator set (validators' mining addresses array) which was actual
+    /// at the end of the previous staking epoch. The array is stored by the `finalizeChange` function
+    /// when a new staking epoch's validator set is finalized.
     function getPreviousValidators() public view returns(address[] memory) {
         return addressArrayStorage[PREVIOUS_VALIDATORS];
     }
 
-    // Returns the set of pending validators
-    // (their mining addresses)
+    /// @dev Returns the current array of validators which is not yet finalized by the
+    /// `finalizeChange` function. The pending array is changed when some validator is removed as a malicious
+    /// or the validator set is updated at the beginning of a new staking epoch (see the `_newValidatorSet` function).
+    /// Every time the pending array is updated, it is enqueued by the `_enqueuePendingValidators` and then
+    /// dequeued by the `emitInitiateChange` function which emits the `InitiateChange` event to be caught by
+    /// validator nodes.
     function getPendingValidators() public view returns(address[] memory) {
         return addressArrayStorage[PENDING_VALIDATORS];
     }
 
-    // Returns the set of validators to be finalized in engine
-    // (their mining addresses)
-    function getQueueValidators() public view returns(address[] memory, bool) {
+    /// @dev Returns a validator set to be finalized by the `finalizeChange` function.
+    /// Used by the `finalizeChange` function.
+    /// @param miningAddresses An array set by the `emitInitiateChange` function.
+    /// @param newStakingEpoch A boolean flag indicating whether the `miningAddresses` array was formed by the
+    /// `_newValidatorSet` function. The `finalizeChange` function logic depends on this flag.
+    function getQueueValidators() public view returns(address[] memory miningAddresses, bool newStakingEpoch) {
         return (addressArrayStorage[QUEUE_VALIDATORS], boolStorage[QUEUE_VALIDATORS_NEW_STAKING_EPOCH]);
     }
 
-    // Returns the current set of validators (the same as in the engine)
-    // (their mining addresses)
-    function getValidators() public view returns(address[] memory) {
+    /// @dev Returns the current validator set (an array of mining addresses)
+    /// which always matches the validator set in the Parity engine.
+    function getValidators() public view returns(address[] memory miningAddresses) {
         return addressArrayStorage[CURRENT_VALIDATORS];
     }
 
+    /// @dev Returns a boolean flag indicating whether the `emitInitiateChange` can be called at the moment.
+    /// Used by the `emitInitiateChangeCallable` getter. This flag is set to `false` by the `emitInitiateChange`
+    /// and set to `true` by the `finalizeChange` function. So, when the `InitiateChange` event is emitted by
+    /// the `emitInitiateChange`, the next `emitInitiateChange` call is not possible until the previous call is
+    /// finalized by the `finalizeChange` function.
     function initiateChangeAllowed() public view returns(bool) {
         return boolStorage[INITIATE_CHANGE_ALLOWED];
     }
 
+    /// @dev Returns a boolean flag indicating whether the specified validator (mining address)
+    /// can call the `reportMalicious` function or whether the specified validator (mining address)
+    /// can be reported as a malicious. This function also allows a validator calling the `reportMalicious`
+    /// function during a few blocks after the validator ceased to be a validator. This is for the case
+    /// when a validator hadn't had a chance to call the `reportMalicious` function on time before the
+    /// engine called the `finalizeChange` function.
+    /// @param _miningAddress The mining address of a validator.
     function isReportValidatorValid(address _miningAddress) public view returns(bool) {
         bool isValid = isValidator(_miningAddress) && !isValidatorBanned(_miningAddress);
         if (IStaking(stakingContract()).stakingEpoch() == 0 || validatorSetApplyBlock() == 0) {
             return isValid;
         }
         if (_getCurrentBlockNumber() - validatorSetApplyBlock() <= 20) {
-            // The current validator set was applied in engine,
+            // The current validator set was finalized by the engine,
             // but we should let the previous validators finish
             // reporting malicious validator within a few blocks
             bool previousEpochValidator =
@@ -215,53 +264,78 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         return isValid;
     }
 
-    // Returns the flag whether the mining address is in the `currentValidators` array
+    /// @dev Returns a boolean flag indicating whether the specified mining address is in the current validator set.
+    /// See the `getValidators` getter.
+    /// @param _miningAddress The mining address.
     function isValidator(address _miningAddress) public view returns(bool) {
         return boolStorage[keccak256(abi.encode(IS_VALIDATOR, _miningAddress))];
     }
 
-    // Returns the flag whether the mining address was a validator at the end of previous staking epoch
+    /// @dev Returns a boolean flag indicating whether the specified mining address was a validator at the end of
+    /// the previous staking epoch. See the `getPreviousValidators` getter.
+    /// @param _miningAddress The mining address.
     function isValidatorOnPreviousEpoch(address _miningAddress) public view returns(bool) {
         return boolStorage[keccak256(abi.encode(IS_VALIDATOR_ON_PREVIOUS_EPOCH, _miningAddress))];
     }
 
+    /// @dev Returns a boolean flag indicating whether the specified mining address is banned at the moment.
+    /// A validator can be banned when they misbehave (see the `_banValidator` function).
+    /// @param _miningAddress The mining address.
     function isValidatorBanned(address _miningAddress) public view returns(bool) {
         return _banStart() < bannedUntil(_miningAddress);
     }
 
+    /// @dev Returns a mining address bound to the specified staking address.
+    /// See the `_setStakingAddress` function.
+    /// @param _stakingAddress The staking address for which the function must return the corresponding mining address.
     function miningByStakingAddress(address _stakingAddress) public view returns(address) {
         return addressStorage[keccak256(abi.encode(MINING_BY_STAKING_ADDRESS, _stakingAddress))];
     }
 
+    /// @dev Returns the `Random` contract address.
     function randomContract() public view returns(address) {
         return addressStorage[RANDOM_CONTRACT];
     }
 
+    /// @dev Returns a staking address bound to the specified mining address.
+    /// See the `_setStakingAddress` function.
+    /// @param _miningAddress The mining address for which the function must return the corresponding staking address.
     function stakingByMiningAddress(address _miningAddress) public view returns(address) {
         return addressStorage[keccak256(abi.encode(STAKING_BY_MINING_ADDRESS, _miningAddress))];
     }
 
+    /// @dev Returns the `Staking` contract address.
     function stakingContract() public view returns(address) {
         return addressStorage[STAKING_CONTRACT];
     }
 
+    /// @dev Returns a staking address of the non-removable validator.
+    /// Returns zero if a non-removable validator is not defined.
     function unremovableValidator() public view returns(address stakingAddress) {
         stakingAddress = addressStorage[UNREMOVABLE_STAKING_ADDRESS];
     }
 
-    // Returns how many staking epochs the given address became a validator
+    /// @dev Returns how many times the given address has become a validator.
+    /// @param _miningAddress The mining address.
     function validatorCounter(address _miningAddress) public view returns(uint256) {
         return uintStorage[keccak256(abi.encode(VALIDATOR_COUNTER, _miningAddress))];
     }
 
-    // Returns the index of validator in the `currentValidators`
+    /// @dev Returns the index of the specified validator in the current validator set
+    /// returned by the `getValidators` getter.
+    /// @param _miningAddress The mining address to get an index for.
+    /// @return If the returned value is zero, it may mean the array doesn't contain the address.
+    /// Make sure the address is in the current validator set using the `isValidator` getter.
     function validatorIndex(address _miningAddress) public view returns(uint256) {
-        return uintStorage[
-            keccak256(abi.encode(VALIDATOR_INDEX, _miningAddress))
-        ];
+        return uintStorage[keccak256(abi.encode(VALIDATOR_INDEX, _miningAddress))];
     }
 
-    // Returns the block number when `finalizeChange` was called to apply the current validator set
+    /// @dev Returns the block number when the `finalizeChange` function was called to apply
+    /// the current validator set formed by the `_newValidatorSet` function. If it returns zero,
+    /// it means the `_newValidatorSet` function has already been called (a new staking epoch has been started),
+    /// but the new staking epoch's validator set hasn't yet been finalized by the `finalizeChange` function.
+    /// See the `_setValidatorSetApplyBlock` function which is called by the `finalizeChange` and
+    /// `_newValidatorSet` functions.
     function validatorSetApplyBlock() public view returns(uint256) {
         return uintStorage[VALIDATOR_SET_APPLY_BLOCK];
     }
@@ -295,6 +369,9 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     bytes32 internal constant VALIDATOR_COUNTER = "validatorCounter";
     bytes32 internal constant VALIDATOR_INDEX = "validatorIndex";
 
+    /// @dev Sets a new validator set returned by the `getValidators` getter.
+    /// Called by the `finalizeChange` function.
+    /// @param _queueValidators An array of new validators (their mining addresses).
     function _applyQueueValidators(address[] memory _queueValidators) internal {
         address[] memory prevValidators = getValidators();
         uint256 i;
@@ -305,7 +382,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
             _setIsValidator(prevValidators[i], false);
         }
 
-        _setCurrentValidators(_queueValidators);
+        addressArrayStorage[CURRENT_VALIDATORS] = _queueValidators;
 
         // Set indexes for new validator set
         for (i = 0; i < _queueValidators.length; i++) {
@@ -314,6 +391,10 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         }
     }
 
+    /// @dev Sets the future block number or unix timestamp (depending on the consensus algorithm)
+    /// until which the specified mining address is banned. Updates the banning statistics.
+    /// Called by the `_removeMaliciousValidator` function.
+    /// @param _miningAddress The banned mining address.
     function _banValidator(address _miningAddress) internal {
         if (_banStart() > bannedUntil(_miningAddress)) {
             uintStorage[keccak256(abi.encode(BAN_COUNTER, _miningAddress))]++;
@@ -322,6 +403,11 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         uintStorage[keccak256(abi.encode(BANNED_UNTIL, _miningAddress))] = _banUntil();
     }
 
+    /// @dev Enqueues the pending validator set which is returned by the `getPendingValidators` getter
+    /// to be dequeued later by the `emitInitiateChange` function. Called when some validator is removed
+    /// from the set as a malicious or when a new validator set is formed by the `_newValidatorSet` function.
+    /// @param _newStakingEpoch A boolean flag defining whether the pending validator set was formed by the
+    /// `_newValidatorSet` function. The `finalizeChange` function logic depends on this flag.
     function _enqueuePendingValidators(bool _newStakingEpoch) internal {
         uint256 queueFirst = uintStorage[QUEUE_PV_FIRST];
         uint256 queueLast = uintStorage[QUEUE_PV_LAST];
@@ -343,6 +429,11 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         uintStorage[QUEUE_PV_LAST] = queueLast;
     }
 
+    /// @dev Dequeues the pending validator set to pass it to the `InitiateChange` event
+    /// (and then to the `finalizeChange` function). Called by the `emitInitiateChange` function.
+    /// @param newSet An array of mining addresses.
+    /// @param newStakingEpoch A boolean flag indicating whether the `newSet` array was formed by the
+    /// `_newValidatorSet` function. The `finalizeChange` function logic depends on this flag.
     function _dequeuePendingValidators() internal returns(address[] memory newSet, bool newStakingEpoch) {
         uint256 queueFirst = uintStorage[QUEUE_PV_FIRST];
         uint256 queueLast = uintStorage[QUEUE_PV_LAST];
@@ -360,14 +451,20 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         }
     }
 
+    /// @dev Increments the serial number of a validator set changing request. The counter is incremented
+    /// every time a validator set needs to be changed.
     function _incrementChangeRequestCount() internal {
         uintStorage[CHANGE_REQUEST_COUNT]++;
     }
 
+    /// @dev An internal function implementing the logic which forms a new validator set. If the number of active pools
+    /// is greater than MAX_VALIDATORS, the logic chooses the validators randomly using a random seed generated and
+    /// stored by the `Random` contract.
+    /// This function is called by the `newValidatorSet` function of a child contract.
+    /// @return A number of the pools ready to be elected (see the `Staking.getPoolsToBeElected` function).
     function _newValidatorSet() internal returns(uint256) {
         IStaking staking = IStaking(stakingContract());
         address[] memory poolsToBeElected = staking.getPoolsToBeElected();
-        address[] memory poolsToBeRemoved = staking.getPoolsToBeRemoved();
         address unremovableStakingAddress = unremovableValidator();
 
         // Choose new validators
@@ -385,11 +482,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
             uint256 poolsToBeElectedLength = poolsToBeElected.length;
             for (uint256 i = 0; i < newValidators.length; i++) {
                 randomNumber = uint256(keccak256(abi.encode(randomNumber)));
-                uint256 randomPoolIndex = _getRandomIndex(
-                    likelihood,
-                    likelihoodSum,
-                    randomNumber
-                );
+                uint256 randomPoolIndex = _getRandomIndex(likelihood, likelihoodSum, randomNumber);
                 newValidators[i] = poolsToBeElected[randomPoolIndex];
                 likelihoodSum -= likelihood[randomPoolIndex];
                 poolsToBeElectedLength--;
@@ -400,9 +493,9 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
             poolsToBeElected = newValidators;
         }
 
-        _setPendingValidators(staking, poolsToBeElected, poolsToBeRemoved, unremovableStakingAddress);
+        _setPendingValidators(staking, poolsToBeElected, unremovableStakingAddress);
 
-        // From this moment `getPendingValidators()` will return the new validator set
+        // From this moment the `getPendingValidators()` will return a new validator set
 
         staking.incrementStakingEpoch();
         _setValidatorSetApplyBlock(0);
@@ -413,6 +506,10 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         return poolsToBeElected.length;
     }
 
+    /// @dev Removes the specified validator as a malicious. Used by a child contract.
+    /// @param _miningAddress The removed validator mining address.
+    /// @return Returns `true` if the specified validator has been removed from the pending validator set.
+    /// Otherwise returns `false` (if the specified validator was already removed before).
     function _removeMaliciousValidator(address _miningAddress) internal returns(bool) {
         uint256 i;
         address stakingAddress = stakingByMiningAddress(_miningAddress);
@@ -447,14 +544,19 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         return false;
     }
 
-    function _setCurrentValidators(address[] memory _miningAddresses) internal {
-        addressArrayStorage[CURRENT_VALIDATORS] = _miningAddresses;
-    }
-
+    /// @dev Sets a boolean flag defining whether the `emitInitiateChange` can be called.
+    /// Called by the `emitInitiateChange` and `finalizeChange` functions.
+    /// See the `initiateChangeAllowed` getter.
+    /// @param _allowed The boolean flag.
     function _setInitiateChangeAllowed(bool _allowed) internal {
         boolStorage[INITIATE_CHANGE_ALLOWED] = _allowed;
     }
 
+    /// @dev Sets a boolean flag defining whether the specified mining address is a validator
+    /// (whether it is existed in the array returned by the `getValidators` getter).
+    /// See the `_applyQueueValidators` function and `isValidator`/`getValidators` getters.
+    /// @param _miningAddress The mining address.
+    /// @param _isValidator The boolean flag.
     function _setIsValidator(address _miningAddress, bool _isValidator) internal {
         boolStorage[keccak256(abi.encode(IS_VALIDATOR, _miningAddress))] = _isValidator;
 
@@ -463,14 +565,24 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         }
     }
 
+    /// @dev Sets a boolean flag indicating whether the specified mining address was a validator at the end of
+    /// the previous staking epoch. See the `getPreviousValidators` and `isValidatorOnPreviousEpoch` getters.
+    /// @param _miningAddress The mining address.
+    /// @param _isValidator The boolean flag.
     function _setIsValidatorOnPreviousEpoch(address _miningAddress, bool _isValidator) internal {
         boolStorage[keccak256(abi.encode(IS_VALIDATOR_ON_PREVIOUS_EPOCH, _miningAddress))] = _isValidator;
     }
 
+    /// @dev Sets a new validator set as a pending (which is not yet finalized by the `finalizeChange` function).
+    /// Removes the pools which are in the `poolsToBeRemoved` array (see the `Staking.getPoolsToBeRemoved` function).
+    /// Called by the `_newValidatorSet` function.
+    /// @param _stakingContract The `Staking` contract address.
+    /// @param _stakingAddresses The array of the new validators' staking addresses.
+    /// @param _unremovableStakingAddress The staking address of a non-removable validator.
+    /// See the `unremovableValidator` getter.
     function _setPendingValidators(
         IStaking _stakingContract,
         address[] memory _stakingAddresses,
-        address[] memory _poolsToBeRemoved,
         address _unremovableStakingAddress
     ) internal {
         if (_stakingAddresses.length == 0) return;
@@ -487,16 +599,26 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
             addressArrayStorage[PENDING_VALIDATORS].push(miningByStakingAddress(_stakingAddresses[i]));
         }
 
-        for (i = 0; i < _poolsToBeRemoved.length; i++) {
-            _stakingContract.removePool(_poolsToBeRemoved[i]);
+        address[] memory poolsToBeRemoved = _stakingContract.getPoolsToBeRemoved();
+        for (i = 0; i < poolsToBeRemoved.length; i++) {
+            _stakingContract.removePool(poolsToBeRemoved[i]);
         }
     }
 
+    /// @dev Sets a validator set for the `finalizeChange` function.
+    /// Called by the `emitInitiateChange` function.
+    /// @param _miningAddresses An array of the new validator set mining addresses.
+    /// @param _newStakingEpoch A boolean flag indicating whether the `_miningAddresses` array was formed by the
+    /// `_newValidatorSet` function. The `finalizeChange` function logic depends on this flag.
     function _setQueueValidators(address[] memory _miningAddresses, bool _newStakingEpoch) internal {
         addressArrayStorage[QUEUE_VALIDATORS] = _miningAddresses;
         boolStorage[QUEUE_VALIDATORS_NEW_STAKING_EPOCH] = _newStakingEpoch;
     }
 
+    /// @dev Binds a mining address to the specified staking address. Used by the `setStakingAddress` function.
+    /// See also the `miningByStakingAddress` and `stakingByMiningAddress` getters.
+    /// @param _miningAddress A mining address of the newly created pool. Cannot be equal to the `_stakingAddress`.
+    /// @param _stakingAddress A staking address of the newly created pool. Cannot be equal to the `_miningAddress`.
     function _setStakingAddress(address _miningAddress, address _stakingAddress) internal {
         require(_miningAddress != address(0));
         require(_stakingAddress != address(0));
@@ -509,32 +631,47 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         addressStorage[keccak256(abi.encode(STAKING_BY_MINING_ADDRESS, _miningAddress))] = _stakingAddress;
     }
 
-    function _setPreviousValidators(address[] memory _miningAddresses) internal {
-        addressArrayStorage[PREVIOUS_VALIDATORS] = _miningAddresses;
-    }
-
+    /// @dev Sets a staking address of a non-removable validator.
+    /// Used by the `initialize` and `clearUnremovableValidator` functions.
+    /// @param _stakingAddress The staking address of a non-removable validator.
     function _setUnremovableValidator(address _stakingAddress) internal {
         addressStorage[UNREMOVABLE_STAKING_ADDRESS] = _stakingAddress;
     }
 
+    /// @dev Stores the index of the specified validator in the current validator set
+    /// returned by the `getValidators` getter. Used by the `_applyQueueValidators` function.
+    /// @param _miningAddress The mining address to save an index for.
+    /// @param _index The index value.
     function _setValidatorIndex(address _miningAddress, uint256 _index) internal {
-        uintStorage[
-            keccak256(abi.encode(VALIDATOR_INDEX, _miningAddress))
-        ] = _index;
+        uintStorage[keccak256(abi.encode(VALIDATOR_INDEX, _miningAddress))] = _index;
     }
 
+    /// @dev Sets the block number at which the `finalizeChange` function was called to apply
+    /// the current validator set formed by the `_newValidatorSet` function.
+    /// Called by the `finalizeChange` and `_newValidatorSet` functions.
+    /// @param _blockNumber The current block number. Set this to zero when calling by the `_newValidatorSet`.
     function _setValidatorSetApplyBlock(uint256 _blockNumber) internal {
         uintStorage[VALIDATOR_SET_APPLY_BLOCK] = _blockNumber;
     }
 
+    /// @dev Returns the current block number or unix timestamp (depending on the consensus algorithm).
+    /// Used by the `isValidatorBanned`, `_banUntil`, and `_banValidator` functions.
     function _banStart() internal view returns(uint256);
 
+    /// @dev Returns the future block number or unix timestamp (depending on the consensus algorithm)
+    /// until which a validator is banned.
     function _banUntil() internal view returns(uint256);
 
+    /// @dev Returns the current block number. Needed mostly for unit tests.
     function _getCurrentBlockNumber() internal view returns(uint256) {
         return block.number;
     }
 
+    /// @dev Returns an index of a pool in the `poolsToBeElected` array (see the `Staking.getPoolsToBeElected` getter)
+    /// by a random number and the corresponding probability coefficients.
+    /// @param _likelihood An array of probability coefficients.
+    /// @param _likelihoodSum A sum of probability coefficients.
+    /// @param _randomNumber A random number.
     function _getRandomIndex(int256[] memory _likelihood, int256 _likelihoodSum, uint256 _randomNumber)
         internal
         pure
