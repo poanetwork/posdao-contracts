@@ -5,23 +5,32 @@ import "./interfaces/IValidatorSet.sol";
 import "./eternal-storage/OwnedEternalStorage.sol";
 
 
+/// @dev Allows validators to use a zero gas price for their service transactions
+/// (see https://wiki.parity.io/Permissioning.html#gas-price for more info).
 contract Certifier is OwnedEternalStorage, ICertifier {
 
     // ============================================== Constants =======================================================
 
-    // This address must be set before deploy
+    /// @dev The address of the ValidatorSet contract (EternalStorageProxy proxy contract for ValidatorSet).
     address public constant VALIDATOR_SET_CONTRACT = address(0x1000000000000000000000000000000000000001);
 
     // ================================================ Events ========================================================
 
+    /// @dev Emitted by the `certify` function when the specified address is allowed to use a zero gas price
+    /// for its transactions.
+    /// @param who The address for which the transactions with a zero gas price are allowed.
     event Confirmed(address indexed who);
+
+    /// @dev Emitted by the `revoke` function when the specified address is denied to use a zero gas price
+    /// for its transactions.
+    /// @param who The address for which the transactions with a zero gas price are denied.
     event Revoked(address indexed who);
 
     // =============================================== Setters ========================================================
 
-    /// Initializes the contract at the start of the network.
-    /// Must be called by the constructor of `Initializer` contract on genesis block.
-    /// This is used instead of `constructor()` because this contract is upgradable.
+    /// @dev Initializes the contract at network startup.
+    /// Must be called by the constructor of `Initializer` contract on the genesis block.
+    /// @param _certifiedAddress The address for which a zero gas price must be allowed.
     function initialize(
         address _certifiedAddress
     ) external {
@@ -29,11 +38,17 @@ contract Certifier is OwnedEternalStorage, ICertifier {
         _certify(_certifiedAddress);
     }
 
+    /// @dev Allows the specified address to use a zero gas price for its transactions.
+    /// Can only be called by the `owner`.
+    /// @param _who The address for which the transactions with a zero gas price must be allowed.
     function certify(address _who) external onlyOwner {
         _certify(_who);
         emit Confirmed(_who);
     }
 
+    /// @dev Denies the specified address to use a zero gas price for its transactions.
+    /// Can only be called by the `owner`.
+    /// @param _who The address for which the transactions with a zero gas price must be denied.
     function revoke(address _who) external onlyOwner {
         boolStorage[keccak256(abi.encode(CERTIFIED, _who))] = false;
         emit Revoked(_who);
@@ -41,6 +56,10 @@ contract Certifier is OwnedEternalStorage, ICertifier {
 
     // =============================================== Getters ========================================================
 
+    /// @dev Returns a boolean flag indicating whether the specified address is allowed to use a zero gas price
+    /// transactions. Returns `true` either if the address is certified using the `_certify` function or if the
+    /// `ValidatorSet.isReportValidatorValid` returns `true` for it.
+    /// @param _who The address for which the boolean flag must be determined.
     function certified(address _who) external view returns(bool) {
         if (boolStorage[keccak256(abi.encode(CERTIFIED, _who))]) {
             return true;
@@ -52,6 +71,8 @@ contract Certifier is OwnedEternalStorage, ICertifier {
 
     bytes32 internal constant CERTIFIED = "certified";
 
+    /// @dev An internal function for the `certify` and `initialize` functions.
+    /// @param _who The address for which the transactions with a zero gas price must be allowed.
     function _certify(address _who) internal {
         require(_who != address(0));
         boolStorage[keccak256(abi.encode(CERTIFIED, _who))] = true;
