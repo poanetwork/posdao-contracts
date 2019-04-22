@@ -23,6 +23,9 @@ contract Owned {
 }
 
 
+/// @dev Stores human-readable keys associated with addresses, like DNS information
+/// (see https://wiki.parity.io/Parity-name-registry.html). Needed primarily to store the address
+/// of the `TxPermission` contract (see https://wiki.parity.io/Permissioning.html#transaction-type for details).
 contract Registry is Owned, IMetadataRegistry, IOwnerRegistry, IReverseRegistry {
     struct Entry {
         address owner;
