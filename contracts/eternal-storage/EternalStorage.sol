@@ -1,14 +1,11 @@
 pragma solidity 0.5.2;
 
 
-/**
- * @title Eternal Storage
- * @dev This contract holds all the necessary state variables to carry out the storage of any contract
- * and to support the upgrade functionality.
- */
+/// @dev This contract holds all the necessary state variables to carry out the storage of any upgradable contract
+/// and to support the upgrade functionality.
 contract EternalStorage {
 
-    /// @dev Address of the owner of the contract
+    // An address of the owner of the contract
     address internal _owner;
 
     // Storage mappings
