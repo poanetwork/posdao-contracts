@@ -10,13 +10,17 @@ import "./interfaces/IValidatorSetAuRa.sol";
 import "./eternal-storage/OwnedEternalStorage.sol";
 
 
+/// @dev Controls the use of zero gas price by validators in service transactions,
+/// protecting the network against "transaction spamming" by malicious validators.
+/// The protection logic is declared in the `allowedTxTypes` function.
 contract TxPermission is ContractsAddresses, OwnedEternalStorage, ITxPermission {
 
     // =============================================== Setters ========================================================
 
-    /// Initializes the contract at the start of the network.
-    /// Must be called by the constructor of `Initializer` contract on genesis block.
-    /// This is used instead of `constructor()` because this contract is upgradable.
+    /// @dev Initializes the contract at network startup.
+    /// Must be called by the constructor of `Initializer` contract on the genesis block.
+    /// @param _allowedSender The address for which transactions of any type must be allowed.
+    /// See the `allowedTxTypes` getter.
     function initialize(
         address _allowedSender
     ) external {
@@ -24,10 +28,17 @@ contract TxPermission is ContractsAddresses, OwnedEternalStorage, ITxPermission 
         _addAllowedSender(_allowedSender);
     }
 
+    /// @dev Adds the address for which transactions of any type must be allowed.
+    /// Can only be called by the `owner`. See also the `allowedTxTypes` getter.
+    /// @param _sender The address for which transactions of any type must be allowed.
     function addAllowedSender(address _sender) public onlyOwner {
         _addAllowedSender(_sender);
     }
 
+    /// @dev Removes the specified address from the array of the addresses allowed
+    /// to initiate transactions of any type. Can only be called by the `owner`.
+    /// See also the `addAllowedSender` function and `allowedSenders` getter.
+    /// @param _sender The removed address.
     function removeAllowedSender(address _sender) public onlyOwner {
         uint256 allowedSendersLength = addressArrayStorage[ALLOWED_SENDERS].length;
 
@@ -42,49 +53,44 @@ contract TxPermission is ContractsAddresses, OwnedEternalStorage, ITxPermission 
 
     // =============================================== Getters ========================================================
 
-    /// Contract name
+    /// @dev Returns the contract's name recognizable by the Parity engine.
     function contractName() public pure returns(string memory) {
         return "TX_PERMISSION_CONTRACT";
     }
 
-    /// Contract name hash
+    /// @dev Returns the contract name hash needed for the Parity engine.
     function contractNameHash() public pure returns(bytes32) {
         return keccak256(abi.encodePacked(contractName()));
     }
 
-    /// Contract version
+    /// @dev Returns the contract's version number needed for the Parity engine.
     function contractVersion() public pure returns(uint256) {
         return 0xfffffffffffffffe;
     }
 
+    /// @dev Returns the list of addresses allowed to initiate transactions of any type.
+    /// For these addresses the `allowedTxTypes` getter always returns the `ALL` bit mask
+    /// (see https://wiki.parity.io/Permissioning.html#how-it-works-1).
     function allowedSenders() public view returns(address[] memory) {
         return addressArrayStorage[ALLOWED_SENDERS];
     }
 
-    /*
-     * Allowed transaction types
-     *
-     * Returns:
-     *  - uint32 - set of allowed transactions for #'sender' depending on tx #'to' address
-     *    and value in wei.
-     *  - bool - if true is returned the same permissions will be applied from the same #'sender'
-     *    without calling this contract again.
-     *
-     * In case of contract creation #'to' address equals to zero-address
-     *
-     * Result is represented as set of flags:
-     *  - 0x01 - basic transaction (e.g. ether transferring to user wallet)
-     *  - 0x02 - contract call
-     *  - 0x04 - contract creation
-     *  - 0x08 - private transaction
-     *
-     * @param _sender Transaction sender address
-     * @param _to Transaction recepient address
-     * @param _value Value in wei for transaction
-     * @param _gasPrice Gas price in wei for transaction
-     * @param _data Transaction data
-     *
-     */
+    /// @dev Defines allowed transaction types which may be initiated by the specified sender with
+    /// the specified gas price and data. Used by the Parity engine each time some transaction is about to be
+    /// included into a block. See https://wiki.parity.io/Permissioning.html#how-it-works-1
+    /// @param _sender Transaction sender address.
+    /// @param _to Transaction recipient address. In case of contract creation the `_to` address equals to zero.
+    /// @param _value Value in wei for transaction.
+    /// @param _gasPrice Gas price in wei for transaction.
+    /// @param _data Transaction data.
+    /// @return typesMask Set of allowed transactions for `_sender` depending on tx `_to` address,
+    /// `_gasPrice`, and `_data`. The result is represented as set of flags:
+    /// - 0x01 - basic transaction (e.g. ether transferring to user wallet)
+    /// - 0x02 - contract call
+    /// - 0x04 - contract creation
+    /// - 0x08 - private transaction
+    /// @return cache If `true` is returned, the same permissions will be applied from the same
+    /// `_sender` without calling this contract again.
     function allowedTxTypes(
         address _sender,
         address _to,
@@ -94,7 +100,7 @@ contract TxPermission is ContractsAddresses, OwnedEternalStorage, ITxPermission 
     )
         public
         view
-        returns(uint32, bool)
+        returns(uint32 typesMask, bool cache)
     {
         if (isSenderAllowed(_sender)) {
             // Let the `_sender` initiate any transaction if the `_sender` is in the `allowedSenders` list
@@ -103,7 +109,7 @@ contract TxPermission is ContractsAddresses, OwnedEternalStorage, ITxPermission 
 
         IValidatorSet validatorSet = IValidatorSet(VALIDATOR_SET_CONTRACT);
 
-        // Get called function's signature
+        // Get the called function's signature
         bytes4 signature = bytes4(0);
         bytes memory abiParams;
         uint256 i;
@@ -130,7 +136,7 @@ contract TxPermission is ContractsAddresses, OwnedEternalStorage, ITxPermission 
         }
 
         if (_to == VALIDATOR_SET_CONTRACT) {
-            // The rules for ValidatorSet contract
+            // The rules for the ValidatorSet contract
             if (signature == bytes4(keccak256("emitInitiateChange()"))) {
                 // The `emitInitiateChange()` can be called by anyone
                 // if `emitInitiateChangeCallable()` returns `true`
@@ -150,7 +156,8 @@ contract TxPermission is ContractsAddresses, OwnedEternalStorage, ITxPermission 
                     (address, uint256)
                 );
 
-                // The `reportMalicious()` can only be called by validator's mining address when the calling is allowed
+                // The `reportMalicious()` can only be called by the validator's mining address
+                // when the calling is allowed
                 (bool callable,) = IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).reportMaliciousCallable(
                     _sender, maliciousMiningAddress, blockNumber
                 );
@@ -174,10 +181,12 @@ contract TxPermission is ContractsAddresses, OwnedEternalStorage, ITxPermission 
         }
 
         // In other cases let the `_sender` create any transaction with non-zero gas price,
-        // but don't let them use zero gas price
+        // don't let them use a zero gas price
         return (_gasPrice > 0 ? ALL : NONE, false);
     }
 
+    /// @dev Returns a boolean flag indicating whether the current block gas limit must be limited.
+    /// See https://github.com/poanetwork/parity-ethereum/issues/119
     function limitBlockGas() public view returns(bool) {
         if (IBlockReward(BLOCK_REWARD_CONTRACT).isRewarding()) {
             return true;
@@ -192,6 +201,10 @@ contract TxPermission is ContractsAddresses, OwnedEternalStorage, ITxPermission 
         return false;
     }
 
+    /// @dev Returns a boolean flag indicating whether the specified address is allowed
+    /// to initiate transactions of any type. Used by the `allowedTxTypes` getter.
+    /// See also the `addAllowedSender` and `removeAllowedSender` functions.
+    /// @param _sender The address needed to be checked.
     function isSenderAllowed(address _sender) public view returns(bool) {
         uint256 allowedSendersLength = addressArrayStorage[ALLOWED_SENDERS].length;
 
@@ -208,7 +221,7 @@ contract TxPermission is ContractsAddresses, OwnedEternalStorage, ITxPermission 
 
     bytes32 internal constant ALLOWED_SENDERS = keccak256("allowedSenders");
 
-    /// Allowed transaction types mask
+    // Allowed transaction types mask
     uint32 internal constant NONE = 0;
     uint32 internal constant ALL = 0xffffffff;
     uint32 internal constant BASIC = 0x01;
@@ -216,6 +229,8 @@ contract TxPermission is ContractsAddresses, OwnedEternalStorage, ITxPermission 
     uint32 internal constant CREATE = 0x04;
     uint32 internal constant PRIVATE = 0x08;
 
+    /// @dev An internal function used by the `addAllowedSender` and `initialize` functions.
+    /// @param _sender The address for which transactions of any type must be allowed.
     function _addAllowedSender(address _sender) internal {
         require(!isSenderAllowed(_sender));
         require(_sender != address(0));
