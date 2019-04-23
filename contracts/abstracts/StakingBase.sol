@@ -347,7 +347,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     /// @dev Returns an array of the current active pools (the staking addresses of candidates and validators).
     /// The size of the array cannot exceed MAX_CANDIDATES. A pool can be added to this array with the `_addPoolActive`
     /// function which is called by the `stake` or `orderWithdraw` function. A pool is considered active
-    /// if its address has more than the minimum stake and this stake is not ordered to be withdrawn.
+    /// if its address has at least the minimum stake and this stake is not ordered to be withdrawn.
     function getPools() external view returns(address[] memory) {
         return addressArrayStorage[POOLS];
     }
