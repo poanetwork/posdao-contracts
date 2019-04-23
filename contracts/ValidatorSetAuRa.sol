@@ -9,8 +9,8 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
 
     // ================================================ Events ========================================================
 
-    /// @dev Emitted by the `reportMalicious` function to signal the specified validator reported about some malicious
-    /// validator which misbehaved at the specified block number.
+    /// @dev Emitted by the `reportMalicious` function to signal that a specified validator reported
+    /// misbehavior by a specified malicious validator at a specified block number.
     /// @param reportingValidator The mining address of the reporting validator.
     /// @param maliciousValidator The mining address of the malicious validator.
     /// @param blockNumber The block number at which the `maliciousValidator` misbehaved.
@@ -37,8 +37,8 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
     /// @dev Implements the logic which forms a new validator set. Calls the internal `_newValidatorSet` function of
     /// the base contract. Automatically called by the `BlockRewardAuRa.reward` function on every block.
     /// @return called A boolean flag indicating whether the internal `_newValidatorSet` function was called.
-    /// @return poolsToBeElectedLength A number of the pools ready to be elected (see the `Staking.getPoolsToBeElected`
-    /// function). Equals to `0` if the `called` flag is `false`.
+    /// @return poolsToBeElectedLength The number of pools ready to be elected (see the `Staking.getPoolsToBeElected`
+    /// function). Equals `0` if the `called` flag is `false`.
     function newValidatorSet() external onlyBlockRewardContract returns(bool called, uint256 poolsToBeElectedLength) {
         uint256 currentBlock = _getCurrentBlockNumber();
         IStakingAuRa stakingContract = IStakingAuRa(stakingContract());
@@ -49,17 +49,17 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
     }
 
     /// @dev Removes a malicious validator. Called by the `RandomAuRa.onFinishCollectRound` function.
-    /// @param _miningAddress A mining address of the malicious validator.
+    /// @param _miningAddress The mining address of the malicious validator.
     function removeMaliciousValidator(address _miningAddress) external onlyRandomContract {
         _removeMaliciousValidatorAuRa(_miningAddress);
     }
 
-    /// @dev Reports about the malicious validator misbehaved at the specified block.
-    /// Called by a node of each honest validator after the specified validator misbehaved.
+    /// @dev Reports that the malicious validator misbehaved at the specified block.
+    /// Called by the node of each honest validator after the specified validator misbehaved.
     /// See https://wiki.parity.io/Validator-Set.html#reporting-contract
     /// Can only be called when the `reportMaliciousCallable` getter returns `true`.
-    /// @param _maliciousMiningAddress A mining address of the malicious validator.
-    /// @param _blockNumber A block number at which the misbehavior was observed.
+    /// @param _maliciousMiningAddress The mining address of the malicious validator.
+    /// @param _blockNumber The block number where the misbehavior was observed.
     function reportMalicious(address _maliciousMiningAddress, uint256 _blockNumber, bytes calldata) external {
         address reportingMiningAddress = msg.sender;
 
@@ -100,10 +100,10 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
 
     // =============================================== Getters ========================================================
 
-    /// @dev Returns an array of the validators (their mining addresses) which reported about the specified malicious
+    /// @dev Returns an array of the validators (their mining addresses) which reported that the specified malicious
     /// validator misbehaved at the specified block.
-    /// @param _maliciousMiningAddress A mining address of the malicious validator.
-    /// @param _blockNumber A block number at which the misbehavior was observed.
+    /// @param _maliciousMiningAddress The mining address of the malicious validator.
+    /// @param _blockNumber The block number at which the misbehavior was observed.
     function maliceReportedForBlock(
         address _maliciousMiningAddress,
         uint256 _blockNumber
@@ -113,33 +113,33 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
         ))];
     }
 
-    /// @dev Returns how many times the specified validator reported about any misbehaviors during the specified
-    /// staking epoch. Used by the `reportMaliciousCallable` getter to determine whether a validator reports too often.
-    /// @param _reportingMiningAddress A mining address of the reporting validator.
-    /// @param _stakingEpoch A serial number of the staking epoch.
+    /// @dev Returns the number of times the specified validator reported misbehaviors during the specified
+    /// staking epoch. Used by the `reportMaliciousCallable` getter to determine whether a validator reported too often.
+    /// @param _reportingMiningAddress The mining address of the reporting validator.
+    /// @param _stakingEpoch The serial number of the staking epoch.
     function reportingCounter(address _reportingMiningAddress, uint256 _stakingEpoch) public view returns(uint256) {
         return uintStorage[keccak256(abi.encode(REPORTING_COUNTER, _reportingMiningAddress, _stakingEpoch))];
     }
 
-    /// @dev Returns how many times all validators reported about any misbehaviors during the specified staking
-    /// epoch. Used by the `reportMaliciousCallable` getter to determine whether a validator reports too often.
-    /// @param _stakingEpoch A serial number of the staking epoch.
+    /// @dev Returns how many times all validators reported misbehaviors during the specified staking epoch.
+    /// Used by the `reportMaliciousCallable` getter to determine whether a validator reported too often.
+    /// @param _stakingEpoch The serial number of the staking epoch.
     function reportingCounterTotal(uint256 _stakingEpoch) public view returns(uint256) {
         return uintStorage[keccak256(abi.encode(REPORTING_COUNTER_TOTAL, _stakingEpoch))];
     }
 
     /// @dev Returns whether the `reportMalicious` function can be called by the specified validator with the
     /// given parameters. Used by the `reportMalicious` function and `TxPermission` contract. Also, returns
-    /// a boolean flag indicating whether the reporting validator should be removed as a malicious due to
-    /// excessive reports made by them during the current staking epoch.
-    /// @param _reportingMiningAddress A mining address of the reporting validator which is calling
+    /// a boolean flag indicating whether the reporting validator should be removed as malicious due to
+    /// excessive reporting during the current staking epoch.
+    /// @param _reportingMiningAddress The mining address of the reporting validator which is calling
     /// the `reportMalicious` function.
-    /// @param _maliciousMiningAddress A mining address of the malicious validator which is passed to
+    /// @param _maliciousMiningAddress The mining address of the malicious validator which is passed to
     /// the `reportMalicious` function.
-    /// @param _blockNumber A block number which is passed to the `reportMalicious` function.
-    /// @return callable A boolean flag indicating whether the `reportMalicious` function can be called at the moment.
-    /// @return removeReportingValidator A boolean flag indicating whether the reporting validator should be removed
-    /// as a malicious due to excessive reports made by them. This flag is only used by the `reportMalicious` function.
+    /// @param _blockNumber The block number which is passed to the `reportMalicious` function.
+    /// @return callable The boolean flag indicating whether the `reportMalicious` function can be called at the moment.
+    /// @return removeReportingValidator The boolean flag indicating whether the reporting validator should be 
+    /// removed as malicious due to excessive reporting. This flag is only used by the `reportMalicious` function.
     function reportMaliciousCallable(
         address _reportingMiningAddress,
         address _maliciousMiningAddress,
@@ -205,10 +205,9 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
     }
 
     /// @dev Updates the total reporting counter (see the `reportingCounterTotal` getter) for the current staking epoch
-    /// after the specified validator is removed as a malicious. This function is needed to hold the reporting counter
-    /// up-to-date to make reporting checks in the `reportMaliciousCallable` getter correct. Called by the
+    /// after the specified validator is removed as malicious. The `reportMaliciousCallable` getter uses this counter for reporting checks so it must be up-to-date. Called by the
     /// `_removeMaliciousValidatorAuRa` internal function.
-    /// @param _miningAddress A mining address of the removed malicious validator.
+    /// @param _miningAddress The mining address of the removed malicious validator.
     function _clearReportingCounter(address _miningAddress) internal {
         uint256 currentStakingEpoch = IStaking(stakingContract()).stakingEpoch();
         uint256 total = reportingCounterTotal(currentStakingEpoch);
@@ -225,8 +224,8 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
 
     /// @dev Increments the reporting counter for the specified validator and the current staking epoch.
     /// See the `reportingCounter` and `reportingCounterTotal` getters. Called by the `reportMalicious`
-    /// function when the validator reports about some misbehavior.
-    /// @param _reportingMiningAddress A mining address of reporting validator.
+    /// function when the validator reports a misbehavior.
+    /// @param _reportingMiningAddress The mining address of reporting validator.
     function _incrementReportingCounter(address _reportingMiningAddress) internal {
         if (!isReportValidatorValid(_reportingMiningAddress)) return;
         uint256 currentStakingEpoch = IStaking(stakingContract()).stakingEpoch();
@@ -234,10 +233,10 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
         uintStorage[keccak256(abi.encode(REPORTING_COUNTER_TOTAL, currentStakingEpoch))]++;
     }
 
-    /// @dev Removes the specified validator as a malicious from the pending validator set and enqueues updated
+    /// @dev Removes the specified validator as malicious from the pending validator set and enqueues the updated
     /// pending validator set to be dequeued by the `emitInitiateChange` function. Does nothing if the specified
-    /// validator is already banned, non-removable, or not existed in the pending validator set.
-    /// @param _miningAddress A mining address of the malicious validator.
+    /// validator is already banned, non-removable, or does not exist in the pending validator set.
+    /// @param _miningAddress The mining address of the malicious validator.
     function _removeMaliciousValidatorAuRa(address _miningAddress) internal {
         if (isValidatorBanned(_miningAddress)) {
             // The malicious validator is already banned

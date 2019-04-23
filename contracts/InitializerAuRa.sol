@@ -9,11 +9,11 @@ import "./interfaces/ICertifier.sol";
 
 
 /// @dev Used once on network startup and then destroyed on the genesis block.
-/// Needed for initializing upgradable contracts on the genesis block since
-/// an upgradable contract can't have the constructor.
+/// Needed for initializing upgradeable contracts on the genesis block since
+/// upgradeable contracts can't have constructors.
 contract InitializerAuRa is ContractsAddresses {
     /// @param _erc20TokenContract The address of the ERC20/677 staking token contract.
-    /// Can be zero and can be defined later using the `StakingAuRa.setErc20TokenContract` function.
+    /// Can be initialized as zero and defined later using the `StakingAuRa.setErc20TokenContract` function.
     /// @param _owner The contracts' owner.
     /// @param _miningAddresses The array of initial validators' mining addresses.
     /// @param _stakingAddresses The array of initial validators' staking addresses.
@@ -24,10 +24,10 @@ contract InitializerAuRa is ContractsAddresses {
     /// (see the `StakingAuRa` contract).
     /// @param _candidateMinStake The minimum allowed amount of candidate stake in STAKE_UNITs
     /// (see the `StakingAuRa` contract).
-    /// @param _stakingEpochDuration The duration of staking epoch in blocks
+    /// @param _stakingEpochDuration The duration of a staking epoch in blocks
     /// (e.g., 120960 = 1 week for 5-seconds blocks in AuRa).
-    /// @param _stakeWithdrawDisallowPeriod The duration of the period at the end of staking epoch in blocks
-    /// during which the participants are not allowed to stake and withdraw their staking tokens
+    /// @param _stakeWithdrawDisallowPeriod The duration period (in blocks) at the end of a staking epoch
+    /// during which participants cannot stake or withdraw their staking tokens
     /// (e.g., 4320 = 6 hours for 5-seconds blocks in AuRa).
     /// @param _collectRoundLength The length of a collection round in blocks (see the `RandomAuRa` contract).
     constructor(
