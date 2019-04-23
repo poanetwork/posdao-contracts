@@ -10,11 +10,11 @@ contract StakingAuRa is IStakingAuRa, StakingBase {
 
     // =============================================== Setters ========================================================
 
-    /// @dev Adds a new candidate's pool into the list of active pools (see the `getPools` getter) and
-    /// moves the specified amount of the staking tokens from the candidate's staking address to the candidate's pool.
-    /// A participant calls this function using their staking address when they want to create their pool.
+    /// @dev Adds a new candidate's pool to the list of active pools (see the `getPools` getter) and
+    /// moves the specified amount of staking tokens from the candidate's staking address to the candidate's pool.
+    /// A participant calls this function using their staking address when they want to create a pool.
     /// This is a wrapper for the `stake` function.
-    /// @param _amount The amount of the tokens to be staked.
+    /// @param _amount The amount of tokens to be staked.
     /// @param _miningAddress The mining address of the candidate. The mining address is bound to the staking address
     /// (msg.sender). This address cannot be equal to `msg.sender`.
     function addPool(uint256 _amount, address _miningAddress) external gasPriceIsValid {
@@ -27,14 +27,14 @@ contract StakingAuRa is IStakingAuRa, StakingBase {
     /// Must be called by the constructor of the `InitializerAuRa` contract on the genesis block.
     /// @param _validatorSetContract The address of the `ValidatorSetAuRa` contract.
     /// @param _erc20TokenContract The address of the ERC20/677 staking token contract.
-    /// Can be zero and can be defined later using the `setErc20TokenContract` function.
+    /// Can be zero and defined later using the `setErc20TokenContract` function.
     /// @param _initialStakingAddresses The array of initial validators' staking addresses.
     /// @param _delegatorMinStake The minimum allowed amount of delegator stake in STAKE_UNITs.
     /// @param _candidateMinStake The minimum allowed amount of candidate/validator stake in STAKE_UNITs.
-    /// @param _stakingEpochDuration The duration of staking epoch in blocks
+    /// @param _stakingEpochDuration The duration of a staking epoch in blocks
     /// (e.g., 120960 = 1 week for 5-seconds blocks in AuRa).
-    /// @param _stakeWithdrawDisallowPeriod The duration of the period at the end of staking epoch in blocks
-    /// during which the participants are not allowed to stake and withdraw their staking tokens
+    /// @param _stakeWithdrawDisallowPeriod The duration period (in blocks) at the end of a staking epoch
+    /// during which participants cannot stake or withdraw their staking tokens
     /// (e.g., 4320 = 6 hours for 5-seconds blocks in AuRa).
     function initialize(
         address _validatorSetContract,
@@ -63,16 +63,16 @@ contract StakingAuRa is IStakingAuRa, StakingBase {
         uintStorage[STAKING_EPOCH_START_BLOCK] = _getCurrentBlockNumber();
     }
 
-    /// @dev Sets the number of the very first block of the upcoming staking epoch.
+    /// @dev Sets the number of the first block in the upcoming staking epoch.
     /// Called by the `ValidatorSetAuRa.newValidatorSet` function at the last block of a staking epoch.
-    /// @param _blockNumber The number of the very first block of the upcoming staking epoch.
+    /// @param _blockNumber The number of the very first block in the upcoming staking epoch.
     function setStakingEpochStartBlock(uint256 _blockNumber) external onlyValidatorSetContract {
         uintStorage[STAKING_EPOCH_START_BLOCK] = _blockNumber;
     }
 
     // =============================================== Getters ========================================================
 
-    /// @dev Determines whether the staking/withdrawal operations are allowed at the moment.
+    /// @dev Determines whether staking/withdrawal operations are allowed at the moment.
     /// Used by all staking/withdrawal functions.
     function areStakeAndWithdrawAllowed() public view returns(bool) {
         bool isSnapshotting = IBlockReward(validatorSetContract().blockRewardContract()).isSnapshotting();
@@ -81,8 +81,8 @@ contract StakingAuRa is IStakingAuRa, StakingBase {
         return !isSnapshotting && currentBlock.sub(stakingEpochStartBlock()) <= allowedDuration;
     }
 
-    /// @dev Returns the duration of the period (in blocks) at the end of staking epoch during which
-    /// the participants are not allowed to stake and withdraw their staking tokens.
+    /// @dev Returns the duration period (in blocks) at the end of staking epoch during which
+    /// participants are not allowed to stake and withdraw their staking tokens.
     function stakeWithdrawDisallowPeriod() public view returns(uint256) {
         return uintStorage[STAKE_WITHDRAW_DISALLOW_PERIOD];
     }

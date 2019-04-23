@@ -5,27 +5,26 @@ import "../interfaces/IEternalStorageProxy.sol";
 
 
 /// @dev This proxy holds the storage of an upgradable contract and delegates every call to the current implementation.
-/// It allows to upgrade the contract's behaviour towards further implementations, and provides
-/// authorization control functionalities.
+/// It allows the contract's behavior to be updated and provides authorization control functionality.
 contract EternalStorageProxy is OwnedEternalStorage, IEternalStorageProxy {
 
     // ================================================ Events ========================================================
 
     /// @dev Emitted by the `transferOwnership` function every time the ownership of this contract changes.
-    /// @param previousOwner Representing the previous owner of the contract.
-    /// @param newOwner Representing the new owner of the contract.
+    /// @param previousOwner Represents the previous owner of the contract.
+    /// @param newOwner Represents the new owner of the contract.
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
     /// @dev Emitted by the `upgradeTo` function every time the implementation gets upgraded.
-    /// @param version A new version number of the upgraded implementation.
-    /// @param implementation A new address of the upgraded implementation.
+    /// @param version The new version number of the upgraded implementation.
+    /// @param implementation The new address of the upgraded implementation.
     event Upgraded(uint256 version, address indexed implementation);
 
     // =============================================== Setters ========================================================
 
     /// @param _implementationAddress The address of the implementation. This must either be the address of
-    /// an already-constructed contract, or `address(0)`. In the latter case, the implementation can be set by the
-    /// `upgradeTo` function later.
+    /// an already-constructed contract, or `address(0)`. In the latter case, the implementation can be set later using
+    /// the `upgradeTo` function.
     /// @param _ownerAddress The owner of the contract. If set to `address(0)`, then `msg.sender` will be used instead.
     constructor(address _implementationAddress, address _ownerAddress) public {
         if (_implementationAddress != address(0)) {
@@ -40,7 +39,7 @@ contract EternalStorageProxy is OwnedEternalStorage, IEternalStorageProxy {
     }
 
     // solhint-disable no-complex-fallback, no-inline-assembly
-    /// @dev Fallback function allowing to perform a `delegatecall` to the given implementation.
+    /// @dev Fallback function allowing a `delegatecall` to the given implementation.
     /// This function will return whatever the implementation call returns.
     function() external payable {
         address _impl = implementation();
@@ -67,7 +66,7 @@ contract EternalStorageProxy is OwnedEternalStorage, IEternalStorageProxy {
     // solhint-enable no-complex-fallback, no-inline-assembly
 
     /// @dev Allows the current owner to irrevocably transfer control of the contract to a `_newOwner`.
-    /// @param _newOwner The address to transfer ownership to.
+    /// @param _newOwner The address ownership is transferred to.
     function transferOwnership(address _newOwner) external onlyOwner {
         require(_newOwner != address(0));
         emit OwnershipTransferred(_owner, _newOwner);
@@ -75,7 +74,7 @@ contract EternalStorageProxy is OwnedEternalStorage, IEternalStorageProxy {
     }
 
     /// @dev Allows the owner to upgrade the current implementation.
-    /// @param _newImplementation Representing the address of the new implementation to be set.
+    /// @param _newImplementation Represents the address where the new implementation is set.
     function upgradeTo(address _newImplementation) external onlyOwner returns(bool) {
         if (_newImplementation == address(0)) return false;
         if (implementation() == _newImplementation) return false;
@@ -93,7 +92,7 @@ contract EternalStorageProxy is OwnedEternalStorage, IEternalStorageProxy {
 
     // =============================================== Getters ========================================================
 
-    /// @dev Returns the owner's address of the contract.
+    /// @dev Returns the address of the contract owner.
     function getOwner() external view returns(address) {
         return _owner;
     }
@@ -113,7 +112,7 @@ contract EternalStorageProxy is OwnedEternalStorage, IEternalStorageProxy {
     bytes32 internal constant IMPLEMENTATION = keccak256("implementation");
     bytes32 internal constant VERSION = keccak256("version");
 
-    /// @dev Checks whether the specified address is a contract's address.
+    /// @dev Checks whether the specified address is a contract address.
     /// Returns `false` if the address is an EOA (externally owned account).
     /// @param _addr The address which needs to be checked.
     function _isContract(address _addr) private view returns(bool) {

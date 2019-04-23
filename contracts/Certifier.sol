@@ -18,18 +18,18 @@ contract Certifier is OwnedEternalStorage, ICertifier {
 
     /// @dev Emitted by the `certify` function when the specified address is allowed to use a zero gas price
     /// for its transactions.
-    /// @param who The address for which the transactions with a zero gas price are allowed.
+    /// @param who Specified address allowed to make zero gas price transactions.
     event Confirmed(address indexed who);
 
-    /// @dev Emitted by the `revoke` function when the specified address is denied to use a zero gas price
+    /// @dev Emitted by the `revoke` function when the specified address is denied using a zero gas price
     /// for its transactions.
-    /// @param who The address for which the transactions with a zero gas price are denied.
+    /// @param who Specified address for which zero gas price transactions are denied.
     event Revoked(address indexed who);
 
     // =============================================== Setters ========================================================
 
     /// @dev Initializes the contract at network startup.
-    /// Must be called by the constructor of `Initializer` contract on the genesis block.
+    /// Must be called by the constructor of the `Initializer` contract on the genesis block.
     /// @param _certifiedAddress The address for which a zero gas price must be allowed.
     function initialize(
         address _certifiedAddress
@@ -40,15 +40,15 @@ contract Certifier is OwnedEternalStorage, ICertifier {
 
     /// @dev Allows the specified address to use a zero gas price for its transactions.
     /// Can only be called by the `owner`.
-    /// @param _who The address for which the transactions with a zero gas price must be allowed.
+    /// @param _who The address for which zero gas price transactions must be allowed.
     function certify(address _who) external onlyOwner {
         _certify(_who);
         emit Confirmed(_who);
     }
 
-    /// @dev Denies the specified address to use a zero gas price for its transactions.
+    /// @dev Denies the specified address usage of a zero gas price for its transactions.
     /// Can only be called by the `owner`.
-    /// @param _who The address for which the transactions with a zero gas price must be denied.
+    /// @param _who The address for which transactions with a zero gas price must be denied.
     function revoke(address _who) external onlyOwner {
         boolStorage[keccak256(abi.encode(CERTIFIED, _who))] = false;
         emit Revoked(_who);
@@ -56,9 +56,9 @@ contract Certifier is OwnedEternalStorage, ICertifier {
 
     // =============================================== Getters ========================================================
 
-    /// @dev Returns a boolean flag indicating whether the specified address is allowed to use a zero gas price
-    /// transactions. Returns `true` either if the address is certified using the `_certify` function or if the
-    /// `ValidatorSet.isReportValidatorValid` returns `true` for it.
+    /// @dev Returns a boolean flag indicating whether the specified address is allowed to use zero gas price
+    /// transactions. Returns `true` if either the address is certified using the `_certify` function or if 
+    /// `ValidatorSet.isReportValidatorValid` returns `true` for the specified address.
     /// @param _who The address for which the boolean flag must be determined.
     function certified(address _who) external view returns(bool) {
         if (boolStorage[keccak256(abi.encode(CERTIFIED, _who))]) {
@@ -72,7 +72,7 @@ contract Certifier is OwnedEternalStorage, ICertifier {
     bytes32 internal constant CERTIFIED = "certified";
 
     /// @dev An internal function for the `certify` and `initialize` functions.
-    /// @param _who The address for which the transactions with a zero gas price must be allowed.
+    /// @param _who The address for which transactions with a zero gas price must be allowed.
     function _certify(address _who) internal {
         require(_who != address(0));
         boolStorage[keccak256(abi.encode(CERTIFIED, _who))] = true;

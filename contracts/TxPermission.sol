@@ -18,7 +18,7 @@ contract TxPermission is ContractsAddresses, OwnedEternalStorage, ITxPermission 
     // =============================================== Setters ========================================================
 
     /// @dev Initializes the contract at network startup.
-    /// Must be called by the constructor of `Initializer` contract on the genesis block.
+    /// Must be called by the constructor of the `Initializer` contract on the genesis block.
     /// @param _allowedSender The address for which transactions of any type must be allowed.
     /// See the `allowedTxTypes` getter.
     function initialize(
@@ -35,7 +35,7 @@ contract TxPermission is ContractsAddresses, OwnedEternalStorage, ITxPermission 
         _addAllowedSender(_sender);
     }
 
-    /// @dev Removes the specified address from the array of the addresses allowed
+    /// @dev Removes the specified address from the array of addresses allowed
     /// to initiate transactions of any type. Can only be called by the `owner`.
     /// See also the `addAllowedSender` function and `allowedSenders` getter.
     /// @param _sender The removed address.
@@ -75,16 +75,16 @@ contract TxPermission is ContractsAddresses, OwnedEternalStorage, ITxPermission 
         return addressArrayStorage[ALLOWED_SENDERS];
     }
 
-    /// @dev Defines allowed transaction types which may be initiated by the specified sender with
-    /// the specified gas price and data. Used by the Parity engine each time some transaction is about to be
+    /// @dev Defines the allowed transaction types which may be initiated by the specified sender with
+    /// the specified gas price and data. Used by the Parity engine each time a transaction is about to be
     /// included into a block. See https://wiki.parity.io/Permissioning.html#how-it-works-1
     /// @param _sender Transaction sender address.
-    /// @param _to Transaction recipient address. In case of contract creation the `_to` address equals to zero.
-    /// @param _value Value in wei for transaction.
-    /// @param _gasPrice Gas price in wei for transaction.
+    /// @param _to Transaction recipient address. If creating a contract, the `_to` address is zero.
+    /// @param _value Value in wei for the transaction.
+    /// @param _gasPrice Gas price in wei for the transaction.
     /// @param _data Transaction data.
     /// @return typesMask Set of allowed transactions for `_sender` depending on tx `_to` address,
-    /// `_gasPrice`, and `_data`. The result is represented as set of flags:
+    /// `_gasPrice`, and `_data`. The result is represented as a set of flags:
     /// - 0x01 - basic transaction (e.g. ether transferring to user wallet)
     /// - 0x02 - contract call
     /// - 0x04 - contract creation
@@ -204,7 +204,7 @@ contract TxPermission is ContractsAddresses, OwnedEternalStorage, ITxPermission 
     /// @dev Returns a boolean flag indicating whether the specified address is allowed
     /// to initiate transactions of any type. Used by the `allowedTxTypes` getter.
     /// See also the `addAllowedSender` and `removeAllowedSender` functions.
-    /// @param _sender The address needed to be checked.
+    /// @param _sender The specified address to check.
     function isSenderAllowed(address _sender) public view returns(bool) {
         uint256 allowedSendersLength = addressArrayStorage[ALLOWED_SENDERS].length;
 
