@@ -143,8 +143,8 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     }
 
     /// @dev Removes a specified pool from the `pools` array (a list of active pools which can be retrieved by the
-    /// `getPools` getter). Called by the `ValidatorSet._removeMaliciousValidator` or the `ValidatorSet._newValidatorSet`
-    /// function when a pool must be removed by the algorithm.
+    /// `getPools` getter). Called by the `ValidatorSet._removeMaliciousValidator` or
+    /// the `ValidatorSet._newValidatorSet` function when a pool must be removed by the algorithm.
     /// @param _stakingAddress The staking address of the pool to be removed.
     function removePool(address _stakingAddress) external onlyValidatorSetContract {
         _removePool(_stakingAddress);
@@ -191,7 +191,8 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     }
 
     /// @dev Moves the specified amount of staking tokens from the staking address of
-    /// the specified pool to the staker's address. A staker calls this function when they want to withdraw their tokens.
+    /// the specified pool to the staker's address. A staker calls this function when they want to withdraw
+    /// their tokens.
     /// @param _fromPoolStakingAddress The staking address of the pool from which the tokens should be withdrawn.
     /// @param _amount The amount of tokens to be withdrawn. The amount cannot exceed the value returned
     /// by the `maxWithdrawAllowed` getter.

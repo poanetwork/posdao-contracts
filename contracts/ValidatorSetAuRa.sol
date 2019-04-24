@@ -205,8 +205,8 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
     }
 
     /// @dev Updates the total reporting counter (see the `reportingCounterTotal` getter) for the current staking epoch
-    /// after the specified validator is removed as malicious. The `reportMaliciousCallable` getter uses this counter for reporting checks so it must be up-to-date. Called by the
-    /// `_removeMaliciousValidatorAuRa` internal function.
+    /// after the specified validator is removed as malicious. The `reportMaliciousCallable` getter uses this counter
+    /// for reporting checks so it must be up-to-date. Called by the `_removeMaliciousValidatorAuRa` internal function.
     /// @param _miningAddress The mining address of the removed malicious validator.
     function _clearReportingCounter(address _miningAddress) internal {
         uint256 currentStakingEpoch = IStaking(stakingContract()).stakingEpoch();

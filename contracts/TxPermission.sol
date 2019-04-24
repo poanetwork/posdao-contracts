@@ -80,7 +80,6 @@ contract TxPermission is ContractsAddresses, OwnedEternalStorage, ITxPermission 
     /// included into a block. See https://wiki.parity.io/Permissioning.html#how-it-works-1
     /// @param _sender Transaction sender address.
     /// @param _to Transaction recipient address. If creating a contract, the `_to` address is zero.
-    /// @param _value Value in wei for the transaction.
     /// @param _gasPrice Gas price in wei for the transaction.
     /// @param _data Transaction data.
     /// @return typesMask Set of allowed transactions for `_sender` depending on tx `_to` address,
