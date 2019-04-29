@@ -8,8 +8,9 @@
     "flat": "bash scripts/make_flat.sh",
     "solhint": "node_modules/.bin/solhint \"contracts/**/*.sol\"",
     "test": "node scripts/check_for_clashing.js && bash scripts/test.sh",
-    "docs": "npm run solidity-docgen && cd docs/website && npm i && npm start",
-    "solidity-docgen": "rm -rf docs/docs/api* && solidity-docgen --exclude interfaces,libs,BlockRewardHBBFT.sol,InitializerHBBFT.sol,KeyGenHistory.sol,Migrations.sol,RandomHBBFT.sol,StakingHBBFT.sol,ValidatorSetHBBFT.sol . contracts docs && node docs/website/sidebars-fix.js"
+    "docs-start": "npm run solidity-docgen && cd docs/website && npm i && npm start",
+    "docs-publish": "npm run solidity-docgen && cd docs/website && npm i && npm run publish-gh-pages",
+    "solidity-docgen": "rm -rf docs/docs/api* && npm i && solidity-docgen --exclude interfaces,libs,BlockRewardHBBFT.sol,InitializerHBBFT.sol,KeyGenHistory.sol,Migrations.sol,RandomHBBFT.sol,StakingHBBFT.sol,ValidatorSetHBBFT.sol . contracts docs && node docs/website/sidebars-fix.js"
   },
   "repository": {
     "type": "git",

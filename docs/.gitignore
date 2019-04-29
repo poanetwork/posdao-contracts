@@ -2,6 +2,8 @@
 
 node_modules
 
+docs/api*
+
 lib/core/metadata.js
 lib/core/MetadataBlog.js
 
