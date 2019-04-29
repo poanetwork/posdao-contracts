@@ -19,6 +19,7 @@
   },
   "homepage": "https://github.com/poanetwork/pos-contracts#readme",
   "dependencies": {
+    "solidity-docgen": "^0.2.0-alpha.0",
     "solidity-flattener": "github:poanetwork/solidity-flattener#master"
   },
   "devDependencies": {
@@ -28,8 +29,8 @@
     "eth-gas-reporter": "^0.1.12",
     "ganache-cli": "^6.3.0",
     "mochawesome": "^3.1.1",
-    "solc": "^0.5.2",
-    "solhint": "^1.5.0",
+    "solc": "0.5.7",
+    "solhint": "^2.0.0",
     "solidity-coverage": "^0.5.11",
     "truffle": "^5.0.5",
     "web3": "^1.0.0-beta.37"

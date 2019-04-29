@@ -1,4 +1,4 @@
-pragma solidity 0.5.2;
+pragma solidity 0.5.7;
 
 
 /// @dev This contract holds all the necessary state variables to carry out the storage of any upgradable contract
