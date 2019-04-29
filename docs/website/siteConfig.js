@@ -17,7 +17,7 @@ const siteConfig = {
   //   url: 'https://facebook.github.io',
   //   baseUrl: '/test-site/',
 
-  docsUrl: '',
+  docsUrl: 'docs',
 
   // Used for publishing and more
   projectName: 'posdao-contracts',
