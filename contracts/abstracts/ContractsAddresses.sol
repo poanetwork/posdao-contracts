@@ -1,4 +1,4 @@
-pragma solidity 0.5.2;
+pragma solidity 0.5.7;
 
 
 /// @dev This contract lists all contract addresses in one place.

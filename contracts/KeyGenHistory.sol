@@ -1,4 +1,4 @@
-pragma solidity 0.5.2;
+pragma solidity 0.5.7;
 
 import "./interfaces/IValidatorSet.sol";
 import "./interfaces/IStaking.sol";

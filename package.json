@@ -1,24 +1,27 @@
 {
-  "name": "pos-contracts",
-  "version": "1.0.0",
-  "description": "Smart contracts for PoS",
+  "name": "posdao-contracts",
+  "version": "0.1.0",
+  "description": "Smart contracts for DPoS",
   "main": "index.js",
   "scripts": {
     "compile": "node_modules/.bin/truffle compile",
     "flat": "bash scripts/make_flat.sh",
     "solhint": "node_modules/.bin/solhint \"contracts/**/*.sol\"",
-    "test": "node scripts/check_for_clashing.js && bash scripts/test.sh"
+    "test": "node scripts/check_for_clashing.js && bash scripts/test.sh",
+    "docs": "npm run solidity-docgen && cd docs/website && npm i && npm start",
+    "solidity-docgen": "rm -rf docs/docs/api* && solidity-docgen --exclude interfaces,libs,BlockRewardHBBFT.sol,InitializerHBBFT.sol,KeyGenHistory.sol,Migrations.sol,RandomHBBFT.sol,StakingHBBFT.sol,ValidatorSetHBBFT.sol . contracts docs && node docs/website/sidebars-fix.js"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/poanetwork/pos-contracts.git"
+    "url": "git+https://github.com/poanetwork/posdao-contracts.git"
   },
   "author": "vadim@poa.network",
   "bugs": {
-    "url": "https://github.com/poanetwork/pos-contracts/issues"
+    "url": "https://github.com/poanetwork/posdao-contracts/issues"
   },
-  "homepage": "https://github.com/poanetwork/pos-contracts#readme",
+  "homepage": "https://github.com/poanetwork/posdao-contracts#readme",
   "dependencies": {
+    "solidity-docgen": "^0.1.1",
     "solidity-flattener": "github:poanetwork/solidity-flattener#master"
   },
   "devDependencies": {
@@ -28,8 +31,8 @@
     "eth-gas-reporter": "^0.1.12",
     "ganache-cli": "^6.3.0",
     "mochawesome": "^3.1.1",
-    "solc": "^0.5.2",
-    "solhint": "^1.5.0",
+    "solc": "0.5.7",
+    "solhint": "^2.0.0",
     "solidity-coverage": "^0.5.11",
     "truffle": "^5.0.5",
     "web3": "^1.0.0-beta.37"

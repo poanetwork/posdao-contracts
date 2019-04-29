@@ -1,4 +1,6 @@
 {
+  "extends": "solhint:default",
+  "plugins": [],
   "rules": {
     "code-complexity": false,
     "function-max-lines": false,
