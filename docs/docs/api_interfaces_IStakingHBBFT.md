@@ -1,6 +1,0 @@
----
-id: interfaces_IStakingHBBFT
-title: IStakingHBBFT
----
-
-<div class="contract-doc"><div class="contract"><h2 class="contract-header"><span class="contract-kind">interface</span> IStakingHBBFT</h2><div class="source">Source: <a href="https://github.com/poanetwork/posdao-contracts/blob/v0.1.0/contracts/interfaces/IStakingHBBFT.sol" target="_blank">contracts/interfaces/IStakingHBBFT.sol</a></div></div><div class="index"><h2>Index</h2><ul><li><a href="interfaces_IStakingHBBFT.html#initialize">initialize</a></li></ul></div><div class="reference"><h2>Reference</h2><div class="functions"><h3>Functions</h3><ul><li><div class="item function"><span id="initialize" class="anchor-marker"></span><h4 class="name">initialize</h4><div class="body"><code class="signature"><span>abstract </span>function <strong>initialize</strong><span>(address , address , address[] , uint256 , uint256 ) </span><span>external </span></code><hr/><dl><dt><span class="label-parameters">Parameters:</span></dt><dd><div><code></code> - address</div><div><code></code> - address</div><div><code></code> - address[]</div><div><code></code> - uint256</div><div><code></code> - uint256</div></dd></dl></div></div></li></ul></div></div></div>
