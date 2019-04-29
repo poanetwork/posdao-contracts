@@ -5,6 +5,9 @@ import "./interfaces/IValidatorSetAuRa.sol";
 import "./interfaces/IStakingAuRa.sol";
 
 
+/// @dev stores the current validator set and contains the logic for choosing new validators
+/// at the beginning of each staking epoch. The logic uses a random seed generated
+/// and stored by the `RandomAuRa` contract.
 contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
 
     // ================================================ Events ========================================================

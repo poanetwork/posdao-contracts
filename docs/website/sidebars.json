@@ -1,0 +1,29 @@
+{
+  "docs-api": {
+    "abstracts": [
+      "abstracts_BlockRewardBase",
+      "abstracts_ContractsAddresses",
+      "abstracts_RandomBase",
+      "abstracts_StakingBase",
+      "abstracts_ValidatorSetBase"
+    ],
+    "eternal-storage": [
+      "eternal-storage_EternalStorage",
+      "eternal-storage_EternalStorageProxy",
+      "eternal-storage_OwnedEternalStorage"
+    ],
+    "root": [
+      "BlockRewardAuRa",
+      "Certifier",
+      "InitializerAuRa",
+      "RandomAuRa",
+      "Registry",
+      "StakingAuRa",
+      "TxPermission",
+      "ValidatorSetAuRa"
+    ],
+    " ": [
+      "index"
+    ]
+  }
+}
