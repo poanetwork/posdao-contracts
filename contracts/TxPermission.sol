@@ -80,20 +80,21 @@ contract TxPermission is ContractsAddresses, OwnedEternalStorage, ITxPermission 
     /// included into a block. See https://wiki.parity.io/Permissioning.html#how-it-works-1
     /// @param _sender Transaction sender address.
     /// @param _to Transaction recipient address. If creating a contract, the `_to` address is zero.
+    /// @param _value Transaction amount in wei.
     /// @param _gasPrice Gas price in wei for the transaction.
     /// @param _data Transaction data.
-    /// @return typesMask Set of allowed transactions for `_sender` depending on tx `_to` address,
+    /// @return `uint32 typesMask` - Set of allowed transactions for `_sender` depending on tx `_to` address,
     /// `_gasPrice`, and `_data`. The result is represented as a set of flags:
-    /// - 0x01 - basic transaction (e.g. ether transferring to user wallet)
-    /// - 0x02 - contract call
-    /// - 0x04 - contract creation
-    /// - 0x08 - private transaction
-    /// @return cache If `true` is returned, the same permissions will be applied from the same
+    /// 0x01 - basic transaction (e.g. ether transferring to user wallet);
+    /// 0x02 - contract call;
+    /// 0x04 - contract creation;
+    /// 0x08 - private transaction.
+    /// `bool cache` - If `true` is returned, the same permissions will be applied from the same
     /// `_sender` without calling this contract again.
     function allowedTxTypes(
         address _sender,
         address _to,
-        uint256 /*_value*/, // solhint-disable-line space-after-comma
+        uint256 _value,
         uint256 _gasPrice,
         bytes memory _data
     )

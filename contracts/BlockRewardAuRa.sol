@@ -198,10 +198,10 @@ contract BlockRewardAuRa is BlockRewardBase {
     /// @param _stakingEpoch The number of the current staking epoch.
     /// @param _rewardPointBlock The number of the block within the current staking epoch when the rewarding process
     /// should start. This number is calculated by the `_rewardPointBlock` getter.
-    /// @return receivers The array of fee receivers (the fee is in native coins) which should be rewarded at the
-    /// current block by the `erc-to-native` bridge.
-    /// @return rewards The array of amounts corresponding to the `receivers` array.
-    /// @return noop The boolean flag which is set to `true` when there are no complex operations during the
+    /// @return `address[] receivers` - The array of fee receivers (the fee is in native coins) which should be
+    /// rewarded at the current block by the `erc-to-native` bridge.
+    /// `uint256[] rewards` - The array of amounts corresponding to the `receivers` array.
+    /// `bool noop` - The boolean flag which is set to `true` when there are no complex operations during the
     /// function launch. The flag is used by the `reward` function to control the load on the block inside the
     /// `_mintNativeCoinsByErcToNativeBridge` function.
     function _distributeRewards(

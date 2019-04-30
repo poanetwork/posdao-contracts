@@ -63,7 +63,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         _;
     }
 
-    /// @dev Ensures the caller is the ValidatorSet contract address.
+    /// @dev Ensures the caller is the ValidatorSet contract address
     /// (EternalStorageProxy proxy contract for ValidatorSet).
     modifier onlyValidatorSet {
         require(msg.sender == VALIDATOR_SET_CONTRACT);
@@ -363,9 +363,9 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
 
     /// @dev Dequeues the information about the native coins receiver enqueued with the `addExtraReceiver`
     /// function by the `erc-to-native` bridge. This function is used by `_mintNativeCoinsByErcToNativeBridge`.
-    /// @return amount The amount to be minted for the `receiver` address.
-    /// @return receiver The address for which the `amount` is minted.
-    /// @return bridge The address of the bridge contract which called the `addExtraReceiver` function.
+    /// @return `uint256 amount` - The amount to be minted for the `receiver` address.
+    /// `address receiver` - The address for which the `amount` is minted.
+    /// `address bridge` - The address of the bridge contract which called the `addExtraReceiver` function.
     function _dequeueExtraReceiver() internal returns(uint256 amount, address receiver, address bridge) {
         uint256 queueFirst = uintStorage[QUEUE_ER_FIRST];
         uint256 queueLast = uintStorage[QUEUE_ER_LAST];

@@ -39,9 +39,9 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
 
     /// @dev Implements the logic which forms a new validator set. Calls the internal `_newValidatorSet` function of
     /// the base contract. Automatically called by the `BlockRewardAuRa.reward` function on every block.
-    /// @return called A boolean flag indicating whether the internal `_newValidatorSet` function was called.
-    /// @return poolsToBeElectedLength The number of pools ready to be elected (see the `Staking.getPoolsToBeElected`
-    /// function). Equals `0` if the `called` flag is `false`.
+    /// @return `bool called` - A boolean flag indicating whether the internal `_newValidatorSet` function was called.
+    /// `uint256 poolsToBeElectedLength` - The number of pools ready to be elected
+    /// (see the `Staking.getPoolsToBeElected` function). Equals `0` if the `called` flag is `false`.
     function newValidatorSet() external onlyBlockRewardContract returns(bool called, uint256 poolsToBeElectedLength) {
         uint256 currentBlock = _getCurrentBlockNumber();
         IStakingAuRa stakingContract = IStakingAuRa(stakingContract());
@@ -140,9 +140,10 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
     /// @param _maliciousMiningAddress The mining address of the malicious validator which is passed to
     /// the `reportMalicious` function.
     /// @param _blockNumber The block number which is passed to the `reportMalicious` function.
-    /// @return callable The boolean flag indicating whether the `reportMalicious` function can be called at the moment.
-    /// @return removeReportingValidator The boolean flag indicating whether the reporting validator should be 
-    /// removed as malicious due to excessive reporting. This flag is only used by the `reportMalicious` function.
+    /// @return `bool callable` - The boolean flag indicating whether the `reportMalicious` function can be called at
+    /// the moment. `bool removeReportingValidator` - The boolean flag indicating whether the reporting validator
+    /// should be removed as malicious due to excessive reporting. This flag is only used by the `reportMalicious`
+    /// function.
     function reportMaliciousCallable(
         address _reportingMiningAddress,
         address _maliciousMiningAddress,

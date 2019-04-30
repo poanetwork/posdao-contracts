@@ -366,9 +366,9 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     /// Used by the `ValidatorSet._newValidatorSet` function when randomly selecting new validators at the last
     /// block of a staking epoch. A pool's coefficient is updated every time any staked amount is changed in this pool
     /// (see the `_setLikelihood` function).
-    /// @return likelihoods The array of the coefficients. The array length is always equal to the length of the
-    /// `poolsToBeElected` array.
-    /// @return sum The sum of the coefficients.
+    /// @return `int256[] likelihoods` - The array of the coefficients. The array length is always equal to the length
+    /// of the `poolsToBeElected` array.
+    /// `int256 sum` - The sum of the coefficients.
     function getPoolsLikelihood() external view returns(int256[] memory likelihoods, int256 sum) {
         return (intArrayStorage[POOLS_LIKELIHOOD], intStorage[POOLS_LIKELIHOOD_SUM]);
     }
@@ -1169,9 +1169,9 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     /// @dev Determines if the specified pool is in the `poolsToBeElected` array. See the `getPoolsToBeElected` getter.
     /// Used by the `_setLikelihood` function.
     /// @param _stakingAddress The staking address of the pool.
-    /// @return toBeElected The boolean flag indicating whether the `_stakingAddress` is in the
+    /// @return `bool toBeElected` - The boolean flag indicating whether the `_stakingAddress` is in the
     /// `poolsToBeElected` array.
-    /// @return index The position of the item in the `poolsToBeElected` array if `toBeElected` is `true`.
+    /// `uint256 index` - The position of the item in the `poolsToBeElected` array if `toBeElected` is `true`.
     function _isPoolToBeElected(address _stakingAddress) internal view returns(bool toBeElected, uint256 index) {
         address[] storage pools = addressArrayStorage[POOLS_TO_BE_ELECTED];
         if (pools.length != 0) {
