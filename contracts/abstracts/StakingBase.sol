@@ -612,14 +612,18 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         address _poolStakingAddress,
         address _staker
     ) public view returns(uint256) {
-        return stakeAmount(_poolStakingAddress, _staker).sub(orderedWithdrawAmount(_poolStakingAddress, _staker));
+        uint256 amount = stakeAmount(_poolStakingAddress, _staker);
+        uint256 orderedAmount = orderedWithdrawAmount(_poolStakingAddress, _staker);
+        return amount >= orderedAmount ? amount - orderedAmount : 0;
     }
 
     /// @dev Returns the total amount of staking tokens currently staked into the specified pool taking into account
     /// the ordered amounts to be withdrawn. See also the `stakeAmountTotal` and `orderedWithdrawAmountTotal` getters.
     /// @param _poolStakingAddress The pool staking address.
     function stakeAmountTotalMinusOrderedWithdraw(address _poolStakingAddress) public view returns(uint256) {
-        return stakeAmountTotal(_poolStakingAddress).sub(orderedWithdrawAmountTotal(_poolStakingAddress));
+        uint256 amount = stakeAmountTotal(_poolStakingAddress);
+        uint256 orderedAmount = orderedWithdrawAmountTotal(_poolStakingAddress);
+        return amount >= orderedAmount ? amount - orderedAmount : 0;
     }
 
     /// @dev Returns the serial number of the current staking epoch.
@@ -684,7 +688,8 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     /// @param _stakingAddress The pool added to the array of inactive pools.
     function _addPoolInactive(address _stakingAddress) internal {
         address[] storage pools = addressArrayStorage[POOLS_INACTIVE];
-        if (pools.length == 0 || pools[poolInactiveIndex(_stakingAddress)] != _stakingAddress) {
+        uint256 index = poolInactiveIndex(_stakingAddress);
+        if (index >= pools.length || pools[index] != _stakingAddress) {
             _setPoolInactiveIndex(_stakingAddress, pools.length);
             pools.push(_stakingAddress);
         }
@@ -695,7 +700,8 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     /// @param _stakingAddress The pool added to the `poolsToBeElected` array.
     function _addPoolToBeElected(address _stakingAddress) internal {
         address[] storage pools = addressArrayStorage[POOLS_TO_BE_ELECTED];
-        if (pools.length == 0 || pools[poolToBeElectedIndex(_stakingAddress)] != _stakingAddress) {
+        uint256 index = poolToBeElectedIndex(_stakingAddress);
+        if (index >= pools.length || pools[index] != _stakingAddress) {
             _setPoolToBeElectedIndex(_stakingAddress, pools.length);
             pools.push(_stakingAddress);
             intArrayStorage[POOLS_LIKELIHOOD].push(0);
@@ -708,7 +714,8 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     /// @param _stakingAddress The pool added to the `poolsToBeRemoved` array.
     function _addPoolToBeRemoved(address _stakingAddress) internal {
         address[] storage pools = addressArrayStorage[POOLS_TO_BE_REMOVED];
-        if (pools.length == 0 || pools[poolToBeRemovedIndex(_stakingAddress)] != _stakingAddress) {
+        uint256 index = poolToBeRemovedIndex(_stakingAddress);
+        if (index >= pools.length || pools[index] != _stakingAddress) {
             _setPoolToBeRemovedIndex(_stakingAddress, pools.length);
             pools.push(_stakingAddress);
         }
@@ -721,10 +728,14 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     /// @param _stakingAddress The pool deleted from the `poolsToBeElected` array.
     function _deletePoolToBeElected(address _stakingAddress) internal {
         address[] storage pools = addressArrayStorage[POOLS_TO_BE_ELECTED];
+        int256[] storage likelihood = intArrayStorage[POOLS_LIKELIHOOD];
+        if (pools.length != likelihood.length) return;
         uint256 indexToDelete = poolToBeElectedIndex(_stakingAddress);
-        if (pools.length > 0 && pools[indexToDelete] == _stakingAddress) {
-            int256[] storage likelihood = intArrayStorage[POOLS_LIKELIHOOD];
+        if (pools.length > indexToDelete && pools[indexToDelete] == _stakingAddress) {
             intStorage[POOLS_LIKELIHOOD_SUM] -= likelihood[indexToDelete];
+            if (intStorage[POOLS_LIKELIHOOD_SUM] < 0) {
+                intStorage[POOLS_LIKELIHOOD_SUM] = 0;
+            }
             pools[indexToDelete] = pools[pools.length - 1];
             likelihood[indexToDelete] = likelihood[pools.length - 1];
             _setPoolToBeElectedIndex(pools[indexToDelete], indexToDelete);
@@ -741,7 +752,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     function _deletePoolToBeRemoved(address _stakingAddress) internal {
         address[] storage pools = addressArrayStorage[POOLS_TO_BE_REMOVED];
         uint256 indexToDelete = poolToBeRemovedIndex(_stakingAddress);
-        if (pools.length > 0 && pools[indexToDelete] == _stakingAddress) {
+        if (pools.length > indexToDelete && pools[indexToDelete] == _stakingAddress) {
             pools[indexToDelete] = pools[pools.length - 1];
             _setPoolToBeRemovedIndex(pools[indexToDelete], indexToDelete);
             _setPoolToBeRemovedIndex(_stakingAddress, 0);
@@ -755,7 +766,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     function _removePool(address _stakingAddress) internal {
         uint256 indexToRemove = poolIndex(_stakingAddress);
         address[] storage pools = addressArrayStorage[POOLS];
-        if (pools.length > 0 && pools[indexToRemove] == _stakingAddress) {
+        if (pools.length > indexToRemove && pools[indexToRemove] == _stakingAddress) {
             pools[indexToRemove] = pools[pools.length - 1];
             _setPoolIndex(pools[indexToRemove], indexToRemove);
             _setPoolIndex(_stakingAddress, 0);
@@ -776,7 +787,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     function _removePoolInactive(address _stakingAddress) internal {
         address[] storage pools = addressArrayStorage[POOLS_INACTIVE];
         uint256 indexToRemove = poolInactiveIndex(_stakingAddress);
-        if (pools.length > 0 && pools[indexToRemove] == _stakingAddress) {
+        if (pools.length > indexToRemove && pools[indexToRemove] == _stakingAddress) {
             pools[indexToRemove] = pools[pools.length - 1];
             _setPoolInactiveIndex(pools[indexToRemove], indexToRemove);
             _setPoolInactiveIndex(_stakingAddress, 0);

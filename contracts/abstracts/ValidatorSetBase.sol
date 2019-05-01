@@ -154,8 +154,8 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
         _setValidatorSetApplyBlock(1);
 
-        uintStorage[QUEUE_PV_FIRST] = 1;
-        uintStorage[QUEUE_PV_LAST] = 0;
+        intStorage[QUEUE_PV_FIRST] = 1;
+        intStorage[QUEUE_PV_LAST] = 0;
     }
 
     /// @dev Binds a mining address to the specified staking address. Called by the `Staking.addPool` function
@@ -198,7 +198,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     /// @dev Returns a boolean flag indicating whether the `emitInitiateChange` function can be called
     /// at the moment. Used by a validator's node and `TxPermission` contract (to deny dummy calling).
     function emitInitiateChangeCallable() public view returns(bool) {
-        return initiateChangeAllowed() && uintStorage[QUEUE_PV_LAST] >= uintStorage[QUEUE_PV_FIRST];
+        return initiateChangeAllowed() && intStorage[QUEUE_PV_LAST] >= intStorage[QUEUE_PV_FIRST];
     }
 
     /// @dev Returns the validator set (validators' mining addresses array) which was active
@@ -410,10 +410,10 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     /// @param _newStakingEpoch A boolean flag defining whether the pending validator set was formed by the
     /// `_newValidatorSet` function. The `finalizeChange` function logic depends on this flag.
     function _enqueuePendingValidators(bool _newStakingEpoch) internal {
-        uint256 queueFirst = uintStorage[QUEUE_PV_FIRST];
-        uint256 queueLast = uintStorage[QUEUE_PV_LAST];
+        int256 queueFirst = intStorage[QUEUE_PV_FIRST];
+        int256 queueLast = intStorage[QUEUE_PV_LAST];
 
-        for (uint256 i = queueLast; i >= queueFirst; i--) {
+        for (int256 i = queueLast; i >= queueFirst; i--) {
             if (uintStorage[keccak256(abi.encode(QUEUE_PV_BLOCK, i))] == _getCurrentBlockNumber()) {
                 addressArrayStorage[keccak256(abi.encode(QUEUE_PV_LIST, i))] = getPendingValidators();
                 if (_newStakingEpoch) {
@@ -427,7 +427,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         addressArrayStorage[keccak256(abi.encode(QUEUE_PV_LIST, queueLast))] = getPendingValidators();
         boolStorage[keccak256(abi.encode(QUEUE_PV_NEW_EPOCH, queueLast))] = _newStakingEpoch;
         uintStorage[keccak256(abi.encode(QUEUE_PV_BLOCK, queueLast))] = _getCurrentBlockNumber();
-        uintStorage[QUEUE_PV_LAST] = queueLast;
+        intStorage[QUEUE_PV_LAST] = queueLast;
     }
 
     /// @dev Dequeues the pending validator set to pass it to the `InitiateChange` event
@@ -436,8 +436,8 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     /// @param newStakingEpoch A boolean flag indicating whether the `newSet` array was formed by the
     /// `_newValidatorSet` function. The `finalizeChange` function logic depends on this flag.
     function _dequeuePendingValidators() internal returns(address[] memory newSet, bool newStakingEpoch) {
-        uint256 queueFirst = uintStorage[QUEUE_PV_FIRST];
-        uint256 queueLast = uintStorage[QUEUE_PV_LAST];
+        int256 queueFirst = intStorage[QUEUE_PV_FIRST];
+        int256 queueLast = intStorage[QUEUE_PV_LAST];
 
         if (queueLast < queueFirst) {
             newSet = new address[](0);
@@ -448,7 +448,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
             delete addressArrayStorage[keccak256(abi.encode(QUEUE_PV_LIST, queueFirst))];
             delete boolStorage[keccak256(abi.encode(QUEUE_PV_NEW_EPOCH, queueFirst))];
             delete uintStorage[keccak256(abi.encode(QUEUE_PV_BLOCK, queueFirst))];
-            uintStorage[QUEUE_PV_FIRST]++;
+            intStorage[QUEUE_PV_FIRST]++;
         }
     }
 
@@ -491,10 +491,10 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
                 likelihood[randomPoolIndex] = likelihood[poolsToBeElectedLength];
             }
 
-            poolsToBeElected = newValidators;
+            _setPendingValidators(staking, newValidators, unremovableStakingAddress);
+        } else {
+            _setPendingValidators(staking, poolsToBeElected, unremovableStakingAddress);
         }
-
-        _setPendingValidators(staking, poolsToBeElected, unremovableStakingAddress);
 
         // From this moment the `getPendingValidators()` will return a new validator set
 
@@ -512,7 +512,6 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     /// @return Returns `true` if the specified validator has been removed from the pending validator set.
     /// Otherwise returns `false` (if the specified validator was already removed).
     function _removeMaliciousValidator(address _miningAddress) internal returns(bool) {
-        uint256 i;
         address stakingAddress = stakingByMiningAddress(_miningAddress);
 
         if (stakingAddress == unremovableValidator()) {
@@ -526,20 +525,14 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         IStaking(stakingContract()).removePool(stakingAddress);
 
         address[] storage miningAddresses = addressArrayStorage[PENDING_VALIDATORS];
-        bool isPendingValidator = false;
 
-        for (i = 0; i < miningAddresses.length; i++) {
+        for (uint256 i = 0; i < miningAddresses.length; i++) {
             if (miningAddresses[i] == _miningAddress) {
-                isPendingValidator = true;
-                break;
+                // Remove the malicious validator from `pendingValidators`
+                miningAddresses[i] = miningAddresses[miningAddresses.length - 1];
+                miningAddresses.length--;
+                return true;
             }
-        }
-
-        if (isPendingValidator) {
-            // Remove the malicious validator from `pendingValidators`
-            miningAddresses[i] = miningAddresses[miningAddresses.length - 1];
-            miningAddresses.length--;
-            return true;
         }
 
         return false;

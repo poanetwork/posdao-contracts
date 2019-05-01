@@ -241,7 +241,7 @@ contract BlockRewardAuRa is BlockRewardBase {
                 }
                 if (j != 0) {
                     for (i = 0; i < validators.length; i++) {
-                        ratio[i] = ratio[i] * REWARD_PERCENT_MULTIPLIER / j;
+                        ratio[i] = REWARD_PERCENT_MULTIPLIER * ratio[i] / j;
                     }
                 }
             }
