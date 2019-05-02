@@ -308,8 +308,8 @@ contract BlockRewardAuRa is BlockRewardBase {
             address[] storage stakers = addressArrayStorage[keccak256(abi.encode(SNAPSHOT_STAKERS, stakingAddress))];
             uint256[] memory range = new uint256[](3); // array instead of local vars because the stack is too deep
             range[0] = (_validatorsQueueSize() + 1) % DELEGATORS_ALIQUOT; // offset
-            range[1] = stakers.length / DELEGATORS_ALIQUOT * range[0]; // from
-            range[2] = stakers.length / DELEGATORS_ALIQUOT * (range[0] + 1); // to
+            range[1] = range[0] * stakers.length / DELEGATORS_ALIQUOT; // from
+            range[2] = (range[0] + 1) * stakers.length / DELEGATORS_ALIQUOT; // to
 
             if (range[0] == 0) {
                 range[2] += stakers.length % DELEGATORS_ALIQUOT;
