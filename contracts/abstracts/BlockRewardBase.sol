@@ -456,8 +456,8 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
             uintStorage[SNAPSHOT_TOTAL_STAKE_AMOUNT] += totalStaked;
         }
 
-        uint256 from = delegators.length / DELEGATORS_ALIQUOT * _offset;
-        uint256 to = delegators.length / DELEGATORS_ALIQUOT * (_offset + 1);
+        uint256 from = _offset * delegators.length / DELEGATORS_ALIQUOT;
+        uint256 to = (_offset + 1) * delegators.length / DELEGATORS_ALIQUOT;
 
         if (_offset == 0) {
             to += delegators.length % DELEGATORS_ALIQUOT;
