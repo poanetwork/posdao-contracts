@@ -476,22 +476,25 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
             uint256 randomNumber = IRandom(randomContract()).getCurrentSeed();
 
             (int256[] memory likelihood, int256 likelihoodSum) = staking.getPoolsLikelihood();
-            address[] memory newValidators = new address[](
-                unremovableStakingAddress == address(0) ? MAX_VALIDATORS : MAX_VALIDATORS - 1
-            );
 
-            uint256 poolsToBeElectedLength = poolsToBeElected.length;
-            for (uint256 i = 0; i < newValidators.length; i++) {
-                randomNumber = uint256(keccak256(abi.encode(randomNumber)));
-                uint256 randomPoolIndex = _getRandomIndex(likelihood, likelihoodSum, randomNumber);
-                newValidators[i] = poolsToBeElected[randomPoolIndex];
-                likelihoodSum -= likelihood[randomPoolIndex];
-                poolsToBeElectedLength--;
-                poolsToBeElected[randomPoolIndex] = poolsToBeElected[poolsToBeElectedLength];
-                likelihood[randomPoolIndex] = likelihood[poolsToBeElectedLength];
+            if (likelihood.length > 0 && likelihoodSum > 0) {
+                address[] memory newValidators = new address[](
+                    unremovableStakingAddress == address(0) ? MAX_VALIDATORS : MAX_VALIDATORS - 1
+                );
+
+                uint256 poolsToBeElectedLength = poolsToBeElected.length;
+                for (uint256 i = 0; i < newValidators.length; i++) {
+                    randomNumber = uint256(keccak256(abi.encode(randomNumber)));
+                    uint256 randomPoolIndex = _getRandomIndex(likelihood, likelihoodSum, randomNumber);
+                    newValidators[i] = poolsToBeElected[randomPoolIndex];
+                    likelihoodSum -= likelihood[randomPoolIndex];
+                    poolsToBeElectedLength--;
+                    poolsToBeElected[randomPoolIndex] = poolsToBeElected[poolsToBeElectedLength];
+                    likelihood[randomPoolIndex] = likelihood[poolsToBeElectedLength];
+                }
+
+                _setPendingValidators(staking, newValidators, unremovableStakingAddress);
             }
-
-            _setPendingValidators(staking, newValidators, unremovableStakingAddress);
         } else {
             _setPendingValidators(staking, poolsToBeElected, unremovableStakingAddress);
         }
