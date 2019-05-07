@@ -20,7 +20,7 @@ contract RandomBase is OwnedEternalStorage, IRandom {
     /// @dev Ensures the caller is the ValidatorSet contract address
     /// (EternalStorageProxy proxy contract for ValidatorSet).
     modifier onlyValidatorSetContract() {
-        require(msg.sender == VALIDATOR_SET_CONTRACT);
+        require(msg.sender == _getValidatorSetContract());
         _;
     }
 
@@ -35,6 +35,7 @@ contract RandomBase is OwnedEternalStorage, IRandom {
     // =============================================== Private ========================================================
 
     bytes32 internal constant CURRENT_SEED = keccak256("currentSeed");
+    bytes32 internal constant VALIDATOR_SET_CONTRACT_ADDRESS = keccak256("validatorSetContractAddress");
 
     /// @dev Updates the current random seed.
     /// @param _seed A new random seed.
@@ -45,6 +46,12 @@ contract RandomBase is OwnedEternalStorage, IRandom {
     /// @dev Reads the current random seed from the state.
     function _getCurrentSeed() internal view returns(uint256) {
         return uintStorage[CURRENT_SEED];
+    }
+
+    /// @dev Returns ValidatorSet contract address. Needed mostly for unit tests.
+    function _getValidatorSetContract() internal view returns(address) {
+        address contractAddress = addressStorage[VALIDATOR_SET_CONTRACT_ADDRESS];
+        return contractAddress != address(0) ? contractAddress : VALIDATOR_SET_CONTRACT;
     }
 
 }

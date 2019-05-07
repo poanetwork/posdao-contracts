@@ -17,7 +17,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     /// @dev Ensures the caller is the BlockRewardAuRa contract address
     /// (EternalStorageProxy proxy contract for BlockRewardAuRa).
     modifier onlyBlockReward() {
-        require(msg.sender == IValidatorSet(VALIDATOR_SET_CONTRACT).blockRewardContract());
+        require(msg.sender == IValidatorSet(_getValidatorSetContract()).blockRewardContract());
         _;
     }
 
@@ -33,7 +33,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         address miningAddress = msg.sender;
 
         require(commitHashCallable(miningAddress, _secretHash));
-        require(block.coinbase == miningAddress); // make sure validator node is live
+        require(_getCoinbase() == miningAddress); // make sure validator node is live
 
         uint256 collectRound = currentCollectRound();
 
@@ -50,7 +50,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         address miningAddress = msg.sender;
 
         require(revealSecretCallable(miningAddress, _secret));
-        require(block.coinbase == miningAddress); // make sure validator node is live
+        require(_getCoinbase() == miningAddress); // make sure validator node is live
 
         _setCurrentSeed(_getCurrentSeed() ^ _secret);
         _setSentReveal(currentCollectRound(), miningAddress);
@@ -62,7 +62,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     function initialize(
         uint256 _collectRoundLength // in blocks
     ) external {
-        require(block.number == 0);
+        require(_getCurrentBlockNumber() == 0);
         require(_collectRoundLength % 2 == 0);
         require(_collectRoundLength > 0);
         require(collectRoundLength() == 0);
@@ -74,7 +74,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     /// This function does nothing if the current block is not the last block of the current collection round.
     /// Can only be called by the `BlockRewardAuRa` contract (its `reward` function).
     function onFinishCollectRound() external onlyBlockReward {
-        if (block.number % collectRoundLength() != collectRoundLength() - 1) return;
+        if (_getCurrentBlockNumber() % collectRoundLength() != collectRoundLength() - 1) return;
 
         // This is the last block of the current collection round
 
@@ -82,17 +82,17 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         address validator;
         uint256 i;
 
-        address stakingContract = IValidatorSet(VALIDATOR_SET_CONTRACT).stakingContract();
+        address stakingContract = IValidatorSet(_getValidatorSetContract()).stakingContract();
 
         uint256 stakingEpoch = IStaking(stakingContract).stakingEpoch();
-        uint256 applyBlock = IValidatorSet(VALIDATOR_SET_CONTRACT).validatorSetApplyBlock();
+        uint256 applyBlock = IValidatorSet(_getValidatorSetContract()).validatorSetApplyBlock();
         uint256 endBlock = IStakingAuRa(stakingContract).stakingEpochEndBlock();
         uint256 currentRound = currentCollectRound();
 
-        if (applyBlock != 0 && block.number > applyBlock + collectRoundLength() * 2) {
+        if (applyBlock != 0 && _getCurrentBlockNumber() > applyBlock + collectRoundLength() * 2) {
             // Check whether each validator didn't reveal their secret
             // during the current collection round
-            validators = IValidatorSet(VALIDATOR_SET_CONTRACT).getValidators();
+            validators = IValidatorSet(_getValidatorSetContract()).getValidators();
             for (i = 0; i < validators.length; i++) {
                 validator = validators[i];
                 if (!sentReveal(currentRound, validator)) {
@@ -102,7 +102,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         }
 
         // If this is the last collection round in the current staking epoch.
-        if (block.number == endBlock || block.number + collectRoundLength() > endBlock) {
+        if (_getCurrentBlockNumber() == endBlock || _getCurrentBlockNumber() + collectRoundLength() > endBlock) {
             uint256 maxRevealSkipsAllowed =
                 IStakingAuRa(stakingContract).stakeWithdrawDisallowPeriod() / collectRoundLength();
 
@@ -113,7 +113,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
             // Check each validator to see if they didn't reveal
             // their secret during the last full `reveals phase`
             // or if they missed the required number of reveals per staking epoch.
-            validators = IValidatorSet(VALIDATOR_SET_CONTRACT).getValidators();
+            validators = IValidatorSet(_getValidatorSetContract()).getValidators();
             for (i = 0; i < validators.length; i++) {
                 validator = validators[i];
                 if (
@@ -121,7 +121,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
                     revealSkips(stakingEpoch, validator) > maxRevealSkipsAllowed
                 ) {
                     // Remove the validator as malicious
-                    IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).removeMaliciousValidator(validator);
+                    IValidatorSetAuRa(_getValidatorSetContract()).removeMaliciousValidator(validator);
                 }
             }
         }
@@ -144,7 +144,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
     /// @dev Returns the serial number of the current collection round.
     function currentCollectRound() public view returns(uint256) {
-        return block.number / collectRoundLength();
+        return _getCurrentBlockNumber() / collectRoundLength();
     }
 
     /// @dev Returns the cipher of the validator's secret for the specified collection round and the specified validator
@@ -175,7 +175,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     /// is a `commits phase`. Used by the validator's node to determine if it should commit the hash of
     /// the secret during the current collection round.
     function isCommitPhase() public view returns(bool) {
-        return (block.number % collectRoundLength()) < commitPhaseLength();
+        return (_getCurrentBlockNumber() % collectRoundLength()) < commitPhaseLength();
     }
 
     /// @dev Returns a boolean flag indicating whether the current phase of the current collection round
@@ -194,7 +194,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
         if (_secretHash == bytes32(0)) return false;
 
-        if (!IValidatorSet(VALIDATOR_SET_CONTRACT).isValidator(_miningAddress)) return false;
+        if (!IValidatorSet(_getValidatorSetContract()).isValidator(_miningAddress)) return false;
 
         if (isCommitted(currentCollectRound(), _miningAddress)) return false; // cannot commit more than once
 
@@ -212,7 +212,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
         if (secretHash == bytes32(0)) return false;
 
-        if (!IValidatorSet(VALIDATOR_SET_CONTRACT).isValidator(_miningAddress)) return false;
+        if (!IValidatorSet(_getValidatorSetContract()).isValidator(_miningAddress)) return false;
 
         uint256 collectRound = currentCollectRound();
 
@@ -273,6 +273,16 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         for (uint256 i = 0; i < miningAddresses.length; i++) {
             delete bytesStorage[keccak256(abi.encode(CIPHERS, collectRound, miningAddresses[i]))];
         }
+    }
+
+    /// @dev Returns the current `coinbase` address. Needed mostly for unit tests.
+    function _getCoinbase() internal view returns(address) {
+        return block.coinbase;
+    }
+
+    /// @dev Returns the current block number. Needed mostly for unit tests.
+    function _getCurrentBlockNumber() internal view returns(uint256) {
+        return block.number;
     }
 
     /// @dev Increments the reveal skips counter for the specified validator and staking epoch.

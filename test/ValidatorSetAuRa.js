@@ -1,7 +1,7 @@
 const BlockRewardAuRa = artifacts.require('BlockRewardAuRa');
 const ERC677BridgeTokenRewardable = artifacts.require('ERC677BridgeTokenRewardableMock');
 const EternalStorageProxy = artifacts.require('EternalStorageProxy');
-const RandomAuRa = artifacts.require('RandomAuRa');
+const RandomAuRa = artifacts.require('RandomAuRaMock');
 const StakingAuRa = artifacts.require('StakingAuRaMock');
 const ValidatorSetAuRa = artifacts.require('ValidatorSetAuRaMock');
 
@@ -15,6 +15,7 @@ require('chai')
 
 contract('ValidatorSetAuRa', async accounts => {
   let owner;
+  let blockRewardAuRa;
   let stakingAuRa;
   let validatorSetAuRa;
 
@@ -274,6 +275,12 @@ contract('ValidatorSetAuRa', async accounts => {
       await validatorSetAuRa.newValidatorSet({from: accounts[4]}).should.be.fulfilled;
       (await stakingAuRa.stakingEpoch.call()).should.be.bignumber.equal(new BN(1));
     });
+    it('should set staking epoch start block', async () => {
+      (await stakingAuRa.stakingEpochStartBlock.call()).should.be.bignumber.equal(new BN(0));
+      await validatorSetAuRa.setBlockRewardContract(accounts[4]).should.be.fulfilled;
+      await validatorSetAuRa.newValidatorSet({from: accounts[4]}).should.be.fulfilled;
+      (await stakingAuRa.stakingEpochStartBlock.call()).should.be.bignumber.equal(new BN(120961));
+    });
     it('should reset validatorSetApplyBlock', async () => {
       (await validatorSetAuRa.validatorSetApplyBlock.call()).should.be.bignumber.equal(new BN(1));
       await validatorSetAuRa.setBlockRewardContract(accounts[4]).should.be.fulfilled;
@@ -424,7 +431,230 @@ contract('ValidatorSetAuRa', async accounts => {
       ]);
     });
     it('should choose validators randomly', async () => {
-      // TODO: to be implemented
+      const stakingAddresses = accounts.slice(7, 29 + 1); // accounts[7...29]
+      let miningAddresses = [];
+
+      for (let i = 0; i < stakingAddresses.length; i++) {
+        // Generate new candidate mining address
+        let candidateMiningAddress = '0x';
+        for (let i = 0; i < 20; i++) {
+          let randomByte = random(0, 255).toString(16);
+          if (randomByte.length % 2) {
+            randomByte = '0' + randomByte;
+          }
+          candidateMiningAddress += randomByte;
+        }
+        miningAddresses.push(candidateMiningAddress.toLowerCase());
+      }
+
+      const stakeUnit = await stakingAuRa.STAKE_UNIT.call();
+      const mintAmount = stakeUnit.mul(new BN(100));
+
+      await stakingAuRa.setCurrentBlockNumber(30).should.be.fulfilled;
+      await validatorSetAuRa.setCurrentBlockNumber(30).should.be.fulfilled;
+
+      // Deploy token contract and mint tokens for the candidates
+      const erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
+      for (let i = 0; i < stakingAddresses.length; i++) {
+        await erc20Token.mint(stakingAddresses[i], mintAmount, {from: owner}).should.be.fulfilled;
+        mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(stakingAddresses[i]));
+      }
+
+      // Pass Staking contract address to ERC20 contract
+      await erc20Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
+      stakingAuRa.address.should.be.equal(await erc20Token.stakingContract.call());
+
+      // Pass ERC20 contract address to Staking contract
+      await stakingAuRa.setErc20TokenContract(erc20Token.address, {from: owner}).should.be.fulfilled;
+      erc20Token.address.should.be.equal(await stakingAuRa.erc20TokenContract.call());
+
+      // Emulate staking by the candidates into their own pool
+      await stakingAuRa.setCurrentBlockNumber(40).should.be.fulfilled;
+      await validatorSetAuRa.setCurrentBlockNumber(40).should.be.fulfilled;
+      for (let i = 0; i < stakingAddresses.length; i++) {
+        const stakeAmount = stakeUnit.mul(new BN(i + 1));
+        await stakingAuRa.addPool(stakeAmount, miningAddresses[i], {from: stakingAddresses[i]}).should.be.fulfilled;
+        stakeAmount.should.be.bignumber.equal(await stakingAuRa.stakeAmount.call(stakingAddresses[i], stakingAddresses[i]));
+      }
+
+      // Check pools of the new candidates
+      (await stakingAuRa.getPoolsToBeElected.call()).should.be.deep.equal(stakingAddresses);
+      const poolsLikelihood = await stakingAuRa.getPoolsLikelihood.call();
+      let likelihoodSum = 0;
+      for (let i = 0; i < stakingAddresses.length; i++) {
+        const poolLikelihood = 100 * (i + 1);
+        poolsLikelihood[0][i].should.be.bignumber.equal(new BN(poolLikelihood));
+        likelihoodSum += poolLikelihood;
+      }
+      poolsLikelihood[1].should.be.bignumber.equal(new BN(likelihoodSum));
+
+      // Generate a random seed
+      (await randomAuRa.showCurrentSeed.call()).should.be.bignumber.equal(new BN(0));
+      await randomAuRa.setCurrentBlockNumber(0).should.be.fulfilled;
+      await randomAuRa.initialize(200).should.be.fulfilled;
+      await randomAuRa.setValidatorSetContract(validatorSetAuRa.address).should.be.fulfilled;
+      let secrets = [];
+      let seed = 0;
+      for (let i = 0; i < initialValidators.length; i++) {
+        const secret = random(1000000, 2000000);
+        await randomAuRa.setCurrentBlockNumber(50 + i).should.be.fulfilled;
+        await randomAuRa.setCoinbase(initialValidators[i]).should.be.fulfilled;
+        const secretHash = web3.utils.soliditySha3(new BN(secret));
+        await randomAuRa.commitHash(secretHash, [1 + i, 2 + i, 3 + i], {from: initialValidators[i]}).should.be.fulfilled;
+        secrets.push(secret);
+        seed ^= secret;
+      }
+      for (let i = 0; i < initialValidators.length; i++) {
+        const secret = secrets[i];
+        await randomAuRa.setCurrentBlockNumber(150 + i).should.be.fulfilled;
+        await randomAuRa.setCoinbase(initialValidators[i]).should.be.fulfilled;
+        await randomAuRa.revealSecret(new BN(secret), {from: initialValidators[i]}).should.be.fulfilled;
+      }
+      (await randomAuRa.showCurrentSeed.call()).should.be.bignumber.equal(new BN(seed));
+
+      // Emulate calling `newValidatorSet()` at the last block of staking epoch
+      await stakingAuRa.setCurrentBlockNumber(120960).should.be.fulfilled;
+      await validatorSetAuRa.setCurrentBlockNumber(120960).should.be.fulfilled;
+      await randomAuRa.setCurrentBlockNumber(120960).should.be.fulfilled;
+      await validatorSetAuRa.setBlockRewardContract(accounts[4]).should.be.fulfilled;
+      await validatorSetAuRa.newValidatorSet({from: accounts[4]}).should.be.fulfilled;
+
+      const newValidators = await validatorSetAuRa.getPendingValidators.call();
+
+      newValidators.length.should.be.equal((await validatorSetAuRa.MAX_VALIDATORS.call()).toNumber());
+
+      for (let i = 0; i < newValidators.length; i++) {
+        miningAddresses.indexOf(newValidators[i].toLowerCase()).should.be.gte(0);
+      }
+    });
+    it('should choose validators randomly but leave an unremovable validator', async () => {
+      validatorSetAuRa = await ValidatorSetAuRa.new();
+      validatorSetAuRa = await EternalStorageProxy.new(validatorSetAuRa.address, owner);
+      validatorSetAuRa = await ValidatorSetAuRa.at(validatorSetAuRa.address);
+
+      stakingAuRa = await StakingAuRa.new();
+      stakingAuRa = await EternalStorageProxy.new(stakingAuRa.address, owner);
+      stakingAuRa = await StakingAuRa.at(stakingAuRa.address);
+
+      await validatorSetAuRa.setCurrentBlockNumber(0).should.be.fulfilled;
+      await validatorSetAuRa.initialize(
+        blockRewardAuRa.address, // _blockRewardContract
+        randomAuRa.address, // _randomContract
+        stakingAuRa.address, // _stakingContract
+        initialValidators, // _initialMiningAddresses
+        initialStakingAddresses, // _initialStakingAddresses
+        true // _firstValidatorIsUnremovable
+      ).should.be.fulfilled;
+
+      await stakingAuRa.setCurrentBlockNumber(0).should.be.fulfilled;
+      await stakingAuRa.initialize(
+        validatorSetAuRa.address, // _validatorSetContract
+        '0x0000000000000000000000000000000000000000', // _erc20TokenContract
+        initialStakingAddresses, // _initialStakingAddresses
+        1, // _delegatorMinStake
+        1, // _candidateMinStake
+        120960, // _stakingEpochDuration
+        4320 // _stakeWithdrawDisallowPeriod
+      ).should.be.fulfilled;
+      await stakingAuRa.setValidatorSetAddress(validatorSetAuRa.address).should.be.fulfilled;
+
+      const stakingAddresses = accounts.slice(7, 25 + 1); // accounts[7...25]
+      let miningAddresses = [];
+
+      for (let i = 0; i < stakingAddresses.length; i++) {
+        // Generate new candidate mining address
+        let candidateMiningAddress = '0x';
+        for (let i = 0; i < 20; i++) {
+          let randomByte = random(0, 255).toString(16);
+          if (randomByte.length % 2) {
+            randomByte = '0' + randomByte;
+          }
+          candidateMiningAddress += randomByte;
+        }
+        miningAddresses.push(candidateMiningAddress.toLowerCase());
+      }
+
+      const stakeUnit = await stakingAuRa.STAKE_UNIT.call();
+      const mintAmount = stakeUnit.mul(new BN(100));
+
+      await validatorSetAuRa.setCurrentBlockNumber(30).should.be.fulfilled;
+      await stakingAuRa.setCurrentBlockNumber(30).should.be.fulfilled;
+
+      // Deploy token contract and mint tokens for the candidates
+      const erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
+      for (let i = 0; i < stakingAddresses.length; i++) {
+        await erc20Token.mint(stakingAddresses[i], mintAmount, {from: owner}).should.be.fulfilled;
+        mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(stakingAddresses[i]));
+      }
+
+      // Pass Staking contract address to ERC20 contract
+      await erc20Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
+      stakingAuRa.address.should.be.equal(await erc20Token.stakingContract.call());
+
+      // Pass ERC20 contract address to Staking contract
+      await stakingAuRa.setErc20TokenContract(erc20Token.address, {from: owner}).should.be.fulfilled;
+      erc20Token.address.should.be.equal(await stakingAuRa.erc20TokenContract.call());
+
+      // Emulate staking by the candidates into their own pool
+      (await stakingAuRa.getPoolsToBeElected.call()).length.should.be.equal(0);
+      await stakingAuRa.setCurrentBlockNumber(40).should.be.fulfilled;
+      await validatorSetAuRa.setCurrentBlockNumber(40).should.be.fulfilled;
+      for (let i = 0; i < stakingAddresses.length; i++) {
+        const stakeAmount = stakeUnit.mul(new BN(i + 1));
+        await stakingAuRa.addPool(stakeAmount, miningAddresses[i], {from: stakingAddresses[i]}).should.be.fulfilled;
+        stakeAmount.should.be.bignumber.equal(await stakingAuRa.stakeAmount.call(stakingAddresses[i], stakingAddresses[i]));
+      }
+
+      // Check pools of the new candidates
+      (await stakingAuRa.getPoolsToBeElected.call()).should.be.deep.equal(stakingAddresses);
+      const poolsLikelihood = await stakingAuRa.getPoolsLikelihood.call();
+      let likelihoodSum = 0;
+      for (let i = 0; i < stakingAddresses.length; i++) {
+        const poolLikelihood = 100 * (i + 1);
+        poolsLikelihood[0][i].should.be.bignumber.equal(new BN(poolLikelihood));
+        likelihoodSum += poolLikelihood;
+      }
+      poolsLikelihood[1].should.be.bignumber.equal(new BN(likelihoodSum));
+
+      // Generate a random seed
+      (await randomAuRa.showCurrentSeed.call()).should.be.bignumber.equal(new BN(0));
+      await randomAuRa.setCurrentBlockNumber(0).should.be.fulfilled;
+      await randomAuRa.initialize(200).should.be.fulfilled;
+      await randomAuRa.setValidatorSetContract(validatorSetAuRa.address).should.be.fulfilled;
+      let secrets = [];
+      let seed = 0;
+      for (let i = 0; i < initialValidators.length; i++) {
+        const secret = random(1000000, 2000000);
+        await randomAuRa.setCurrentBlockNumber(50 + i).should.be.fulfilled;
+        await randomAuRa.setCoinbase(initialValidators[i]).should.be.fulfilled;
+        const secretHash = web3.utils.soliditySha3(new BN(secret));
+        await randomAuRa.commitHash(secretHash, [1 + i, 2 + i, 3 + i], {from: initialValidators[i]}).should.be.fulfilled;
+        secrets.push(secret);
+        seed ^= secret;
+      }
+      for (let i = 0; i < initialValidators.length; i++) {
+        const secret = secrets[i];
+        await randomAuRa.setCurrentBlockNumber(150 + i).should.be.fulfilled;
+        await randomAuRa.setCoinbase(initialValidators[i]).should.be.fulfilled;
+        await randomAuRa.revealSecret(new BN(secret), {from: initialValidators[i]}).should.be.fulfilled;
+      }
+      (await randomAuRa.showCurrentSeed.call()).should.be.bignumber.equal(new BN(seed));
+
+      // Emulate calling `newValidatorSet()` at the last block of staking epoch
+      await stakingAuRa.setCurrentBlockNumber(120960).should.be.fulfilled;
+      await validatorSetAuRa.setCurrentBlockNumber(120960).should.be.fulfilled;
+      await randomAuRa.setCurrentBlockNumber(120960).should.be.fulfilled;
+      await validatorSetAuRa.setBlockRewardContract(accounts[4]).should.be.fulfilled;
+      await validatorSetAuRa.newValidatorSet({from: accounts[4]}).should.be.fulfilled;
+
+      const newValidators = await validatorSetAuRa.getPendingValidators.call();
+
+      newValidators.length.should.be.equal((await validatorSetAuRa.MAX_VALIDATORS.call()).toNumber());
+
+      newValidators[0].toLowerCase().should.be.equal(initialValidators[0].toLowerCase());
+      for (let i = 1; i < newValidators.length; i++) {
+        miningAddresses.indexOf(newValidators[i].toLowerCase()).should.be.gte(0);
+      }
     });
   });
 
