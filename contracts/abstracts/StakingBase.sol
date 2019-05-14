@@ -15,12 +15,12 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     // ============================================== Constants =======================================================
 
     /// @dev The max number of candidates (including validators). This limit was determined through stress testing.
-    uint256 public constant MAX_CANDIDATES = 1500;
+    uint256 public constant MAX_CANDIDATES = 3000;
 
     /// @dev The max number of delegators for one pool. In total there can be
     /// MAX_CANDIDATES * MAX_DELEGATORS_PER_POOL delegators. This value must be
     /// divisible by BlockReward.DELEGATORS_ALIQUOT. The limit was determined through stress testing.
-    uint256 public constant MAX_DELEGATORS_PER_POOL = 200;
+    uint256 public constant MAX_DELEGATORS_PER_POOL = 3000;
 
     /// @dev Represents an integer value of a staking unit (1 unit = 10**18).
     /// Used by the `_setLikelihood` function to calculate the probability of

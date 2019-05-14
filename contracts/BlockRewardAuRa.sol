@@ -52,7 +52,7 @@ contract BlockRewardAuRa is BlockRewardBase {
         }
 
         IStaking stakingContract = IStaking(validatorSetContract.stakingContract());
-        uint256 bridgeQueueLimit = 50;
+        uint256 bridgeQueueLimit = 100;
         uint256 stakingEpoch = stakingContract.stakingEpoch();
         uint256 rewardPointBlock = _rewardPointBlock(IStakingAuRa(address(stakingContract)), validatorSetContract);
 
@@ -85,12 +85,12 @@ contract BlockRewardAuRa is BlockRewardBase {
             uintStorage[SNAPSHOT_TOTAL_STAKE_AMOUNT] = 0;
             boolStorage[IS_SNAPSHOTTING] = (newValidatorSet.length != 0);
 
-            if (poolsToBeElectedLength > 1000) {
+            if (poolsToBeElectedLength > 2000) {
                 bridgeQueueLimit = 0;
-            } else if (poolsToBeElectedLength > 500) {
-                bridgeQueueLimit = 15;
+            } else if (poolsToBeElectedLength > 1000) {
+                bridgeQueueLimit = 30;
             } else {
-                bridgeQueueLimit = 25;
+                bridgeQueueLimit = 50;
             }
         } else if (boolStorage[IS_SNAPSHOTTING]) {
             // Snapshot reward coefficients for each new validator and their delegators
@@ -104,7 +104,7 @@ contract BlockRewardAuRa is BlockRewardBase {
                     // Snapshotting process has been finished
                     boolStorage[IS_SNAPSHOTTING] = false;
                 }
-                bridgeQueueLimit = 25;
+                bridgeQueueLimit = 50;
             }
         } else if (stakingEpoch != 0) {
             // Distribute rewards at the end of staking epoch during the last
@@ -118,7 +118,7 @@ contract BlockRewardAuRa is BlockRewardBase {
                 rewardPointBlock
             );
             if (!noop) {
-                bridgeQueueLimit = 25;
+                bridgeQueueLimit = 50;
             }
         }
 
