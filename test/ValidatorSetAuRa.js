@@ -35,6 +35,67 @@ contract('ValidatorSetAuRa', async accounts => {
     validatorSetAuRa = await ValidatorSetAuRa.at(validatorSetAuRa.address);
   });
 
+  describe('clearUnremovableValidator()', async () => {
+    let initialStakingAddresses;
+
+    beforeEach(async () => {
+      const initialValidators = accounts.slice(1, 3 + 1); // accounts[1...3]
+      initialStakingAddresses = accounts.slice(4, 6 + 1); // accounts[4...6]
+      await validatorSetAuRa.setCurrentBlockNumber(0);
+      await validatorSetAuRa.initialize(
+        blockRewardAuRa.address, // _blockRewardContract
+        '0x3000000000000000000000000000000000000001', // _randomContract
+        stakingAuRa.address, // _stakingContract
+        initialValidators, // _initialMiningAddresses
+        initialStakingAddresses, // _initialStakingAddresses
+        true // _firstValidatorIsUnremovable
+      ).should.be.fulfilled;
+      await stakingAuRa.setValidatorSetAddress(validatorSetAuRa.address).should.be.fulfilled;
+      (await validatorSetAuRa.unremovableValidator.call()).should.be.equal(initialStakingAddresses[0]);
+      initialStakingAddresses[0].should.not.be.equal('0x0000000000000000000000000000000000000000');
+      await validatorSetAuRa.setCurrentBlockNumber(100);
+    });
+    it('should make a non-removable validator removable', async () => {
+      await validatorSetAuRa.clearUnremovableValidator({from: initialStakingAddresses[0]}).should.be.fulfilled;
+      (await validatorSetAuRa.unremovableValidator.call()).should.be.equal('0x0000000000000000000000000000000000000000');
+    });
+    it('cannot be called more than once', async () => {
+      await validatorSetAuRa.clearUnremovableValidator({from: initialStakingAddresses[0]}).should.be.fulfilled;
+      (await validatorSetAuRa.unremovableValidator.call()).should.be.equal('0x0000000000000000000000000000000000000000');
+      await validatorSetAuRa.clearUnremovableValidator({from: initialStakingAddresses[0]}).should.be.rejectedWith(ERROR_MSG);
+    });
+    it('can be called by an owner', async () => {
+      await validatorSetAuRa.clearUnremovableValidator({from: owner}).should.be.fulfilled;
+    });
+    it('can only be called by an owner or non-removable validator', async () => {
+      await validatorSetAuRa.clearUnremovableValidator({from: accounts[7]}).should.be.rejectedWith(ERROR_MSG);
+    });
+    it('should add validator pool to the poolsToBeElected list', async () => {
+      // TODO
+    });
+    it('should add validator pool to the poolsToBeRemoved list', async () => {
+      await stakingAuRa.initialize(
+        validatorSetAuRa.address, // _validatorSetContract
+        '0x0000000000000000000000000000000000000000', // _erc20TokenContract
+        initialStakingAddresses, // _initialStakingAddresses
+        1, // _delegatorMinStake
+        1, // _candidateMinStake
+        120960, // _stakingEpochDuration
+        4320 // _stakeWithdrawDisallowPeriod
+      ).should.be.fulfilled;
+      (await stakingAuRa.getPoolsToBeRemoved.call()).should.be.deep.equal([
+        initialStakingAddresses[1],
+        initialStakingAddresses[2]
+      ]);
+      await validatorSetAuRa.clearUnremovableValidator({from: initialStakingAddresses[0]}).should.be.fulfilled;
+      (await stakingAuRa.getPoolsToBeRemoved.call()).should.be.deep.equal([
+        initialStakingAddresses[1],
+        initialStakingAddresses[2],
+        initialStakingAddresses[0]
+      ]);
+    });
+  });
+
   describe('initialize()', async () => {
     let initialValidators;
     let initialStakingAddresses;
