@@ -251,6 +251,100 @@ contract('StakingAuRa', async accounts => {
     });
   });
 
+  describe('clearUnremovableValidator()', async () => {
+    beforeEach(async () => {
+      // Deploy ValidatorSet contract
+      validatorSetAuRa = await ValidatorSetAuRa.new();
+      validatorSetAuRa = await EternalStorageProxy.new(validatorSetAuRa.address, owner);
+      validatorSetAuRa = await ValidatorSetAuRa.at(validatorSetAuRa.address);
+      await stakingAuRa.setValidatorSetAddress(validatorSetAuRa.address).should.be.fulfilled;
+      // Initialize ValidatorSet
+      await validatorSetAuRa.initialize(
+        blockRewardAuRa.address, // _blockRewardContract
+        '0x3000000000000000000000000000000000000001', // _randomContract
+        stakingAuRa.address, // _stakingContract
+        initialValidators, // _initialMiningAddresses
+        initialStakingAddresses, // _initialStakingAddresses
+        true // _firstValidatorIsUnremovable
+      ).should.be.fulfilled;
+
+      // Initialize Staking
+      await stakingAuRa.initialize(
+        validatorSetAuRa.address, // _validatorSetContract
+        '0x0000000000000000000000000000000000000000', // _erc20TokenContract
+        initialStakingAddresses, // _initialStakingAddresses
+        1, // _delegatorMinStake
+        1, // _candidateMinStake
+        120960, // _stakingEpochDuration
+        4320 // _stakeWithdrawDisallowPeriod
+      ).should.be.fulfilled;
+    });
+
+    it('should add validator pool to the poolsToBeElected list', async () => {
+      // Deploy ERC20 contract
+      const erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
+
+      // Mint some balance for the non-removable validator (imagine that the validator got 2 STAKE_UNITs from a bridge)
+      const stakeUnit = await stakingAuRa.STAKE_UNIT.call();
+      const mintAmount = stakeUnit.mul(new BN(2));
+      await erc20Token.mint(initialStakingAddresses[0], mintAmount, {from: owner}).should.be.fulfilled;
+      mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(initialStakingAddresses[0]));
+
+      // Pass Staking contract address to ERC20 contract
+      await erc20Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
+      stakingAuRa.address.should.be.equal(await erc20Token.stakingContract.call());
+
+      // Pass ERC20 contract address to Staking contract
+      await stakingAuRa.setErc20TokenContract(erc20Token.address, {from: owner}).should.be.fulfilled;
+      erc20Token.address.should.be.equal(await stakingAuRa.erc20TokenContract.call());
+
+      // Emulate block number
+      await stakingAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
+
+      // Place a stake for itself
+      await stakingAuRa.stake(initialStakingAddresses[0], stakeUnit.mul(new BN(1)), {from: initialStakingAddresses[0]}).should.be.fulfilled;
+
+      (await stakingAuRa.getPoolsToBeElected.call()).length.should.be.equal(0);
+
+      await stakingAuRa.setValidatorSetAddress(accounts[7]).should.be.fulfilled;
+      await stakingAuRa.clearUnremovableValidator(initialStakingAddresses[0], {from: accounts[7]}).should.be.fulfilled;
+
+      (await stakingAuRa.getPoolsToBeElected.call()).should.be.deep.equal([
+        initialStakingAddresses[0]
+      ]);
+
+      const likelihoodInfo = await stakingAuRa.getPoolsLikelihood.call();
+      likelihoodInfo.likelihoods[0].should.be.bignumber.equal(new BN(100));
+      likelihoodInfo.sum.should.be.bignumber.equal(new BN(100));
+    });
+    it('should add validator pool to the poolsToBeRemoved list', async () => {
+      await stakingAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
+      (await stakingAuRa.getPoolsToBeRemoved.call()).should.be.deep.equal([
+        initialStakingAddresses[1],
+        initialStakingAddresses[2]
+      ]);
+      await stakingAuRa.setValidatorSetAddress(accounts[7]).should.be.fulfilled;
+      await stakingAuRa.clearUnremovableValidator(initialStakingAddresses[0], {from: accounts[7]}).should.be.fulfilled;
+      (await stakingAuRa.getPoolsToBeRemoved.call()).should.be.deep.equal([
+        initialStakingAddresses[1],
+        initialStakingAddresses[2],
+        initialStakingAddresses[0]
+      ]);
+    });
+    it('can only be called by the ValidatorSet contract', async () => {
+      await stakingAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
+      await stakingAuRa.setValidatorSetAddress(accounts[7]).should.be.fulfilled;
+      await stakingAuRa.clearUnremovableValidator(initialStakingAddresses[0], {from: accounts[8]}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.clearUnremovableValidator(initialStakingAddresses[0], {from: accounts[7]}).should.be.fulfilled;
+    });
+    it('non-removable validator address cannot be zero', async () => {
+      await stakingAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
+      await stakingAuRa.setValidatorSetAddress(accounts[7]).should.be.fulfilled;
+      await stakingAuRa.clearUnremovableValidator('0x0000000000000000000000000000000000000000', {from: accounts[7]}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.clearUnremovableValidator(initialStakingAddresses[0], {from: accounts[7]}).should.be.fulfilled;
+    });
+  });
+
   describe('initialize()', async () => {
     beforeEach(async () => {
       await stakingAuRa.setCurrentBlockNumber(0);
