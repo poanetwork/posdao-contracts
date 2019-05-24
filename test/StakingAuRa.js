@@ -345,6 +345,20 @@ contract('StakingAuRa', async accounts => {
     });
   });
 
+  describe('incrementStakingEpoch()', async () => {
+    it('should increment', async () => {
+      (await stakingAuRa.stakingEpoch.call()).should.be.bignumber.equal(new BN(0));
+      await stakingAuRa.setValidatorSetAddress(accounts[7]).should.be.fulfilled;
+      await stakingAuRa.incrementStakingEpoch({from: accounts[7]}).should.be.fulfilled;
+      (await stakingAuRa.stakingEpoch.call()).should.be.bignumber.equal(new BN(1));
+    });
+    it('can only be called by ValidatorSet contract', async () => {
+      await stakingAuRa.setValidatorSetAddress(accounts[7]).should.be.fulfilled;
+      await stakingAuRa.incrementStakingEpoch({from: accounts[8]}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.incrementStakingEpoch({from: accounts[7]}).should.be.fulfilled;
+    });
+  });
+
   describe('initialize()', async () => {
     beforeEach(async () => {
       await stakingAuRa.setCurrentBlockNumber(0);
