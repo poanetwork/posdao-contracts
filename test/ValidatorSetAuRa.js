@@ -71,6 +71,7 @@ contract('ValidatorSetAuRa', async accounts => {
       await validatorSetAuRa.clearUnremovableValidator({from: accounts[7]}).should.be.rejectedWith(ERROR_MSG);
     });
     it('should add validator pool to the poolsToBeElected list', async () => {
+      await stakingAuRa.setValidatorSetAddress('0x0000000000000000000000000000000000000000').should.be.fulfilled;
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract
@@ -113,6 +114,7 @@ contract('ValidatorSetAuRa', async accounts => {
       ]);
     });
     it('should add validator pool to the poolsToBeRemoved list', async () => {
+      await stakingAuRa.setValidatorSetAddress('0x0000000000000000000000000000000000000000').should.be.fulfilled;
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
         '0x0000000000000000000000000000000000000000', // _erc20TokenContract

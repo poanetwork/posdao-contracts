@@ -41,7 +41,6 @@ contract('StakingAuRa', async accounts => {
     validatorSetAuRa = await ValidatorSetAuRa.new();
     validatorSetAuRa = await EternalStorageProxy.new(validatorSetAuRa.address, owner);
     validatorSetAuRa = await ValidatorSetAuRa.at(validatorSetAuRa.address);
-    await stakingAuRa.setValidatorSetAddress(validatorSetAuRa.address).should.be.fulfilled;
     // Initialize ValidatorSet
     await validatorSetAuRa.initialize(
       blockRewardAuRa.address, // _blockRewardContract
@@ -257,7 +256,7 @@ contract('StakingAuRa', async accounts => {
       validatorSetAuRa = await ValidatorSetAuRa.new();
       validatorSetAuRa = await EternalStorageProxy.new(validatorSetAuRa.address, owner);
       validatorSetAuRa = await ValidatorSetAuRa.at(validatorSetAuRa.address);
-      await stakingAuRa.setValidatorSetAddress(validatorSetAuRa.address).should.be.fulfilled;
+
       // Initialize ValidatorSet
       await validatorSetAuRa.initialize(
         blockRewardAuRa.address, // _blockRewardContract
@@ -525,6 +524,120 @@ contract('StakingAuRa', async accounts => {
         120960, // _stakingEpochDuration
         4320 // _stakeWithdrawDisallowPeriod
       ).should.be.rejectedWith(ERROR_MSG);
+    });
+  });
+
+  describe('removePool()', async () => {
+    beforeEach(async () => {
+      // Initialize Staking
+      await stakingAuRa.initialize(
+        validatorSetAuRa.address, // _validatorSetContract
+        '0x0000000000000000000000000000000000000000', // _erc20TokenContract
+        initialStakingAddresses, // _initialStakingAddresses
+        1, // _delegatorMinStake
+        1, // _candidateMinStake
+        120960, // _stakingEpochDuration
+        4320 // _stakeWithdrawDisallowPeriod
+      ).should.be.fulfilled;
+      await stakingAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
+    });
+
+    it('should remove a pool', async () => {
+      (await stakingAuRa.getPools.call()).should.be.deep.equal(initialStakingAddresses);
+      await stakingAuRa.setValidatorSetAddress(accounts[7]).should.be.fulfilled;
+      await stakingAuRa.removePool(initialStakingAddresses[0], {from: accounts[7]}).should.be.fulfilled;
+      (await stakingAuRa.getPools.call()).should.be.deep.equal([
+        initialStakingAddresses[2],
+        initialStakingAddresses[1]
+      ]);
+      (await stakingAuRa.getPoolsInactive.call()).length.should.be.equal(0);
+    });
+    it('can only be called by the ValidatorSetAuRa contract', async () => {
+      await stakingAuRa.setValidatorSetAddress(accounts[7]).should.be.fulfilled;
+      await stakingAuRa.removePool(initialStakingAddresses[0], {from: accounts[8]}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.removePool(initialStakingAddresses[0], {from: accounts[7]}).should.be.fulfilled;
+    });
+    it('shouldn\'t remove a nonexistent pool', async () => {
+      (await stakingAuRa.getPools.call()).should.be.deep.equal(initialStakingAddresses);
+      await stakingAuRa.setValidatorSetAddress(accounts[7]).should.be.fulfilled;
+      await stakingAuRa.removePool(accounts[10], {from: accounts[7]}).should.be.fulfilled;
+      (await stakingAuRa.getPools.call()).should.be.deep.equal(initialStakingAddresses);
+    });
+    it('should reset pool index', async () => {
+      (await stakingAuRa.poolIndex.call(initialStakingAddresses[1])).should.be.bignumber.equal(new BN(1));
+      await stakingAuRa.setValidatorSetAddress(accounts[7]).should.be.fulfilled;
+      await stakingAuRa.removePool(initialStakingAddresses[1], {from: accounts[7]}).should.be.fulfilled;
+      (await stakingAuRa.poolIndex.call(initialStakingAddresses[1])).should.be.bignumber.equal(new BN(0));
+    });
+    it('should add/remove a pool to/from the utility lists', async () => {
+      // Deploy ERC20 contract
+      const erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
+
+      // Mint some balance for candidate (imagine that the candidate got 2 STAKE_UNITs from a bridge)
+      const stakeUnit = await stakingAuRa.STAKE_UNIT.call();
+      const mintAmount = stakeUnit.mul(new BN(2));
+      await erc20Token.mint(initialStakingAddresses[0], mintAmount, {from: owner}).should.be.fulfilled;
+      mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(initialStakingAddresses[0]));
+
+      // Pass Staking contract address to ERC20 contract
+      await erc20Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
+      stakingAuRa.address.should.be.equal(await erc20Token.stakingContract.call());
+
+      // Pass ERC20 contract address to Staking contract
+      '0x0000000000000000000000000000000000000000'.should.be.equal(
+        await stakingAuRa.erc20TokenContract.call()
+      );
+      await stakingAuRa.setErc20TokenContract(erc20Token.address, {from: owner}).should.be.fulfilled;
+      erc20Token.address.should.be.equal(await stakingAuRa.erc20TokenContract.call());
+
+      // The first validator places stake for themselves
+      (await stakingAuRa.getPoolsToBeElected.call()).length.should.be.deep.equal(0);
+      (await stakingAuRa.getPoolsToBeRemoved.call()).should.be.deep.equal(initialStakingAddresses);
+      await stakingAuRa.stake(initialStakingAddresses[0], stakeUnit.mul(new BN(1)), {from: initialStakingAddresses[0]}).should.be.fulfilled;
+      (await stakingAuRa.stakeAmountTotal.call(initialStakingAddresses[0])).should.be.bignumber.equal(stakeUnit);
+      (await stakingAuRa.getPoolsToBeElected.call()).should.be.deep.equal([initialStakingAddresses[0]]);
+      (await stakingAuRa.getPoolsToBeRemoved.call()).should.be.deep.equal([
+        initialStakingAddresses[2],
+        initialStakingAddresses[1]
+      ]);
+
+      // Remove the pool
+      await stakingAuRa.setValidatorSetAddress(accounts[7]).should.be.fulfilled;
+      (await stakingAuRa.poolInactiveIndex.call(initialStakingAddresses[0])).should.be.bignumber.equal(new BN(0));
+      await stakingAuRa.removePool(initialStakingAddresses[0], {from: accounts[7]}).should.be.fulfilled;
+      await stakingAuRa.removePool(initialStakingAddresses[0], {from: accounts[7]}).should.be.fulfilled;
+      (await stakingAuRa.getPoolsInactive.call()).should.be.deep.equal([initialStakingAddresses[0]]);
+      (await stakingAuRa.poolInactiveIndex.call(initialStakingAddresses[0])).should.be.bignumber.equal(new BN(0));
+
+      await stakingAuRa.setStakeAmountTotal(initialStakingAddresses[0], 0);
+      await stakingAuRa.removePool(initialStakingAddresses[0], {from: accounts[7]}).should.be.fulfilled;
+      (await stakingAuRa.getPoolsInactive.call()).length.should.be.equal(0);
+      (await stakingAuRa.getPoolsToBeElected.call()).length.should.be.deep.equal(0);
+
+      (await stakingAuRa.poolToBeRemovedIndex.call(initialStakingAddresses[1])).should.be.bignumber.equal(new BN(1));
+      await stakingAuRa.removePool(initialStakingAddresses[1], {from: accounts[7]}).should.be.fulfilled;
+      (await stakingAuRa.getPoolsToBeRemoved.call()).should.be.deep.equal([initialStakingAddresses[2]]);
+      (await stakingAuRa.poolToBeRemovedIndex.call(initialStakingAddresses[1])).should.be.bignumber.equal(new BN(0));
+    });
+    it('should fail for zero gas price', async () => {
+      await stakingAuRa.setValidatorSetAddress(accounts[7]).should.be.fulfilled;
+      await stakingAuRa.incrementStakingEpoch({from: accounts[7]}).should.be.fulfilled;
+      await stakingAuRa.setValidatorSetAddress(validatorSetAuRa.address).should.be.fulfilled;
+      await stakingAuRa.removeMyPool({from: initialStakingAddresses[0], gasPrice: 0}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.removeMyPool({from: initialStakingAddresses[0]}).should.be.fulfilled;
+    });
+    it('should fail for initial validator during the initial staking epoch', async () => {
+      (await stakingAuRa.stakingEpoch.call()).should.be.bignumber.equal(new BN(0));
+      (await validatorSetAuRa.isValidator.call(initialValidators[0])).should.be.equal(true);
+      (await validatorSetAuRa.miningByStakingAddress.call(initialStakingAddresses[0])).should.be.equal(initialValidators[0]);
+      await stakingAuRa.removeMyPool({from: initialStakingAddresses[0]}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.setValidatorSetAddress(accounts[7]).should.be.fulfilled;
+      await stakingAuRa.incrementStakingEpoch({from: accounts[7]}).should.be.fulfilled;
+      await stakingAuRa.setValidatorSetAddress(validatorSetAuRa.address).should.be.fulfilled;
+      await stakingAuRa.removeMyPool({from: initialStakingAddresses[0]}).should.be.fulfilled
+    });
+    it('should fail for a non-removable validator', async () => {
+      // TODO
     });
   });
 

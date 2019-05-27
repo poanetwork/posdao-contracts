@@ -154,14 +154,8 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     /// can be retrieved by the `getPools` getter). When a candidate or validator wants to remove their pool,
     /// they should call this function from their staking address. A validator cannot remove their pool while
     /// they are an `unremovable validator`.
-    function removePool() external gasPriceIsValid {
-        IValidatorSet validatorSetContract = validatorSetContract();
-        address stakingAddress = msg.sender;
-        address miningAddress = validatorSetContract.miningByStakingAddress(stakingAddress);
-        // initial validator cannot remove their pool during the initial staking epoch
-        require(stakingEpoch() > 0 || !validatorSetContract.isValidator(miningAddress));
-        require(stakingAddress != validatorSetContract.unremovableValidator());
-        _removePool(stakingAddress);
+    function removePool() external {
+        _removePool();
     }
 
     /// @dev Moves staking tokens from one pool to another. A staker calls this function when they want
@@ -779,6 +773,17 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         }
         _deletePoolToBeElected(_stakingAddress);
         _deletePoolToBeRemoved(_stakingAddress);
+    }
+
+    /// @dev Used by the `removePool` external function.
+    function _removePool() internal gasPriceIsValid {
+        IValidatorSet validatorSet = validatorSetContract();
+        address stakingAddress = msg.sender;
+        address miningAddress = validatorSet.miningByStakingAddress(stakingAddress);
+        // initial validator cannot remove their pool during the initial staking epoch
+        require(stakingEpoch() > 0 || !validatorSet.isValidator(miningAddress));
+        require(stakingAddress != validatorSet.unremovableValidator());
+        _removePool(stakingAddress);
     }
 
     /// @dev Removes the specified staking address from the array of inactive pools returned by

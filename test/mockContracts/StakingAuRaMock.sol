@@ -5,13 +5,6 @@ import '../../contracts/StakingAuRa.sol';
 
 contract StakingAuRaMock is StakingAuRa {
 
-    // ============================================== Modifiers =======================================================
-
-    modifier onlyValidatorSetContract() {
-        require(msg.sender == _getValidatorSetAddress());
-        _;
-    }
-
     // =============================================== Setters ========================================================
 
     function addPoolActiveMock(address _stakingAddress) public {
@@ -22,6 +15,10 @@ contract StakingAuRaMock is StakingAuRa {
         _addPoolInactive(_stakingAddress);
     }
 
+    function removeMyPool() external {
+        _removePool();
+    }
+
     function resetErc20TokenContract() public {
         addressStorage[ERC20_TOKEN_CONTRACT] = address(0);
     }
@@ -30,8 +27,12 @@ contract StakingAuRaMock is StakingAuRa {
         uintStorage[keccak256("currentBlockNumber")] = _blockNumber;
     }
 
+    function setStakeAmountTotal(address _poolStakingAddress, uint256 _amount) public {
+        _setStakeAmountTotal(_poolStakingAddress, _amount);
+    }
+
     function setValidatorSetAddress(address _validatorSetAddress) public {
-        addressStorage[keccak256("validatorSetAddress")] = _validatorSetAddress;
+        addressStorage[VALIDATOR_SET_CONTRACT] = _validatorSetAddress;
     }
 
     // =============================================== Private ========================================================
@@ -42,10 +43,6 @@ contract StakingAuRaMock is StakingAuRa {
 
     function _getMaxCandidates() internal pure returns(uint256) {
         return 100;
-    }
-
-    function _getValidatorSetAddress() internal view returns(address) {
-        return addressStorage[keccak256("validatorSetAddress")];
     }
 
 }
