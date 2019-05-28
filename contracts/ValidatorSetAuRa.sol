@@ -94,9 +94,20 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
 
         emit ReportedMalicious(reportingMiningAddress, _maliciousMiningAddress, _blockNumber);
 
-        // If more than 2/3 of validators reported about malicious validator
-        // for the same `blockNumber`
-        if (reportedValidators.length.mul(3) > getValidators().length.mul(2)) {
+        uint256 validatorsLength = getValidators().length;
+        bool remove;
+
+        if (validatorsLength > 3) {
+            // If more than 2/3 of validators reported about malicious validator
+            // for the same `blockNumber`
+            remove = reportedValidators.length.mul(3) > validatorsLength.mul(2);
+        } else {
+            // If more than 1/2 of validators reported about malicious validator
+            // for the same `blockNumber`
+            remove = reportedValidators.length.mul(2) > validatorsLength;
+        }
+
+        if (remove) {
             _removeMaliciousValidatorAuRa(_maliciousMiningAddress);
         }
     }
