@@ -101,6 +101,7 @@ contract('StakingAuRa', async accounts => {
       await stakingAuRa.setCurrentBlockNumber(2).should.be.fulfilled;
       await validatorSetAuRa.setCurrentBlockNumber(2).should.be.fulfilled;
     });
+
     it('should create a new pool', async () => {
       false.should.be.equal(await stakingAuRa.isPoolActive.call(candidateStakingAddress));
       await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.fulfilled;
@@ -527,6 +528,86 @@ contract('StakingAuRa', async accounts => {
     });
   });
 
+  describe('moveStake()', async () => {
+    let delegatorAddress;
+    let erc20Token;
+    let mintAmount;
+    let stakeUnit;
+
+    beforeEach(async () => {
+      delegatorAddress = accounts[7];
+
+      // Initialize Staking
+      await stakingAuRa.initialize(
+        validatorSetAuRa.address, // _validatorSetContract
+        '0x0000000000000000000000000000000000000000', // _erc20TokenContract
+        initialStakingAddresses, // _initialStakingAddresses
+        1, // _delegatorMinStake
+        1, // _candidateMinStake
+        120960, // _stakingEpochDuration
+        4320 // _stakeWithdrawDisallowPeriod
+      ).should.be.fulfilled;
+
+      // Deploy ERC20 contract
+      erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
+
+      // Mint some balance for delegator and candidates (imagine that they got some STAKE_UNITs from a bridge)
+      stakeUnit = await stakingAuRa.STAKE_UNIT.call();
+      mintAmount = stakeUnit.mul(new BN(2));
+      await erc20Token.mint(initialStakingAddresses[0], mintAmount, {from: owner}).should.be.fulfilled;
+      await erc20Token.mint(initialStakingAddresses[1], mintAmount, {from: owner}).should.be.fulfilled;
+      await erc20Token.mint(delegatorAddress, mintAmount, {from: owner}).should.be.fulfilled;
+      mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(initialStakingAddresses[0]));
+      mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(initialStakingAddresses[1]));
+      mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(delegatorAddress));
+
+      // Pass Staking contract address to ERC20 contract
+      await erc20Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
+      stakingAuRa.address.should.be.equal(await erc20Token.stakingContract.call());
+
+      // Pass ERC20 contract address to Staking contract
+      '0x0000000000000000000000000000000000000000'.should.be.equal(
+        await stakingAuRa.erc20TokenContract.call()
+      );
+      await stakingAuRa.setErc20TokenContract(erc20Token.address, {from: owner}).should.be.fulfilled;
+      erc20Token.address.should.be.equal(await stakingAuRa.erc20TokenContract.call());
+
+      // Place stakes
+      await stakingAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
+      await validatorSetAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[0], mintAmount, {from: initialStakingAddresses[0]}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[0], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
+    });
+
+    it('should move entire stake', async () => {
+      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[0], delegatorAddress)).should.be.bignumber.equal(mintAmount);
+      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
+      await stakingAuRa.moveStake(initialStakingAddresses[0], initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
+      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[0], delegatorAddress)).should.be.bignumber.equal(new BN(0));
+      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(mintAmount);
+    });
+    it('should move part of the stake', async () => {
+      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[0], delegatorAddress)).should.be.bignumber.equal(mintAmount);
+      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
+      await stakingAuRa.moveStake(initialStakingAddresses[0], initialStakingAddresses[1], stakeUnit, {from: delegatorAddress}).should.be.fulfilled;
+      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[0], delegatorAddress)).should.be.bignumber.equal(stakeUnit);
+      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(stakeUnit);
+    });
+    it('should fail for zero gas price', async () => {
+      await stakingAuRa.moveStake(initialStakingAddresses[0], initialStakingAddresses[1], mintAmount, {from: delegatorAddress, gasPrice: 0}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.moveStake(initialStakingAddresses[0], initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
+    });
+    it('should fail if the source and destination addresses are the same', async () => {
+      await stakingAuRa.moveStake(initialStakingAddresses[0], initialStakingAddresses[0], mintAmount, {from: delegatorAddress}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.moveStake(initialStakingAddresses[0], initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
+    });
+    it('should fail if the staker tries to move more than they have', async () => {
+      await stakingAuRa.moveStake(initialStakingAddresses[0], initialStakingAddresses[1], mintAmount.mul(new BN(2)), {from: delegatorAddress}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.moveStake(initialStakingAddresses[0], initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
+    });
+  });
+
   describe('removePool()', async () => {
     beforeEach(async () => {
       // Initialize Staking
@@ -637,7 +718,49 @@ contract('StakingAuRa', async accounts => {
       await stakingAuRa.removeMyPool({from: initialStakingAddresses[0]}).should.be.fulfilled
     });
     it('should fail for a non-removable validator', async () => {
-      // TODO
+      // Deploy Staking contract
+      stakingAuRa = await StakingAuRa.new();
+      stakingAuRa = await EternalStorageProxy.new(stakingAuRa.address, owner);
+      stakingAuRa = await StakingAuRa.at(stakingAuRa.address);
+
+      // Deploy ValidatorSet contract
+      validatorSetAuRa = await ValidatorSetAuRa.new();
+      validatorSetAuRa = await EternalStorageProxy.new(validatorSetAuRa.address, owner);
+      validatorSetAuRa = await ValidatorSetAuRa.at(validatorSetAuRa.address);
+
+      // Initialize ValidatorSet
+      await validatorSetAuRa.initialize(
+        blockRewardAuRa.address, // _blockRewardContract
+        '0x3000000000000000000000000000000000000001', // _randomContract
+        stakingAuRa.address, // _stakingContract
+        initialValidators, // _initialMiningAddresses
+        initialStakingAddresses, // _initialStakingAddresses
+        true // _firstValidatorIsUnremovable
+      ).should.be.fulfilled;
+
+      // Initialize Staking
+      await stakingAuRa.initialize(
+        validatorSetAuRa.address, // _validatorSetContract
+        '0x0000000000000000000000000000000000000000', // _erc20TokenContract
+        initialStakingAddresses, // _initialStakingAddresses
+        1, // _delegatorMinStake
+        1, // _candidateMinStake
+        120960, // _stakingEpochDuration
+        4320 // _stakeWithdrawDisallowPeriod
+      ).should.be.fulfilled;
+
+      await stakingAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
+
+      (await stakingAuRa.getPools.call()).should.be.deep.equal(initialStakingAddresses);
+      await stakingAuRa.setValidatorSetAddress(accounts[7]).should.be.fulfilled;
+      await stakingAuRa.incrementStakingEpoch({from: accounts[7]}).should.be.fulfilled;
+      await stakingAuRa.setValidatorSetAddress(validatorSetAuRa.address).should.be.fulfilled;
+      await stakingAuRa.removeMyPool({from: initialStakingAddresses[0]}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.removeMyPool({from: initialStakingAddresses[1]}).should.be.fulfilled;
+      (await stakingAuRa.getPools.call()).should.be.deep.equal([
+        initialStakingAddresses[0],
+        initialStakingAddresses[2]
+      ]);
     });
   });
 
