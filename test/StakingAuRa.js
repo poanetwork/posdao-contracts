@@ -18,6 +18,7 @@ contract('StakingAuRa', async accounts => {
   let initialValidators;
   let initialStakingAddresses;
   let blockRewardAuRa;
+  let randomAuRa;
   let stakingAuRa;
   let validatorSetAuRa;
 
@@ -33,6 +34,10 @@ contract('StakingAuRa', async accounts => {
     blockRewardAuRa = await BlockRewardAuRa.new();
     blockRewardAuRa = await EternalStorageProxy.new(blockRewardAuRa.address, owner);
     blockRewardAuRa = await BlockRewardAuRa.at(blockRewardAuRa.address);
+    // Deploy Random contract
+    randomAuRa = await RandomAuRa.new();
+    randomAuRa = await EternalStorageProxy.new(randomAuRa.address, owner);
+    randomAuRa = await RandomAuRa.at(randomAuRa.address);
     // Deploy Staking contract
     stakingAuRa = await StakingAuRa.new();
     stakingAuRa = await EternalStorageProxy.new(stakingAuRa.address, owner);
@@ -44,7 +49,7 @@ contract('StakingAuRa', async accounts => {
     // Initialize ValidatorSet
     await validatorSetAuRa.initialize(
       blockRewardAuRa.address, // _blockRewardContract
-      '0x3000000000000000000000000000000000000001', // _randomContract
+      randomAuRa.address, // _randomContract
       stakingAuRa.address, // _stakingContract
       initialValidators, // _initialMiningAddresses
       initialStakingAddresses, // _initialStakingAddresses
@@ -609,8 +614,12 @@ contract('StakingAuRa', async accounts => {
   });
 
   describe('stake()', async () => {
-    it('should place delegator\'s stake into the validator\'s pool', async () => {
-      const delegatorAddress = accounts[7];
+    let delegatorAddress;
+    let erc20Token;
+    let mintAmount;
+
+    beforeEach(async () => {
+      delegatorAddress = accounts[7];
 
       // Initialize Staking
       await stakingAuRa.initialize(
@@ -624,11 +633,11 @@ contract('StakingAuRa', async accounts => {
       ).should.be.fulfilled;
 
       // Deploy ERC20 contract
-      const erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
+      erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
 
       // Mint some balance for delegator and candidates (imagine that they got some STAKE_UNITs from a bridge)
       const stakeUnit = await stakingAuRa.STAKE_UNIT.call();
-      const mintAmount = stakeUnit.mul(new BN(2));
+      mintAmount = stakeUnit.mul(new BN(2));
       await erc20Token.mint(initialStakingAddresses[1], mintAmount, {from: owner}).should.be.fulfilled;
       await erc20Token.mint(delegatorAddress, mintAmount, {from: owner}).should.be.fulfilled;
       mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(initialStakingAddresses[1]));
@@ -645,11 +654,43 @@ contract('StakingAuRa', async accounts => {
       await stakingAuRa.setErc20TokenContract(erc20Token.address, {from: owner}).should.be.fulfilled;
       erc20Token.address.should.be.equal(await stakingAuRa.erc20TokenContract.call());
 
-      // Place a stake
       await stakingAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
       await validatorSetAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
+    });
+
+    it('should place a stake', async () => {
+      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], initialStakingAddresses[1])).should.be.bignumber.equal(new BN(0));
+      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
       await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], initialStakingAddresses[1])).should.be.bignumber.equal(mintAmount);
       await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
+      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(mintAmount);
+      (await stakingAuRa.stakeAmountTotal.call(initialStakingAddresses[1])).should.be.bignumber.equal(mintAmount.mul(new BN(2)));
+    });
+    it('should fail for zero gas price', async () => {
+      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1], gasPrice: 0}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+    });
+    it('should fail if erc20TokenContract address is not defined', async () => {
+      await stakingAuRa.resetErc20TokenContract().should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.setErc20TokenContract(erc20Token.address, {from: owner}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+    });
+    it('should fail for a non-existing pool', async () => {
+      await stakingAuRa.stake(accounts[10], mintAmount, {from: delegatorAddress}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.stake('0x0000000000000000000000000000000000000000', mintAmount, {from: delegatorAddress}).should.be.rejectedWith(ERROR_MSG);
+    });
+    it('should fail for a zero amount', async () => {
+      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], new BN(0), {from: delegatorAddress}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
+    });
+    it('should fail for a banned validator', async () => {
+      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+      await validatorSetAuRa.setRandomContract(accounts[8]).should.be.fulfilled;
+      await validatorSetAuRa.removeMaliciousValidator(initialValidators[1], {from: accounts[8]}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.rejectedWith(ERROR_MSG);
     });
     // TODO: to be continued ...
   });
