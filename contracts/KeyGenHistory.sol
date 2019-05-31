@@ -1,93 +1,17 @@
-pragma solidity 0.5.7;
-
-import "./interfaces/IValidatorSet.sol";
-import "./interfaces/IStaking.sol";
-import "./eternal-storage/OwnedEternalStorage.sol";
-import "./libs/SafeMath.sol";
+pragma solidity 0.5.9;
 
 
-contract KeyGenHistory is OwnedEternalStorage {
-    using SafeMath for uint256;
+contract KeyGenHistory {
 
-    // ================================================ Events ========================================================
+    event PartWritten(address indexed sender, bytes part);
+    event AckWritten(address indexed sender, bytes ack);
 
-    event PartWritten(
-        address indexed validator,
-        bytes part,
-        uint256 indexed stakingEpoch,
-        uint256 indexed changeRequestCount
-    );
-
-    event AckWritten(
-        address indexed validator,
-        bytes ack,
-        uint256 indexed stakingEpoch,
-        uint256 indexed changeRequestCount
-    );
-
-    // ============================================== Modifiers =======================================================
-
-    modifier onlyValidator() {
-        require(validatorSet().isValidator(msg.sender));
-        _;
+    function writePart(bytes memory _part) public {
+        emit PartWritten(msg.sender, _part);
     }
 
-    // =============================================== Setters ========================================================
-
-    function setValidatorSetContract(IValidatorSet _validatorSet) public onlyOwner {
-        require(address(validatorSet()) == address(0));
-        require(address(_validatorSet) != address(0));
-        addressStorage[VALIDATOR_SET] = address(_validatorSet);
+    function writeAck(bytes memory _ack) public {
+        emit AckWritten(msg.sender, _ack);
     }
 
-    // Note: since this is non-system transaction, the calling validator
-    // should have enough balance to call this function.
-    function writePart(bytes memory _part) public onlyValidator {
-        IValidatorSet validatorSetContract = validatorSet();
-        IStaking stakingContract = IStaking(validatorSetContract.stakingContract());
-
-        uint256 stakingEpoch = stakingContract.stakingEpoch();
-        uint256 changeRequestCount = validatorSetContract.changeRequestCount();
-
-        require(!validatorWrotePart(changeRequestCount, msg.sender));
-
-        _setValidatorWrotePart(changeRequestCount, msg.sender);
-
-        emit PartWritten(msg.sender, _part, stakingEpoch, changeRequestCount);
-    }
-
-    // Note: since this is non-system transaction, the calling validator
-    // should have enough balance to call this function.
-    function writeAck(bytes memory _ack) public onlyValidator {
-        IValidatorSet validatorSetContract = validatorSet();
-        IStaking stakingContract = IStaking(validatorSetContract.stakingContract());
-
-        uint256 stakingEpoch = stakingContract.stakingEpoch();
-        uint256 changeRequestCount = validatorSetContract.changeRequestCount();
-
-        emit AckWritten(msg.sender, _ack, stakingEpoch, changeRequestCount);
-    }
-
-    // =============================================== Getters ========================================================
-
-    function validatorSet() public view returns(IValidatorSet) {
-        return IValidatorSet(addressStorage[VALIDATOR_SET]);
-    }
-
-    function validatorWrotePart(uint256 _changeRequestCount, address _validator) public view returns(bool) {
-        return boolStorage[
-            keccak256(abi.encode(VALIDATOR_WROTE_PART, _changeRequestCount, _validator))
-        ];
-    }
-
-    // =============================================== Private ========================================================
-
-    bytes32 internal constant VALIDATOR_SET = keccak256("validatorSet");
-    bytes32 internal constant VALIDATOR_WROTE_PART = "validatorWrotePart";
-
-    function _setValidatorWrotePart(uint256 _changeRequestCount, address _validator) internal {
-        boolStorage[
-            keccak256(abi.encode(VALIDATOR_WROTE_PART, _changeRequestCount, _validator))
-        ] = true;
-    }
 }
