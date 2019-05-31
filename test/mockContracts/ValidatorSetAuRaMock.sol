@@ -14,6 +14,14 @@ contract ValidatorSetAuRaMock is ValidatorSetAuRa {
 
     // =============================================== Setters ========================================================
 
+    function clearPendingValidators() public {
+        delete addressArrayStorage[PENDING_VALIDATORS];
+    }
+
+    function enqueuePendingValidators() public {
+        _enqueuePendingValidators(true);
+    }
+
     function setBlockRewardContract(address _address) public {
         addressStorage[BLOCK_REWARD_CONTRACT] = _address;
     }

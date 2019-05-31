@@ -668,7 +668,12 @@ contract('StakingAuRa', async accounts => {
       (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
       await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
       (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], initialStakingAddresses[1])).should.be.bignumber.equal(mintAmount);
-      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
+      const result = await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
+      result.logs[0].event.should.be.equal("Staked");
+      result.logs[0].args.toPoolStakingAddress.should.be.equal(initialStakingAddresses[1]);
+      result.logs[0].args.staker.should.be.equal(delegatorAddress);
+      result.logs[0].args.stakingEpoch.should.be.bignumber.equal(new BN(0));
+      result.logs[0].args.amount.should.be.bignumber.equal(mintAmount);
       (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(mintAmount);
       (await stakingAuRa.stakeAmountTotal.call(initialStakingAddresses[1])).should.be.bignumber.equal(mintAmount.mul(new BN(2)));
     });
@@ -744,7 +749,40 @@ contract('StakingAuRa', async accounts => {
       await stakingAuRa.stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
       (await stakingAuRa.stakeAmountTotal.call(initialStakingAddresses[1])).should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake.mul(new BN(2))));
     });
-    // TODO: to be continued ...
+    it('should add a delegator to the pool', async () => {
+      await stakingAuRa.stake(initialStakingAddresses[1], candidateMinStake, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+      (await stakingAuRa.poolDelegators.call(initialStakingAddresses[1])).length.should.be.equal(0);
+      await stakingAuRa.stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
+      (await stakingAuRa.poolDelegators.call(initialStakingAddresses[1])).should.be.deep.equal([delegatorAddress]);
+    });
+    it('should update pool\'s likelihood', async () => {
+      let likelihoodInfo = await stakingAuRa.getPoolsLikelihood.call();
+      likelihoodInfo.likelihoods.length.should.be.equal(0);
+      likelihoodInfo.sum.should.be.bignumber.equal(new BN(0));
+      await stakingAuRa.stake(initialStakingAddresses[1], candidateMinStake, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+      likelihoodInfo = await stakingAuRa.getPoolsLikelihood.call();
+      likelihoodInfo.likelihoods[0].should.be.bignumber.equal(new BN(100));
+      likelihoodInfo.sum.should.be.bignumber.equal(new BN(100));
+      await stakingAuRa.stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
+      likelihoodInfo = await stakingAuRa.getPoolsLikelihood.call();
+      likelihoodInfo.likelihoods[0].should.be.bignumber.equal(new BN(200));
+      likelihoodInfo.sum.should.be.bignumber.equal(new BN(200));
+      await stakingAuRa.stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
+      likelihoodInfo = await stakingAuRa.getPoolsLikelihood.call();
+      likelihoodInfo.likelihoods[0].should.be.bignumber.equal(new BN(300));
+      likelihoodInfo.sum.should.be.bignumber.equal(new BN(300));
+    });
+    it('should fail if the staker stakes more than they have', async () => {
+      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount.mul(new BN(2)), {from: initialStakingAddresses[1]}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.stake(initialStakingAddresses[1], candidateMinStake, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+    });
+    it('should decrease the balance of the staker and increase the balance of the Staking contract', async () => {
+      (await erc20Token.balanceOf.call(stakingAuRa.address)).should.be.bignumber.equal(new BN(0));
+      await stakingAuRa.stake(initialStakingAddresses[1], candidateMinStake, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+      (await erc20Token.balanceOf.call(initialStakingAddresses[1])).should.be.bignumber.equal(mintAmount.sub(candidateMinStake));
+      (await erc20Token.balanceOf.call(stakingAuRa.address)).should.be.bignumber.equal(candidateMinStake);
+    });
   });
 
   describe('removePool()', async () => {
