@@ -12,8 +12,6 @@ import "./interfaces/ICertifier.sol";
 /// Needed for initializing upgradeable contracts on the genesis block since
 /// upgradeable contracts can't have constructors.
 contract InitializerAuRa is ContractsAddresses {
-    /// @param _erc20TokenContract The address of the ERC20/677 staking token contract.
-    /// Can be initialized as zero and defined later using the `StakingAuRa.setErc20TokenContract` function.
     /// @param _owner The contracts' owner.
     /// @param _miningAddresses The array of initial validators' mining addresses.
     /// @param _stakingAddresses The array of initial validators' staking addresses.
@@ -30,8 +28,9 @@ contract InitializerAuRa is ContractsAddresses {
     /// during which participants cannot stake or withdraw their staking tokens
     /// (e.g., 4320 = 6 hours for 5-seconds blocks in AuRa).
     /// @param _collectRoundLength The length of a collection round in blocks (see the `RandomAuRa` contract).
+    /// @param _erc20Restricted Defines whether this staking contract restricts using ERC20/677 contract.
+    /// If it's set to `true`, native staking coins are used instead of ERC staking tokens.
     constructor(
-        address _erc20TokenContract,
         address _owner,
         address[] memory _miningAddresses,
         address[] memory _stakingAddresses,
@@ -40,7 +39,8 @@ contract InitializerAuRa is ContractsAddresses {
         uint256 _candidateMinStake,
         uint256 _stakingEpochDuration,
         uint256 _stakeWithdrawDisallowPeriod,
-        uint256 _collectRoundLength
+        uint256 _collectRoundLength,
+        bool _erc20Restricted
     ) public {
         IValidatorSet(VALIDATOR_SET_CONTRACT).initialize(
             BLOCK_REWARD_CONTRACT,
@@ -52,12 +52,12 @@ contract InitializerAuRa is ContractsAddresses {
         );
         IStakingAuRa(STAKING_CONTRACT).initialize(
             VALIDATOR_SET_CONTRACT,
-            _erc20TokenContract,
             _stakingAddresses,
             _delegatorMinStake,
             _candidateMinStake,
             _stakingEpochDuration,
-            _stakeWithdrawDisallowPeriod
+            _stakeWithdrawDisallowPeriod,
+            _erc20Restricted
         );
         IRandomAuRa(RANDOM_CONTRACT).initialize(_collectRoundLength);
         ITxPermission(PERMISSION_CONTRACT).initialize(_owner);

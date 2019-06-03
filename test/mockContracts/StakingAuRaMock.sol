@@ -15,10 +15,6 @@ contract StakingAuRaMock is StakingAuRa {
         _addPoolInactive(_stakingAddress);
     }
 
-    function removeMyPool() external {
-        _removePool();
-    }
-
     function resetErc20TokenContract() public {
         addressStorage[ERC20_TOKEN_CONTRACT] = address(0);
     }

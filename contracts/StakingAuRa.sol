@@ -23,27 +23,39 @@ contract StakingAuRa is IStakingAuRa, StakingBase {
         _stake(stakingAddress, _amount);
     }
 
+    /// @dev Adds a new candidate's pool to the list of active pools (see the `getPools` getter) and
+    /// moves the specified amount of staking coins from the candidate's staking address to the candidate's pool.
+    /// A participant calls this function using their staking address when they want to create a pool.
+    /// This is a wrapper for the `stake` function.
+    /// @param _miningAddress The mining address of the candidate. The mining address is bound to the staking address
+    /// (msg.sender). This address cannot be equal to `msg.sender`.
+    function addPoolNative(address _miningAddress) external gasPriceIsValid payable {
+        address stakingAddress = msg.sender;
+        validatorSetContract().setStakingAddress(_miningAddress, stakingAddress);
+        _stake(stakingAddress, msg.value);
+    }
+
     /// @dev Initializes the network parameters on the genesis block.
     /// Must be called by the constructor of the `InitializerAuRa` contract on the genesis block.
     /// @param _validatorSetContract The address of the `ValidatorSetAuRa` contract.
-    /// @param _erc20TokenContract The address of the ERC20/677 staking token contract.
-    /// Can be zero and defined later using the `setErc20TokenContract` function.
     /// @param _initialStakingAddresses The array of initial validators' staking addresses.
     /// @param _delegatorMinStake The minimum allowed amount of delegator stake in STAKE_UNITs.
     /// @param _candidateMinStake The minimum allowed amount of candidate/validator stake in STAKE_UNITs.
     /// @param _stakingEpochDuration The duration of a staking epoch in blocks
     /// (e.g., 120960 = 1 week for 5-seconds blocks in AuRa).
     /// @param _stakeWithdrawDisallowPeriod The duration period (in blocks) at the end of a staking epoch
-    /// during which participants cannot stake or withdraw their staking tokens
+    /// during which participants cannot stake or withdraw their staking tokens/coins
     /// (e.g., 4320 = 6 hours for 5-seconds blocks in AuRa).
+    /// @param _erc20Restricted Defines whether this staking contract restricts using ERC20/677 contract.
+    /// If it's set to `true`, native staking coins are used instead of ERC staking tokens.
     function initialize(
         address _validatorSetContract,
-        address _erc20TokenContract,
         address[] calldata _initialStakingAddresses,
         uint256 _delegatorMinStake,
         uint256 _candidateMinStake,
         uint256 _stakingEpochDuration,
-        uint256 _stakeWithdrawDisallowPeriod
+        uint256 _stakeWithdrawDisallowPeriod,
+        bool _erc20Restricted
     ) external {
         require(_stakingEpochDuration != 0);
         require(_stakingEpochDuration > _stakeWithdrawDisallowPeriod);
@@ -53,10 +65,10 @@ contract StakingAuRa is IStakingAuRa, StakingBase {
         require(_stakeWithdrawDisallowPeriod != 0);
         super._initialize(
             _validatorSetContract,
-            _erc20TokenContract,
             _initialStakingAddresses,
             _delegatorMinStake,
-            _candidateMinStake
+            _candidateMinStake,
+            _erc20Restricted
         );
         uintStorage[STAKING_EPOCH_DURATION] = _stakingEpochDuration;
         uintStorage[STAKE_WITHDRAW_DISALLOW_PERIOD] = _stakeWithdrawDisallowPeriod;
@@ -82,7 +94,7 @@ contract StakingAuRa is IStakingAuRa, StakingBase {
     }
 
     /// @dev Returns the duration period (in blocks) at the end of staking epoch during which
-    /// participants are not allowed to stake and withdraw their staking tokens.
+    /// participants are not allowed to stake and withdraw their staking tokens/coins.
     function stakeWithdrawDisallowPeriod() public view returns(uint256) {
         return uintStorage[STAKE_WITHDRAW_DISALLOW_PERIOD];
     }

@@ -5,6 +5,7 @@ interface IStaking {
     function clearUnremovableValidator(address) external;
     function incrementStakingEpoch() external;
     function removePool(address) external;
+    function erc20Restricted() external view returns(bool);
     function erc20TokenContract() external view returns(address);
     function getPoolsLikelihood() external view returns(int256[] memory, int256);
     function getPoolsToBeElected() external view returns(address[] memory);

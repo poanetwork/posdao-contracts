@@ -30,7 +30,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     // ================================================ Events ========================================================
 
     /// @dev Emitted by the `claimOrderedWithdraw` function to signal the staker withdrew the specified
-    /// amount of requested tokens from the specified pool during the specified staking epoch.
+    /// amount of requested tokens/coins from the specified pool during the specified staking epoch.
     /// @param fromPoolStakingAddress The pool from which the `staker` withdrew the `amount`.
     /// @param staker The address of the staker that withdrew the `amount`.
     /// @param stakingEpoch The serial number of the staking epoch during which the claim was made.
@@ -154,15 +154,15 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     /// can be retrieved by the `getPools` getter). When a candidate or validator wants to remove their pool,
     /// they should call this function from their staking address. A validator cannot remove their pool while
     /// they are an `unremovable validator`.
-    function removePool() external {
-        _removePool();
+    function removeMyPool() external {
+        _removeMyPool();
     }
 
-    /// @dev Moves staking tokens from one pool to another. A staker calls this function when they want
-    /// to move their tokens from one pool to another without withdrawing their tokens.
+    /// @dev Moves staking tokens/coins from one pool to another. A staker calls this function when they want
+    /// to move their tokens/coins from one pool to another without withdrawing their tokens/coins.
     /// @param _fromPoolStakingAddress The staking address of the source pool.
     /// @param _toPoolStakingAddress The staking address of the target pool.
-    /// @param _amount The amount of staking tokens to be moved. The amount cannot exceed the value returned
+    /// @param _amount The amount of staking tokens/coins to be moved. The amount cannot exceed the value returned
     /// by the `maxWithdrawAllowed` getter.
     function moveStake(
         address _fromPoolStakingAddress,
@@ -184,24 +184,35 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         _stake(_toPoolStakingAddress, _amount);
     }
 
-    /// @dev Moves the specified amount of staking tokens from the staking address of
+    /// @dev Receives the staking coins from the staker's address to the staking address of
+    /// the specified pool. A staker calls this function when they want to make a stake into a pool.
+    /// @param _toPoolStakingAddress The staking address of the pool where the coins should be staked.
+    function stakeNative(address _toPoolStakingAddress) external gasPriceIsValid payable {
+        _stake(_toPoolStakingAddress, msg.value);
+    }
+
+    /// @dev Moves the specified amount of staking tokens/coins from the staking address of
     /// the specified pool to the staker's address. A staker calls this function when they want to withdraw
-    /// their tokens.
-    /// @param _fromPoolStakingAddress The staking address of the pool from which the tokens should be withdrawn.
-    /// @param _amount The amount of tokens to be withdrawn. The amount cannot exceed the value returned
+    /// their tokens/coins.
+    /// @param _fromPoolStakingAddress The staking address of the pool from which the tokens/coins should be withdrawn.
+    /// @param _amount The amount of tokens/coins to be withdrawn. The amount cannot exceed the value returned
     /// by the `maxWithdrawAllowed` getter.
     function withdraw(address _fromPoolStakingAddress, uint256 _amount) external gasPriceIsValid {
-        IERC20Minting tokenContract = IERC20Minting(erc20TokenContract());
-        require(address(tokenContract) != address(0));
-        address staker = msg.sender;
+        address payable staker = msg.sender;
         _withdraw(_fromPoolStakingAddress, staker, _amount);
-        tokenContract.withdraw(staker, _amount);
+        IERC20Minting tokenContract = IERC20Minting(erc20TokenContract());
+        if (address(tokenContract) != address(0)) {
+            tokenContract.withdraw(staker, _amount);
+        } else {
+            require(boolStorage[ERC20_RESTRICTED]);
+            staker.transfer(_amount);
+        }
         emit Withdrawn(_fromPoolStakingAddress, staker, stakingEpoch(), _amount);
     }
 
-    /// @dev Orders a token withdrawal from the staking address of the specified pool to the
-    /// staker's address. The requested tokens can be claimed after the current staking epoch is complete using the
-    /// `claimOrderedWithdraw` function.
+    /// @dev Orders a token/coin withdrawal from the staking address of the specified pool to the
+    /// staker's address. The requested tokens/coins can be claimed after the current staking epoch is complete using
+    /// the `claimOrderedWithdraw` function.
     /// @param _poolStakingAddress The staking address of the pool from which the amount will be withdrawn.
     /// @param _amount The amount to be withdrawn. A positive value means the staker wants to either set or
     /// increase their withdrawal amount. A negative value means the staker wants to decrease a
@@ -278,16 +289,14 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         emit WithdrawalOrdered(_poolStakingAddress, staker, epoch, _amount);
     }
 
-    /// @dev Withdraws the staking tokens from the specified pool ordered during the previous staking epochs with the
-    /// `orderWithdraw` function. The ordered amount can be retrieved by the `orderedWithdrawAmount` getter.
-    /// @param _poolStakingAddress The staking address of the pool from which the ordered tokens are withdrawn.
+    /// @dev Withdraws the staking tokens/coins from the specified pool ordered during the previous staking epochs with
+    /// the `orderWithdraw` function. The ordered amount can be retrieved by the `orderedWithdrawAmount` getter.
+    /// @param _poolStakingAddress The staking address of the pool from which the ordered tokens/coins are withdrawn.
     function claimOrderedWithdraw(address _poolStakingAddress) external gasPriceIsValid {
-        IERC20Minting tokenContract = IERC20Minting(erc20TokenContract());
         IValidatorSet validatorSetContract = validatorSetContract();
         uint256 epoch = stakingEpoch();
-        address staker = msg.sender;
+        address payable staker = msg.sender;
 
-        require(address(tokenContract) != address(0));
         require(_poolStakingAddress != address(0));
         require(epoch > orderWithdrawEpoch(_poolStakingAddress, staker));
         require(_isWithdrawAllowed(validatorSetContract.miningByStakingAddress(_poolStakingAddress)));
@@ -311,15 +320,23 @@ contract StakingBase is OwnedEternalStorage, IStaking {
 
         _setLikelihood(_poolStakingAddress);
 
-        tokenContract.withdraw(staker, claimAmount);
+        IERC20Minting tokenContract = IERC20Minting(erc20TokenContract());
+        if (address(tokenContract) != address(0)) {
+            tokenContract.withdraw(staker, claimAmount);
+        } else {
+            require(boolStorage[ERC20_RESTRICTED]);
+            staker.transfer(claimAmount);
+        }
 
         emit Claimed(_poolStakingAddress, staker, epoch, claimAmount);
     }
 
     /// @dev Sets (updates) the address of the ERC20/ERC677 staking token contract. Can only be called by the `owner`.
+    /// Cannot be called if there was at least one stake in native coins before.
     /// @param _erc20TokenContract The address of the contract.
     function setErc20TokenContract(address _erc20TokenContract) external onlyOwner {
         require(_erc20TokenContract != address(0));
+        require(!boolStorage[ERC20_RESTRICTED]);
         addressStorage[ERC20_TOKEN_CONTRACT] = _erc20TokenContract;
     }
 
@@ -387,6 +404,13 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     /// @dev Returns a boolean flag indicating whether the stake and withdraw operations are allowed
     /// at the moment.
     function areStakeAndWithdrawAllowed() public view returns(bool);
+
+    /// @dev Returns a boolean flag indicating whether this contract restricts
+    /// using ERC20/677 contract. If it returns `true`, native staking coins
+    /// are used instead of ERC staking tokens.
+    function erc20Restricted() public view returns(bool) {
+        return boolStorage[ERC20_RESTRICTED];
+    }
 
     /// @dev Returns the address of the ERC20/677 staking token contract.
     function erc20TokenContract() public view returns(address) {
@@ -480,7 +504,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         return false;
     }
 
-    /// @dev Returns the current amount of staking tokens ordered for withdrawal from the specified
+    /// @dev Returns the current amount of staking tokens/coins ordered for withdrawal from the specified
     /// pool by the specified staker. Used by the `orderWithdraw` and `claimOrderedWithdraw` functions.
     /// @param _poolStakingAddress The pool staking address from which the amount will be withdrawn.
     /// @param _staker The staker address that ordered the withdrawal.
@@ -488,7 +512,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         return uintStorage[keccak256(abi.encode(ORDERED_WITHDRAW_AMOUNT, _poolStakingAddress, _staker))];
     }
 
-    /// @dev Returns the current total amount of staking tokens ordered for withdrawal from
+    /// @dev Returns the current total amount of staking tokens/coins ordered for withdrawal from
     /// the specified pool by all of its stakers.
     /// @param _poolStakingAddress The pool staking address from which the amount will be withdrawn.
     function orderedWithdrawAmountTotal(address _poolStakingAddress) public view returns(uint256) {
@@ -504,7 +528,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         return uintStorage[keccak256(abi.encode(ORDER_WITHDRAW_EPOCH, _poolStakingAddress, _staker))];
     }
 
-    /// @dev Returns the total amount of staking tokens currently staked into the specified pool.
+    /// @dev Returns the total amount of staking tokens/coins currently staked into the specified pool.
     /// Doesn't take into account the ordered amounts to be withdrawn (use the
     /// `stakeAmountTotalMinusOrderedWithdraw` instead).
     /// @param _poolStakingAddress The pool staking address.
@@ -574,8 +598,8 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         return uintStorage[keccak256(abi.encode(POOL_TO_BE_REMOVED_INDEX, _stakingAddress))];
     }
 
-    /// @dev Returns the amount of staking tokens currently staked into the specified pool by the specified staker.
-    /// Doesn't take into account the ordered amount to be withdrawn (use the
+    /// @dev Returns the amount of staking tokens/coins currently staked into the specified pool by the specified
+    /// staker. Doesn't take into account the ordered amount to be withdrawn (use the
     /// `stakeAmountMinusOrderedWithdraw` instead).
     /// @param _poolStakingAddress The pool staking address.
     /// @param _staker The staker's address.
@@ -583,7 +607,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         return uintStorage[keccak256(abi.encode(STAKE_AMOUNT, _poolStakingAddress, _staker))];
     }
 
-    /// @dev Returns the amount of staking tokens staked into the specified pool by the specified staker
+    /// @dev Returns the amount of staking tokens/coins staked into the specified pool by the specified staker
     /// during the current staking epoch (see the `stakingEpoch` getter).
     /// Used by the `stake`, `withdraw`, and `orderWithdraw` functions.
     /// @param _poolStakingAddress The pool staking address.
@@ -598,8 +622,9 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         ];
     }
 
-    /// @dev Returns the amount of staking tokens currently staked into the specified pool by the specified staker
-    /// taking into account the ordered amount to be withdrawn. See also the `stakeAmount` and `orderedWithdrawAmount`.
+    /// @dev Returns the amount of staking tokens/coins currently staked into the specified pool by the specified
+    /// staker taking into account the ordered amount to be withdrawn. See also the `stakeAmount` and
+    /// `orderedWithdrawAmount`.
     /// @param _poolStakingAddress The pool staking address.
     /// @param _staker The staker's address.
     function stakeAmountMinusOrderedWithdraw(
@@ -611,8 +636,9 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         return amount >= orderedAmount ? amount - orderedAmount : 0;
     }
 
-    /// @dev Returns the total amount of staking tokens currently staked into the specified pool taking into account
-    /// the ordered amounts to be withdrawn. See also the `stakeAmountTotal` and `orderedWithdrawAmountTotal` getters.
+    /// @dev Returns the total amount of staking tokens/coins currently staked into the specified pool taking into
+    /// account the ordered amounts to be withdrawn. See also the `stakeAmountTotal` and `orderedWithdrawAmountTotal`
+    /// getters.
     /// @param _poolStakingAddress The pool staking address.
     function stakeAmountTotalMinusOrderedWithdraw(address _poolStakingAddress) public view returns(uint256) {
         uint256 amount = stakeAmountTotal(_poolStakingAddress);
@@ -634,6 +660,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
 
     bytes32 internal constant CANDIDATE_MIN_STAKE = keccak256("candidateMinStake");
     bytes32 internal constant DELEGATOR_MIN_STAKE = keccak256("delegatorMinStake");
+    bytes32 internal constant ERC20_RESTRICTED = keccak256("erc20Restricted");
     bytes32 internal constant ERC20_TOKEN_CONTRACT = keccak256("erc20TokenContract");
     bytes32 internal constant POOLS = keccak256("pools");
     bytes32 internal constant POOLS_INACTIVE = keccak256("poolsInactive");
@@ -775,8 +802,8 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         _deletePoolToBeRemoved(_stakingAddress);
     }
 
-    /// @dev Used by the `removePool` external function.
-    function _removePool() internal gasPriceIsValid {
+    /// @dev Used by the `removeMyPool` external function.
+    function _removeMyPool() internal gasPriceIsValid {
         IValidatorSet validatorSet = validatorSetContract();
         address stakingAddress = msg.sender;
         address miningAddress = validatorSet.miningByStakingAddress(stakingAddress);
@@ -803,17 +830,17 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     /// @dev Initializes the network parameters on the genesis block. Used by the
     /// `initialize` function of a child contract.
     /// @param _validatorSetContract The address of the `ValidatorSet` contract.
-    /// @param _erc20TokenContract The address of the ERC20/677 staking token contract.
-    /// Can be zero and defined later using the `setErc20TokenContract` function.
     /// @param _initialStakingAddresses The array of initial validators' staking addresses.
     /// @param _delegatorMinStake The minimum allowed amount of delegator stake in STAKE_UNITs.
     /// @param _candidateMinStake The minimum allowed amount of candidate/validator stake in STAKE_UNITs.
+    /// @param _erc20Restricted Defines whether this staking contract restricts using ERC20/677 contract.
+    /// If it's set to `true`, native staking coins are used instead of ERC staking tokens.
     function _initialize(
         address _validatorSetContract,
-        address _erc20TokenContract,
         address[] memory _initialStakingAddresses,
         uint256 _delegatorMinStake,
-        uint256 _candidateMinStake
+        uint256 _candidateMinStake,
+        bool _erc20Restricted
     ) internal {
         require(_getCurrentBlockNumber() == 0); // initialization must be done on genesis block
         require(address(validatorSetContract()) == address(0)); // initialization can only be done once
@@ -826,7 +853,6 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         require(MAX_DELEGATORS_PER_POOL % blockRewardContract.DELEGATORS_ALIQUOT() == 0);
 
         addressStorage[VALIDATOR_SET_CONTRACT] = _validatorSetContract;
-        addressStorage[ERC20_TOKEN_CONTRACT] = _erc20TokenContract;
 
         address unremovableStakingAddress = IValidatorSet(_validatorSetContract).unremovableValidator();
 
@@ -840,6 +866,8 @@ contract StakingBase is OwnedEternalStorage, IStaking {
 
         _setDelegatorMinStake(_delegatorMinStake);
         _setCandidateMinStake(_candidateMinStake);
+
+        boolStorage[ERC20_RESTRICTED] = _erc20Restricted;
     }
 
     /// @dev Sets the number of the staking epoch during which the specified staker ordered
@@ -993,7 +1021,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         intStorage[POOLS_LIKELIHOOD_SUM] += newValue - oldValue;
     }
 
-    /// @dev Sets the current amount of staking tokens ordered for withdrawal from the specified
+    /// @dev Sets the current amount of staking tokens/coins ordered for withdrawal from the specified
     /// pool by the specified staker. Used by the `orderWithdraw` and `claimOrderedWithdraw` functions.
     /// @param _poolStakingAddress The pool staking address from which the amount will be withdrawn.
     /// @param _staker The staker's address that ordered the withdrawal.
@@ -1002,29 +1030,29 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         uintStorage[keccak256(abi.encode(ORDERED_WITHDRAW_AMOUNT, _poolStakingAddress, _staker))] = _amount;
     }
 
-    /// @dev Sets the total amount of staking tokens ordered for withdrawal from
+    /// @dev Sets the total amount of staking tokens/coins ordered for withdrawal from
     /// the specified pool by all its stakers.
     /// @param _poolStakingAddress The pool staking address from which the amount will be withdrawn.
-    /// @param _amount The total amount of staking tokens ordered for withdrawal.
+    /// @param _amount The total amount of staking tokens/coins ordered for withdrawal.
     function _setOrderedWithdrawAmountTotal(address _poolStakingAddress, uint256 _amount) internal {
         uintStorage[keccak256(abi.encode(ORDERED_WITHDRAW_AMOUNT_TOTAL, _poolStakingAddress))] = _amount;
     }
 
-    /// @dev Sets the amount of staking tokens currently staked into the specified pool by the specified staker.
+    /// @dev Sets the amount of staking tokens/coins currently staked into the specified pool by the specified staker.
     /// Used by the `stake`, `withdraw`, and `claimOrderedWithdraw` functions. See the `stakeAmount` getter.
     /// @param _poolStakingAddress The pool staking address.
     /// @param _staker The staker's address.
-    /// @param _amount The amount of staking tokens.
+    /// @param _amount The amount of staking tokens/coins.
     function _setStakeAmount(address _poolStakingAddress, address _staker, uint256 _amount) internal {
         uintStorage[keccak256(abi.encode(STAKE_AMOUNT, _poolStakingAddress, _staker))] = _amount;
     }
 
-    /// @dev Sets the amount of staking tokens staked into the specified pool by the specified staker during the
+    /// @dev Sets the amount of staking tokens/coins staked into the specified pool by the specified staker during the
     /// current staking epoch (see the `stakingEpoch` getter). See also the `stakeAmountByCurrentEpoch` getter.
     /// Used by the `_stake` and `_withdraw` functions.
     /// @param _poolStakingAddress The pool staking address.
     /// @param _staker The staker's address.
-    /// @param _amount The amount of staking tokens.
+    /// @param _amount The amount of staking tokens/coins.
     function _setStakeAmountByCurrentEpoch(
         address _poolStakingAddress,
         address _staker,
@@ -1035,9 +1063,9 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         ))] = _amount;
     }
 
-    /// @dev Sets the total amount of staking tokens currently staked into the specified pool.
+    /// @dev Sets the total amount of staking tokens/coins currently staked into the specified pool.
     /// @param _poolStakingAddress The pool staking address.
-    /// @param _amount The total amount of staking tokens.
+    /// @param _amount The total amount of staking tokens/coins.
     function _setStakeAmountTotal(address _poolStakingAddress, uint256 _amount) internal {
         uintStorage[keccak256(abi.encode(STAKE_AMOUNT_TOTAL, _poolStakingAddress))] = _amount;
     }
@@ -1058,22 +1086,28 @@ contract StakingBase is OwnedEternalStorage, IStaking {
 
     /// @dev The internal function used by the `stake` and `addPool` functions.
     /// See the `stake` public function for more details.
-    /// @param _toPoolStakingAddress The staking address of the pool where the tokens should be staked.
-    /// @param _amount The amount of tokens to be staked.
+    /// @param _toPoolStakingAddress The staking address of the pool where the tokens/coins should be staked.
+    /// @param _amount The amount of tokens/coins to be staked.
     function _stake(address _toPoolStakingAddress, uint256 _amount) internal {
         IERC20Minting tokenContract = IERC20Minting(erc20TokenContract());
-        require(address(tokenContract) != address(0));
+        if (address(tokenContract) != address(0)) {
+            require(msg.value == 0);
+        }
         address staker = msg.sender;
         _stake(_toPoolStakingAddress, staker, _amount);
-        tokenContract.stake(staker, _amount);
+        if (address(tokenContract) != address(0)) {
+            tokenContract.stake(staker, _amount);
+        } else {
+            require(boolStorage[ERC20_RESTRICTED]);
+        }
         emit Staked(_toPoolStakingAddress, staker, stakingEpoch(), _amount);
     }
 
     /// @dev The internal function used by the `_stake` and `moveStake` functions.
     /// See the `stake` public function for more details.
-    /// @param _poolStakingAddress The staking address of the pool where the tokens should be staked.
+    /// @param _poolStakingAddress The staking address of the pool where the tokens/coins should be staked.
     /// @param _staker The staker's address.
-    /// @param _amount The amount of tokens to be staked.
+    /// @param _amount The amount of tokens/coins to be staked.
     function _stake(address _poolStakingAddress, address _staker, uint256 _amount) internal {
         IValidatorSet validatorSet = validatorSetContract();
         address poolMiningAddress = validatorSet.miningByStakingAddress(_poolStakingAddress);
@@ -1115,9 +1149,9 @@ contract StakingBase is OwnedEternalStorage, IStaking {
 
     /// @dev The internal function used by the `withdraw` and `moveStake` functions.
     /// See the `withdraw` public function for more details.
-    /// @param _poolStakingAddress The staking address of the pool from which the tokens should be withdrawn.
+    /// @param _poolStakingAddress The staking address of the pool from which the tokens/coins should be withdrawn.
     /// @param _staker The staker's address.
-    /// @param _amount The amount of the tokens to be withdrawn.
+    /// @param _amount The amount of the tokens/coins to be withdrawn.
     function _withdraw(address _poolStakingAddress, address _staker, uint256 _amount) internal {
         require(_poolStakingAddress != address(0));
         require(_amount != 0);
@@ -1152,7 +1186,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
 
     /// @dev The internal function used by the `_withdraw` and `claimOrderedWithdraw` functions.
     /// Contains a common logic for these functions.
-    /// @param _poolStakingAddress The staking address of the pool from which the tokens are withdrawn.
+    /// @param _poolStakingAddress The staking address of the pool from which the tokens/coins are withdrawn.
     /// @param _staker The staker's address.
     function _withdrawCheckPool(address _poolStakingAddress, address _staker) internal {
         if (_staker == _poolStakingAddress) {

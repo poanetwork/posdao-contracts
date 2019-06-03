@@ -11,14 +11,14 @@ import "./interfaces/ICertifier.sol";
 
 contract InitializerHBBFT is ContractsAddresses {
     constructor(
-        address _erc20TokenContract,
         address _owner,
         address[] memory _miningAddresses,
         address[] memory _stakingAddresses,
         bytes[] memory _publicKeys,
         bool _firstValidatorIsUnremovable, // must be `false` for production network
         uint256 _delegatorMinStake,
-        uint256 _candidateMinStake
+        uint256 _candidateMinStake,
+        bool _erc20Restricted
     ) public {
         IValidatorSet(VALIDATOR_SET_CONTRACT).initialize(
             BLOCK_REWARD_CONTRACT,
@@ -33,10 +33,10 @@ contract InitializerHBBFT is ContractsAddresses {
         );
         IStakingHBBFT(STAKING_CONTRACT).initialize(
             VALIDATOR_SET_CONTRACT,
-            _erc20TokenContract,
             _stakingAddresses,
             _delegatorMinStake,
-            _candidateMinStake
+            _candidateMinStake,
+            _erc20Restricted
         );
         ITxPermission(PERMISSION_CONTRACT).initialize(_owner);
         ICertifier(CERTIFIER_CONTRACT).initialize(_owner);

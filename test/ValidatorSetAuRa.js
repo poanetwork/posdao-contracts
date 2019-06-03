@@ -74,12 +74,12 @@ contract('ValidatorSetAuRa', async accounts => {
       await stakingAuRa.setValidatorSetAddress('0x0000000000000000000000000000000000000000').should.be.fulfilled;
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
-        '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialStakingAddresses, // _initialStakingAddresses
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
-        4320 // _stakeWithdrawDisallowPeriod
+        4320, // _stakeWithdrawDisallowPeriod
+        false // _erc20Restricted
       ).should.be.fulfilled;
 
       // Deploy ERC20 contract
@@ -117,12 +117,12 @@ contract('ValidatorSetAuRa', async accounts => {
       await stakingAuRa.setValidatorSetAddress('0x0000000000000000000000000000000000000000').should.be.fulfilled;
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
-        '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialStakingAddresses, // _initialStakingAddresses
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
-        4320 // _stakeWithdrawDisallowPeriod
+        4320, // _stakeWithdrawDisallowPeriod
+        false // _erc20Restricted
       ).should.be.fulfilled;
       (await stakingAuRa.getPoolsToBeRemoved.call()).should.be.deep.equal([
         initialStakingAddresses[1],
@@ -162,12 +162,12 @@ contract('ValidatorSetAuRa', async accounts => {
       await stakingAuRa.setCurrentBlockNumber(0).should.be.fulfilled;
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
-        '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialStakingAddresses, // _initialStakingAddresses
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
-        4320 // _stakeWithdrawDisallowPeriod
+        4320, // _stakeWithdrawDisallowPeriod
+        false // _erc20Restricted
       ).should.be.fulfilled;
 
       // Set `initiateChangeAllowed` boolean flag to `true`
@@ -435,12 +435,12 @@ contract('ValidatorSetAuRa', async accounts => {
       await stakingAuRa.setCurrentBlockNumber(0).should.be.fulfilled;
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
-        '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialStakingAddresses, // _initialStakingAddresses
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
-        4320 // _stakeWithdrawDisallowPeriod
+        4320, // _stakeWithdrawDisallowPeriod
+        false // _erc20Restricted
       ).should.be.fulfilled;
       await stakingAuRa.setCurrentBlockNumber(120960).should.be.fulfilled;
       await validatorSetAuRa.setCurrentBlockNumber(120960).should.be.fulfilled;
@@ -568,12 +568,12 @@ contract('ValidatorSetAuRa', async accounts => {
       await stakingAuRa.setCurrentBlockNumber(0).should.be.fulfilled;
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
-        '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialStakingAddresses, // _initialStakingAddresses
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
-        4320 // _stakeWithdrawDisallowPeriod
+        4320, // _stakeWithdrawDisallowPeriod
+        false // _erc20Restricted
       ).should.be.fulfilled;
       await stakingAuRa.setValidatorSetAddress(validatorSetAuRa.address).should.be.fulfilled;
 
@@ -742,12 +742,12 @@ contract('ValidatorSetAuRa', async accounts => {
       await stakingAuRa.setCurrentBlockNumber(0).should.be.fulfilled;
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
-        '0x0000000000000000000000000000000000000000', // _erc20TokenContract
         initialStakingAddresses, // _initialStakingAddresses
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
-        4320 // _stakeWithdrawDisallowPeriod
+        4320, // _stakeWithdrawDisallowPeriod
+        false // _erc20Restricted
       ).should.be.fulfilled;
       await stakingAuRa.setValidatorSetAddress(validatorSetAuRa.address).should.be.fulfilled;
 

@@ -32,7 +32,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     /// @param bridge The bridge address which called the `addExtraReceiver` function.
     event AddedReceiver(uint256 amount, address indexed receiver, address indexed bridge);
 
-    /// @dev Emitted by the `_mintNativeCoinsByErcToNativeBridge` function which is called by the `reward` function.
+    /// @dev Emitted by the `_mintNativeCoins` function which is called by the `reward` function.
     /// This event is only used by the unit tests because the `reward` function cannot emit events.
     /// @param receivers The array of receiver addresses for which native coins are minted. The length of this
     /// array is equal to the length of the `rewards` array.
@@ -314,18 +314,19 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     uint256 internal constant REWARD_PERCENT_MULTIPLIER = 1000000;
 
     /// @dev Joins two native coin receiver elements into a single set and returns the result
-    /// to the `reward` function: the first element comes from the `erc-to-native` bridge fee distribution,
-    /// the second from the `erc-to-native` bridge when native coins are minted for the specified addresses.
+    /// to the `reward` function: the first element comes from the `erc-to-native` bridge fee distribution
+    /// (or from native coins fixed distribution), the second from the `erc-to-native` bridge when native
+    /// coins are minted for the specified addresses.
     /// Dequeues the addresses enqueued with the `addExtraReceiver` function by the `erc-to-native` bridge.
     /// Accumulates minting statistics for the `erc-to-native` bridges.
-    /// @param _bridgeFeeReceivers The array of native coin receivers formed by the `_distributeRewards` function.
-    /// @param _bridgeFeeRewards The array of native coin amounts to be minted for the corresponding
-    /// `_bridgeFeeReceivers`. The size of this array is equal to the size of the `_bridgeFeeReceivers` array.
+    /// @param _receivers The array of native coin receivers formed by the `_distributeRewards` function.
+    /// @param _rewards The array of native coin amounts to be minted for the corresponding
+    /// `_receivers`. The size of this array is equal to the size of the `_receivers` array.
     /// @param _queueLimit Max number of addresses which can be dequeued from the queue formed by the
     /// `addExtraReceiver` function.
-    function _mintNativeCoinsByErcToNativeBridge(
-        address[] memory _bridgeFeeReceivers,
-        uint256[] memory _bridgeFeeRewards,
+    function _mintNativeCoins(
+        address[] memory _receivers,
+        uint256[] memory _rewards,
         uint256 _queueLimit
     )
         internal
@@ -337,7 +338,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
             extraLength = _queueLimit;
         }
 
-        receivers = new address[](extraLength + _bridgeFeeReceivers.length);
+        receivers = new address[](extraLength + _receivers.length);
         rewards = new uint256[](receivers.length);
 
         uint256 i;
@@ -351,8 +352,8 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         }
 
         for (i = extraLength; i < receivers.length; i++) {
-            receivers[i] = _bridgeFeeReceivers[j];
-            rewards[i] = _bridgeFeeRewards[j];
+            receivers[i] = _receivers[j];
+            rewards[i] = _rewards[j];
             j++;
         }
 
@@ -362,7 +363,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     }
 
     /// @dev Dequeues the information about the native coins receiver enqueued with the `addExtraReceiver`
-    /// function by the `erc-to-native` bridge. This function is used by `_mintNativeCoinsByErcToNativeBridge`.
+    /// function by the `erc-to-native` bridge. This function is used by `_mintNativeCoins`.
     /// @return `uint256 amount` - The amount to be minted for the `receiver` address.
     /// `address receiver` - The address for which the `amount` is minted.
     /// `address bridge` - The address of the bridge contract which called the `addExtraReceiver` function.
@@ -402,7 +403,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     }
 
     /// @dev Accumulates minting statistics for the `erc-to-native` bridge.
-    /// This function is used by the `_mintNativeCoinsByErcToNativeBridge` function.
+    /// This function is used by the `_mintNativeCoins` function.
     /// @param _amount The amount minted for the `_account` address.
     /// @param _account The address for which the `_amount` is minted.
     /// @param _bridge The address of the bridge contract which called the `addExtraReceiver` function.

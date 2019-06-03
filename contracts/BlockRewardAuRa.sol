@@ -113,6 +113,7 @@ contract BlockRewardAuRa is BlockRewardBase {
             (receiversNative, rewardsNative, noop) = _distributeRewards(
                 validatorSetContract,
                 stakingContract.erc20TokenContract(),
+                stakingContract.erc20Restricted(),
                 IStakingAuRa(address(stakingContract)),
                 stakingEpoch,
                 rewardPointBlock
@@ -123,7 +124,7 @@ contract BlockRewardAuRa is BlockRewardBase {
         }
 
         // Mint native coins if needed
-        return _mintNativeCoinsByErcToNativeBridge(receiversNative, rewardsNative, bridgeQueueLimit);
+        return _mintNativeCoins(receiversNative, rewardsNative, bridgeQueueLimit);
     }
 
     // =============================================== Getters ========================================================
@@ -194,19 +195,22 @@ contract BlockRewardAuRa is BlockRewardBase {
     /// blocks of a staking epoch. This function is called by the `reward` function.
     /// @param _validatorSetContract The address of the ValidatorSet contract.
     /// @param _erc20TokenContract The address of the ERC20 staking token contract.
+    /// @param _erc20Restricted A boolean flag indicating whether the StakingAuRa contract restricts using ERC20/677
+    /// contract. If it's set to `true`, native staking coins are used instead of ERC staking tokens.
     /// @param _stakingContract The address of the Staking contract.
     /// @param _stakingEpoch The number of the current staking epoch.
     /// @param _rewardPointBlock The number of the block within the current staking epoch when the rewarding process
     /// should start. This number is calculated by the `_rewardPointBlock` getter.
-    /// @return `address[] receivers` - The array of fee receivers (the fee is in native coins) which should be
-    /// rewarded at the current block by the `erc-to-native` bridge.
+    /// @return `address[] receivers` - The array of native coins receivers which should be
+    /// rewarded at the current block by the `erc-to-native` bridge or by the fixed native reward.
     /// `uint256[] rewards` - The array of amounts corresponding to the `receivers` array.
     /// `bool noop` - The boolean flag which is set to `true` when there are no complex operations during the
     /// function launch. The flag is used by the `reward` function to control the load on the block inside the
-    /// `_mintNativeCoinsByErcToNativeBridge` function.
+    /// `_mintNativeCoins` function.
     function _distributeRewards(
         IValidatorSet _validatorSetContract,
         address _erc20TokenContract,
+        bool _erc20Restricted,
         IStakingAuRa _stakingContract,
         uint256 _stakingEpoch,
         uint256 _rewardPointBlock
@@ -228,9 +232,17 @@ contract BlockRewardAuRa is BlockRewardBase {
             bool isRewarding = false;
 
             totalReward = uintStorage[BRIDGE_TOKEN_FEE];
-            // Accumulated bridge fee plus 1% per year inflation
-            totalReward += snapshotTotalStakeAmount() * _stakingContract.stakingEpochDuration() / 630720000;
-            if (totalReward != 0 && _erc20TokenContract != address(0) || uintStorage[BRIDGE_NATIVE_FEE] != 0) {
+
+            if (!_erc20Restricted) {
+                // Accumulated bridge fee plus 1% per year token inflation
+                totalReward += snapshotTotalStakeAmount() * _stakingContract.stakingEpochDuration() / 630720000;
+            }
+
+            if (
+                totalReward != 0 && _erc20TokenContract != address(0) ||
+                uintStorage[BRIDGE_NATIVE_FEE] != 0 ||
+                _erc20Restricted
+            ) {
                 j = 0;
                 for (i = 0; i < validators.length; i++) {
                     ratio[i] = uintStorage[keccak256(abi.encode(
@@ -263,6 +275,12 @@ contract BlockRewardAuRa is BlockRewardBase {
             }
 
             totalReward = uintStorage[BRIDGE_NATIVE_FEE];
+
+            if (_erc20Restricted) {
+                // Accumulated bridge fee plus 2.5% per year coin inflation
+                totalReward += _stakingContract.stakingEpochDuration() * 1 ether;
+            }
+
             if (totalReward != 0) {
                 uintStorage[BRIDGE_NATIVE_FEE] = 0;
 

@@ -32,7 +32,7 @@ contract BlockRewardHBBFT is BlockRewardBase {
         */
 
         // Mint native coins by bridge if needed.
-        return _mintNativeCoinsByErcToNativeBridge(new address[](0), new uint256[](0), 25);
+        return _mintNativeCoins(new address[](0), new uint256[](0), 25);
     }
 
     // =============================================== Private ========================================================
