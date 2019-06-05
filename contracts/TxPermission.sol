@@ -1,6 +1,5 @@
 pragma solidity 0.5.7;
 
-import "./abstracts/ContractsAddresses.sol";
 import "./interfaces/IBlockReward.sol";
 import "./interfaces/IRandomAuRa.sol";
 import "./interfaces/IStakingAuRa.sol";
@@ -13,7 +12,7 @@ import "./eternal-storage/OwnedEternalStorage.sol";
 /// @dev Controls the use of zero gas price by validators in service transactions,
 /// protecting the network against "transaction spamming" by malicious validators.
 /// The protection logic is declared in the `allowedTxTypes` function.
-contract TxPermission is ContractsAddresses, OwnedEternalStorage, ITxPermission {
+contract TxPermission is OwnedEternalStorage, ITxPermission {
 
     // =============================================== Setters ========================================================
 
@@ -21,11 +20,14 @@ contract TxPermission is ContractsAddresses, OwnedEternalStorage, ITxPermission 
     /// Must be called by the constructor of the `Initializer` contract on the genesis block.
     /// @param _allowedSender The address for which transactions of any type must be allowed.
     /// See the `allowedTxTypes` getter.
+    /// @param _validatorSet The address of the `ValidatorSet` contract.
     function initialize(
-        address _allowedSender
+        address _allowedSender,
+        address _validatorSet
     ) external {
         require(block.number == 0);
         _addAllowedSender(_allowedSender);
+        addressStorage[VALIDATOR_SET_CONTRACT] = _validatorSet;
     }
 
     /// @dev Adds the address for which transactions of any type must be allowed.
@@ -107,7 +109,7 @@ contract TxPermission is ContractsAddresses, OwnedEternalStorage, ITxPermission 
             return (ALL, false);
         }
 
-        IValidatorSet validatorSet = IValidatorSet(VALIDATOR_SET_CONTRACT);
+        IValidatorSet validatorSet = validatorSetContract();
 
         // Get the called function's signature
         bytes4 signature = bytes4(0);
@@ -117,7 +119,8 @@ contract TxPermission is ContractsAddresses, OwnedEternalStorage, ITxPermission 
             signature |= bytes4(_data[i]) >> i*8;
         }
 
-        if (_to == RANDOM_CONTRACT) {
+        if (_to == validatorSet.randomContract()) {
+            address randomContract = validatorSet.randomContract();
             abiParams = new bytes(_data.length - 4 > 32 ? 32 : _data.length - 4);
 
             for (i = 0; i < abiParams.length; i++) {
@@ -126,16 +129,16 @@ contract TxPermission is ContractsAddresses, OwnedEternalStorage, ITxPermission 
 
             if (signature == bytes4(keccak256("commitHash(bytes32,bytes)"))) {
                 (bytes32 secretHash) = abi.decode(abiParams, (bytes32));
-                return (IRandomAuRa(RANDOM_CONTRACT).commitHashCallable(_sender, secretHash) ? CALL : NONE, false);
+                return (IRandomAuRa(randomContract).commitHashCallable(_sender, secretHash) ? CALL : NONE, false);
             } else if (signature == bytes4(keccak256("revealSecret(uint256)"))) {
                 (uint256 secret) = abi.decode(abiParams, (uint256));
-                return (IRandomAuRa(RANDOM_CONTRACT).revealSecretCallable(_sender, secret) ? CALL : NONE, false);
+                return (IRandomAuRa(randomContract).revealSecretCallable(_sender, secret) ? CALL : NONE, false);
             } else {
                 return (NONE, false);
             }
         }
 
-        if (_to == VALIDATOR_SET_CONTRACT) {
+        if (_to == address(validatorSet)) {
             // The rules for the ValidatorSet contract
             if (signature == bytes4(keccak256("emitInitiateChange()"))) {
                 // The `emitInitiateChange()` can be called by anyone
@@ -158,7 +161,7 @@ contract TxPermission is ContractsAddresses, OwnedEternalStorage, ITxPermission 
 
                 // The `reportMalicious()` can only be called by the validator's mining address
                 // when the calling is allowed
-                (bool callable,) = IValidatorSetAuRa(VALIDATOR_SET_CONTRACT).reportMaliciousCallable(
+                (bool callable,) = IValidatorSetAuRa(address(validatorSet)).reportMaliciousCallable(
                     _sender, maliciousMiningAddress, blockNumber
                 );
 
@@ -188,14 +191,17 @@ contract TxPermission is ContractsAddresses, OwnedEternalStorage, ITxPermission 
     /// @dev Returns a boolean flag indicating whether the current block gas limit must be limited.
     /// See https://github.com/poanetwork/parity-ethereum/issues/119
     function limitBlockGas() public view returns(bool) {
-        if (IBlockReward(BLOCK_REWARD_CONTRACT).isRewarding()) {
+        IValidatorSet validatorSet = validatorSetContract();
+        IBlockReward blockRewardContract = IBlockReward(validatorSet.blockRewardContract());
+        if (blockRewardContract.isRewarding()) {
             return true;
         }
-        uint256 stakingEpochEndBlock = IStakingAuRa(STAKING_CONTRACT).stakingEpochEndBlock();
+        address stakingContract = validatorSet.stakingContract();
+        uint256 stakingEpochEndBlock = IStakingAuRa(stakingContract).stakingEpochEndBlock();
         if (block.number == stakingEpochEndBlock - 1 || block.number == stakingEpochEndBlock) {
             return true;
         }
-        if (IBlockReward(BLOCK_REWARD_CONTRACT).isSnapshotting()) {
+        if (blockRewardContract.isSnapshotting()) {
             return true;
         }
         return false;
@@ -217,9 +223,15 @@ contract TxPermission is ContractsAddresses, OwnedEternalStorage, ITxPermission 
         return false;
     }
 
+    /// @dev Returns the address of the `ValidatorSet` contract.
+    function validatorSetContract() public view returns(IValidatorSet) {
+        return IValidatorSet(addressStorage[VALIDATOR_SET_CONTRACT]);
+    }
+
     // =============================================== Private ========================================================
 
     bytes32 internal constant ALLOWED_SENDERS = keccak256("allowedSenders");
+    bytes32 internal constant VALIDATOR_SET_CONTRACT = keccak256("validatorSetContract");
 
     // Allowed transaction types mask
     uint32 internal constant NONE = 0;

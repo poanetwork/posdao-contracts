@@ -60,7 +60,7 @@ contract InitializerAuRa is ContractsAddresses {
             _erc20Restricted
         );
         IRandomAuRa(RANDOM_CONTRACT).initialize(_collectRoundLength);
-        ITxPermission(PERMISSION_CONTRACT).initialize(_owner);
+        ITxPermission(PERMISSION_CONTRACT).initialize(_owner, VALIDATOR_SET_CONTRACT);
         ICertifier(CERTIFIER_CONTRACT).initialize(_owner);
         selfdestruct(msg.sender);
     }

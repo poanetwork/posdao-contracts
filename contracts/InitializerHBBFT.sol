@@ -38,7 +38,7 @@ contract InitializerHBBFT is ContractsAddresses {
             _candidateMinStake,
             _erc20Restricted
         );
-        ITxPermission(PERMISSION_CONTRACT).initialize(_owner);
+        ITxPermission(PERMISSION_CONTRACT).initialize(_owner, VALIDATOR_SET_CONTRACT);
         ICertifier(CERTIFIER_CONTRACT).initialize(_owner);
         selfdestruct(msg.sender);
     }

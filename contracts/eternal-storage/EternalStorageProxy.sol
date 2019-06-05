@@ -80,10 +80,14 @@ contract EternalStorageProxy is OwnedEternalStorage, IEternalStorageProxy {
         if (implementation() == _newImplementation) return false;
         if (!_isContract(_newImplementation)) return false;
 
-        uint256 newVersion = version() + 1;
-        if (newVersion <= version()) return false;
+        uint256 newVersion = version();
 
-        _setVersion(newVersion);
+        if (implementation() != address(0)) {
+            newVersion++;
+            if (newVersion <= version()) return false;
+            _setVersion(newVersion);
+        }
+
         _setImplementation(_newImplementation);
 
         emit Upgraded(newVersion, _newImplementation);
