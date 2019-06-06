@@ -1,6 +1,6 @@
 pragma solidity 0.5.7;
 
-import "./abstracts/ContractsAddresses.sol";
+import "./interfaces/IBlockReward.sol";
 import "./interfaces/IValidatorSet.sol";
 import "./interfaces/IStakingAuRa.sol";
 import "./interfaces/IRandomAuRa.sol";
@@ -8,10 +8,17 @@ import "./interfaces/ITxPermission.sol";
 import "./interfaces/ICertifier.sol";
 
 
-/// @dev Used once on network startup and then destroyed on the genesis block.
-/// Needed for initializing upgradeable contracts on the genesis block since
+/// @dev Used once on network startup and then destroyed.
+/// Needed for initializing upgradeable contracts since
 /// upgradeable contracts can't have constructors.
-contract InitializerAuRa is ContractsAddresses {
+contract InitializerAuRa {
+    /// @param _contracts An array of the contracts:
+    ///   0 is ValidatorSetAuRa,
+    ///   1 is BlockRewardAuRa,
+    ///   2 is RandomAuRa,
+    ///   3 is StakingAuRa,
+    ///   4 is TxPermission,
+    ///   5 is Certifier.
     /// @param _owner The contracts' owner.
     /// @param _miningAddresses The array of initial validators' mining addresses.
     /// @param _stakingAddresses The array of initial validators' staking addresses.
@@ -31,6 +38,7 @@ contract InitializerAuRa is ContractsAddresses {
     /// @param _erc20Restricted Defines whether this staking contract restricts using ERC20/677 contract.
     /// If it's set to `true`, native staking coins are used instead of ERC staking tokens.
     constructor(
+        address[] memory _contracts,
         address _owner,
         address[] memory _miningAddresses,
         address[] memory _stakingAddresses,
@@ -42,16 +50,16 @@ contract InitializerAuRa is ContractsAddresses {
         uint256 _collectRoundLength,
         bool _erc20Restricted
     ) public {
-        IValidatorSet(VALIDATOR_SET_CONTRACT).initialize(
-            BLOCK_REWARD_CONTRACT,
-            RANDOM_CONTRACT,
-            STAKING_CONTRACT,
+        IValidatorSet(_contracts[0]).initialize(
+            _contracts[1], // _blockRewardContract
+            _contracts[2], // _randomContract
+            _contracts[3], // _stakingContract
             _miningAddresses,
             _stakingAddresses,
             _firstValidatorIsUnremovable
         );
-        IStakingAuRa(STAKING_CONTRACT).initialize(
-            VALIDATOR_SET_CONTRACT,
+        IStakingAuRa(_contracts[3]).initialize(
+            _contracts[0], // _validatorSetContract
             _stakingAddresses,
             _delegatorMinStake,
             _candidateMinStake,
@@ -59,9 +67,10 @@ contract InitializerAuRa is ContractsAddresses {
             _stakeWithdrawDisallowPeriod,
             _erc20Restricted
         );
-        IRandomAuRa(RANDOM_CONTRACT).initialize(_collectRoundLength);
-        ITxPermission(PERMISSION_CONTRACT).initialize(_owner, VALIDATOR_SET_CONTRACT);
-        ICertifier(CERTIFIER_CONTRACT).initialize(_owner);
+        IBlockReward(_contracts[1]).initialize(_contracts[0]);
+        IRandomAuRa(_contracts[2]).initialize(_collectRoundLength, _contracts[0]);
+        ITxPermission(_contracts[4]).initialize(_owner, _contracts[0]);
+        ICertifier(_contracts[5]).initialize(_owner, _contracts[0]);
         selfdestruct(msg.sender);
     }
 }

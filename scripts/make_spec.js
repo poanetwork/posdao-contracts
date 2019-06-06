@@ -4,6 +4,13 @@ const Web3 = require('web3');
 const web3 = new Web3(new Web3.providers.HttpProvider("https://dai.poa.network"));
 const utils = require('./utils/utils');
 
+const VALIDATOR_SET_CONTRACT = '0x1000000000000000000000000000000000000001';
+const BLOCK_REWARD_CONTRACT = '0x2000000000000000000000000000000000000001';
+const RANDOM_CONTRACT = '0x3000000000000000000000000000000000000001';
+const STAKING_CONTRACT = '0x1100000000000000000000000000000000000001';
+const PERMISSION_CONTRACT = '0x4000000000000000000000000000000000000001';
+const CERTIFIER_CONTRACT = '0x5000000000000000000000000000000000000001';
+
 main();
 
 async function main() {
@@ -63,10 +70,10 @@ async function main() {
   ]});
   spec.engine.authorityRound.params.validators.multi = {
     "0": {
-      "contract": '0x1000000000000000000000000000000000000001'
+      "contract": VALIDATOR_SET_CONTRACT
     }
   };
-  spec.accounts['0x1000000000000000000000000000000000000001'] = {
+  spec.accounts[VALIDATOR_SET_CONTRACT] = {
     balance: '0',
     constructor: await deploy.encodeABI()
   };
@@ -80,7 +87,7 @@ async function main() {
     '0x1100000000000000000000000000000000000000', // implementation address
     owner
   ]});
-  spec.accounts['0x1100000000000000000000000000000000000001'] = {
+  spec.accounts[STAKING_CONTRACT] = {
     balance: '0',
     constructor: await deploy.encodeABI()
   };
@@ -94,11 +101,11 @@ async function main() {
     '0x2000000000000000000000000000000000000000', // implementation address
     owner
   ]});
-  spec.accounts['0x2000000000000000000000000000000000000001'] = {
+  spec.accounts[BLOCK_REWARD_CONTRACT] = {
     balance: '0',
     constructor: await deploy.encodeABI()
   };
-  spec.engine.authorityRound.params.blockRewardContractAddress = '0x2000000000000000000000000000000000000001';
+  spec.engine.authorityRound.params.blockRewardContractAddress = BLOCK_REWARD_CONTRACT;
   spec.engine.authorityRound.params.blockRewardContractTransition = 0;
   spec.accounts['0x2000000000000000000000000000000000000000'] = {
     balance: '0',
@@ -110,7 +117,7 @@ async function main() {
     '0x3000000000000000000000000000000000000000', // implementation address
     owner
   ]});
-  spec.accounts['0x3000000000000000000000000000000000000001'] = {
+  spec.accounts[RANDOM_CONTRACT] = {
     balance: '0',
     constructor: await deploy.encodeABI()
   };
@@ -118,18 +125,18 @@ async function main() {
     balance: '0',
     constructor: '0x' + contractsCompiled['RandomAuRa'].bytecode
   };
-  spec.engine.authorityRound.params.randomnessContractAddress = '0x3000000000000000000000000000000000000001';
+  spec.engine.authorityRound.params.randomnessContractAddress = RANDOM_CONTRACT;
 
   // Build TxPermission contract
   deploy = await contract.deploy({data: '0x' + eternalStorageProxyCompiled.bytecode, arguments: [
     '0x4000000000000000000000000000000000000000', // implementation address
     owner
   ]});
-  spec.accounts['0x4000000000000000000000000000000000000001'] = {
+  spec.accounts[PERMISSION_CONTRACT] = {
     balance: '0',
     constructor: await deploy.encodeABI()
   };
-  spec.params.transactionPermissionContract = '0x4000000000000000000000000000000000000001';
+  spec.params.transactionPermissionContract = PERMISSION_CONTRACT;
   spec.accounts['0x4000000000000000000000000000000000000000'] = {
     balance: '0',
     constructor: '0x' + contractsCompiled['TxPermission'].bytecode
@@ -140,7 +147,7 @@ async function main() {
     '0x5000000000000000000000000000000000000000', // implementation address
     owner
   ]});
-  spec.accounts['0x5000000000000000000000000000000000000001'] = {
+  spec.accounts[CERTIFIER_CONTRACT] = {
     balance: '0',
     constructor: await deploy.encodeABI()
   };
@@ -152,7 +159,7 @@ async function main() {
   // Build Registry contract
   contract = new web3.eth.Contract(contractsCompiled['Registry'].abi);
   deploy = await contract.deploy({data: '0x' + contractsCompiled['Registry'].bytecode, arguments: [
-    '0x5000000000000000000000000000000000000001', // the address of Certifier contract
+    CERTIFIER_CONTRACT,
     owner
   ]});
   spec.accounts['0x6000000000000000000000000000000000000000'] = {
@@ -164,6 +171,14 @@ async function main() {
   // Build InitializerAuRa contract
   contract = new web3.eth.Contract(contractsCompiled['InitializerAuRa'].abi);
   deploy = await contract.deploy({data: '0x' + contractsCompiled['InitializerAuRa'].bytecode, arguments: [
+    [ // _contracts
+      VALIDATOR_SET_CONTRACT,
+      BLOCK_REWARD_CONTRACT,
+      RANDOM_CONTRACT,
+      STAKING_CONTRACT,
+      PERMISSION_CONTRACT,
+      CERTIFIER_CONTRACT
+    ],
     owner, // _owner
     initialValidators, // _miningAddresses
     stakingAddresses, // _stakingAddresses

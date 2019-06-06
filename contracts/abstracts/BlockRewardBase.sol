@@ -13,9 +13,6 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
 
     // ============================================== Constants =======================================================
 
-    /// @dev The address of the ValidatorSet contract (EternalStorageProxy proxy contract for ValidatorSet).
-    address public constant VALIDATOR_SET_CONTRACT = address(0x1000000000000000000000000000000000000001);
-
     /// @dev A constant that defines the number of sections the reward distribution
     /// and stakes snapshotting processes are split into for each pool. This is used to
     /// reduce the load on each block when reward distribution (at the end of staking epoch)
@@ -63,13 +60,6 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         _;
     }
 
-    /// @dev Ensures the caller is the ValidatorSet contract address
-    /// (EternalStorageProxy proxy contract for ValidatorSet).
-    modifier onlyValidatorSet {
-        require(msg.sender == VALIDATOR_SET_CONTRACT);
-        _;
-    }
-
     // =============================================== Setters ========================================================
 
     /// @dev Called by the `erc-to-native` bridge contract when a portion of the bridge fee should be distributed to
@@ -100,6 +90,15 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         require(boolStorage[QUEUE_ER_INITIALIZED]);
         _enqueueExtraReceiver(_amount, _receiver, msg.sender);
         emit AddedReceiver(_amount, _receiver, msg.sender);
+    }
+
+    /// @dev Initializes the contract at network startup.
+    /// Must be called by the constructor of the `Initializer` contract.
+    /// @param _validatorSet The address of the `ValidatorSet` contract.
+    function initialize(address _validatorSet) external {
+        require(addressStorage[VALIDATOR_SET_CONTRACT] == address(0));
+        require(_validatorSet != address(0));
+        addressStorage[VALIDATOR_SET_CONTRACT] = _validatorSet;
     }
 
     /// @dev Sets the array of `erc-to-native` bridge addresses which are allowed to call some of the functions with
@@ -282,6 +281,11 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         return uintStorage[SNAPSHOT_TOTAL_STAKE_AMOUNT];
     }
 
+    /// @dev Returns the address of the `ValidatorSet` contract.
+    function validatorSetContract() public view returns(IValidatorSet) {
+        return IValidatorSet(addressStorage[VALIDATOR_SET_CONTRACT]);
+    }
+
     // =============================================== Private ========================================================
 
     bytes32 internal constant BRIDGE_NATIVE_FEE = keccak256("bridgeNativeFee");
@@ -297,6 +301,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     bytes32 internal constant QUEUE_ER_LAST = keccak256("queueERLast");
     bytes32 internal constant SNAPSHOT_STAKING_ADDRESSES = keccak256("snapshotStakingAddresses");
     bytes32 internal constant SNAPSHOT_TOTAL_STAKE_AMOUNT = keccak256("snapshotTotalStakeAmount");
+    bytes32 internal constant VALIDATOR_SET_CONTRACT = keccak256("validatorSetContract");
 
     bytes32 internal constant ERC_TO_ERC_BRIDGE_ALLOWED = "ercToErcBridgeAllowed";
     bytes32 internal constant ERC_TO_NATIVE_BRIDGE_ALLOWED = "ercToNativeBridgeAllowed";

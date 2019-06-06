@@ -35,8 +35,8 @@ contract StakingAuRa is IStakingAuRa, StakingBase {
         _stake(stakingAddress, msg.value);
     }
 
-    /// @dev Initializes the network parameters on the genesis block.
-    /// Must be called by the constructor of the `InitializerAuRa` contract on the genesis block.
+    /// @dev Initializes the network parameters.
+    /// Must be called by the constructor of the `InitializerAuRa` contract.
     /// @param _validatorSetContract The address of the `ValidatorSetAuRa` contract.
     /// @param _initialStakingAddresses The array of initial validators' staking addresses.
     /// @param _delegatorMinStake The minimum allowed amount of delegator stake in STAKE_UNITs.

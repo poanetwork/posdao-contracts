@@ -10,17 +10,12 @@ import "../libs/SafeMath.sol";
 contract RandomBase is OwnedEternalStorage, IRandom {
     using SafeMath for uint256;
 
-    // ============================================== Constants =======================================================
-
-    /// @dev ValidatorSet contract address (EternalStorageProxy proxy contract for ValidatorSet).
-    address public constant VALIDATOR_SET_CONTRACT = address(0x1000000000000000000000000000000000000001);
-
     // ============================================== Modifiers =======================================================
 
     /// @dev Ensures the caller is the ValidatorSet contract address
     /// (EternalStorageProxy proxy contract for ValidatorSet).
     modifier onlyValidatorSetContract() {
-        require(msg.sender == _getValidatorSetContract());
+        require(msg.sender == address(validatorSetContract()));
         _;
     }
 
@@ -32,10 +27,23 @@ contract RandomBase is OwnedEternalStorage, IRandom {
         return _getCurrentSeed();
     }
 
+    /// @dev Returns the address of the `ValidatorSet` contract.
+    function validatorSetContract() public view returns(IValidatorSet) {
+        return IValidatorSet(addressStorage[VALIDATOR_SET_CONTRACT]);
+    }
+
     // =============================================== Private ========================================================
 
     bytes32 internal constant CURRENT_SEED = keccak256("currentSeed");
-    bytes32 internal constant VALIDATOR_SET_CONTRACT_ADDRESS = keccak256("validatorSetContractAddress");
+    bytes32 internal constant VALIDATOR_SET_CONTRACT = keccak256("validatorSetContract");
+
+    /// @dev Initializes the network parameters. Used by the `initialize` function of a child contract.
+    /// @param _validatorSet The address of the `ValidatorSet` contract.
+    function _initialize(address _validatorSet) internal {
+        require(_validatorSet != address(0));
+        require(addressStorage[VALIDATOR_SET_CONTRACT] == address(0));
+        addressStorage[VALIDATOR_SET_CONTRACT] = _validatorSet;
+    }
 
     /// @dev Updates the current random seed.
     /// @param _seed A new random seed.
@@ -46,12 +54,6 @@ contract RandomBase is OwnedEternalStorage, IRandom {
     /// @dev Reads the current random seed from the state.
     function _getCurrentSeed() internal view returns(uint256) {
         return uintStorage[CURRENT_SEED];
-    }
-
-    /// @dev Returns ValidatorSet contract address. Needed mostly for unit tests.
-    function _getValidatorSetContract() internal view returns(address) {
-        address contractAddress = addressStorage[VALIDATOR_SET_CONTRACT_ADDRESS];
-        return contractAddress != address(0) ? contractAddress : VALIDATOR_SET_CONTRACT;
     }
 
 }

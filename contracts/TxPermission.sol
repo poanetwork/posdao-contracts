@@ -17,7 +17,7 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
     // =============================================== Setters ========================================================
 
     /// @dev Initializes the contract at network startup.
-    /// Must be called by the constructor of the `Initializer` contract on the genesis block.
+    /// Must be called by the constructor of the `Initializer` contract.
     /// @param _allowedSender The address for which transactions of any type must be allowed.
     /// See the `allowedTxTypes` getter.
     /// @param _validatorSet The address of the `ValidatorSet` contract.
@@ -25,7 +25,8 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
         address _allowedSender,
         address _validatorSet
     ) external {
-        require(block.number == 0);
+        require(_validatorSet != address(0));
+        require(addressStorage[VALIDATOR_SET_CONTRACT] == address(0));
         _addAllowedSender(_allowedSender);
         addressStorage[VALIDATOR_SET_CONTRACT] = _validatorSet;
     }

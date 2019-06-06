@@ -9,11 +9,6 @@ import "./eternal-storage/OwnedEternalStorage.sol";
 /// (see https://wiki.parity.io/Permissioning.html#gas-price for more info).
 contract Certifier is OwnedEternalStorage, ICertifier {
 
-    // ============================================== Constants =======================================================
-
-    /// @dev The address of the ValidatorSet contract (EternalStorageProxy proxy contract for ValidatorSet).
-    address public constant VALIDATOR_SET_CONTRACT = address(0x1000000000000000000000000000000000000001);
-
     // ================================================ Events ========================================================
 
     /// @dev Emitted by the `certify` function when the specified address is allowed to use a zero gas price
@@ -29,13 +24,17 @@ contract Certifier is OwnedEternalStorage, ICertifier {
     // =============================================== Setters ========================================================
 
     /// @dev Initializes the contract at network startup.
-    /// Must be called by the constructor of the `Initializer` contract on the genesis block.
+    /// Must be called by the constructor of the `Initializer` contract.
     /// @param _certifiedAddress The address for which a zero gas price must be allowed.
+    /// @param _validatorSet The address of the `ValidatorSet` contract.
     function initialize(
-        address _certifiedAddress
+        address _certifiedAddress,
+        address _validatorSet
     ) external {
-        require(block.number == 0);
+        require(_validatorSet != address(0));
+        require(addressStorage[VALIDATOR_SET_CONTRACT] == address(0));
         _certify(_certifiedAddress);
+        addressStorage[VALIDATOR_SET_CONTRACT] = _validatorSet;
     }
 
     /// @dev Allows the specified address to use a zero gas price for its transactions.
@@ -64,12 +63,18 @@ contract Certifier is OwnedEternalStorage, ICertifier {
         if (boolStorage[keccak256(abi.encode(CERTIFIED, _who))]) {
             return true;
         }
-        return IValidatorSet(VALIDATOR_SET_CONTRACT).isReportValidatorValid(_who);
+        return validatorSetContract().isReportValidatorValid(_who);
+    }
+
+    /// @dev Returns the address of the `ValidatorSet` contract.
+    function validatorSetContract() public view returns(IValidatorSet) {
+        return IValidatorSet(addressStorage[VALIDATOR_SET_CONTRACT]);
     }
 
     // =============================================== Private ========================================================
 
     bytes32 internal constant CERTIFIED = "certified";
+    bytes32 internal constant VALIDATOR_SET_CONTRACT = keccak256("validatorSetContract");
 
     /// @dev An internal function for the `certify` and `initialize` functions.
     /// @param _who The address for which transactions with a zero gas price must be allowed.

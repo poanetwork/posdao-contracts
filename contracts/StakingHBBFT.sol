@@ -18,14 +18,14 @@ contract StakingHBBFT is IStakingHBBFT, StakingBase {
         _stake(stakingAddress, _amount);
     }
 
-    function addPool(bytes calldata _publicKey, address _miningAddress) external gasPriceIsValid payable {
+    function addPoolNative(bytes calldata _publicKey, address _miningAddress) external gasPriceIsValid payable {
         address stakingAddress = msg.sender;
         IValidatorSetHBBFT(address(validatorSetContract())).savePublicKey(_miningAddress, _publicKey);
         validatorSetContract().setStakingAddress(_miningAddress, stakingAddress);
         _stake(stakingAddress, msg.value);
     }
 
-    /// Must be called by the constructor of `InitializerHBBFT` contract on genesis block.
+    /// Must be called by the constructor of `InitializerHBBFT` contract.
     /// This is used instead of `constructor()` because this contract is upgradable.
     function initialize(
         address _validatorSetContract,

@@ -17,7 +17,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     /// @dev Ensures the caller is the BlockRewardAuRa contract address
     /// (EternalStorageProxy proxy contract for BlockRewardAuRa).
     modifier onlyBlockReward() {
-        require(msg.sender == IValidatorSet(_getValidatorSetContract()).blockRewardContract());
+        require(msg.sender == validatorSetContract().blockRewardContract());
         _;
     }
 
@@ -57,16 +57,18 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     }
 
     /// @dev Initializes the contract at network startup.
-    /// Must be called by the constructor of the `InitializerAuRa` contract on the genesis block.
+    /// Must be called by the constructor of the `InitializerAuRa` contract.
     /// @param _collectRoundLength The length of a collection round in blocks.
+    /// @param _validatorSet The address of the `ValidatorSet` contract.
     function initialize(
-        uint256 _collectRoundLength // in blocks
+        uint256 _collectRoundLength, // in blocks
+        address _validatorSet
     ) external {
-        require(_getCurrentBlockNumber() == 0);
         require(_collectRoundLength % 2 == 0);
         require(_collectRoundLength > 0);
         require(collectRoundLength() == 0);
         uintStorage[COLLECT_ROUND_LENGTH] = _collectRoundLength;
+        super._initialize(_validatorSet);
     }
 
     /// @dev Checks whether the current validators at the end of each collection round revealed their secrets,
@@ -82,17 +84,17 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         address validator;
         uint256 i;
 
-        address stakingContract = IValidatorSet(_getValidatorSetContract()).stakingContract();
+        address stakingContract = validatorSetContract().stakingContract();
 
         uint256 stakingEpoch = IStaking(stakingContract).stakingEpoch();
-        uint256 applyBlock = IValidatorSet(_getValidatorSetContract()).validatorSetApplyBlock();
+        uint256 applyBlock = validatorSetContract().validatorSetApplyBlock();
         uint256 endBlock = IStakingAuRa(stakingContract).stakingEpochEndBlock();
         uint256 currentRound = currentCollectRound();
 
         if (applyBlock != 0 && _getCurrentBlockNumber() > applyBlock + collectRoundLength() * 2) {
             // Check whether each validator didn't reveal their secret
             // during the current collection round
-            validators = IValidatorSet(_getValidatorSetContract()).getValidators();
+            validators = validatorSetContract().getValidators();
             for (i = 0; i < validators.length; i++) {
                 validator = validators[i];
                 if (!sentReveal(currentRound, validator)) {
@@ -113,7 +115,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
             // Check each validator to see if they didn't reveal
             // their secret during the last full `reveals phase`
             // or if they missed the required number of reveals per staking epoch.
-            validators = IValidatorSet(_getValidatorSetContract()).getValidators();
+            validators = validatorSetContract().getValidators();
             for (i = 0; i < validators.length; i++) {
                 validator = validators[i];
                 if (
@@ -121,7 +123,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
                     revealSkips(stakingEpoch, validator) > maxRevealSkipsAllowed
                 ) {
                     // Remove the validator as malicious
-                    IValidatorSetAuRa(_getValidatorSetContract()).removeMaliciousValidator(validator);
+                    IValidatorSetAuRa(address(validatorSetContract())).removeMaliciousValidator(validator);
                 }
             }
         }
@@ -194,7 +196,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
         if (_secretHash == bytes32(0)) return false;
 
-        if (!IValidatorSet(_getValidatorSetContract()).isValidator(_miningAddress)) return false;
+        if (!validatorSetContract().isValidator(_miningAddress)) return false;
 
         if (isCommitted(currentCollectRound(), _miningAddress)) return false; // cannot commit more than once
 
@@ -212,7 +214,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
         if (secretHash == bytes32(0)) return false;
 
-        if (!IValidatorSet(_getValidatorSetContract()).isValidator(_miningAddress)) return false;
+        if (!validatorSetContract().isValidator(_miningAddress)) return false;
 
         uint256 collectRound = currentCollectRound();
 

@@ -25,10 +25,10 @@ contract BlockRewardAuRa is BlockRewardBase {
             return (new address[](0), new uint256[](0));
         }
 
-        IValidatorSet validatorSetContract = IValidatorSet(VALIDATOR_SET_CONTRACT);
+        IValidatorSet validatorSet = validatorSetContract();
 
         // Check if the validator is existed
-        if (!validatorSetContract.isValidator(benefactors[0])) {
+        if (!validatorSet.isValidator(benefactors[0])) {
             return (new address[](0), new uint256[](0));
         }
 
@@ -37,7 +37,7 @@ contract BlockRewardAuRa is BlockRewardBase {
 
         // Check the current validators at the end of each collection round whether
         // they revealed their secrets, and remove a validator as a malicious if needed
-        IRandomAuRa(validatorSetContract.randomContract()).onFinishCollectRound();
+        IRandomAuRa(validatorSet.randomContract()).onFinishCollectRound();
 
         // Initialize queues
         if (!boolStorage[QUEUE_V_INITIALIZED]) {
@@ -51,12 +51,12 @@ contract BlockRewardAuRa is BlockRewardBase {
             boolStorage[QUEUE_ER_INITIALIZED] = true;
         }
 
-        IStaking stakingContract = IStaking(validatorSetContract.stakingContract());
+        IStaking stakingContract = IStaking(validatorSet.stakingContract());
         uint256 bridgeQueueLimit = 100;
         uint256 stakingEpoch = stakingContract.stakingEpoch();
-        uint256 rewardPointBlock = _rewardPointBlock(IStakingAuRa(address(stakingContract)), validatorSetContract);
+        uint256 rewardPointBlock = _rewardPointBlock(IStakingAuRa(address(stakingContract)), validatorSet);
 
-        if (validatorSetContract.validatorSetApplyBlock() != 0 && block.number <= rewardPointBlock) {
+        if (validatorSet.validatorSetApplyBlock() != 0 && block.number <= rewardPointBlock) {
             if (stakingEpoch != 0) {
                 // Accumulate blocks producing statistics for each of the
                 // active validators during the current staking epoch
@@ -65,15 +65,15 @@ contract BlockRewardAuRa is BlockRewardBase {
         }
 
         // Start a new staking epoch every `stakingEpochDuration()` blocks
-        (bool newStakingEpochHasBegun, uint256 poolsToBeElectedLength) = validatorSetContract.newValidatorSet();
+        (bool newStakingEpochHasBegun, uint256 poolsToBeElectedLength) = validatorSet.newValidatorSet();
 
         if (newStakingEpochHasBegun) {
             // A new staking epoch has begun, so prepare for reward coefficients snapshotting
             // process which begins right from the following block
-            address[] memory newValidatorSet = validatorSetContract.getPendingValidators();
+            address[] memory newValidatorSet = validatorSet.getPendingValidators();
 
             for (uint256 i = 0; i < newValidatorSet.length; i++) {
-                address stakingAddress = validatorSetContract.stakingByMiningAddress(newValidatorSet[i]);
+                address stakingAddress = validatorSet.stakingByMiningAddress(newValidatorSet[i]);
 
                 _enqueueValidator(stakingAddress);
 
@@ -111,7 +111,7 @@ contract BlockRewardAuRa is BlockRewardBase {
             // MAX_VALIDATORS * DELEGATORS_ALIQUOT blocks
             bool noop;
             (receiversNative, rewardsNative, noop) = _distributeRewards(
-                validatorSetContract,
+                validatorSet,
                 stakingContract.erc20TokenContract(),
                 stakingContract.erc20Restricted(),
                 IStakingAuRa(address(stakingContract)),

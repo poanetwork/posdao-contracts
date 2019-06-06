@@ -412,18 +412,6 @@ contract('StakingAuRa', async accounts => {
         await stakingAuRa.getCandidateMinStake.call()
       );
     });
-    it('should fail if the current block number is not zero', async () => {
-      await stakingAuRa.setCurrentBlockNumber(1);
-      await stakingAuRa.initialize(
-        validatorSetAuRa.address, // _validatorSetContract
-        initialStakingAddresses, // _initialStakingAddresses
-        1, // _delegatorMinStake
-        1, // _candidateMinStake
-        120960, // _stakingEpochDuration
-        4320, // _stakeWithdrawDisallowPeriod
-        false // _erc20Restricted
-      ).should.be.rejectedWith(ERROR_MSG);
-    });
     it('should fail if ValidatorSet contract address is zero', async () => {
       await stakingAuRa.initialize(
         '0x0000000000000000000000000000000000000000', // _validatorSetContract

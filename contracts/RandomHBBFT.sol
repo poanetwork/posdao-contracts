@@ -10,6 +10,13 @@ contract RandomHBBFT is RandomBase {
         _;
     }
 
+    /// @dev Initializes the contract at network startup.
+    /// Must be called by the constructor of the `InitializerHBBFT` contract.
+    /// @param _validatorSet The address of the `ValidatorSet` contract.
+    function initialize(address _validatorSet) external {
+        super._initialize(_validatorSet);
+    }
+
     function storeRandom(uint256[] memory _random) public onlySystem {
         for (uint256 i = 0; i < _random.length; i++) {
             _setCurrentSeed(_getCurrentSeed() ^ _random[i]);

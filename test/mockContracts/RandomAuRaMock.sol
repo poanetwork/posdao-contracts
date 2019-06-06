@@ -15,10 +15,6 @@ contract RandomAuRaMock is RandomAuRa {
         uintStorage[keccak256("currentBlockNumber")] = _blockNumber;
     }
 
-    function setValidatorSetContract(address _contract) public {
-        addressStorage[VALIDATOR_SET_CONTRACT_ADDRESS] = _contract;
-    }
-
     function showCurrentSeed() public view returns(uint256) {
         return _getCurrentSeed();
     }

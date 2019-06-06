@@ -41,7 +41,7 @@ contract BlockRewardHBBFT is BlockRewardBase {
     // Mint ERC20 tokens for each delegator of each active validator
     function _mintTokensForDelegators(address[] memory benefactors) internal {
         IStaking stakingContract = IStaking(
-            IValidatorSet(VALIDATOR_SET_CONTRACT).stakingContract()
+            validatorSetContract().stakingContract()
         );
         IERC20Minting erc20Contract = IERC20Minting(
             stakingContract.erc20TokenContract()
@@ -65,7 +65,7 @@ contract BlockRewardHBBFT is BlockRewardBase {
                 uint256[] memory rewards
             ) = _distributePoolReward(
                 stakingEpoch,
-                IValidatorSet(VALIDATOR_SET_CONTRACT).stakingByMiningAddress(benefactors[i]),
+                validatorSetContract().stakingByMiningAddress(benefactors[i]),
                 i == 0 ? poolReward + remainder : poolReward
             );
 

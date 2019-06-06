@@ -106,7 +106,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         _setInitiateChangeAllowed(true);
     }
 
-    /// @dev Initializes the network parameters on the genesis block. Used by the
+    /// @dev Initializes the network parameters. Used by the
     /// constructor of the `InitializerAuRa` or `InitializerHBBFT` contract.
     /// @param _blockRewardContract The address of the `BlockReward` contract.
     /// @param _randomContract The address of the `Random` contract.
@@ -124,7 +124,6 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         address[] calldata _initialStakingAddresses,
         bool _firstValidatorIsUnremovable
     ) external {
-        require(_getCurrentBlockNumber() == 0); // initialization must be done on genesis block
         require(_blockRewardContract != address(0));
         require(_randomContract != address(0));
         require(_stakingContract != address(0));

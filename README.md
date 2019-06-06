@@ -31,7 +31,7 @@ _Note: The following descriptions are for AuRa contracts only. HBBFT contract im
   - RandomAura.commitHash
   - RandomAura.revealSecret
 
-- `InitializerAuRa`: used once on network startup and then destroyed on genesis block. This contract is needed for initializing upgradable contracts on the genesis block since an upgradable contract can't have the constructor. The bytecode of this contract is written by the `scripts/make_spec.js` into `spec.json` along with other contracts.
+- `InitializerAuRa`: used once on network startup and then destroyed. This contract is needed for initializing upgradable contracts since an upgradable contract can't have the constructor. The bytecode of this contract is written by the `scripts/make_spec.js` into `spec.json` along with other contracts when initializing on genesis block.
 
 - `KeyGenHistory`: stores the validator’s public keys needed for the HoneyBadger BFT engine and for storing events used by HBBFT nodes.
 

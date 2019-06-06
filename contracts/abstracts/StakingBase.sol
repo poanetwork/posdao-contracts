@@ -154,8 +154,14 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     /// can be retrieved by the `getPools` getter). When a candidate or validator wants to remove their pool,
     /// they should call this function from their staking address. A validator cannot remove their pool while
     /// they are an `unremovable validator`.
-    function removeMyPool() external {
-        _removeMyPool();
+    function removeMyPool() external gasPriceIsValid {
+        IValidatorSet validatorSet = validatorSetContract();
+        address stakingAddress = msg.sender;
+        address miningAddress = validatorSet.miningByStakingAddress(stakingAddress);
+        // initial validator cannot remove their pool during the initial staking epoch
+        require(stakingEpoch() > 0 || !validatorSet.isValidator(miningAddress));
+        require(stakingAddress != validatorSet.unremovableValidator());
+        _removePool(stakingAddress);
     }
 
     /// @dev Moves staking tokens/coins from one pool to another. A staker calls this function when they want
@@ -802,17 +808,6 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         _deletePoolToBeRemoved(_stakingAddress);
     }
 
-    /// @dev Used by the `removeMyPool` external function.
-    function _removeMyPool() internal gasPriceIsValid {
-        IValidatorSet validatorSet = validatorSetContract();
-        address stakingAddress = msg.sender;
-        address miningAddress = validatorSet.miningByStakingAddress(stakingAddress);
-        // initial validator cannot remove their pool during the initial staking epoch
-        require(stakingEpoch() > 0 || !validatorSet.isValidator(miningAddress));
-        require(stakingAddress != validatorSet.unremovableValidator());
-        _removePool(stakingAddress);
-    }
-
     /// @dev Removes the specified staking address from the array of inactive pools returned by
     /// the `getPoolsInactive` getter. Used by the `_addPoolActive` and `_removePool` functions.
     /// @param _stakingAddress The pool removed from the array of inactive pools.
@@ -827,8 +822,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         }
     }
 
-    /// @dev Initializes the network parameters on the genesis block. Used by the
-    /// `initialize` function of a child contract.
+    /// @dev Initializes the network parameters. Used by the `initialize` function of a child contract.
     /// @param _validatorSetContract The address of the `ValidatorSet` contract.
     /// @param _initialStakingAddresses The array of initial validators' staking addresses.
     /// @param _delegatorMinStake The minimum allowed amount of delegator stake in STAKE_UNITs.
@@ -842,7 +836,6 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         uint256 _candidateMinStake,
         bool _erc20Restricted
     ) internal {
-        require(_getCurrentBlockNumber() == 0); // initialization must be done on genesis block
         require(address(validatorSetContract()) == address(0)); // initialization can only be done once
         require(_validatorSetContract != address(0));
         require(_initialStakingAddresses.length > 0);

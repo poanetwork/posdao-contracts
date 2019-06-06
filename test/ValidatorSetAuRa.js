@@ -295,17 +295,6 @@ contract('ValidatorSetAuRa', async accounts => {
         await validatorSetAuRa.unremovableValidator.call()
       );
     });
-    it('should fail if the current block number is not zero', async () => {
-      await validatorSetAuRa.setCurrentBlockNumber(1);
-      await validatorSetAuRa.initialize(
-        blockRewardAuRa.address, // _blockRewardContract
-        '0x3000000000000000000000000000000000000001', // _randomContract
-        stakingAuRa.address, // _stakingContract
-        initialValidators, // _initialMiningAddresses
-        initialStakingAddresses, // _initialStakingAddresses
-        false // _firstValidatorIsUnremovable
-      ).should.be.rejectedWith(ERROR_MSG);
-    });
     it('should fail if BlockRewardAuRa contract address is zero', async () => {
       await validatorSetAuRa.initialize(
         '0x0000000000000000000000000000000000000000', // _blockRewardContract
@@ -684,8 +673,7 @@ contract('ValidatorSetAuRa', async accounts => {
       // Generate a random seed
       (await randomAuRa.showCurrentSeed.call()).should.be.bignumber.equal(new BN(0));
       await randomAuRa.setCurrentBlockNumber(0).should.be.fulfilled;
-      await randomAuRa.initialize(200).should.be.fulfilled;
-      await randomAuRa.setValidatorSetContract(validatorSetAuRa.address).should.be.fulfilled;
+      await randomAuRa.initialize(200, validatorSetAuRa.address).should.be.fulfilled;
       let secrets = [];
       let seed = 0;
       for (let i = 0; i < initialValidators.length; i++) {
@@ -812,8 +800,7 @@ contract('ValidatorSetAuRa', async accounts => {
       // Generate a random seed
       (await randomAuRa.showCurrentSeed.call()).should.be.bignumber.equal(new BN(0));
       await randomAuRa.setCurrentBlockNumber(0).should.be.fulfilled;
-      await randomAuRa.initialize(200).should.be.fulfilled;
-      await randomAuRa.setValidatorSetContract(validatorSetAuRa.address).should.be.fulfilled;
+      await randomAuRa.initialize(200, validatorSetAuRa.address).should.be.fulfilled;
       let secrets = [];
       let seed = 0;
       for (let i = 0; i < initialValidators.length; i++) {
