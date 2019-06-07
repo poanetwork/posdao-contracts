@@ -32,7 +32,7 @@
     "eth-gas-reporter": "^0.1.12",
     "ganache-cli": "^6.3.0",
     "mochawesome": "^3.1.1",
-    "solc": "0.5.7",
+    "solc": "0.5.9",
     "solhint": "^2.0.0",
     "solidity-coverage": "^0.5.11",
     "truffle": "^5.0.5",
