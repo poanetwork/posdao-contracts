@@ -27,6 +27,12 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
     // ============================================== Modifiers =======================================================
 
+    /// @dev Ensures the `initialize` function was called before.
+    modifier onlyInitialized {
+        require(isInitialized());
+        _;
+    }
+
     /// @dev Ensures the caller is the Staking contract address
     /// (EternalStorageProxy proxy contract for Staking).
     modifier onlyStakingContract() {
@@ -44,7 +50,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
     /// @dev Makes the non-removable validator removable. Can only be called by the staking address of the
     /// non-removable validator or by the `owner`.
-    function clearUnremovableValidator() external {
+    function clearUnremovableValidator() external onlyInitialized {
         address unremovableStakingAddress = unremovableValidator();
         require(msg.sender == unremovableStakingAddress || msg.sender == _owner);
         _setUnremovableValidator(address(0));
@@ -57,7 +63,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     /// updated at the beginning of a new staking epoch). The new validator set is passed to the validator nodes
     /// through the `InitiateChange` event and saved for later use by the `finalizeChange` function.
     /// See https://wiki.parity.io/Validator-Set.html for more info about the `InitiateChange` event.
-    function emitInitiateChange() external {
+    function emitInitiateChange() external onlyInitialized {
         require(emitInitiateChangeCallable());
         (address[] memory newSet, bool newStakingEpoch) = _dequeuePendingValidators();
         if (newSet.length > 0) {
@@ -124,6 +130,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         address[] calldata _initialStakingAddresses,
         bool _firstValidatorIsUnremovable
     ) external {
+        require(!isInitialized()); // initialization can only be done once
         require(_blockRewardContract != address(0));
         require(_randomContract != address(0));
         require(_stakingContract != address(0));
@@ -136,7 +143,6 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
 
         address[] storage currentValidators = addressArrayStorage[CURRENT_VALIDATORS];
         address[] storage pendingValidators = addressArrayStorage[PENDING_VALIDATORS];
-        require(currentValidators.length == 0); // initialization can only be done once
 
         // Add initial validators to the `currentValidators` array
         for (uint256 i = 0; i < _initialMiningAddresses.length; i++) {
@@ -239,6 +245,11 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     /// finalized by the `finalizeChange` function.
     function initiateChangeAllowed() public view returns(bool) {
         return boolStorage[INITIATE_CHANGE_ALLOWED];
+    }
+
+    /// @dev Returns a boolean flag indicating if the `initialize` function has been called.
+    function isInitialized() public view returns(bool) {
+        return addressStorage[BLOCK_REWARD_CONTRACT] != address(0);
     }
 
     /// @dev Returns a boolean flag indicating whether the specified validator (mining address)

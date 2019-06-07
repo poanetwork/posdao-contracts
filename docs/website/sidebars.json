@@ -2,7 +2,6 @@
   "docs-api": {
     "abstracts": [
       "abstracts_BlockRewardBase",
-      "abstracts_ContractsAddresses",
       "abstracts_RandomBase",
       "abstracts_StakingBase",
       "abstracts_ValidatorSetBase"

@@ -29,7 +29,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     /// @param _secretHash The Keccak-256 hash of the validator's secret.
     /// @param _cipher The cipher of the validator's secret. Can be used by the node to restore the lost secret after
     /// the node is restarted (see the `getCipher` getter).
-    function commitHash(bytes32 _secretHash, bytes calldata _cipher) external {
+    function commitHash(bytes32 _secretHash, bytes calldata _cipher) external onlyInitialized {
         address miningAddress = msg.sender;
 
         require(commitHashCallable(miningAddress, _secretHash));
@@ -46,7 +46,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     /// The validator's node must use its mining address to call this function.
     /// This function can only be called once per collection round (during the `reveals phase`).
     /// @param _secret The validator's secret.
-    function revealSecret(uint256 _secret) external {
+    function revealSecret(uint256 _secret) external onlyInitialized {
         address miningAddress = msg.sender;
 
         require(revealSecretCallable(miningAddress, _secret));

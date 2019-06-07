@@ -21,26 +21,36 @@ contract Certifier is OwnedEternalStorage, ICertifier {
     /// @param who Specified address for which zero gas price transactions are denied.
     event Revoked(address indexed who);
 
+    // ============================================== Modifiers =======================================================
+
+    /// @dev Ensures the `initialize` function was called before.
+    modifier onlyInitialized {
+        require(isInitialized());
+        _;
+    }
+
     // =============================================== Setters ========================================================
 
     /// @dev Initializes the contract at network startup.
     /// Must be called by the constructor of the `Initializer` contract.
-    /// @param _certifiedAddress The address for which a zero gas price must be allowed.
+    /// @param _certifiedAddresses The addresses for which a zero gas price must be allowed.
     /// @param _validatorSet The address of the `ValidatorSet` contract.
     function initialize(
-        address _certifiedAddress,
+        address[] calldata _certifiedAddresses,
         address _validatorSet
     ) external {
+        require(!isInitialized());
         require(_validatorSet != address(0));
-        require(addressStorage[VALIDATOR_SET_CONTRACT] == address(0));
-        _certify(_certifiedAddress);
+        for (uint256 i = 0; i < _certifiedAddresses.length; i++) {
+            _certify(_certifiedAddresses[i]);
+        }
         addressStorage[VALIDATOR_SET_CONTRACT] = _validatorSet;
     }
 
     /// @dev Allows the specified address to use a zero gas price for its transactions.
     /// Can only be called by the `owner`.
     /// @param _who The address for which zero gas price transactions must be allowed.
-    function certify(address _who) external onlyOwner {
+    function certify(address _who) external onlyOwner onlyInitialized {
         _certify(_who);
         emit Confirmed(_who);
     }
@@ -48,7 +58,7 @@ contract Certifier is OwnedEternalStorage, ICertifier {
     /// @dev Denies the specified address usage of a zero gas price for its transactions.
     /// Can only be called by the `owner`.
     /// @param _who The address for which transactions with a zero gas price must be denied.
-    function revoke(address _who) external onlyOwner {
+    function revoke(address _who) external onlyOwner onlyInitialized {
         boolStorage[keccak256(abi.encode(CERTIFIED, _who))] = false;
         emit Revoked(_who);
     }
@@ -64,6 +74,11 @@ contract Certifier is OwnedEternalStorage, ICertifier {
             return true;
         }
         return validatorSetContract().isReportValidatorValid(_who);
+    }
+
+    /// @dev Returns a boolean flag indicating if the `initialize` function has been called.
+    function isInitialized() public view returns(bool) {
+        return addressStorage[VALIDATOR_SET_CONTRACT] != address(0);
     }
 
     /// @dev Returns the address of the `ValidatorSet` contract.

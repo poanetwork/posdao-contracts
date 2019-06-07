@@ -19,7 +19,7 @@ _Note: Current documentation is complete for AuRa contracts only. HBBFT contract
 
 - **Certifier:** allows validators to use a zero gas price for service transactions such as reporting malicious validators and revealing secrets (see [Parity Wiki](https://wiki.parity.io/Permissioning.html#gas-price) for more info). 
 
-- **InitializerAuRa:** Initializes upgradable contracts on the genesis block and is then destroyed. This contract's bytecode is written by the `scripts/make_spec.js` into `spec.json` along with other contracts.
+- **InitializerAuRa:** Initializes upgradable contracts and is then destroyed. This contract's bytecode is written by the `scripts/make_spec.js` into `spec.json` along with other contracts.
 
 - **RandomAuRa:** generates and stores random numbers in a [RANDAO](https://github.com/randao/randao) manner (and controls when they are revealed by Aura validators). 
 

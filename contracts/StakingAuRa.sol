@@ -17,7 +17,7 @@ contract StakingAuRa is IStakingAuRa, StakingBase {
     /// @param _amount The amount of tokens to be staked.
     /// @param _miningAddress The mining address of the candidate. The mining address is bound to the staking address
     /// (msg.sender). This address cannot be equal to `msg.sender`.
-    function addPool(uint256 _amount, address _miningAddress) external gasPriceIsValid {
+    function addPool(uint256 _amount, address _miningAddress) external gasPriceIsValid onlyInitialized {
         address stakingAddress = msg.sender;
         validatorSetContract().setStakingAddress(_miningAddress, stakingAddress);
         _stake(stakingAddress, _amount);
@@ -29,7 +29,7 @@ contract StakingAuRa is IStakingAuRa, StakingBase {
     /// This is a wrapper for the `stake` function.
     /// @param _miningAddress The mining address of the candidate. The mining address is bound to the staking address
     /// (msg.sender). This address cannot be equal to `msg.sender`.
-    function addPoolNative(address _miningAddress) external gasPriceIsValid payable {
+    function addPoolNative(address _miningAddress) external gasPriceIsValid onlyInitialized payable {
         address stakingAddress = msg.sender;
         validatorSetContract().setStakingAddress(_miningAddress, stakingAddress);
         _stake(stakingAddress, msg.value);

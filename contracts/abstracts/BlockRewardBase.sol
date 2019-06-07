@@ -54,6 +54,12 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         _;
     }
 
+    /// @dev Ensures the `initialize` function was called before.
+    modifier onlyInitialized {
+        require(isInitialized());
+        _;
+    }
+
     /// @dev Ensures the caller is the SYSTEM_ADDRESS. See https://wiki.parity.io/Block-Reward-Contract.html
     modifier onlySystem {
         require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
@@ -96,7 +102,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     /// Must be called by the constructor of the `Initializer` contract.
     /// @param _validatorSet The address of the `ValidatorSet` contract.
     function initialize(address _validatorSet) external {
-        require(addressStorage[VALIDATOR_SET_CONTRACT] == address(0));
+        require(!isInitialized());
         require(_validatorSet != address(0));
         addressStorage[VALIDATOR_SET_CONTRACT] = _validatorSet;
     }
@@ -104,7 +110,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     /// @dev Sets the array of `erc-to-native` bridge addresses which are allowed to call some of the functions with
     /// the `onlyErcToNativeBridge` modifier. This setter can only be called by the `owner`.
     /// @param _bridgesAllowed The array of bridge addresses.
-    function setErcToNativeBridgesAllowed(address[] calldata _bridgesAllowed) external onlyOwner {
+    function setErcToNativeBridgesAllowed(address[] calldata _bridgesAllowed) external onlyOwner onlyInitialized {
         uint256 i;
 
         address[] storage oldBridgesAllowed = addressArrayStorage[ERC_TO_NATIVE_BRIDGES_ALLOWED];
@@ -122,7 +128,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     /// @dev Sets the array of `native-to-erc` bridge addresses which are allowed to call some of the functions with
     /// the `onlyXToErcBridge` modifier. This setter can only be called by the `owner`.
     /// @param _bridgesAllowed The array of bridge addresses.
-    function setNativeToErcBridgesAllowed(address[] calldata _bridgesAllowed) external onlyOwner {
+    function setNativeToErcBridgesAllowed(address[] calldata _bridgesAllowed) external onlyOwner onlyInitialized {
         uint256 i;
 
         address[] storage oldBridgesAllowed = addressArrayStorage[NATIVE_TO_ERC_BRIDGES_ALLOWED];
@@ -140,7 +146,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     /// @dev Sets the array of `erc-to-erc` bridge addresses which are allowed to call some of the functions with
     /// the `onlyXToErcBridge` modifier. This setter can only be called by the `owner`.
     /// @param _bridgesAllowed The array of bridge addresses.
-    function setErcToErcBridgesAllowed(address[] calldata _bridgesAllowed) external onlyOwner {
+    function setErcToErcBridgesAllowed(address[] calldata _bridgesAllowed) external onlyOwner onlyInitialized {
         uint256 i;
 
         address[] storage oldBridgesAllowed = addressArrayStorage[ERC_TO_ERC_BRIDGES_ALLOWED];
@@ -182,6 +188,11 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     /// the `addBridgeTokenFeeReceivers` function.
     function getBridgeTokenFee() public view returns(uint256) {
         return uintStorage[BRIDGE_TOKEN_FEE];
+    }
+
+    /// @dev Returns a boolean flag indicating if the `initialize` function has been called.
+    function isInitialized() public view returns(bool) {
+        return addressStorage[VALIDATOR_SET_CONTRACT] != address(0);
     }
 
     /// @dev Returns a boolean flag indicating if the reward process is occuring for the current block.

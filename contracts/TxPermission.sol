@@ -14,27 +14,37 @@ import "./eternal-storage/OwnedEternalStorage.sol";
 /// The protection logic is declared in the `allowedTxTypes` function.
 contract TxPermission is OwnedEternalStorage, ITxPermission {
 
+    // ============================================== Modifiers =======================================================
+
+    /// @dev Ensures the `initialize` function was called before.
+    modifier onlyInitialized {
+        require(isInitialized());
+        _;
+    }
+
     // =============================================== Setters ========================================================
 
     /// @dev Initializes the contract at network startup.
     /// Must be called by the constructor of the `Initializer` contract.
-    /// @param _allowedSender The address for which transactions of any type must be allowed.
+    /// @param _allowedSenders The addresses for which transactions of any type must be allowed.
     /// See the `allowedTxTypes` getter.
     /// @param _validatorSet The address of the `ValidatorSet` contract.
     function initialize(
-        address _allowedSender,
+        address[] calldata _allowedSenders,
         address _validatorSet
     ) external {
+        require(!isInitialized());
         require(_validatorSet != address(0));
-        require(addressStorage[VALIDATOR_SET_CONTRACT] == address(0));
-        _addAllowedSender(_allowedSender);
+        for (uint256 i = 0; i < _allowedSenders.length; i++) {
+            _addAllowedSender(_allowedSenders[i]);
+        }
         addressStorage[VALIDATOR_SET_CONTRACT] = _validatorSet;
     }
 
     /// @dev Adds the address for which transactions of any type must be allowed.
     /// Can only be called by the `owner`. See also the `allowedTxTypes` getter.
     /// @param _sender The address for which transactions of any type must be allowed.
-    function addAllowedSender(address _sender) public onlyOwner {
+    function addAllowedSender(address _sender) public onlyOwner onlyInitialized {
         _addAllowedSender(_sender);
     }
 
@@ -42,7 +52,7 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
     /// to initiate transactions of any type. Can only be called by the `owner`.
     /// See also the `addAllowedSender` function and `allowedSenders` getter.
     /// @param _sender The removed address.
-    function removeAllowedSender(address _sender) public onlyOwner {
+    function removeAllowedSender(address _sender) public onlyOwner onlyInitialized {
         uint256 allowedSendersLength = addressArrayStorage[ALLOWED_SENDERS].length;
 
         for (uint256 i = 0; i < allowedSendersLength; i++) {
@@ -206,6 +216,11 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
             return true;
         }
         return false;
+    }
+
+    /// @dev Returns a boolean flag indicating if the `initialize` function has been called.
+    function isInitialized() public view returns(bool) {
+        return addressStorage[VALIDATOR_SET_CONTRACT] != address(0);
     }
 
     /// @dev Returns a boolean flag indicating whether the specified address is allowed

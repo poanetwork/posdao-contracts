@@ -42,8 +42,10 @@ contract InitializerHBBFT {
         );
         IBlockReward(_contracts[1]).initialize(_contracts[0]);
         IRandomHBBFT(_contracts[2]).initialize(_contracts[0]);
-        ITxPermission(_contracts[4]).initialize(_owner, _contracts[0]);
-        ICertifier(_contracts[5]).initialize(_owner, _contracts[0]);
+        address[] memory permittedAddresses = new address[](1);
+        permittedAddresses[0] = _owner;
+        ITxPermission(_contracts[4]).initialize(permittedAddresses, _contracts[0]);
+        ICertifier(_contracts[5]).initialize(permittedAddresses, _contracts[0]);
         selfdestruct(msg.sender);
     }
 }

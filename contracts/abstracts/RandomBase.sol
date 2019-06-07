@@ -12,6 +12,12 @@ contract RandomBase is OwnedEternalStorage, IRandom {
 
     // ============================================== Modifiers =======================================================
 
+    /// @dev Ensures the `initialize` function was called before.
+    modifier onlyInitialized {
+        require(isInitialized());
+        _;
+    }
+
     /// @dev Ensures the caller is the ValidatorSet contract address
     /// (EternalStorageProxy proxy contract for ValidatorSet).
     modifier onlyValidatorSetContract() {
@@ -27,6 +33,11 @@ contract RandomBase is OwnedEternalStorage, IRandom {
         return _getCurrentSeed();
     }
 
+    /// @dev Returns a boolean flag indicating if the `initialize` function has been called.
+    function isInitialized() public view returns(bool) {
+        return addressStorage[VALIDATOR_SET_CONTRACT] != address(0);
+    }
+
     /// @dev Returns the address of the `ValidatorSet` contract.
     function validatorSetContract() public view returns(IValidatorSet) {
         return IValidatorSet(addressStorage[VALIDATOR_SET_CONTRACT]);
@@ -40,8 +51,8 @@ contract RandomBase is OwnedEternalStorage, IRandom {
     /// @dev Initializes the network parameters. Used by the `initialize` function of a child contract.
     /// @param _validatorSet The address of the `ValidatorSet` contract.
     function _initialize(address _validatorSet) internal {
+        require(!isInitialized());
         require(_validatorSet != address(0));
-        require(addressStorage[VALIDATOR_SET_CONTRACT] == address(0));
         addressStorage[VALIDATOR_SET_CONTRACT] = _validatorSet;
     }
 

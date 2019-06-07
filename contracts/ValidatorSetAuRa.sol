@@ -63,7 +63,11 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
     /// Can only be called when the `reportMaliciousCallable` getter returns `true`.
     /// @param _maliciousMiningAddress The mining address of the malicious validator.
     /// @param _blockNumber The block number where the misbehavior was observed.
-    function reportMalicious(address _maliciousMiningAddress, uint256 _blockNumber, bytes calldata) external {
+    function reportMalicious(
+        address _maliciousMiningAddress,
+        uint256 _blockNumber,
+        bytes calldata
+    ) external onlyInitialized {
         address reportingMiningAddress = msg.sender;
 
         _incrementReportingCounter(reportingMiningAddress);

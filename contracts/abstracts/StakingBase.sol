@@ -112,6 +112,12 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         _;
     }
 
+    /// @dev Ensures the `initialize` function was called before.
+    modifier onlyInitialized {
+        require(isInitialized());
+        _;
+    }
+
     /// @dev Ensures the caller is the ValidatorSet contract address
     /// (EternalStorageProxy proxy contract for ValidatorSet).
     modifier onlyValidatorSetContract() {
@@ -154,7 +160,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     /// can be retrieved by the `getPools` getter). When a candidate or validator wants to remove their pool,
     /// they should call this function from their staking address. A validator cannot remove their pool while
     /// they are an `unremovable validator`.
-    function removeMyPool() external gasPriceIsValid {
+    function removeMyPool() external gasPriceIsValid onlyInitialized {
         IValidatorSet validatorSet = validatorSetContract();
         address stakingAddress = msg.sender;
         address miningAddress = validatorSet.miningByStakingAddress(stakingAddress);
@@ -174,7 +180,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         address _fromPoolStakingAddress,
         address _toPoolStakingAddress,
         uint256 _amount
-    ) external gasPriceIsValid {
+    ) external gasPriceIsValid onlyInitialized {
         require(_fromPoolStakingAddress != _toPoolStakingAddress);
         address staker = msg.sender;
         _withdraw(_fromPoolStakingAddress, staker, _amount);
@@ -186,14 +192,14 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     /// the specified pool. A staker calls this function when they want to make a stake into a pool.
     /// @param _toPoolStakingAddress The staking address of the pool where the tokens should be staked.
     /// @param _amount The amount of tokens to be staked.
-    function stake(address _toPoolStakingAddress, uint256 _amount) external gasPriceIsValid {
+    function stake(address _toPoolStakingAddress, uint256 _amount) external gasPriceIsValid onlyInitialized {
         _stake(_toPoolStakingAddress, _amount);
     }
 
     /// @dev Receives the staking coins from the staker's address to the staking address of
     /// the specified pool. A staker calls this function when they want to make a stake into a pool.
     /// @param _toPoolStakingAddress The staking address of the pool where the coins should be staked.
-    function stakeNative(address _toPoolStakingAddress) external gasPriceIsValid payable {
+    function stakeNative(address _toPoolStakingAddress) external gasPriceIsValid onlyInitialized payable {
         _stake(_toPoolStakingAddress, msg.value);
     }
 
@@ -203,7 +209,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     /// @param _fromPoolStakingAddress The staking address of the pool from which the tokens/coins should be withdrawn.
     /// @param _amount The amount of tokens/coins to be withdrawn. The amount cannot exceed the value returned
     /// by the `maxWithdrawAllowed` getter.
-    function withdraw(address _fromPoolStakingAddress, uint256 _amount) external gasPriceIsValid {
+    function withdraw(address _fromPoolStakingAddress, uint256 _amount) external gasPriceIsValid onlyInitialized {
         address payable staker = msg.sender;
         _withdraw(_fromPoolStakingAddress, staker, _amount);
         IERC20Minting tokenContract = IERC20Minting(erc20TokenContract());
@@ -224,7 +230,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     /// increase their withdrawal amount. A negative value means the staker wants to decrease a
     /// withdrawal amount that was previously set. The amount cannot exceed the value returned by the
     /// `maxWithdrawOrderAllowed` getter.
-    function orderWithdraw(address _poolStakingAddress, int256 _amount) external gasPriceIsValid {
+    function orderWithdraw(address _poolStakingAddress, int256 _amount) external gasPriceIsValid onlyInitialized {
         IValidatorSet validatorSetContract = validatorSetContract();
 
         require(_poolStakingAddress != address(0));
@@ -298,7 +304,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     /// @dev Withdraws the staking tokens/coins from the specified pool ordered during the previous staking epochs with
     /// the `orderWithdraw` function. The ordered amount can be retrieved by the `orderedWithdrawAmount` getter.
     /// @param _poolStakingAddress The staking address of the pool from which the ordered tokens/coins are withdrawn.
-    function claimOrderedWithdraw(address _poolStakingAddress) external gasPriceIsValid {
+    function claimOrderedWithdraw(address _poolStakingAddress) external gasPriceIsValid onlyInitialized {
         IValidatorSet validatorSetContract = validatorSetContract();
         uint256 epoch = stakingEpoch();
         address payable staker = msg.sender;
@@ -340,7 +346,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     /// @dev Sets (updates) the address of the ERC20/ERC677 staking token contract. Can only be called by the `owner`.
     /// Cannot be called if there was at least one stake in native coins before.
     /// @param _erc20TokenContract The address of the contract.
-    function setErc20TokenContract(address _erc20TokenContract) external onlyOwner {
+    function setErc20TokenContract(address _erc20TokenContract) external onlyOwner onlyInitialized {
         require(_erc20TokenContract != address(0));
         require(!boolStorage[ERC20_RESTRICTED]);
         addressStorage[ERC20_TOKEN_CONTRACT] = _erc20TokenContract;
@@ -349,14 +355,14 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     /// @dev Sets (updates) the limit of the minimum candidate stake (CANDIDATE_MIN_STAKE).
     /// Can only be called by the `owner`.
     /// @param _minStake The value of a new limit in STAKE_UNITs.
-    function setCandidateMinStake(uint256 _minStake) external onlyOwner {
+    function setCandidateMinStake(uint256 _minStake) external onlyOwner onlyInitialized {
         _setCandidateMinStake(_minStake);
     }
 
     /// @dev Sets (updates) the limit of minimum delegator stake (DELEGATOR_MIN_STAKE).
     /// Can only be called by the `owner`.
     /// @param _minStake The value of a new limit in STAKE_UNITs.
-    function setDelegatorMinStake(uint256 _minStake) external onlyOwner {
+    function setDelegatorMinStake(uint256 _minStake) external onlyOwner onlyInitialized {
         _setDelegatorMinStake(_minStake);
     }
 
@@ -431,6 +437,11 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     /// @dev Returns the limit of the minimum delegator stake (DELEGATOR_MIN_STAKE).
     function getDelegatorMinStake() public view returns(uint256) {
         return uintStorage[DELEGATOR_MIN_STAKE];
+    }
+
+    /// @dev Returns a boolean flag indicating if the `initialize` function has been called.
+    function isInitialized() public view returns(bool) {
+        return addressStorage[VALIDATOR_SET_CONTRACT] != address(0);
     }
 
     /// @dev Returns a flag indicating whether a specified address is in the `pools` array.
@@ -836,7 +847,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         uint256 _candidateMinStake,
         bool _erc20Restricted
     ) internal {
-        require(address(validatorSetContract()) == address(0)); // initialization can only be done once
+        require(!isInitialized()); // initialization can only be done once
         require(_validatorSetContract != address(0));
         require(_initialStakingAddresses.length > 0);
         require(_delegatorMinStake != 0);
