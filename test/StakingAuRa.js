@@ -74,6 +74,7 @@ contract('StakingAuRa', async accounts => {
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
+        0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
         false // _erc20Restricted
       ).should.be.fulfilled;
@@ -280,6 +281,7 @@ contract('StakingAuRa', async accounts => {
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
+        0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
         false // _erc20Restricted
       ).should.be.fulfilled;
@@ -375,6 +377,7 @@ contract('StakingAuRa', async accounts => {
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
+        0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
         false // _erc20Restricted
       ).should.be.fulfilled;
@@ -419,6 +422,7 @@ contract('StakingAuRa', async accounts => {
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
+        0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
         false // _erc20Restricted
       ).should.be.rejectedWith(ERROR_MSG);
@@ -430,6 +434,7 @@ contract('StakingAuRa', async accounts => {
         0, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
+        0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
         false // _erc20Restricted
       ).should.be.rejectedWith(ERROR_MSG);
@@ -441,6 +446,7 @@ contract('StakingAuRa', async accounts => {
         1, // _delegatorMinStake
         0, // _candidateMinStake
         120960, // _stakingEpochDuration
+        0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
         false // _erc20Restricted
       ).should.be.rejectedWith(ERROR_MSG);
@@ -452,6 +458,7 @@ contract('StakingAuRa', async accounts => {
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
+        0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
         false // _erc20Restricted
       ).should.be.fulfilled;
@@ -461,6 +468,7 @@ contract('StakingAuRa', async accounts => {
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
+        0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
         false // _erc20Restricted
       ).should.be.rejectedWith(ERROR_MSG);
@@ -472,6 +480,7 @@ contract('StakingAuRa', async accounts => {
         1, // _delegatorMinStake
         1, // _candidateMinStake
         0, // _stakingEpochDuration
+        0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
         false // _erc20Restricted
       ).should.be.rejectedWith(ERROR_MSG);
@@ -483,6 +492,7 @@ contract('StakingAuRa', async accounts => {
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
+        0, // _stakingEpochStartBlock
         0, // _stakeWithdrawDisallowPeriod
         false // _erc20Restricted
       ).should.be.rejectedWith(ERROR_MSG);
@@ -494,6 +504,7 @@ contract('StakingAuRa', async accounts => {
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
+        0, // _stakingEpochStartBlock
         120960, // _stakeWithdrawDisallowPeriod
         false // _erc20Restricted
       ).should.be.rejectedWith(ERROR_MSG);
@@ -503,6 +514,7 @@ contract('StakingAuRa', async accounts => {
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
+        0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
         false // _erc20Restricted
       ).should.be.fulfilled;
@@ -515,6 +527,7 @@ contract('StakingAuRa', async accounts => {
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
+        0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
         false // _erc20Restricted
       ).should.be.rejectedWith(ERROR_MSG);
@@ -537,6 +550,7 @@ contract('StakingAuRa', async accounts => {
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
+        0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
         false // _erc20Restricted
       ).should.be.fulfilled;
@@ -618,6 +632,7 @@ contract('StakingAuRa', async accounts => {
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
+        0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
         false // _erc20Restricted
       ).should.be.fulfilled;
@@ -782,6 +797,7 @@ contract('StakingAuRa', async accounts => {
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
+        0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
         false // _erc20Restricted
       ).should.be.fulfilled;
@@ -910,6 +926,7 @@ contract('StakingAuRa', async accounts => {
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
+        0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
         false // _erc20Restricted
       ).should.be.fulfilled;

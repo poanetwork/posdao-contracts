@@ -9,6 +9,7 @@ interface IStakingAuRa {
         uint256,
         uint256,
         uint256,
+        uint256,
         bool
     ) external;
     function setStakingEpochStartBlock(uint256) external;

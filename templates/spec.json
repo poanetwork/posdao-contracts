@@ -34,7 +34,8 @@
     "eip1014Transition": "0x0",
     "eip1052Transition": "0x0",
     "registrar": "0x6000000000000000000000000000000000000000",
-    "transactionPermissionContract": "0x4000000000000000000000000000000000000001"
+    "transactionPermissionContract": "0x4000000000000000000000000000000000000001",
+    "transactionPermissionContractTransition": "0x0"
   },
   "genesis": {
     "seal": {

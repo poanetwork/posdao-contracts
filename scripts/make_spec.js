@@ -186,6 +186,7 @@ async function main() {
     1, // _delegatorMinStake
     1, // _candidateMinStake
     stakingEpochDuration, // _stakingEpochDuration
+    0, // _stakingEpochStartBlock
     stakeWithdrawDisallowPeriod, // _stakeWithdrawDisallowPeriod
     collectRoundLength, // _collectRoundLength
     erc20Restricted // _erc20Restricted

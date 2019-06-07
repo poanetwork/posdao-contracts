@@ -78,6 +78,7 @@ contract('ValidatorSetAuRa', async accounts => {
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
+        0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
         false // _erc20Restricted
       ).should.be.fulfilled;
@@ -121,6 +122,7 @@ contract('ValidatorSetAuRa', async accounts => {
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
+        0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
         false // _erc20Restricted
       ).should.be.fulfilled;
@@ -166,6 +168,7 @@ contract('ValidatorSetAuRa', async accounts => {
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
+        0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
         false // _erc20Restricted
       ).should.be.fulfilled;
@@ -278,7 +281,7 @@ contract('ValidatorSetAuRa', async accounts => {
       (await validatorSetAuRa.unremovableValidator.call()).should.be.equal(
         '0x0000000000000000000000000000000000000000'
       );
-      new BN(1).should.be.bignumber.equal(
+      new BN(0).should.be.bignumber.equal(
         await validatorSetAuRa.validatorSetApplyBlock.call()
       );
     });
@@ -428,6 +431,7 @@ contract('ValidatorSetAuRa', async accounts => {
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
+        0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
         false // _erc20Restricted
       ).should.be.fulfilled;
@@ -464,6 +468,7 @@ contract('ValidatorSetAuRa', async accounts => {
       (await stakingAuRa.stakingEpochStartBlock.call()).should.be.bignumber.equal(new BN(120961));
     });
     it('should reset validatorSetApplyBlock', async () => {
+      await validatorSetAuRa.setValidatorSetApplyBlock(new BN(1)).should.be.fulfilled;
       (await validatorSetAuRa.validatorSetApplyBlock.call()).should.be.bignumber.equal(new BN(1));
       await validatorSetAuRa.setBlockRewardContract(accounts[4]).should.be.fulfilled;
       await validatorSetAuRa.newValidatorSet({from: accounts[4]}).should.be.fulfilled;
@@ -561,6 +566,7 @@ contract('ValidatorSetAuRa', async accounts => {
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
+        0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
         false // _erc20Restricted
       ).should.be.fulfilled;
@@ -734,6 +740,7 @@ contract('ValidatorSetAuRa', async accounts => {
         1, // _delegatorMinStake
         1, // _candidateMinStake
         120960, // _stakingEpochDuration
+        0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
         false // _erc20Restricted
       ).should.be.fulfilled;

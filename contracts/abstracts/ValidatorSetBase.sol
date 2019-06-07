@@ -108,6 +108,9 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         } else if (queueValidators.length > 0) {
             // Apply new validator set after malicious validator is discovered
             _applyQueueValidators(queueValidators);
+        } else {
+            // This is the very first call of the `finalizeChange`
+            _setValidatorSetApplyBlock(_getCurrentBlockNumber());
         }
         _setInitiateChangeAllowed(true);
     }
@@ -156,8 +159,6 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         if (_firstValidatorIsUnremovable) {
             _setUnremovableValidator(_initialStakingAddresses[0]);
         }
-
-        _setValidatorSetApplyBlock(1);
 
         intStorage[QUEUE_PV_FIRST] = 1;
         intStorage[QUEUE_PV_LAST] = 0;

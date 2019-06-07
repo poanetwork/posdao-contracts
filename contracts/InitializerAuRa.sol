@@ -31,6 +31,8 @@ contract InitializerAuRa {
     /// (see the `StakingAuRa` contract).
     /// @param _stakingEpochDuration The duration of a staking epoch in blocks
     /// (e.g., 120960 = 1 week for 5-seconds blocks in AuRa).
+    /// @param _stakingEpochStartBlock The number of the first block of initial staking epoch
+    /// (must be zero if the network is starting from genesis block).
     /// @param _stakeWithdrawDisallowPeriod The duration period (in blocks) at the end of a staking epoch
     /// during which participants cannot stake or withdraw their staking tokens
     /// (e.g., 4320 = 6 hours for 5-seconds blocks in AuRa).
@@ -46,6 +48,7 @@ contract InitializerAuRa {
         uint256 _delegatorMinStake,
         uint256 _candidateMinStake,
         uint256 _stakingEpochDuration,
+        uint256 _stakingEpochStartBlock,
         uint256 _stakeWithdrawDisallowPeriod,
         uint256 _collectRoundLength,
         bool _erc20Restricted
@@ -64,6 +67,7 @@ contract InitializerAuRa {
             _delegatorMinStake,
             _candidateMinStake,
             _stakingEpochDuration,
+            _stakingEpochStartBlock,
             _stakeWithdrawDisallowPeriod,
             _erc20Restricted
         );

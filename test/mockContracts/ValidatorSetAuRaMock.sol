@@ -38,6 +38,10 @@ contract ValidatorSetAuRaMock is ValidatorSetAuRa {
         addressStorage[keccak256("systemAddress")] = _systemAddress;
     }
 
+    function setValidatorSetApplyBlock(uint256 _blockNumber) public {
+        _setValidatorSetApplyBlock(_blockNumber);
+    }
+
     // =============================================== Getters ========================================================
 
     function getRandomIndex(
