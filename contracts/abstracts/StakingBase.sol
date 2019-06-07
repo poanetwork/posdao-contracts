@@ -561,6 +561,14 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         return addressArrayStorage[keccak256(abi.encode(POOL_DELEGATORS, _poolStakingAddress))];
     }
 
+    /// @dev Returns an array of the current inactive delegators of the specified pool.
+    /// A delegator is considered inactive if their entire stake is ordered to be withdrawn
+    /// but not yet claimed.
+    /// @param _poolStakingAddress The pool staking address.
+    function poolDelegatorsInactive(address _poolStakingAddress) public view returns(address[] memory) {
+        return addressArrayStorage[keccak256(abi.encode(POOL_DELEGATORS_INACTIVE, _poolStakingAddress))];
+    }
+
     /// @dev Returns the delegator's index in the array returned by the `poolDelegators` getter.
     /// Used by the `_removePoolDelegator` function.
     /// @param _poolStakingAddress The pool staking address.
