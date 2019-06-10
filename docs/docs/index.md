@@ -23,7 +23,7 @@ _Note: Current documentation is complete for AuRa contracts only. HBBFT contract
 
 - **RandomAuRa:** generates and stores random numbers in a [RANDAO](https://github.com/randao/randao) manner (and controls when they are revealed by Aura validators). 
 
-- **Registry:** stores human-readable keys associated with addresses (see [Parity Wiki](https://wiki.parity.io/Parity-name-registry.html)). Used primarily to store the address of the `TxPermission` contract (see [Parity Wiki](https://wiki.parity.io/Permissioning.html#transaction-type) for details).
+- **Registry:** stores human-readable keys associated with addresses (see [Parity Wiki](https://wiki.parity.io/Parity-name-registry.html)). Used primarily to store the address of the `Certifier` contract (see [Parity Wiki](https://wiki.parity.io/Permissioning.html#gas-price) for details).
 
 - **StakingAuRa:** contains the contract staking logic for candidates, delegators and validators.
 
