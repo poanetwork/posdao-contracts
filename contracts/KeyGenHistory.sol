@@ -4,16 +4,16 @@ pragma experimental ABIEncoderV2;
 
 contract KeyGenHistory {
 
-    event PartWritten(address indexed validator, bytes part);
-    event AckWritten(address indexed validator, bytes ack);
+    mapping(address => bytes) public parts;
+    mapping(address => bytes) public acks;
 
     constructor(address[] memory _validators, bytes[] memory _parts, bytes[] memory _acks) public {
         require(_validators.length == _parts.length);
         require(_validators.length == _acks.length);
 
         for (uint256 i = 0; i < _validators.length; i++) {
-            emit PartWritten(_validators[i], _parts[i]);
-            emit AckWritten(_validators[i], _acks[i]);
+            parts[_validators[i]] = _parts[i];
+            acks[_validators[i]] = _acks[i];
         }
     }
 
@@ -26,7 +26,7 @@ contract KeyGenHistory {
         // (it means that the `InitiateChange` event was emitted, but the `finalizeChange`
         // function wasn't yet called).
 
-        emit PartWritten(msg.sender, _part);
+        parts[msg.sender] = _part;
     }
 
     function writeAck(bytes memory _ack) public {
@@ -38,7 +38,7 @@ contract KeyGenHistory {
         // (it means that the `InitiateChange` event was emitted, but the `finalizeChange`
         // function wasn't yet called).
 
-        emit AckWritten(msg.sender, _ack);
+        acks[msg.sender] = _ack;
     }
 
 }
