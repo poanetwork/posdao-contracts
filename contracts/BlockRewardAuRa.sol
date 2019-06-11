@@ -234,8 +234,18 @@ contract BlockRewardAuRa is BlockRewardBase {
             totalReward = uintStorage[BRIDGE_TOKEN_FEE];
 
             if (!_erc20Restricted) {
-                // Accumulated bridge fee plus 1% per year token inflation
-                totalReward += snapshotTotalStakeAmount() * _stakingContract.stakingEpochDuration() / 630720000;
+                // Accumulated bridge fee plus token inflation
+                uint256 inflationPercent;
+                if (_stakingEpoch <= 24) {
+                    inflationPercent = 32;
+                } else if (_stakingEpoch <= 48) {
+                    inflationPercent = 16;
+                } else if (_stakingEpoch <= 72) {
+                    inflationPercent = 8;
+                } else {
+                    inflationPercent = 4;
+                }
+                totalReward += snapshotTotalStakeAmount() * inflationPercent / 4800;
             }
 
             if (
