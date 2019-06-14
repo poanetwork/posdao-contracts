@@ -15,12 +15,16 @@ contract StakingAuRaMock is StakingAuRa {
         _addPoolInactive(_stakingAddress);
     }
 
-    function resetErc20TokenContract() public {
-        addressStorage[ERC20_TOKEN_CONTRACT] = address(0);
-    }
-
     function setCurrentBlockNumber(uint256 _blockNumber) public {
         uintStorage[keccak256("currentBlockNumber")] = _blockNumber;
+    }
+
+    function setErc20TokenContractMock(address _erc20TokenContract) public {
+        addressStorage[ERC20_TOKEN_CONTRACT] = _erc20TokenContract;
+    }
+
+    function setErc20Restricted(bool _erc20Restricted) public {
+        boolStorage[ERC20_RESTRICTED] = _erc20Restricted;
     }
 
     function setStakeAmountTotal(address _poolStakingAddress, uint256 _amount) public {

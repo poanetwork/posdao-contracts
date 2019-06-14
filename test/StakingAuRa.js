@@ -149,7 +149,7 @@ contract('StakingAuRa', async accounts => {
     });
     it('should fail if ERC contract is not specified', async () => {
       // Set ERC20 contract address to zero
-      await stakingAuRa.resetErc20TokenContract().should.be.fulfilled;
+      await stakingAuRa.setErc20TokenContractMock('0x0000000000000000000000000000000000000000').should.be.fulfilled;
 
       // Try to add a new pool
       await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
@@ -685,7 +685,7 @@ contract('StakingAuRa', async accounts => {
       await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
     });
     it('should fail if erc20TokenContract address is not defined', async () => {
-      await stakingAuRa.resetErc20TokenContract().should.be.fulfilled;
+      await stakingAuRa.setErc20TokenContractMock('0x0000000000000000000000000000000000000000').should.be.fulfilled;
       await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.rejectedWith(ERROR_MSG);
       await stakingAuRa.setErc20TokenContract(erc20Token.address, {from: owner}).should.be.fulfilled;
       await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
@@ -790,8 +790,6 @@ contract('StakingAuRa', async accounts => {
 
   describe('stakeNative()', async () => {
     let delegatorAddress;
-    let erc20Token;
-    let mintAmount;
     let candidateMinStake;
     let delegatorMinStake;
 
@@ -834,6 +832,20 @@ contract('StakingAuRa', async accounts => {
       await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: initialStakingAddresses[1], value: candidateMinStake, gasPrice: 0}).should.be.rejectedWith(ERROR_MSG);
       await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
     });
+    it('should fail if erc20TokenContract address is defined', async () => {
+      const erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
+      await stakingAuRa.setErc20TokenContractMock(erc20Token.address).should.be.fulfilled;
+      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.setErc20TokenContractMock('0x0000000000000000000000000000000000000000').should.be.fulfilled;
+      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
+    });
+    it('should fail if erc20TokenContract address is not defined and erc20 is not restricted', async () => {
+      (await stakingAuRa.erc20TokenContract.call()).should.be.equal('0x0000000000000000000000000000000000000000');
+      await stakingAuRa.setErc20Restricted(false).should.be.fulfilled;
+      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.setErc20Restricted(true).should.be.fulfilled;
+      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
+    });
     it('should fail for a non-existing pool', async () => {
       await stakingAuRa.stakeNative(accounts[10], {from: delegatorAddress, value: delegatorMinStake}).should.be.rejectedWith(ERROR_MSG);
       await stakingAuRa.stakeNative('0x0000000000000000000000000000000000000000', {from: delegatorAddress, value: delegatorMinStake}).should.be.rejectedWith(ERROR_MSG);
@@ -842,6 +854,12 @@ contract('StakingAuRa', async accounts => {
       await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
       await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: delegatorAddress, value: 0}).should.be.rejectedWith(ERROR_MSG);
       await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
+    });
+    it('should fail for a banned validator', async () => {
+      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
+      await validatorSetAuRa.setRandomContract(accounts[8]).should.be.fulfilled;
+      await validatorSetAuRa.removeMaliciousValidator(initialValidators[1], {from: accounts[8]}).should.be.fulfilled;
+      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: delegatorAddress, value: delegatorMinStake}).should.be.rejectedWith(ERROR_MSG);
     });
     // TODO: to be continued...
   });
