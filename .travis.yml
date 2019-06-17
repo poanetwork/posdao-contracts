@@ -1,0 +1,26 @@
+language: node_js
+node_js:
+  - "8"
+cache:
+  npm: true
+matrix:
+  fast_finish: true
+  allow_failures:
+    - env: SOLIDITY_COVERAGE=true
+
+install:
+  - npm install
+
+jobs:
+  include:
+    - stage: test
+      script:
+        - SOLIDITY_COVERAGE=true npm run test
+    - stage: publish docs
+      if: branch = master
+      script:
+        - git config --global user.name "${GH_NAME}"
+        - git config --global user.email "${GH_EMAIL}"
+        - echo "machine github.com login ${GH_NAME} password ${GH_TOKEN}" > ~/.netrc
+        - GIT_USER="${GH_NAME}" npm run docs-publish
+
