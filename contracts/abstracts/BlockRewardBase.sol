@@ -163,6 +163,12 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
 
     // =============================================== Getters ========================================================
 
+    /// @dev Returns an identifier for the bridge contract so that the latter could
+    /// ensure it works with the BlockReward contract.
+    function blockRewardContractId() public pure returns(bytes4) {
+        return BLOCK_REWARD_CONTRACT_ID;
+    }
+
     /// @dev Returns the array of `erc-to-erc` bridge addresses set by the `setErcToErcBridgesAllowed` setter.
     function ercToErcBridgesAllowed() public view returns(address[] memory) {
         return addressArrayStorage[ERC_TO_ERC_BRIDGES_ALLOWED];
@@ -299,6 +305,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
 
     // =============================================== Private ========================================================
 
+    bytes4  internal constant BLOCK_REWARD_CONTRACT_ID = bytes4(keccak256("blockReward"));
     bytes32 internal constant BRIDGE_NATIVE_FEE = keccak256("bridgeNativeFee");
     bytes32 internal constant BRIDGE_TOKEN_FEE = keccak256("bridgeTokenFee");
     bytes32 internal constant ERC_TO_ERC_BRIDGES_ALLOWED = keccak256("ercToErcBridgesAllowed");
