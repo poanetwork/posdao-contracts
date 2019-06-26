@@ -1129,6 +1129,98 @@ contract('StakingAuRa', async accounts => {
     });
   });
 
+  describe('withdraw()', async () => {
+    let delegatorAddress;
+    let erc20Token;
+    let mintAmount;
+    let candidateMinStake;
+    let delegatorMinStake;
+
+    beforeEach(async () => {
+      delegatorAddress = accounts[7];
+
+      // Initialize Staking
+      await stakingAuRa.initialize(
+        validatorSetAuRa.address, // _validatorSetContract
+        initialStakingAddresses, // _initialStakingAddresses
+        1, // _delegatorMinStake
+        1, // _candidateMinStake
+        120960, // _stakingEpochDuration
+        0, // _stakingEpochStartBlock
+        4320, // _stakeWithdrawDisallowPeriod
+        false // _erc20Restricted
+      ).should.be.fulfilled;
+
+      candidateMinStake = await stakingAuRa.getCandidateMinStake.call();
+      delegatorMinStake = await stakingAuRa.getDelegatorMinStake.call();
+
+      // Deploy ERC20 contract
+      erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
+
+      // Mint some balance for delegator and candidates (imagine that they got some STAKE_UNITs from a bridge)
+      const stakeUnit = await stakingAuRa.STAKE_UNIT.call();
+      mintAmount = stakeUnit.mul(new BN(2));
+      await erc20Token.mint(initialStakingAddresses[1], mintAmount, {from: owner}).should.be.fulfilled;
+      await erc20Token.mint(delegatorAddress, mintAmount, {from: owner}).should.be.fulfilled;
+      mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(initialStakingAddresses[1]));
+      mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(delegatorAddress));
+
+      // Pass Staking contract address to ERC20 contract
+      await erc20Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
+      stakingAuRa.address.should.be.equal(await erc20Token.stakingContract.call());
+
+      // Pass ERC20 contract address to Staking contract
+      '0x0000000000000000000000000000000000000000'.should.be.equal(
+        await stakingAuRa.erc20TokenContract.call()
+      );
+      await stakingAuRa.setErc20TokenContract(erc20Token.address, {from: owner}).should.be.fulfilled;
+      erc20Token.address.should.be.equal(await stakingAuRa.erc20TokenContract.call());
+
+      await stakingAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
+      await validatorSetAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
+    });
+
+    it('should withdraw a stake', async () => {
+      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], initialStakingAddresses[1])).should.be.bignumber.equal(new BN(0));
+      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
+      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], initialStakingAddresses[1])).should.be.bignumber.equal(mintAmount);
+      (await erc20Token.balanceOf.call(initialStakingAddresses[1])).should.be.bignumber.equal(new BN(0));
+
+      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
+      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(mintAmount);
+      (await stakingAuRa.stakeAmountTotal.call(initialStakingAddresses[1])).should.be.bignumber.equal(mintAmount.mul(new BN(2)));
+      (await erc20Token.balanceOf.call(delegatorAddress)).should.be.bignumber.equal(new BN(0));
+
+      await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
+      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
+      (await erc20Token.balanceOf.call(delegatorAddress)).should.be.bignumber.equal(mintAmount);
+    });
+    it('should fail for zero gas price', async () => {
+      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+      await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1], gasPrice: 0}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+    });
+    it('should fail if not initialized', async () => {
+      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+      await stakingAuRa.setValidatorSetAddress('0x0000000000000000000000000000000000000000').should.be.fulfilled;
+      await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.setValidatorSetAddress(validatorSetAuRa.address).should.be.fulfilled;
+      await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+    });
+    it('should fail for zero pool address', async () => {
+      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+      await stakingAuRa.withdraw('0x0000000000000000000000000000000000000000', mintAmount, {from: initialStakingAddresses[1]}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+    });
+    it('should fail for zero amount', async () => {
+      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+      await stakingAuRa.withdraw(initialStakingAddresses[1], new BN(0), {from: initialStakingAddresses[1]}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+    });
+    // TODO: to be continued...
+  });
+
   // TODO: ...add other tests...
 });
 
