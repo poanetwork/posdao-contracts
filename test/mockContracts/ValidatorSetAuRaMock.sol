@@ -22,6 +22,10 @@ contract ValidatorSetAuRaMock is ValidatorSetAuRa {
         _enqueuePendingValidators(true);
     }
 
+    function setBannedUntil(address _miningAddress, uint256 _bannedUntil) public {
+        uintStorage[keccak256(abi.encode(BANNED_UNTIL, _miningAddress))] = _bannedUntil;
+    }
+
     function setBlockRewardContract(address _address) public {
         addressStorage[BLOCK_REWARD_CONTRACT] = _address;
     }

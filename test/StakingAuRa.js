@@ -1,4 +1,4 @@
-const BlockRewardAuRa = artifacts.require('BlockRewardAuRa');
+const BlockRewardAuRa = artifacts.require('BlockRewardAuRaMock');
 const ERC677BridgeTokenRewardable = artifacts.require('ERC677BridgeTokenRewardableMock');
 const EternalStorageProxy = artifacts.require('EternalStorageProxy');
 const RandomAuRa = artifacts.require('RandomAuRa');
@@ -1160,7 +1160,9 @@ contract('StakingAuRa', async accounts => {
       // Mint some balance for delegator and candidates (imagine that they got some STAKE_UNITs from a bridge)
       const stakeUnit = await stakingAuRa.STAKE_UNIT.call();
       mintAmount = stakeUnit.mul(new BN(2));
+      await erc20Token.mint(initialStakingAddresses[0], mintAmount, {from: owner}).should.be.fulfilled;
       await erc20Token.mint(initialStakingAddresses[1], mintAmount, {from: owner}).should.be.fulfilled;
+      await erc20Token.mint(initialStakingAddresses[2], mintAmount, {from: owner}).should.be.fulfilled;
       await erc20Token.mint(delegatorAddress, mintAmount, {from: owner}).should.be.fulfilled;
       mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(initialStakingAddresses[1]));
       mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(delegatorAddress));
@@ -1208,15 +1210,113 @@ contract('StakingAuRa', async accounts => {
       await stakingAuRa.setValidatorSetAddress(validatorSetAuRa.address).should.be.fulfilled;
       await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
     });
-    it('should fail for zero pool address', async () => {
+    it('should fail for a zero pool address', async () => {
       await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
       await stakingAuRa.withdraw('0x0000000000000000000000000000000000000000', mintAmount, {from: initialStakingAddresses[1]}).should.be.rejectedWith(ERROR_MSG);
       await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
     });
-    it('should fail for zero amount', async () => {
+    it('should fail for a zero amount', async () => {
       await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
       await stakingAuRa.withdraw(initialStakingAddresses[1], new BN(0), {from: initialStakingAddresses[1]}).should.be.rejectedWith(ERROR_MSG);
       await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+    });
+    it('shouldn\'t allow withdrawing from a banned pool', async () => {
+      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
+      await validatorSetAuRa.setBannedUntil(initialValidators[1], 101).should.be.fulfilled;
+      await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.rejectedWith(ERROR_MSG);
+      await validatorSetAuRa.setBannedUntil(initialValidators[1], 0).should.be.fulfilled;
+      await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+      await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
+    });
+    it('shouldn\'t allow withdrawing during the stakeWithdrawDisallowPeriod', async () => {
+      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+      await stakingAuRa.setCurrentBlockNumber(117000).should.be.fulfilled;
+      await validatorSetAuRa.setCurrentBlockNumber(117000).should.be.fulfilled;
+      await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.setCurrentBlockNumber(116000).should.be.fulfilled;
+      await validatorSetAuRa.setCurrentBlockNumber(116000).should.be.fulfilled;
+      await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+    });
+    it('shouldn\'t allow withdrawing during snapshotting period', async () => {
+      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+      await blockRewardAuRa.setIsSnapshotting(true).should.be.fulfilled;
+      await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.rejectedWith(ERROR_MSG);
+      await blockRewardAuRa.setIsSnapshotting(false).should.be.fulfilled;
+      await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+    });
+    it('should fail if non-zero residue is less than CANDIDATE_MIN_STAKE', async () => {
+      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+      await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount.sub(candidateMinStake).add(new BN(1)), {from: initialStakingAddresses[1]}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount.sub(candidateMinStake), {from: initialStakingAddresses[1]}).should.be.fulfilled;
+      await stakingAuRa.withdraw(initialStakingAddresses[1], candidateMinStake, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+    });
+    it('should fail if non-zero residue is less than DELEGATOR_MIN_STAKE', async () => {
+      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
+      await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount.sub(delegatorMinStake).add(new BN(1)), {from: delegatorAddress}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount.sub(delegatorMinStake), {from: delegatorAddress}).should.be.fulfilled;
+      await stakingAuRa.withdraw(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
+    });
+    it('should fail if withdraw more than staked', async () => {
+      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+      await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount.add(new BN(1)), {from: initialStakingAddresses[1]}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+    });
+    it('should fail if withdraw already ordered amount', async () => {
+      // Set `initiateChangeAllowed` boolean flag to `true`
+      await validatorSetAuRa.setCurrentBlockNumber(1).should.be.fulfilled;
+      await validatorSetAuRa.setSystemAddress(owner).should.be.fulfilled;
+      await validatorSetAuRa.finalizeChange({from: owner}).should.be.fulfilled;
+      await validatorSetAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
+
+      // Place a stake during the initial staking epoch
+      (await stakingAuRa.stakingEpoch.call()).should.be.bignumber.equal(new BN(0));
+      await stakingAuRa.stake(initialStakingAddresses[0], mintAmount, {from: initialStakingAddresses[0]}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[2], mintAmount, {from: initialStakingAddresses[2]}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
+
+      // Change staking epoch
+      await stakingAuRa.setCurrentBlockNumber(120960).should.be.fulfilled;
+      await validatorSetAuRa.setCurrentBlockNumber(120960).should.be.fulfilled;
+      await validatorSetAuRa.setBlockRewardContract(accounts[7]).should.be.fulfilled;
+      await validatorSetAuRa.newValidatorSet({from: accounts[7]}).should.be.fulfilled;
+      await validatorSetAuRa.setBlockRewardContract(blockRewardAuRa.address).should.be.fulfilled;
+      await stakingAuRa.setCurrentBlockNumber(120970).should.be.fulfilled;
+      await validatorSetAuRa.setCurrentBlockNumber(120970).should.be.fulfilled;
+      (await stakingAuRa.stakingEpoch.call()).should.be.bignumber.equal(new BN(1));
+
+      // Finalize a new validator set
+      await validatorSetAuRa.emitInitiateChange().should.be.fulfilled;
+      await validatorSetAuRa.finalizeChange({from: owner}).should.be.fulfilled;
+
+      // Order withdrawal
+      await stakingAuRa.orderWithdraw(initialStakingAddresses[1], mintAmount.div(new BN(4)), {from: delegatorAddress}).should.be.fulfilled;
+
+      // Validator removes their pool
+      (await validatorSetAuRa.isValidator.call(initialValidators[1])).should.be.equal(true);
+      await stakingAuRa.removeMyPool({from: initialStakingAddresses[1]}).should.be.fulfilled;
+
+      // Change staking epoch and enqueue pending validators
+      await stakingAuRa.setCurrentBlockNumber(120960*2).should.be.fulfilled;
+      await validatorSetAuRa.setCurrentBlockNumber(120960*2).should.be.fulfilled;
+      await validatorSetAuRa.setBlockRewardContract(accounts[7]).should.be.fulfilled;
+      await validatorSetAuRa.newValidatorSet({from: accounts[7]}).should.be.fulfilled;
+      await validatorSetAuRa.setBlockRewardContract(blockRewardAuRa.address).should.be.fulfilled;
+      await stakingAuRa.setCurrentBlockNumber(120970*2).should.be.fulfilled;
+      await validatorSetAuRa.setCurrentBlockNumber(120970*2).should.be.fulfilled;
+      (await stakingAuRa.stakingEpoch.call()).should.be.bignumber.equal(new BN(2));
+
+      // Finalize a new validator set
+      await validatorSetAuRa.emitInitiateChange().should.be.fulfilled;
+      await validatorSetAuRa.finalizeChange({from: owner}).should.be.fulfilled;
+      (await validatorSetAuRa.isValidator.call(initialValidators[1])).should.be.equal(false);
+
+      (await stakingAuRa.stakeAmountMinusOrderedWithdraw.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(mintAmount.mul(new BN(3)).div(new BN(4)));
+      await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount.mul(new BN(3)).div(new BN(4)), {from: delegatorAddress}).should.be.fulfilled;
     });
     // TODO: to be continued...
   });
