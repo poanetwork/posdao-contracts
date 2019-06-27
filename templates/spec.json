@@ -17,7 +17,8 @@
         "blockRewardContractAddress": "0x2000000000000000000000000000000000000001",
         "blockRewardContractTransition": 0,
         "randomnessContractAddress": "0x3000000000000000000000000000000000000001",
-        "quorum23Transition": 0
+        "quorum23Transition": 0,
+        "posdaoTransition": 0
       }
     }
   },
