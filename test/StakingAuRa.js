@@ -1184,18 +1184,29 @@ contract('StakingAuRa', async accounts => {
 
     it('should withdraw a stake', async () => {
       (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], initialStakingAddresses[1])).should.be.bignumber.equal(new BN(0));
+      (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialStakingAddresses[1], initialStakingAddresses[1])).should.be.bignumber.equal(new BN(0));
       (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
+      (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
       await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
       (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], initialStakingAddresses[1])).should.be.bignumber.equal(mintAmount);
+      (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialStakingAddresses[1], initialStakingAddresses[1])).should.be.bignumber.equal(mintAmount);
       (await erc20Token.balanceOf.call(initialStakingAddresses[1])).should.be.bignumber.equal(new BN(0));
 
       await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
       (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(mintAmount);
+      (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(mintAmount);
       (await stakingAuRa.stakeAmountTotal.call(initialStakingAddresses[1])).should.be.bignumber.equal(mintAmount.mul(new BN(2)));
       (await erc20Token.balanceOf.call(delegatorAddress)).should.be.bignumber.equal(new BN(0));
 
-      await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
+      const result = await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
+      result.logs[0].event.should.be.equal("Withdrawn");
+      result.logs[0].args.fromPoolStakingAddress.should.be.equal(initialStakingAddresses[1]);
+      result.logs[0].args.staker.should.be.equal(delegatorAddress);
+      result.logs[0].args.stakingEpoch.should.be.bignumber.equal(new BN(0));
+      result.logs[0].args.amount.should.be.bignumber.equal(mintAmount);
       (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
+      (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
+      (await stakingAuRa.stakeAmountTotal.call(initialStakingAddresses[1])).should.be.bignumber.equal(mintAmount);
       (await erc20Token.balanceOf.call(delegatorAddress)).should.be.bignumber.equal(mintAmount);
     });
     it('should fail for zero gas price', async () => {
@@ -1293,11 +1304,14 @@ contract('StakingAuRa', async accounts => {
       await validatorSetAuRa.finalizeChange({from: owner}).should.be.fulfilled;
 
       // Order withdrawal
-      await stakingAuRa.orderWithdraw(initialStakingAddresses[1], mintAmount.div(new BN(4)), {from: delegatorAddress}).should.be.fulfilled;
+      const orderedAmount = mintAmount.div(new BN(4));
+      await stakingAuRa.orderWithdraw(initialStakingAddresses[1], orderedAmount, {from: delegatorAddress}).should.be.fulfilled;
 
-      // Validator removes their pool
+      // The second validator removes their pool
       (await validatorSetAuRa.isValidator.call(initialValidators[1])).should.be.equal(true);
+      (await stakingAuRa.getPoolsInactive.call()).length.should.be.equal(0);
       await stakingAuRa.removeMyPool({from: initialStakingAddresses[1]}).should.be.fulfilled;
+      (await stakingAuRa.getPoolsInactive.call()).should.be.deep.equal([initialStakingAddresses[1]]);
 
       // Change staking epoch and enqueue pending validators
       await stakingAuRa.setCurrentBlockNumber(120960*2).should.be.fulfilled;
@@ -1314,11 +1328,37 @@ contract('StakingAuRa', async accounts => {
       await validatorSetAuRa.finalizeChange({from: owner}).should.be.fulfilled;
       (await validatorSetAuRa.isValidator.call(initialValidators[1])).should.be.equal(false);
 
-      (await stakingAuRa.stakeAmountMinusOrderedWithdraw.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(mintAmount.mul(new BN(3)).div(new BN(4)));
+      // Check withdrawal for a delegator
+      const restOfAmount = mintAmount.mul(new BN(3)).div(new BN(4));
+      (await stakingAuRa.poolDelegators.call(initialStakingAddresses[1])).should.be.deep.equal([delegatorAddress]);
+      (await stakingAuRa.stakeAmountMinusOrderedWithdraw.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(restOfAmount);
+      (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
       await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.rejectedWith(ERROR_MSG);
-      await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount.mul(new BN(3)).div(new BN(4)), {from: delegatorAddress}).should.be.fulfilled;
+      await stakingAuRa.withdraw(initialStakingAddresses[1], restOfAmount.add(new BN(1)), {from: delegatorAddress}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.withdraw(initialStakingAddresses[1], restOfAmount, {from: delegatorAddress}).should.be.fulfilled;
+      (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
+      (await stakingAuRa.stakeAmountMinusOrderedWithdraw.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
+      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(orderedAmount);
+      (await stakingAuRa.poolDelegators.call(initialStakingAddresses[1])).length.should.be.equal(0);
+      (await stakingAuRa.poolDelegatorsInactive.call(initialStakingAddresses[1])).should.be.deep.equal([delegatorAddress]);
     });
-    // TODO: to be continued...
+    it('should decrease likelihood', async () => {
+      let likelihoodInfo = await stakingAuRa.getPoolsLikelihood.call();
+      likelihoodInfo.sum.should.be.bignumber.equal(new BN(0));
+
+      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+
+      likelihoodInfo = await stakingAuRa.getPoolsLikelihood.call();
+      likelihoodInfo.likelihoods[0].should.be.bignumber.equal(new BN(200));
+      likelihoodInfo.sum.should.be.bignumber.equal(new BN(200));
+
+      await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount.div(new BN(2)), {from: initialStakingAddresses[1]}).should.be.fulfilled;
+
+      likelihoodInfo = await stakingAuRa.getPoolsLikelihood.call();
+      likelihoodInfo.likelihoods[0].should.be.bignumber.equal(new BN(100));
+      likelihoodInfo.sum.should.be.bignumber.equal(new BN(100));
+    });
+    // TODO: add unit tests for native coin withdrawal
   });
 
   // TODO: ...add other tests...
