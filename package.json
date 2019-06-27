@@ -1,6 +1,6 @@
 {
   "name": "posdao-contracts",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Smart contracts for DPoS",
   "main": "index.js",
   "scripts": {

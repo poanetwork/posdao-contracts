@@ -107,6 +107,21 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         addressStorage[VALIDATOR_SET_CONTRACT] = _validatorSet;
     }
 
+    /// @dev Copies the minting statistics from the previous BlockReward contract
+    /// for the `mintedTotally` and `mintedTotallyByBridge` getters. Can only be called once by the owner.
+    /// This function assumes that the bridge contract address is not changed due to its upgradable nature.
+    /// @param _bridge The address of a bridge contract.
+    /// @param _prevBlockRewardContract The address of the previous BlockReward contract.
+    function migrateMintingStatistics(address _bridge, IBlockReward _prevBlockRewardContract) external onlyOwner {
+        require(mintedTotally() == 0);
+        uint256 prevMinted = _prevBlockRewardContract.mintedTotally();
+        uint256 prevMintedByBridge = _prevBlockRewardContract.mintedTotallyByBridge(_bridge);
+        require(prevMinted != 0);
+        require(prevMintedByBridge != 0);
+        uintStorage[MINTED_TOTALLY] = prevMinted;
+        uintStorage[keccak256(abi.encode(MINTED_TOTALLY_BY_BRIDGE, _bridge))] = prevMintedByBridge;
+    }
+
     /// @dev Sets the array of `erc-to-native` bridge addresses which are allowed to call some of the functions with
     /// the `onlyErcToNativeBridge` modifier. This setter can only be called by the `owner`.
     /// @param _bridgesAllowed The array of bridge addresses.
