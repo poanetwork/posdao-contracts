@@ -14,6 +14,16 @@ import "./eternal-storage/OwnedEternalStorage.sol";
 /// The protection logic is declared in the `allowedTxTypes` function.
 contract TxPermission is OwnedEternalStorage, ITxPermission {
 
+    // ============================================== Constants =======================================================
+
+    /// @dev A constant that defines a regular block gas limit.
+    /// Used by the `blockGasLimit` public getter.
+    uint256 public constant BLOCK_GAS_LIMIT = 10000000;
+
+    /// @dev A constant that defines a reduced block gas limit.
+    /// Used by the `blockGasLimit` public getter.
+    uint256 public constant BLOCK_GAS_LIMIT_REDUCED = 2000000;
+
     // ============================================== Modifiers =======================================================
 
     /// @dev Ensures the `initialize` function was called before.
@@ -199,23 +209,24 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
         return (_gasPrice > 0 ? ALL : NONE, false);
     }
 
-    /// @dev Returns a boolean flag indicating whether the current block gas limit must be limited.
-    /// See https://github.com/poanetwork/parity-ethereum/issues/119
-    function limitBlockGas() public view returns(bool) {
+    /// @dev Returns the current block gas limit which depends on the stage of the current
+    /// staking epoch: if there is a rewarding/snapshotting process, the block gas limit
+    /// is temporarily reduced. See https://github.com/poanetwork/parity-ethereum/issues/119
+    function blockGasLimit() public view returns(uint256) {
         IValidatorSet validatorSet = validatorSetContract();
         IBlockReward blockRewardContract = IBlockReward(validatorSet.blockRewardContract());
         if (blockRewardContract.isRewarding()) {
-            return true;
+            return BLOCK_GAS_LIMIT_REDUCED;
         }
         address stakingContract = validatorSet.stakingContract();
         uint256 stakingEpochEndBlock = IStakingAuRa(stakingContract).stakingEpochEndBlock();
         if (block.number == stakingEpochEndBlock - 1 || block.number == stakingEpochEndBlock) {
-            return true;
+            return BLOCK_GAS_LIMIT_REDUCED;
         }
         if (blockRewardContract.isSnapshotting()) {
-            return true;
+            return BLOCK_GAS_LIMIT_REDUCED;
         }
-        return false;
+        return BLOCK_GAS_LIMIT;
     }
 
     /// @dev Returns a boolean flag indicating if the `initialize` function has been called.
