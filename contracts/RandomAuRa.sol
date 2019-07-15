@@ -52,7 +52,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         require(revealSecretCallable(miningAddress, _secret));
         require(_getCoinbase() == miningAddress); // make sure validator node is live
 
-        _setCurrentSeed(_getCurrentSeed() ^ _secret);
+        _setCurrentSeed(getCurrentSeed() ^ _secret);
         _setSentReveal(currentCollectRound(), miningAddress);
     }
 

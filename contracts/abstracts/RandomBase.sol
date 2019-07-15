@@ -18,19 +18,12 @@ contract RandomBase is OwnedEternalStorage, IRandom {
         _;
     }
 
-    /// @dev Ensures the caller is the ValidatorSet contract address
-    /// (EternalStorageProxy proxy contract for ValidatorSet).
-    modifier onlyValidatorSetContract() {
-        require(msg.sender == address(validatorSetContract()));
-        _;
-    }
-
     // =============================================== Getters ========================================================
 
-    /// @dev Returns the current random seed accumulated during RANDAO or another process (depending on
-    /// implementation). This getter can only be called by the `ValidatorSet` contract.
-    function getCurrentSeed() external onlyValidatorSetContract view returns(uint256) {
-        return _getCurrentSeed();
+    /// @dev Returns the current random seed accumulated during RANDAO or another process
+    /// (depending on implementation).
+    function getCurrentSeed() public view returns(uint256) {
+        return uintStorage[CURRENT_SEED];
     }
 
     /// @dev Returns a boolean flag indicating if the `initialize` function has been called.
@@ -60,11 +53,6 @@ contract RandomBase is OwnedEternalStorage, IRandom {
     /// @param _seed A new random seed.
     function _setCurrentSeed(uint256 _seed) internal {
         uintStorage[CURRENT_SEED] = _seed;
-    }
-
-    /// @dev Reads the current random seed from the state.
-    function _getCurrentSeed() internal view returns(uint256) {
-        return uintStorage[CURRENT_SEED];
     }
 
 }
