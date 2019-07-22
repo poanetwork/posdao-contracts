@@ -42,7 +42,7 @@ contract StakingAuRa is IStakingAuRa, StakingBase {
     /// @param _delegatorMinStake The minimum allowed amount of delegator stake in STAKE_UNITs.
     /// @param _candidateMinStake The minimum allowed amount of candidate/validator stake in STAKE_UNITs.
     /// @param _stakingEpochDuration The duration of a staking epoch in blocks
-    /// (e.g., 120960 = 1 week for 5-seconds blocks in AuRa).
+    /// (e.g., 120954 = 1 week for 5-seconds blocks in AuRa).
     /// @param _stakingEpochStartBlock The number of the first block of initial staking epoch
     /// (must be zero if the network is starting from genesis block).
     /// @param _stakeWithdrawDisallowPeriod The duration period (in blocks) at the end of a staking epoch

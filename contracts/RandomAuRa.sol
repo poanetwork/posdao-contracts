@@ -2,6 +2,7 @@ pragma solidity 0.5.9;
 
 import "./abstracts/RandomBase.sol";
 import "./interfaces/IRandomAuRa.sol";
+import "./interfaces/IValidatorSet.sol";
 import "./interfaces/IValidatorSetAuRa.sol";
 import "./interfaces/IStaking.sol";
 import "./interfaces/IStakingAuRa.sol";
@@ -64,7 +65,10 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         uint256 _collectRoundLength, // in blocks
         address _validatorSet
     ) external {
+        IValidatorSet validatorSet = IValidatorSet(_validatorSet);
         require(_collectRoundLength % 2 == 0);
+        require(_collectRoundLength % validatorSet.MAX_VALIDATORS() == 0);
+        require(IStakingAuRa(validatorSet.stakingContract()).stakingEpochDuration() % _collectRoundLength == 0);
         require(_collectRoundLength > 0);
         require(collectRoundLength() == 0);
         uintStorage[COLLECT_ROUND_LENGTH] = _collectRoundLength;
