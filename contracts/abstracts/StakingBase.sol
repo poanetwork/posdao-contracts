@@ -389,11 +389,11 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     /// Used by the `ValidatorSet._newValidatorSet` function when randomly selecting new validators at the last
     /// block of a staking epoch. A pool's coefficient is updated every time any staked amount is changed in this pool
     /// (see the `_setLikelihood` function).
-    /// @return `int256[] likelihoods` - The array of the coefficients. The array length is always equal to the length
+    /// @return `uint256[] likelihoods` - The array of the coefficients. The array length is always equal to the length
     /// of the `poolsToBeElected` array.
-    /// `int256 sum` - The sum of the coefficients.
-    function getPoolsLikelihood() external view returns(int256[] memory likelihoods, int256 sum) {
-        return (intArrayStorage[POOLS_LIKELIHOOD], intStorage[POOLS_LIKELIHOOD_SUM]);
+    /// `uint256 sum` - The sum of the coefficients.
+    function getPoolsLikelihood() external view returns(uint256[] memory likelihoods, uint256 sum) {
+        return (uintArrayStorage[POOLS_LIKELIHOOD], uintStorage[POOLS_LIKELIHOOD_SUM]);
     }
 
     /// @dev Returns the list of pools (their staking addresses) which will participate in a new validator set
@@ -750,7 +750,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         if (index >= pools.length || pools[index] != _stakingAddress) {
             _setPoolToBeElectedIndex(_stakingAddress, pools.length);
             pools.push(_stakingAddress);
-            intArrayStorage[POOLS_LIKELIHOOD].push(0);
+            uintArrayStorage[POOLS_LIKELIHOOD].push(0);
         }
         _deletePoolToBeRemoved(_stakingAddress);
     }
@@ -774,13 +774,14 @@ contract StakingBase is OwnedEternalStorage, IStaking {
     /// @param _stakingAddress The pool deleted from the `poolsToBeElected` array.
     function _deletePoolToBeElected(address _stakingAddress) internal {
         address[] storage pools = addressArrayStorage[POOLS_TO_BE_ELECTED];
-        int256[] storage likelihood = intArrayStorage[POOLS_LIKELIHOOD];
+        uint256[] storage likelihood = uintArrayStorage[POOLS_LIKELIHOOD];
         if (pools.length != likelihood.length) return;
         uint256 indexToDelete = poolToBeElectedIndex(_stakingAddress);
         if (pools.length > indexToDelete && pools[indexToDelete] == _stakingAddress) {
-            intStorage[POOLS_LIKELIHOOD_SUM] -= likelihood[indexToDelete];
-            if (intStorage[POOLS_LIKELIHOOD_SUM] < 0) {
-                intStorage[POOLS_LIKELIHOOD_SUM] = 0;
+            if (uintStorage[POOLS_LIKELIHOOD_SUM] >= likelihood[indexToDelete]) {
+                uintStorage[POOLS_LIKELIHOOD_SUM] -= likelihood[indexToDelete];
+            } else {
+                uintStorage[POOLS_LIKELIHOOD_SUM] = 0;
             }
             pools[indexToDelete] = pools[pools.length - 1];
             likelihood[indexToDelete] = likelihood[pools.length - 1];
@@ -1026,11 +1027,16 @@ contract StakingBase is OwnedEternalStorage, IStaking {
 
         if (!isToBeElected) return;
 
-        int256 oldValue = intArrayStorage[POOLS_LIKELIHOOD][index];
-        int256 newValue = int256(stakeAmountTotalMinusOrderedWithdraw(_poolStakingAddress) * 100 / STAKE_UNIT);
+        uint256 oldValue = uintArrayStorage[POOLS_LIKELIHOOD][index];
+        uint256 newValue = stakeAmountTotalMinusOrderedWithdraw(_poolStakingAddress) * 100 / STAKE_UNIT;
 
-        intArrayStorage[POOLS_LIKELIHOOD][index] = newValue;
-        intStorage[POOLS_LIKELIHOOD_SUM] += newValue - oldValue;
+        uintArrayStorage[POOLS_LIKELIHOOD][index] = newValue;
+
+        if (newValue >= oldValue) {
+            uintStorage[POOLS_LIKELIHOOD_SUM] += newValue - oldValue;
+        } else {
+            uintStorage[POOLS_LIKELIHOOD_SUM] -= oldValue - newValue;
+        }
     }
 
     /// @dev Sets the current amount of staking tokens/coins ordered for withdrawal from the specified

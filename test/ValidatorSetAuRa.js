@@ -677,7 +677,7 @@ contract('ValidatorSetAuRa', async accounts => {
       poolsLikelihood[1].should.be.bignumber.equal(new BN(likelihoodSum));
 
       // Generate a random seed
-      (await randomAuRa.showCurrentSeed.call()).should.be.bignumber.equal(new BN(0));
+      (await randomAuRa.getCurrentSeed.call()).should.be.bignumber.equal(new BN(0));
       await randomAuRa.setCurrentBlockNumber(0).should.be.fulfilled;
       await randomAuRa.initialize(200, validatorSetAuRa.address).should.be.fulfilled;
       let secrets = [];
@@ -697,7 +697,7 @@ contract('ValidatorSetAuRa', async accounts => {
         await randomAuRa.setCoinbase(initialValidators[i]).should.be.fulfilled;
         await randomAuRa.revealSecret(new BN(secret), {from: initialValidators[i]}).should.be.fulfilled;
       }
-      (await randomAuRa.showCurrentSeed.call()).should.be.bignumber.equal(new BN(seed));
+      (await randomAuRa.getCurrentSeed.call()).should.be.bignumber.equal(new BN(seed));
 
       // Emulate calling `newValidatorSet()` at the last block of staking epoch
       await stakingAuRa.setCurrentBlockNumber(120960).should.be.fulfilled;
@@ -805,7 +805,7 @@ contract('ValidatorSetAuRa', async accounts => {
       poolsLikelihood[1].should.be.bignumber.equal(new BN(likelihoodSum));
 
       // Generate a random seed
-      (await randomAuRa.showCurrentSeed.call()).should.be.bignumber.equal(new BN(0));
+      (await randomAuRa.getCurrentSeed.call()).should.be.bignumber.equal(new BN(0));
       await randomAuRa.setCurrentBlockNumber(0).should.be.fulfilled;
       await randomAuRa.initialize(200, validatorSetAuRa.address).should.be.fulfilled;
       let secrets = [];
@@ -825,7 +825,7 @@ contract('ValidatorSetAuRa', async accounts => {
         await randomAuRa.setCoinbase(initialValidators[i]).should.be.fulfilled;
         await randomAuRa.revealSecret(new BN(secret), {from: initialValidators[i]}).should.be.fulfilled;
       }
-      (await randomAuRa.showCurrentSeed.call()).should.be.bignumber.equal(new BN(seed));
+      (await randomAuRa.getCurrentSeed.call()).should.be.bignumber.equal(new BN(seed));
 
       // Emulate calling `newValidatorSet()` at the last block of staking epoch
       await stakingAuRa.setCurrentBlockNumber(120960).should.be.fulfilled;

@@ -49,8 +49,8 @@ contract ValidatorSetAuRaMock is ValidatorSetAuRa {
     // =============================================== Getters ========================================================
 
     function getRandomIndex(
-        int256[] memory _likelihood,
-        int256 _likelihoodSum,
+        uint256[] memory _likelihood,
+        uint256 _likelihoodSum,
         uint256 _randomNumber
     ) public pure returns(uint256) {
         return _getRandomIndex(

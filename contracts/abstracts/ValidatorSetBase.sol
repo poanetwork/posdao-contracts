@@ -486,7 +486,7 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
         ) {
             uint256 randomNumber = IRandom(randomContract()).getCurrentSeed();
 
-            (int256[] memory likelihood, int256 likelihoodSum) = staking.getPoolsLikelihood();
+            (uint256[] memory likelihood, uint256 likelihoodSum) = staking.getPoolsLikelihood();
 
             if (likelihood.length > 0 && likelihoodSum > 0) {
                 address[] memory newValidators = new address[](
@@ -680,18 +680,18 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
     /// @param _likelihood An array of probability coefficients.
     /// @param _likelihoodSum A sum of probability coefficients.
     /// @param _randomNumber A random number.
-    function _getRandomIndex(int256[] memory _likelihood, int256 _likelihoodSum, uint256 _randomNumber)
+    function _getRandomIndex(uint256[] memory _likelihood, uint256 _likelihoodSum, uint256 _randomNumber)
         internal
         pure
         returns(uint256)
     {
-        int256 r = int256(_randomNumber % uint256(_likelihoodSum)) + 1;
+        uint256 random = _randomNumber % _likelihoodSum;
+        uint256 sum = 0;
         uint256 index = 0;
-        while (true) {
-            r -= _likelihood[index];
-            if (r <= 0) break;
+        while (sum <= random) {
+            sum += _likelihood[index];
             index++;
         }
-        return index;
+        return index - 1;
     }
 }

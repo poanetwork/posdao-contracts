@@ -15,10 +15,6 @@ contract RandomAuRaMock is RandomAuRa {
         uintStorage[keccak256("currentBlockNumber")] = _blockNumber;
     }
 
-    function showCurrentSeed() public view returns(uint256) {
-        return _getCurrentSeed();
-    }
-
     // =============================================== Private ========================================================
 
     function _getCoinbase() internal view returns(address) {

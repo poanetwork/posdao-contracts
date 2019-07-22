@@ -7,7 +7,7 @@ interface IStaking {
     function removePool(address) external;
     function erc20Restricted() external view returns(bool);
     function erc20TokenContract() external view returns(address);
-    function getPoolsLikelihood() external view returns(int256[] memory, int256);
+    function getPoolsLikelihood() external view returns(uint256[] memory, uint256);
     function getPoolsToBeElected() external view returns(address[] memory);
     function getPoolsToBeRemoved() external view returns(address[] memory);
     function poolDelegators(address) external view returns(address[] memory);
