@@ -80,7 +80,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     /// This function does nothing if the current block is not the last block of the current collection round.
     /// Can only be called by the `BlockRewardAuRa` contract (its `reward` function).
     function onFinishCollectRound() external onlyBlockReward {
-        if (_getCurrentBlockNumber() % collectRoundLength() != collectRoundLength() - 1) return;
+        if (_getCurrentBlockNumber() % collectRoundLength() != 0) return;
 
         // This is the last block of the current collection round
 
@@ -150,7 +150,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
     /// @dev Returns the serial number of the current collection round.
     function currentCollectRound() public view returns(uint256) {
-        return _getCurrentBlockNumber() / collectRoundLength();
+        return (_getCurrentBlockNumber() - 1) / collectRoundLength();
     }
 
     /// @dev Returns the cipher of the validator's secret for the specified collection round and the specified validator
@@ -181,7 +181,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     /// is a `commits phase`. Used by the validator's node to determine if it should commit the hash of
     /// the secret during the current collection round.
     function isCommitPhase() public view returns(bool) {
-        return (_getCurrentBlockNumber() % collectRoundLength()) < commitPhaseLength();
+        return ((_getCurrentBlockNumber() - 1) % collectRoundLength()) < commitPhaseLength();
     }
 
     /// @dev Returns a boolean flag indicating whether the current phase of the current collection round
