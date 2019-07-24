@@ -313,6 +313,36 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         return uintStorage[SNAPSHOT_TOTAL_STAKE_AMOUNT];
     }
 
+    /// @dev Returns the reward coefficient for the specified validator. The given value should be divided by 1000000
+    /// to get the value of the reward percent (since EVM doesn't support float values). If the specified staking
+    /// address is an address of a candidate, the potentially possible reward coefficient is returned for the specified
+    /// candidate instead.
+    /// @param _stakingAddress The staking address of the validator/candidate
+    /// pool for which the getter must return the coefficient.
+    function validatorRewardPercent(address _stakingAddress) public view returns(uint256) {
+        uint256[] storage rewardPercents = uintArrayStorage[
+            keccak256(abi.encode(SNAPSHOT_REWARD_PERCENTS, _stakingAddress))
+        ];
+
+        if (rewardPercents.length != 0) {
+            return rewardPercents[0];
+        }
+
+        IValidatorSet validatorSet = validatorSetContract();
+        IStaking stakingContract = IStaking(validatorSet.stakingContract());
+
+        if (stakingContract.stakingEpoch() == 0) {
+            if (validatorSet.isValidator(validatorSet.miningByStakingAddress(_stakingAddress))) {
+                return 0;
+            }
+        }
+
+        return _validatorRewardPercent(
+            stakingContract.stakeAmountMinusOrderedWithdraw(_stakingAddress, _stakingAddress),
+            stakingContract.stakeAmountTotalMinusOrderedWithdraw(_stakingAddress)
+        );
+    }
+
     /// @dev Returns the address of the `ValidatorSet` contract.
     function validatorSetContract() public view returns(IValidatorSet) {
         return IValidatorSet(addressStorage[VALIDATOR_SET_CONTRACT]);
@@ -469,7 +499,6 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         bool validatorHasMore30Per = validatorStake * 7 > delegatorsAmount * 3;
 
         address[] memory delegators = _stakingContract.poolDelegators(_stakingAddress);
-        uint256 rewardPercent;
 
         address[] storage stakers = addressArrayStorage[keccak256(abi.encode(
             SNAPSHOT_STAKERS, _stakingAddress
@@ -481,16 +510,8 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
 
         if (_offset == 0) {
             // Calculate reward percent for validator
-            rewardPercent = 0;
-            if (validatorStake != 0 && totalStaked != 0) {
-                if (validatorHasMore30Per) {
-                    rewardPercent = REWARD_PERCENT_MULTIPLIER * validatorStake / totalStaked;
-                } else {
-                    rewardPercent = REWARD_PERCENT_MULTIPLIER * 3 / 10;
-                }
-            }
             stakers.push(_stakingAddress);
-            rewardPercents.push(rewardPercent);
+            rewardPercents.push(_validatorRewardPercent(validatorStake, totalStaked));
             addressArrayStorage[SNAPSHOT_STAKING_ADDRESSES].push(_stakingAddress);
             uintStorage[SNAPSHOT_TOTAL_STAKE_AMOUNT] += totalStaked;
         }
@@ -506,7 +527,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
 
         // Calculate reward percent for each delegator
         for (uint256 i = from; i < to; i++) {
-            rewardPercent = 0;
+            uint256 rewardPercent = 0;
 
             if (validatorHasMore30Per) {
                 if (totalStaked != 0) {
@@ -522,6 +543,25 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
 
             stakers.push(delegators[i]);
             rewardPercents.push(rewardPercent);
+        }
+    }
+
+    /// @dev Calculates the reward coefficient for a validator (or candidate).
+    /// Used by the `validatorRewardPercent` and `_setSnapshot` functions.
+    /// @param _validatorStaked The amount staked by a validator.
+    /// @param _totalStaked The total amount staked by a validator and their delegators.
+    function _validatorRewardPercent(
+        uint256 _validatorStaked,
+        uint256 _totalStaked
+    ) internal pure returns(uint256 rewardPercent) {
+        rewardPercent = 0;
+        if (_validatorStaked != 0 && _totalStaked != 0) {
+            uint256 delegatorsStaked = _totalStaked >= _validatorStaked ? _totalStaked - _validatorStaked : 0;
+            if (_validatorStaked * 7 > delegatorsStaked * 3) {
+                rewardPercent = REWARD_PERCENT_MULTIPLIER * _validatorStaked / _totalStaked;
+            } else {
+                rewardPercent = REWARD_PERCENT_MULTIPLIER * 3 / 10;
+            }
         }
     }
 }
