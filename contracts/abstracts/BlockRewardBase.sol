@@ -313,7 +313,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         return uintStorage[SNAPSHOT_TOTAL_STAKE_AMOUNT];
     }
 
-    /// @dev Returns the reward coefficient for the specified validator. The given value should be divided by 1000000
+    /// @dev Returns the reward coefficient for the specified validator. The given value should be divided by 10000
     /// to get the value of the reward percent (since EVM doesn't support float values). If the specified staking
     /// address is an address of a candidate, the potentially possible reward coefficient is returned for the specified
     /// candidate instead.
