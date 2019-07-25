@@ -51,10 +51,10 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
         stakingContract.setStakingEpochStartBlock(currentBlock + 1);
     }
 
-    /// @dev Removes a malicious validator. Called by the `RandomAuRa.onFinishCollectRound` function.
-    /// @param _miningAddress The mining address of the malicious validator.
-    function removeMaliciousValidator(address _miningAddress) external onlyRandomContract {
-        _removeMaliciousValidatorAuRa(_miningAddress);
+    /// @dev Removes malicious validators. Called by the `RandomAuRa.onFinishCollectRound` function.
+    /// @param _miningAddresses The mining addresses of the malicious validators.
+    function removeMaliciousValidators(address[] calldata _miningAddresses) external onlyRandomContract {
+        _removeMaliciousValidatorsAuRa(_miningAddresses);
     }
 
     /// @dev Reports that the malicious validator misbehaved at the specified block.
@@ -85,7 +85,9 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
             if (removeReportingValidator) {
                 // Reporting validator reported too often, so
                 // treat them as a malicious as well
-                _removeMaliciousValidatorAuRa(reportingMiningAddress);
+                address[] memory miningAddresses = new address[](1);
+                miningAddresses[0] = reportingMiningAddress;
+                _removeMaliciousValidatorsAuRa(miningAddresses);
             }
             return;
         }
@@ -112,7 +114,9 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
         }
 
         if (remove) {
-            _removeMaliciousValidatorAuRa(_maliciousMiningAddress);
+            address[] memory miningAddresses = new address[](1);
+            miningAddresses[0] = _maliciousMiningAddress;
+            _removeMaliciousValidatorsAuRa(miningAddresses);
         }
     }
 
@@ -252,21 +256,29 @@ contract ValidatorSetAuRa is IValidatorSetAuRa, ValidatorSetBase {
         uintStorage[keccak256(abi.encode(REPORTING_COUNTER_TOTAL, currentStakingEpoch))]++;
     }
 
-    /// @dev Removes the specified validator as malicious from the pending validator set and enqueues the updated
+    /// @dev Removes the specified validators as malicious from the pending validator set and enqueues the updated
     /// pending validator set to be dequeued by the `emitInitiateChange` function. Does nothing if the specified
-    /// validator is already banned, non-removable, or does not exist in the pending validator set.
-    /// @param _miningAddress The mining address of the malicious validator.
-    function _removeMaliciousValidatorAuRa(address _miningAddress) internal {
-        if (isValidatorBanned(_miningAddress)) {
-            // The malicious validator is already banned
-            return;
+    /// validators are already banned, non-removable, or don't exist in the pending validator set.
+    /// @param _miningAddresses The mining addresses of the malicious validators.
+    function _removeMaliciousValidatorsAuRa(address[] memory _miningAddresses) internal {
+        uint256 removedCount = 0;
+
+        for (uint256 i = 0; i < _miningAddresses.length; i++) {
+            if (isValidatorBanned(_miningAddresses[i])) {
+                // The malicious validator is already banned
+                continue;
+            }
+
+            if (_removeMaliciousValidator(_miningAddresses[i])) {
+                _clearReportingCounter(_miningAddresses[i]);
+                removedCount++;
+            }
         }
 
-        if (_removeMaliciousValidator(_miningAddress)) {
-            // From this moment `getPendingValidators()` will return the new validator set
+        if (removedCount > 0) {
             _incrementChangeRequestCount();
+            // From this moment `getPendingValidators()` will return the new validator set
             _enqueuePendingValidators(false);
-            _clearReportingCounter(_miningAddress);
         }
     }
 }

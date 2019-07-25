@@ -532,13 +532,18 @@ contract ValidatorSetBase is OwnedEternalStorage, IValidatorSet {
             return false;
         }
 
+        address[] storage miningAddresses = addressArrayStorage[PENDING_VALIDATORS];
+
+        if (miningAddresses.length < 2) {
+            // If the removed validator is one and only in the validator set, don't let remove them
+            return false;
+        }
+
         // Ban the malicious validator for the next 3 months
         _banValidator(_miningAddress);
 
         // Remove malicious validator from the `pools`
         IStaking(stakingContract()).removePool(stakingAddress);
-
-        address[] storage miningAddresses = addressArrayStorage[PENDING_VALIDATORS];
 
         for (uint256 i = 0; i < miningAddresses.length; i++) {
             if (miningAddresses[i] == _miningAddress) {

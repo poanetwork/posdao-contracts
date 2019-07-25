@@ -706,7 +706,7 @@ contract('StakingAuRa', async accounts => {
     it('should fail for a banned validator', async () => {
       await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
       await validatorSetAuRa.setRandomContract(accounts[8]).should.be.fulfilled;
-      await validatorSetAuRa.removeMaliciousValidator(initialValidators[1], {from: accounts[8]}).should.be.fulfilled;
+      await validatorSetAuRa.removeMaliciousValidators([initialValidators[1]], {from: accounts[8]}).should.be.fulfilled;
       await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.rejectedWith(ERROR_MSG);
     });
     it('should only success in the allowed staking window', async () => {
@@ -862,7 +862,7 @@ contract('StakingAuRa', async accounts => {
     it('should fail for a banned validator', async () => {
       await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
       await validatorSetAuRa.setRandomContract(accounts[8]).should.be.fulfilled;
-      await validatorSetAuRa.removeMaliciousValidator(initialValidators[1], {from: accounts[8]}).should.be.fulfilled;
+      await validatorSetAuRa.removeMaliciousValidators([initialValidators[1]], {from: accounts[8]}).should.be.fulfilled;
       await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: delegatorAddress, value: delegatorMinStake}).should.be.rejectedWith(ERROR_MSG);
     });
     it('should only success in the allowed staking window', async () => {

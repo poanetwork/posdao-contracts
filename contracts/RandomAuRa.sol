@@ -120,15 +120,27 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
             // their secret during the last full `reveals phase`
             // or if they missed the required number of reveals per staking epoch.
             validators = validatorSetContract().getValidators();
+
+            address[] memory maliciousValidators = new address[](validators.length);
+            uint256 maliciousValidatorsLength = 0;
+
             for (i = 0; i < validators.length; i++) {
                 validator = validators[i];
                 if (
                     !sentReveal(currentRound, validator) ||
                     revealSkips(stakingEpoch, validator) > maxRevealSkipsAllowed
                 ) {
-                    // Remove the validator as malicious
-                    IValidatorSetAuRa(address(validatorSetContract())).removeMaliciousValidator(validator);
+                    // Mark the validator as malicious
+                    maliciousValidators[maliciousValidatorsLength++] = validator;
                 }
+            }
+
+            if (maliciousValidatorsLength > 0) {
+                address[] memory miningAddresses = new address[](maliciousValidatorsLength);
+                for (i = 0; i < maliciousValidatorsLength; i++) {
+                    miningAddresses[i] = maliciousValidators[i];
+                }
+                IValidatorSetAuRa(address(validatorSetContract())).removeMaliciousValidators(miningAddresses);
             }
         }
 
