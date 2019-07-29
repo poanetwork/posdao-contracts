@@ -85,9 +85,9 @@ contract BlockRewardAuRa is BlockRewardBase {
             uintStorage[SNAPSHOT_TOTAL_STAKE_AMOUNT] = 0;
             boolStorage[IS_SNAPSHOTTING] = (newValidatorSet.length != 0);
 
-            if (poolsToBeElectedLength > 2000) {
+            if (poolsToBeElectedLength > stakingContract.MAX_CANDIDATES() * 2 / 3) {
                 bridgeQueueLimit = 0;
-            } else if (poolsToBeElectedLength > 1000) {
+            } else if (poolsToBeElectedLength > stakingContract.MAX_CANDIDATES() / 3) {
                 bridgeQueueLimit = 30;
             } else {
                 bridgeQueueLimit = 50;
@@ -336,13 +336,12 @@ contract BlockRewardAuRa is BlockRewardBase {
             address[] storage stakers = addressArrayStorage[keccak256(abi.encode(SNAPSHOT_STAKERS, stakingAddress))];
             uint256[] memory range = new uint256[](3); // array instead of local vars because the stack is too deep
             range[0] = (_validatorsQueueSize() + 1) % DELEGATORS_ALIQUOT; // offset
-            range[1] = range[0] * stakers.length / DELEGATORS_ALIQUOT; // from
-            range[2] = (range[0] + 1) * stakers.length / DELEGATORS_ALIQUOT; // to
+            range[1] = stakers.length / DELEGATORS_ALIQUOT * range[0]; // from
 
-            if (range[0] == 0) {
-                range[2] += stakers.length % DELEGATORS_ALIQUOT;
+            if (range[0] == DELEGATORS_ALIQUOT - 1) {
+                range[2] = stakers.length; // to
             } else {
-                range[1] += stakers.length % DELEGATORS_ALIQUOT;
+                range[2] = stakers.length / DELEGATORS_ALIQUOT * (range[0] + 1); // to
             }
 
             if (range[1] >= range[2]) {
