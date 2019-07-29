@@ -73,12 +73,7 @@ contract BlockRewardAuRa is BlockRewardBase {
             address[] memory newValidatorSet = validatorSet.getPendingValidators();
 
             for (uint256 i = 0; i < newValidatorSet.length; i++) {
-                address stakingAddress = validatorSet.stakingByMiningAddress(newValidatorSet[i]);
-
-                _enqueueValidator(stakingAddress);
-
-                delete addressArrayStorage[keccak256(abi.encode(SNAPSHOT_STAKERS, stakingAddress))];
-                delete uintArrayStorage[keccak256(abi.encode(SNAPSHOT_REWARD_PERCENTS, stakingAddress))];
+                _enqueueValidator(validatorSet.stakingByMiningAddress(newValidatorSet[i]));
             }
 
             delete addressArrayStorage[SNAPSHOT_STAKING_ADDRESSES];
@@ -216,7 +211,6 @@ contract BlockRewardAuRa is BlockRewardBase {
         uint256 _rewardPointBlock
     ) internal returns(address[] memory receivers, uint256[] memory rewards, bool noop) {
         uint256 i;
-        uint256 j;
 
         receivers = new address[](0);
         rewards = new uint256[](0);
@@ -253,7 +247,7 @@ contract BlockRewardAuRa is BlockRewardBase {
                 uintStorage[BRIDGE_NATIVE_FEE] != 0 ||
                 _erc20Restricted
             ) {
-                j = 0;
+                uint256 j = 0;
                 for (i = 0; i < validators.length; i++) {
                     ratio[i] = uintStorage[keccak256(abi.encode(
                         BLOCKS_CREATED, _stakingEpoch, validators[i]
@@ -334,14 +328,14 @@ contract BlockRewardAuRa is BlockRewardBase {
             }
 
             address[] storage stakers = addressArrayStorage[keccak256(abi.encode(SNAPSHOT_STAKERS, stakingAddress))];
+            uint256 stakersLength = _snapshotStakersLength(stakingAddress);
             uint256[] memory range = new uint256[](3); // array instead of local vars because the stack is too deep
             range[0] = (_validatorsQueueSize() + 1) % DELEGATORS_ALIQUOT; // offset
-            range[1] = stakers.length / DELEGATORS_ALIQUOT * range[0]; // from
-
+            range[1] = stakersLength / DELEGATORS_ALIQUOT * range[0]; // from
             if (range[0] == DELEGATORS_ALIQUOT - 1) {
-                range[2] = stakers.length; // to
+                range[2] = stakersLength; // to
             } else {
-                range[2] = stakers.length / DELEGATORS_ALIQUOT * (range[0] + 1); // to
+                range[2] = stakersLength / DELEGATORS_ALIQUOT * (range[0] + 1); // to
             }
 
             if (range[1] >= range[2]) {
@@ -351,7 +345,6 @@ contract BlockRewardAuRa is BlockRewardBase {
             uint256[] storage rewardPercents = uintArrayStorage[keccak256(abi.encode(
                 SNAPSHOT_REWARD_PERCENTS, stakingAddress
             ))];
-            uint256 accrued;
             uint256 poolReward;
 
             receivers = new address[](range[2] - range[1]);
@@ -361,9 +354,9 @@ contract BlockRewardAuRa is BlockRewardBase {
                 EPOCH_POOL_TOKEN_REWARD, _stakingEpoch, stakingAddress
             ))];
             if (poolReward != 0) {
-                accrued = 0;
+                uint256 accrued = 0;
                 for (i = range[1]; i < range[2]; i++) {
-                    j = i - range[1];
+                    uint256 j = i - range[1];
                     receivers[j] = stakers[i];
                     rewards[j] = poolReward * rewardPercents[i] / REWARD_PERCENT_MULTIPLIER;
                     accrued += rewards[j];
@@ -377,9 +370,9 @@ contract BlockRewardAuRa is BlockRewardBase {
                 EPOCH_POOL_NATIVE_REWARD, _stakingEpoch, stakingAddress
             ))];
             if (poolReward != 0) {
-                accrued = 0;
+                uint256 accrued = 0;
                 for (i = range[1]; i < range[2]; i++) {
-                    j = i - range[1];
+                    uint256 j = i - range[1];
                     receivers[j] = stakers[i];
                     rewards[j] = poolReward * rewardPercents[i] / REWARD_PERCENT_MULTIPLIER;
                     accrued += rewards[j];

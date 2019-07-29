@@ -282,10 +282,21 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     /// and then used by the `_distributeRewards` function at the end of the staking epoch.
     /// @param _validatorStakingAddress The staking address of the validator pool for which the getter
     /// must return the coefficient array.
-    function snapshotRewardPercents(address _validatorStakingAddress) public view returns(uint256[] memory) {
-        return uintArrayStorage[
+    function snapshotRewardPercents(address _validatorStakingAddress) public view returns(uint256[] memory result) {
+        uint256 length = _snapshotStakersLength(_validatorStakingAddress);
+
+        uint256[] storage coefficients = uintArrayStorage[
             keccak256(abi.encode(SNAPSHOT_REWARD_PERCENTS, _validatorStakingAddress))
         ];
+
+        if (length < coefficients.length) {
+            result = new uint256[](length);
+            for (uint256 i = 0; i < length; i++) {
+                result[i] = coefficients[i];
+            }
+        } else {
+            result = coefficients;
+        }
     }
 
     /// @dev Returns an array of stakers for the specified validator and the current staking epoch
@@ -293,10 +304,21 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     /// used by the `_distributeRewards` function at the end of the staking epoch.
     /// @param _validatorStakingAddress The staking address of the validator pool for which the getter
     /// must return the array of stakers.
-    function snapshotStakers(address _validatorStakingAddress) public view returns(address[] memory) {
-        return addressArrayStorage[
+    function snapshotStakers(address _validatorStakingAddress) public view returns(address[] memory result) {
+        uint256 length = _snapshotStakersLength(_validatorStakingAddress);
+
+        address[] storage stakers = addressArrayStorage[
             keccak256(abi.encode(SNAPSHOT_STAKERS, _validatorStakingAddress))
         ];
+
+        if (length < stakers.length) {
+            result = new address[](length);
+            for (uint256 i = 0; i < length; i++) {
+                result[i] = stakers[i];
+            }
+        } else {
+            result = stakers;
+        }
     }
 
     /// @dev Returns an array of the pools snapshotted by the `_setSnapshot` function
@@ -378,6 +400,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     bytes32 internal constant QUEUE_ER_RECEIVER = "queueERReceiver";
     bytes32 internal constant SNAPSHOT_REWARD_PERCENTS = "snapshotRewardPercents";
     bytes32 internal constant SNAPSHOT_STAKERS = "snapshotStakers";
+    bytes32 internal constant SNAPSHOT_STAKERS_LENGTH = "snapshotStakersLength";
 
     uint256 internal constant REWARD_PERCENT_MULTIPLIER = 1000000;
 
@@ -508,25 +531,36 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
             SNAPSHOT_REWARD_PERCENTS, _stakingAddress
         ))];
 
+        uint256 stakersLength;
+
         if (_offset == 0) {
             // Calculate reward percent for validator
-            stakers.push(_stakingAddress);
-            rewardPercents.push(_validatorRewardPercent(validatorStake, totalStaked));
+            uint256 rewardPercent = _validatorRewardPercent(validatorStake, totalStaked);
+            if (stakers.length == 0) {
+                stakers.push(_stakingAddress);
+                rewardPercents.push(rewardPercent);
+            } else {
+                stakers[0] = _stakingAddress;
+                rewardPercents[0] = rewardPercent;
+            }
+            stakersLength = 1;
             addressArrayStorage[SNAPSHOT_STAKING_ADDRESSES].push(_stakingAddress);
             uintStorage[SNAPSHOT_TOTAL_STAKE_AMOUNT] += totalStaked;
+        } else {
+            stakersLength = _snapshotStakersLength(_stakingAddress);
         }
 
-        uint256 from = delegators.length / DELEGATORS_ALIQUOT * _offset;
-        uint256 to;
+        uint256[] memory range = new uint256[](2); // array instead of local vars because the stack is too deep
+        range[0] = delegators.length / DELEGATORS_ALIQUOT * _offset; // from
 
         if (_offset == DELEGATORS_ALIQUOT - 1) {
-            to = delegators.length;
+            range[1] = delegators.length; // to
         } else {
-            to = delegators.length / DELEGATORS_ALIQUOT * (_offset + 1);
+            range[1] = delegators.length / DELEGATORS_ALIQUOT * (_offset + 1); // to
         }
 
         // Calculate reward percent for each delegator
-        for (uint256 i = from; i < to; i++) {
+        for (uint256 i = range[0]; i < range[1]; i++) {
             uint256 rewardPercent = 0;
 
             if (validatorHasMore30Per) {
@@ -541,9 +575,26 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
                 }
             }
 
-            stakers.push(delegators[i]);
-            rewardPercents.push(rewardPercent);
+            if (stakers.length > stakersLength) {
+                stakers[stakersLength] = delegators[i];
+                rewardPercents[stakersLength] = rewardPercent;
+            } else {
+                stakers.push(delegators[i]);
+                rewardPercents.push(rewardPercent);
+            }
+            
+            stakersLength++;
         }
+
+        uintStorage[keccak256(abi.encode(SNAPSHOT_STAKERS_LENGTH, _stakingAddress))] = stakersLength;
+    }
+
+    /// @dev Returns a real length of stakers array for the specified validator and the current staking epoch
+    /// snapshotted at the beginning of the staking epoch by the `_setSnapshot` function.
+    /// @param _validatorStakingAddress The staking address of the validator pool for which the getter
+    /// must return the stakers array length.
+    function _snapshotStakersLength(address _validatorStakingAddress) internal view returns(uint256) {
+        return uintStorage[keccak256(abi.encode(SNAPSHOT_STAKERS_LENGTH, _validatorStakingAddress))];
     }
 
     /// @dev Calculates the reward coefficient for a validator (or candidate).
