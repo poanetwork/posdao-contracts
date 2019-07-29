@@ -214,7 +214,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
         _withdraw(_fromPoolStakingAddress, staker, _amount);
         IERC20Minting tokenContract = IERC20Minting(erc20TokenContract());
         if (address(tokenContract) != address(0)) {
-            tokenContract.withdraw(staker, _amount);
+            tokenContract.transfer(staker, _amount);
         } else {
             require(boolStorage[ERC20_RESTRICTED]);
             staker.transfer(_amount);
@@ -334,7 +334,7 @@ contract StakingBase is OwnedEternalStorage, IStaking {
 
         IERC20Minting tokenContract = IERC20Minting(erc20TokenContract());
         if (address(tokenContract) != address(0)) {
-            tokenContract.withdraw(staker, claimAmount);
+            tokenContract.transfer(staker, claimAmount);
         } else {
             require(boolStorage[ERC20_RESTRICTED]);
             staker.transfer(claimAmount);
