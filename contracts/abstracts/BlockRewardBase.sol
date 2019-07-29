@@ -384,6 +384,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
     bytes32 internal constant QUEUE_ER_FIRST = keccak256("queueERFirst");
     bytes32 internal constant QUEUE_ER_INITIALIZED = keccak256("queueERInitialized");
     bytes32 internal constant QUEUE_ER_LAST = keccak256("queueERLast");
+    bytes32 internal constant SNAPSHOT_REWARD_PERCENTS_TOTAL = keccak256("snapshotRewardPercentsTotal");
     bytes32 internal constant SNAPSHOT_STAKING_ADDRESSES = keccak256("snapshotStakingAddresses");
     bytes32 internal constant SNAPSHOT_TOTAL_STAKE_AMOUNT = keccak256("snapshotTotalStakeAmount");
     bytes32 internal constant VALIDATOR_SET_CONTRACT = keccak256("validatorSetContract");
@@ -546,21 +547,24 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
             stakersLength = 1;
             addressArrayStorage[SNAPSHOT_STAKING_ADDRESSES].push(_stakingAddress);
             uintStorage[SNAPSHOT_TOTAL_STAKE_AMOUNT] += totalStaked;
+            uintStorage[SNAPSHOT_REWARD_PERCENTS_TOTAL] = rewardPercent;
         } else {
             stakersLength = _snapshotStakersLength(_stakingAddress);
         }
 
-        uint256[] memory range = new uint256[](2); // array instead of local vars because the stack is too deep
-        range[0] = delegators.length / DELEGATORS_ALIQUOT * _offset; // from
+        uint256[] memory mem = new uint256[](3); // array instead of local vars because the stack is too deep
+        mem[0] = delegators.length / DELEGATORS_ALIQUOT * _offset; // from
 
         if (_offset == DELEGATORS_ALIQUOT - 1) {
-            range[1] = delegators.length; // to
+            mem[1] = delegators.length; // to
         } else {
-            range[1] = delegators.length / DELEGATORS_ALIQUOT * (_offset + 1); // to
+            mem[1] = delegators.length / DELEGATORS_ALIQUOT * (_offset + 1); // to
         }
 
         // Calculate reward percent for each delegator
-        for (uint256 i = range[0]; i < range[1]; i++) {
+        mem[2] = uintStorage[SNAPSHOT_REWARD_PERCENTS_TOTAL]; // rewardPercentsTotal
+
+        for (uint256 i = mem[0]; i < mem[1]; i++) {
             uint256 rewardPercent = 0;
 
             if (validatorHasMore30Per) {
@@ -582,11 +586,17 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
                 stakers.push(delegators[i]);
                 rewardPercents.push(rewardPercent);
             }
-            
+
+            mem[2] += rewardPercent;
             stakersLength++;
         }
 
+        uintStorage[SNAPSHOT_REWARD_PERCENTS_TOTAL] = mem[2];
         uintStorage[keccak256(abi.encode(SNAPSHOT_STAKERS_LENGTH, _stakingAddress))] = stakersLength;
+
+        if (_offset == DELEGATORS_ALIQUOT - 1 && mem[2] < REWARD_PERCENT_MULTIPLIER) {
+            rewardPercents[0] += REWARD_PERCENT_MULTIPLIER - mem[2];
+        }
     }
 
     /// @dev Returns a real length of stakers array for the specified validator and the current staking epoch
@@ -609,6 +619,7 @@ contract BlockRewardBase is OwnedEternalStorage, IBlockReward {
         if (_validatorStaked != 0 && _totalStaked != 0) {
             uint256 delegatorsStaked = _totalStaked >= _validatorStaked ? _totalStaked - _validatorStaked : 0;
             if (_validatorStaked * 7 > delegatorsStaked * 3) {
+                // Validator has more than 30%
                 rewardPercent = REWARD_PERCENT_MULTIPLIER * _validatorStaked / _totalStaked;
             } else {
                 rewardPercent = REWARD_PERCENT_MULTIPLIER * 3 / 10;

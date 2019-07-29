@@ -94,7 +94,11 @@ contract BlockRewardAuRa is BlockRewardBase {
 
             if (stakingAddress != address(0)) {
                 uint256 validatorsQueueSize = _validatorsQueueSize();
-                _setSnapshot(stakingAddress, stakingContract, (validatorsQueueSize + 1) % DELEGATORS_ALIQUOT);
+                uint256 offset = (validatorsQueueSize + 1) % DELEGATORS_ALIQUOT;
+                if (offset != 0) {
+                    offset = DELEGATORS_ALIQUOT - offset;
+                }
+                _setSnapshot(stakingAddress, stakingContract, offset);
                 if (validatorsQueueSize == 0) {
                     // Snapshotting process has been finished
                     boolStorage[IS_SNAPSHOTTING] = false;
@@ -331,6 +335,9 @@ contract BlockRewardAuRa is BlockRewardBase {
             uint256 stakersLength = _snapshotStakersLength(stakingAddress);
             uint256[] memory range = new uint256[](3); // array instead of local vars because the stack is too deep
             range[0] = (_validatorsQueueSize() + 1) % DELEGATORS_ALIQUOT; // offset
+            if (range[0] != 0) {
+                range[0] = DELEGATORS_ALIQUOT - range[0];
+            }
             range[1] = stakersLength / DELEGATORS_ALIQUOT * range[0]; // from
             if (range[0] == DELEGATORS_ALIQUOT - 1) {
                 range[2] = stakersLength; // to
