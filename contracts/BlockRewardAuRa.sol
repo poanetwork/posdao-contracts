@@ -64,6 +64,11 @@ contract BlockRewardAuRa is BlockRewardBase {
             }
         }
 
+        if (block.number == IStakingAuRa(address(stakingContract)).stakingEpochStartBlock()) {
+            delete addressArrayStorage[SNAPSHOT_STAKING_ADDRESSES];
+            uintStorage[SNAPSHOT_TOTAL_STAKE_AMOUNT] = 0;
+        }
+
         // Start a new staking epoch every `stakingEpochDuration()` blocks
         (bool newStakingEpochHasBegun, uint256 poolsToBeElectedLength) = validatorSet.newValidatorSet();
 
@@ -76,8 +81,6 @@ contract BlockRewardAuRa is BlockRewardBase {
                 _enqueueValidator(validatorSet.stakingByMiningAddress(newValidatorSet[i]));
             }
 
-            delete addressArrayStorage[SNAPSHOT_STAKING_ADDRESSES];
-            uintStorage[SNAPSHOT_TOTAL_STAKE_AMOUNT] = 0;
             boolStorage[IS_SNAPSHOTTING] = (newValidatorSet.length != 0);
 
             if (poolsToBeElectedLength > stakingContract.MAX_CANDIDATES() * 2 / 3) {
