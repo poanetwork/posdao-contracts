@@ -110,7 +110,8 @@ module.exports = {
       currency: 'USD',
       gasPrice: 1,
       showTimeSpent: true
-    }
+    },
+    enableTimeouts: false
   },
 
   // Configure your compilers
