@@ -1,6 +1,6 @@
 const BlockRewardAuRa = artifacts.require('BlockRewardAuRa');
 const ERC677BridgeTokenRewardable = artifacts.require('ERC677BridgeTokenRewardableMock');
-const EternalStorageProxy = artifacts.require('EternalStorageProxy');
+const AdminUpgradeabilityProxy = artifacts.require('AdminUpgradeabilityProxy');
 const RandomAuRa = artifacts.require('RandomAuRaMock');
 const StakingAuRa = artifacts.require('StakingAuRaMock');
 const ValidatorSetAuRa = artifacts.require('ValidatorSetAuRaMock');
@@ -23,15 +23,15 @@ contract('ValidatorSetAuRa', async accounts => {
     owner = accounts[0];
     // Deploy BlockReward contract
     blockRewardAuRa = await BlockRewardAuRa.new();
-    blockRewardAuRa = await EternalStorageProxy.new(blockRewardAuRa.address, owner);
+    blockRewardAuRa = await AdminUpgradeabilityProxy.new(blockRewardAuRa.address, owner, []);
     blockRewardAuRa = await BlockRewardAuRa.at(blockRewardAuRa.address);
     // Deploy Staking contract
     stakingAuRa = await StakingAuRa.new();
-    stakingAuRa = await EternalStorageProxy.new(stakingAuRa.address, owner);
+    stakingAuRa = await AdminUpgradeabilityProxy.new(stakingAuRa.address, owner, []);
     stakingAuRa = await StakingAuRa.at(stakingAuRa.address);
     // Deploy ValidatorSet contract
     validatorSetAuRa = await ValidatorSetAuRa.new();
-    validatorSetAuRa = await EternalStorageProxy.new(validatorSetAuRa.address, owner);
+    validatorSetAuRa = await AdminUpgradeabilityProxy.new(validatorSetAuRa.address, owner, []);
     validatorSetAuRa = await ValidatorSetAuRa.at(validatorSetAuRa.address);
   });
 
@@ -149,7 +149,7 @@ contract('ValidatorSetAuRa', async accounts => {
       initialStakingAddresses = accounts.slice(4, 6 + 1); // accounts[4...6]
 
       randomAuRa = await RandomAuRa.new();
-      randomAuRa = await EternalStorageProxy.new(randomAuRa.address, owner);
+      randomAuRa = await AdminUpgradeabilityProxy.new(randomAuRa.address, owner, []);
       randomAuRa = await RandomAuRa.at(randomAuRa.address);
 
       await validatorSetAuRa.setCurrentBlockNumber(0).should.be.fulfilled;
@@ -412,7 +412,7 @@ contract('ValidatorSetAuRa', async accounts => {
       initialStakingAddresses = accounts.slice(4, 6 + 1); // accounts[4...6]
 
       randomAuRa = await RandomAuRa.new();
-      randomAuRa = await EternalStorageProxy.new(randomAuRa.address, owner);
+      randomAuRa = await AdminUpgradeabilityProxy.new(randomAuRa.address, owner, []);
       randomAuRa = await RandomAuRa.at(randomAuRa.address);
 
       await validatorSetAuRa.setCurrentBlockNumber(0).should.be.fulfilled;
@@ -542,11 +542,11 @@ contract('ValidatorSetAuRa', async accounts => {
     });
     it('should enqueue unremovable validator anyway', async () => {
       validatorSetAuRa = await ValidatorSetAuRa.new();
-      validatorSetAuRa = await EternalStorageProxy.new(validatorSetAuRa.address, owner);
+      validatorSetAuRa = await AdminUpgradeabilityProxy.new(validatorSetAuRa.address, owner, []);
       validatorSetAuRa = await ValidatorSetAuRa.at(validatorSetAuRa.address);
 
       stakingAuRa = await StakingAuRa.new();
-      stakingAuRa = await EternalStorageProxy.new(stakingAuRa.address, owner);
+      stakingAuRa = await AdminUpgradeabilityProxy.new(stakingAuRa.address, owner, []);
       stakingAuRa = await StakingAuRa.at(stakingAuRa.address);
 
       await validatorSetAuRa.setCurrentBlockNumber(0).should.be.fulfilled;
@@ -677,7 +677,7 @@ contract('ValidatorSetAuRa', async accounts => {
       poolsLikelihood[1].should.be.bignumber.equal(new BN(likelihoodSum));
 
       // Generate a random seed
-      (await randomAuRa.getCurrentSeed.call()).should.be.bignumber.equal(new BN(0));
+      (await randomAuRa.currentSeed.call()).should.be.bignumber.equal(new BN(0));
       await randomAuRa.setCurrentBlockNumber(0).should.be.fulfilled;
       await randomAuRa.initialize(114, validatorSetAuRa.address).should.be.fulfilled;
       let secrets = [];
@@ -697,7 +697,7 @@ contract('ValidatorSetAuRa', async accounts => {
         await randomAuRa.setCoinbase(initialValidators[i]).should.be.fulfilled;
         await randomAuRa.revealSecret(new BN(secret), {from: initialValidators[i]}).should.be.fulfilled;
       }
-      (await randomAuRa.getCurrentSeed.call()).should.be.bignumber.equal(new BN(seed));
+      (await randomAuRa.currentSeed.call()).should.be.bignumber.equal(new BN(seed));
 
       // Emulate calling `newValidatorSet()` at the last block of staking epoch
       await stakingAuRa.setCurrentBlockNumber(120954).should.be.fulfilled;
@@ -716,11 +716,11 @@ contract('ValidatorSetAuRa', async accounts => {
     });
     it('should choose validators randomly but leave an unremovable validator', async () => {
       validatorSetAuRa = await ValidatorSetAuRa.new();
-      validatorSetAuRa = await EternalStorageProxy.new(validatorSetAuRa.address, owner);
+      validatorSetAuRa = await AdminUpgradeabilityProxy.new(validatorSetAuRa.address, owner, []);
       validatorSetAuRa = await ValidatorSetAuRa.at(validatorSetAuRa.address);
 
       stakingAuRa = await StakingAuRa.new();
-      stakingAuRa = await EternalStorageProxy.new(stakingAuRa.address, owner);
+      stakingAuRa = await AdminUpgradeabilityProxy.new(stakingAuRa.address, owner, []);
       stakingAuRa = await StakingAuRa.at(stakingAuRa.address);
 
       await validatorSetAuRa.setCurrentBlockNumber(0).should.be.fulfilled;
@@ -805,7 +805,7 @@ contract('ValidatorSetAuRa', async accounts => {
       poolsLikelihood[1].should.be.bignumber.equal(new BN(likelihoodSum));
 
       // Generate a random seed
-      (await randomAuRa.getCurrentSeed.call()).should.be.bignumber.equal(new BN(0));
+      (await randomAuRa.currentSeed.call()).should.be.bignumber.equal(new BN(0));
       await randomAuRa.setCurrentBlockNumber(0).should.be.fulfilled;
       await randomAuRa.initialize(114, validatorSetAuRa.address).should.be.fulfilled;
       let secrets = [];
@@ -825,7 +825,7 @@ contract('ValidatorSetAuRa', async accounts => {
         await randomAuRa.setCoinbase(initialValidators[i]).should.be.fulfilled;
         await randomAuRa.revealSecret(new BN(secret), {from: initialValidators[i]}).should.be.fulfilled;
       }
-      (await randomAuRa.getCurrentSeed.call()).should.be.bignumber.equal(new BN(seed));
+      (await randomAuRa.currentSeed.call()).should.be.bignumber.equal(new BN(seed));
 
       // Emulate calling `newValidatorSet()` at the last block of staking epoch
       await stakingAuRa.setCurrentBlockNumber(120954).should.be.fulfilled;

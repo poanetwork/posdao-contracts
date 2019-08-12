@@ -32,15 +32,15 @@ async function main() {
   const erc20Restricted = process.env.ERC20_RESTRICTED === 'true';
 
   const contracts = [
-    'EternalStorageProxy',
-    'ValidatorSetAuRa',
-    'StakingAuRa',
+    'AdminUpgradeabilityProxy',
     'BlockRewardAuRa',
-    'RandomAuRa',
-    'TxPermission',
     'Certifier',
+    'InitializerAuRa',
+    'RandomAuRa',
     'Registry',
-    'InitializerAuRa'
+    'StakingAuRa',
+    'TxPermission',
+    'ValidatorSetAuRa',
   ];
 
   let spec = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'templates', 'spec.json'), 'UTF-8'));
@@ -53,20 +53,21 @@ async function main() {
     const contractName = contracts[i];
     console.log(`Compiling ${contractName}...`);
     const compiled = await compile(
-      path.join(__dirname, '..', contractName == 'EternalStorageProxy' ? 'contracts/eternal-storage/' : 'contracts/'),
+      path.join(__dirname, '..', contractName == 'AdminUpgradeabilityProxy' ? 'contracts/upgradeability/' : 'contracts/'),
       contractName
     );
     contractsCompiled[contractName] = compiled;
   }
 
-  const eternalStorageProxyCompiled = contractsCompiled['EternalStorageProxy'];
-  let contract = new web3.eth.Contract(eternalStorageProxyCompiled.abi);
+  const storageProxyCompiled = contractsCompiled['AdminUpgradeabilityProxy'];
+  let contract = new web3.eth.Contract(storageProxyCompiled.abi);
   let deploy;
 
   // Build ValidatorSetAuRa contract
-  deploy = await contract.deploy({data: '0x' + eternalStorageProxyCompiled.bytecode, arguments: [
+  deploy = await contract.deploy({data: '0x' + storageProxyCompiled.bytecode, arguments: [
     '0x1000000000000000000000000000000000000000', // implementation address
-    owner
+    owner,
+    []
   ]});
   spec.engine.authorityRound.params.validators.multi = {
     "0": {
@@ -83,9 +84,10 @@ async function main() {
   };
 
   // Build StakingAuRa contract
-  deploy = await contract.deploy({data: '0x' + eternalStorageProxyCompiled.bytecode, arguments: [
+  deploy = await contract.deploy({data: '0x' + storageProxyCompiled.bytecode, arguments: [
     '0x1100000000000000000000000000000000000000', // implementation address
-    owner
+    owner,
+    []
   ]});
   spec.accounts[STAKING_CONTRACT] = {
     balance: '0',
@@ -97,9 +99,10 @@ async function main() {
   };
 
   // Build BlockRewardAuRa contract
-  deploy = await contract.deploy({data: '0x' + eternalStorageProxyCompiled.bytecode, arguments: [
+  deploy = await contract.deploy({data: '0x' + storageProxyCompiled.bytecode, arguments: [
     '0x2000000000000000000000000000000000000000', // implementation address
-    owner
+    owner,
+    []
   ]});
   spec.accounts[BLOCK_REWARD_CONTRACT] = {
     balance: '0',
@@ -113,9 +116,10 @@ async function main() {
   };
 
   // Build RandomAuRa contract
-  deploy = await contract.deploy({data: '0x' + eternalStorageProxyCompiled.bytecode, arguments: [
+  deploy = await contract.deploy({data: '0x' + storageProxyCompiled.bytecode, arguments: [
     '0x3000000000000000000000000000000000000000', // implementation address
-    owner
+    owner,
+    []
   ]});
   spec.accounts[RANDOM_CONTRACT] = {
     balance: '0',
@@ -128,9 +132,10 @@ async function main() {
   spec.engine.authorityRound.params.randomnessContractAddress = RANDOM_CONTRACT;
 
   // Build TxPermission contract
-  deploy = await contract.deploy({data: '0x' + eternalStorageProxyCompiled.bytecode, arguments: [
+  deploy = await contract.deploy({data: '0x' + storageProxyCompiled.bytecode, arguments: [
     '0x4000000000000000000000000000000000000000', // implementation address
-    owner
+    owner,
+    []
   ]});
   spec.accounts[PERMISSION_CONTRACT] = {
     balance: '0',
@@ -143,9 +148,10 @@ async function main() {
   };
 
   // Build Certifier contract
-  deploy = await contract.deploy({data: '0x' + eternalStorageProxyCompiled.bytecode, arguments: [
+  deploy = await contract.deploy({data: '0x' + storageProxyCompiled.bytecode, arguments: [
     '0x5000000000000000000000000000000000000000', // implementation address
-    owner
+    owner,
+    []
   ]});
   spec.accounts[CERTIFIER_CONTRACT] = {
     balance: '0',

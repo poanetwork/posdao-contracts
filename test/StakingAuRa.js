@@ -1,6 +1,6 @@
 const BlockRewardAuRa = artifacts.require('BlockRewardAuRaMock');
 const ERC677BridgeTokenRewardable = artifacts.require('ERC677BridgeTokenRewardableMock');
-const EternalStorageProxy = artifacts.require('EternalStorageProxy');
+const AdminUpgradeabilityProxy = artifacts.require('AdminUpgradeabilityProxy');
 const RandomAuRa = artifacts.require('RandomAuRa');
 const ValidatorSetAuRa = artifacts.require('ValidatorSetAuRaMock');
 const StakingAuRa = artifacts.require('StakingAuRaMock');
@@ -32,19 +32,19 @@ contract('StakingAuRa', async accounts => {
     initialStakingAddresses[2].should.not.be.equal('0x0000000000000000000000000000000000000000');
     // Deploy BlockReward contract
     blockRewardAuRa = await BlockRewardAuRa.new();
-    blockRewardAuRa = await EternalStorageProxy.new(blockRewardAuRa.address, owner);
+    blockRewardAuRa = await AdminUpgradeabilityProxy.new(blockRewardAuRa.address, owner, []);
     blockRewardAuRa = await BlockRewardAuRa.at(blockRewardAuRa.address);
     // Deploy Random contract
     randomAuRa = await RandomAuRa.new();
-    randomAuRa = await EternalStorageProxy.new(randomAuRa.address, owner);
+    randomAuRa = await AdminUpgradeabilityProxy.new(randomAuRa.address, owner, []);
     randomAuRa = await RandomAuRa.at(randomAuRa.address);
     // Deploy Staking contract
     stakingAuRa = await StakingAuRa.new();
-    stakingAuRa = await EternalStorageProxy.new(stakingAuRa.address, owner);
+    stakingAuRa = await AdminUpgradeabilityProxy.new(stakingAuRa.address, owner, []);
     stakingAuRa = await StakingAuRa.at(stakingAuRa.address);
     // Deploy ValidatorSet contract
     validatorSetAuRa = await ValidatorSetAuRa.new();
-    validatorSetAuRa = await EternalStorageProxy.new(validatorSetAuRa.address, owner);
+    validatorSetAuRa = await AdminUpgradeabilityProxy.new(validatorSetAuRa.address, owner, []);
     validatorSetAuRa = await ValidatorSetAuRa.at(validatorSetAuRa.address);
     // Initialize ValidatorSet
     await validatorSetAuRa.initialize(
@@ -261,7 +261,7 @@ contract('StakingAuRa', async accounts => {
     beforeEach(async () => {
       // Deploy ValidatorSet contract
       validatorSetAuRa = await ValidatorSetAuRa.new();
-      validatorSetAuRa = await EternalStorageProxy.new(validatorSetAuRa.address, owner);
+      validatorSetAuRa = await AdminUpgradeabilityProxy.new(validatorSetAuRa.address, owner, []);
       validatorSetAuRa = await ValidatorSetAuRa.at(validatorSetAuRa.address);
 
       // Initialize ValidatorSet
@@ -409,10 +409,10 @@ contract('StakingAuRa', async accounts => {
       }
       (await stakingAuRa.getPools.call()).should.be.deep.equal(initialStakingAddresses);
       new BN(web3.utils.toWei('1', 'ether')).should.be.bignumber.equal(
-        await stakingAuRa.getDelegatorMinStake.call()
+        await stakingAuRa.delegatorMinStake.call()
       );
       new BN(web3.utils.toWei('1', 'ether')).should.be.bignumber.equal(
-        await stakingAuRa.getCandidateMinStake.call()
+        await stakingAuRa.candidateMinStake.call()
       );
     });
     it('should fail if ValidatorSet contract address is zero', async () => {
@@ -637,8 +637,8 @@ contract('StakingAuRa', async accounts => {
         false // _erc20Restricted
       ).should.be.fulfilled;
 
-      candidateMinStake = await stakingAuRa.getCandidateMinStake.call();
-      delegatorMinStake = await stakingAuRa.getDelegatorMinStake.call();
+      candidateMinStake = await stakingAuRa.candidateMinStake.call();
+      delegatorMinStake = await stakingAuRa.delegatorMinStake.call();
 
       // Deploy ERC20 contract
       erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
@@ -812,8 +812,8 @@ contract('StakingAuRa', async accounts => {
         true // _erc20Restricted
       ).should.be.fulfilled;
 
-      candidateMinStake = await stakingAuRa.getCandidateMinStake.call();
-      delegatorMinStake = await stakingAuRa.getDelegatorMinStake.call();
+      candidateMinStake = await stakingAuRa.candidateMinStake.call();
+      delegatorMinStake = await stakingAuRa.delegatorMinStake.call();
 
       await stakingAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
       await validatorSetAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
@@ -1084,12 +1084,12 @@ contract('StakingAuRa', async accounts => {
     it('should fail for a non-removable validator', async () => {
       // Deploy Staking contract
       stakingAuRa = await StakingAuRa.new();
-      stakingAuRa = await EternalStorageProxy.new(stakingAuRa.address, owner);
+      stakingAuRa = await AdminUpgradeabilityProxy.new(stakingAuRa.address, owner, []);
       stakingAuRa = await StakingAuRa.at(stakingAuRa.address);
 
       // Deploy ValidatorSet contract
       validatorSetAuRa = await ValidatorSetAuRa.new();
-      validatorSetAuRa = await EternalStorageProxy.new(validatorSetAuRa.address, owner);
+      validatorSetAuRa = await AdminUpgradeabilityProxy.new(validatorSetAuRa.address, owner, []);
       validatorSetAuRa = await ValidatorSetAuRa.at(validatorSetAuRa.address);
 
       // Initialize ValidatorSet
@@ -1151,8 +1151,8 @@ contract('StakingAuRa', async accounts => {
         false // _erc20Restricted
       ).should.be.fulfilled;
 
-      candidateMinStake = await stakingAuRa.getCandidateMinStake.call();
-      delegatorMinStake = await stakingAuRa.getDelegatorMinStake.call();
+      candidateMinStake = await stakingAuRa.candidateMinStake.call();
+      delegatorMinStake = await stakingAuRa.delegatorMinStake.call();
 
       // Deploy ERC20 contract
       erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});

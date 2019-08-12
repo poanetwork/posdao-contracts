@@ -2,24 +2,21 @@
 
 rm -rf flat/*
 ROOT=contracts/
-ABSTRACTS=abstracts/
-ABSTRACTS_FULL="$ROOT""$ABSTRACTS"
-STORAGE=eternal-storage/
-STORAGE_FULL="$ROOT""$STORAGE"
+UPGRADEABILITY=upgradeability/
+UPGRADEABILITY_FULL="$ROOT""$UPGRADEABILITY"
 FLAT=flat/
 
+FULLPATH="$(cd "$(dirname "$1")"; pwd -P)/$(basename "$1")"
+
 iterate_sources() {
-	for FILE in "$1"*.sol; do
-	    [ -f "$FILE" ] || break
-	    echo $FILE
-	    ./node_modules/.bin/poa-solidity-flattener $FILE $2
-	done
+    for FILE in "$FULLPATH""$1"*.sol; do
+        [ -f "$FILE" ] || break
+        echo $FILE
+        ./node_modules/.bin/poa-solidity-flattener $FILE $2
+    done
 }
 
 iterate_sources $ROOT $FLAT
 
-mkdir -p $FLAT$ABSTRACTS;
-iterate_sources $ABSTRACTS_FULL $FLAT$ABSTRACTS
-
-mkdir -p $FLAT$STORAGE;
-iterate_sources $STORAGE_FULL $FLAT$STORAGE
+mkdir -p $FLAT$UPGRADEABILITY;
+iterate_sources $UPGRADEABILITY_FULL $FLAT$UPGRADEABILITY

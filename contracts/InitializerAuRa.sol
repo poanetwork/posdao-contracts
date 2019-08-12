@@ -1,11 +1,12 @@
 pragma solidity 0.5.9;
 
-import "./interfaces/IBlockReward.sol";
-import "./interfaces/IValidatorSet.sol";
-import "./interfaces/IStakingAuRa.sol";
-import "./interfaces/IRandomAuRa.sol";
-import "./interfaces/ITxPermission.sol";
+import "./interfaces/IBlockRewardAuRa.sol";
 import "./interfaces/ICertifier.sol";
+import "./interfaces/IRandomAuRa.sol";
+import "./interfaces/IStakingAuRa.sol";
+import "./interfaces/ITxPermission.sol";
+import "./interfaces/IValidatorSetAuRa.sol";
+
 
 
 /// @dev Used once on network startup and then destroyed.
@@ -53,7 +54,7 @@ contract InitializerAuRa {
         uint256 _collectRoundLength,
         bool _erc20Restricted
     ) public {
-        IValidatorSet(_contracts[0]).initialize(
+        IValidatorSetAuRa(_contracts[0]).initialize(
             _contracts[1], // _blockRewardContract
             _contracts[2], // _randomContract
             _contracts[3], // _stakingContract
@@ -71,7 +72,7 @@ contract InitializerAuRa {
             _stakeWithdrawDisallowPeriod,
             _erc20Restricted
         );
-        IBlockReward(_contracts[1]).initialize(_contracts[0]);
+        IBlockRewardAuRa(_contracts[1]).initialize(_contracts[0]);
         IRandomAuRa(_contracts[2]).initialize(_collectRoundLength, _contracts[0]);
         address[] memory permittedAddresses = new address[](1);
         permittedAddresses[0] = _owner;

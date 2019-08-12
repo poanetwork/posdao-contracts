@@ -16,9 +16,9 @@ async function main() {
     dir = '.' + dir;
   }
 
-  const eternalStorageProxyHashes = await getHashes(
-    `${dir}eternal-storage/`,
-    'EternalStorageProxy'
+  const storageProxyHashes = await getHashes(
+    `${dir}upgradeability/`,
+    'AdminUpgradeabilityProxy'
   );
 
   const filenames = fs.readdirSync(dir);
@@ -52,12 +52,12 @@ async function main() {
     for (const fnSignature in contractHashes) {
       const fnHash = contractHashes[fnSignature];
 
-      for (const eternalFnSignature in eternalStorageProxyHashes) {
-        const eternalFnHash = eternalStorageProxyHashes[eternalFnSignature];
+      for (const proxyFnSignature in storageProxyHashes) {
+        const proxyFnHash = storageProxyHashes[proxyFnSignature];
 
-        if (fnHash == eternalFnHash) {
+        if (fnHash == proxyFnHash) {
           console.error('');
-          console.error(`Error: the hash for ${contractName}.${fnSignature} is the same as for EternalStorageProxy.${eternalFnSignature}`);
+          console.error(`Error: the hash for ${contractName}.${fnSignature} is the same as for EternalStorageProxy.${proxyFnSignature}`);
           success = false;
         }
       }

@@ -5,15 +5,12 @@ title: POSDAO Smart Contracts Docs
 
 ## Navigation
 
-POSDAO smart contracts are located in the contracts directory, which contains the root contracts as well as abstract and eternal-storage subdirectories. View the documentation by selecting a contract from the menu. To return to the repo, go to https://github.com/poanetwork/posdao-contracts
+POSDAO smart contracts are located in the contracts directory, which contains the root contracts as well as upgradeability subdirectory. View the documentation by selecting a contract from the menu. To return to the repo, go to https://github.com/poanetwork/posdao-contracts
 
-- **abstracts:** base contracts that provide definitions to the root contracts. 
-- **eternal-storage:** upgradeability and contract storage management.
+- **upgradeability:** upgradeability and contract storage management.
 - **root:** POSDAO functional contracts.
 
 ## Smart Contract Summaries
-
-_Note: Current documentation is complete for AuRa contracts only. HBBFT contract implementations are in progress and are not listed nor described here._
 
 - **BlockRewardAuRa:** reward generation and distribution. 
 

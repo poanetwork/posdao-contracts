@@ -29,7 +29,11 @@ async function compile(dir, contractName) {
       content = fs.readFileSync(dir + path);
     } catch (e) {
       if (e.code == 'ENOENT') {
-        content = fs.readFileSync(dir + '../' + path);
+        try {
+          content = fs.readFileSync(dir + '../' + path);
+        } catch (e) {
+          content = fs.readFileSync(dir + '../node_modules/' + path);
+        }
       }
     }
     return {

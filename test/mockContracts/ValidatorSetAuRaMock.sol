@@ -5,6 +5,9 @@ import '../../contracts/ValidatorSetAuRa.sol';
 
 contract ValidatorSetAuRaMock is ValidatorSetAuRa {
 
+    uint256 internal _currentBlockNumber;
+    address internal _systemAddress;
+
     // ============================================== Modifiers =======================================================
 
     modifier onlySystem() {
@@ -15,7 +18,7 @@ contract ValidatorSetAuRaMock is ValidatorSetAuRa {
     // =============================================== Setters ========================================================
 
     function clearPendingValidators() public {
-        delete addressArrayStorage[PENDING_VALIDATORS];
+        delete _pendingValidators;
     }
 
     function enqueuePendingValidators() public {
@@ -23,27 +26,27 @@ contract ValidatorSetAuRaMock is ValidatorSetAuRa {
     }
 
     function setBannedUntil(address _miningAddress, uint256 _bannedUntil) public {
-        uintStorage[keccak256(abi.encode(BANNED_UNTIL, _miningAddress))] = _bannedUntil;
+        bannedUntil[_miningAddress] = _bannedUntil;
     }
 
     function setBlockRewardContract(address _address) public {
-        addressStorage[BLOCK_REWARD_CONTRACT] = _address;
+        blockRewardContract = _address;
     }
 
     function setCurrentBlockNumber(uint256 _blockNumber) public {
-        uintStorage[keccak256("currentBlockNumber")] = _blockNumber;
+        _currentBlockNumber = _blockNumber;
     }
 
     function setRandomContract(address _address) public {
-        addressStorage[RANDOM_CONTRACT] = _address;
+        randomContract = _address;
     }
 
-    function setSystemAddress(address _systemAddress) public {
-        addressStorage[keccak256("systemAddress")] = _systemAddress;
+    function setSystemAddress(address _address) public {
+        _systemAddress = _address;
     }
 
     function setValidatorSetApplyBlock(uint256 _blockNumber) public {
-        _setValidatorSetApplyBlock(_blockNumber);
+        validatorSetApplyBlock = _blockNumber;
     }
 
     // =============================================== Getters ========================================================
@@ -63,11 +66,11 @@ contract ValidatorSetAuRaMock is ValidatorSetAuRa {
     // =============================================== Private ========================================================
 
     function _getCurrentBlockNumber() internal view returns(uint256) {
-        return uintStorage[keccak256("currentBlockNumber")];
+        return _currentBlockNumber;
     }
 
     function _getSystemAddress() internal view returns(address) {
-        return addressStorage[keccak256("systemAddress")];
+        return _systemAddress;
     }
 
 }

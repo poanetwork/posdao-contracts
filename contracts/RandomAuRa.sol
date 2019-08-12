@@ -1,24 +1,53 @@
 pragma solidity 0.5.9;
 
-import "./abstracts/RandomBase.sol";
 import "./interfaces/IRandomAuRa.sol";
-import "./interfaces/IValidatorSet.sol";
-import "./interfaces/IValidatorSetAuRa.sol";
-import "./interfaces/IStaking.sol";
 import "./interfaces/IStakingAuRa.sol";
+import "./interfaces/IValidatorSetAuRa.sol";
 
 
 /// @dev Generates and stores random numbers in a RANDAO manner (and controls when they are revealed by AuRa
 /// validators) and accumulates a random seed. The random seed is used to form a new validator set by the
 /// `ValidatorSet._newValidatorSet` function.
-contract RandomAuRa is RandomBase, IRandomAuRa {
+contract RandomAuRa is IRandomAuRa {
+
+    // =============================================== Storage ========================================================
+
+    // WARNING: since this contract is upgradeable, do not remove
+    // existing storage variables and do not change their types!
+
+    mapping(uint256 => mapping(address => bytes)) internal _ciphers;
+    mapping(uint256 => mapping(address => bytes32)) internal _commits;
+    mapping(uint256 => address[]) internal _committedValidators;
+
+    /// @dev The length of the collection round (in blocks).
+    uint256 public collectRoundLength;
+
+    /// @dev The current random seed accumulated during RANDAO or another process
+    /// (depending on implementation).
+    uint256 public currentSeed;
+
+    /// @dev The number of reveal skips made by the specified validator during the specified staking epoch.
+    mapping(uint256 => mapping(address => uint256)) public revealSkips;
+
+    /// @dev A boolean flag of whether the specified validator has revealed their secret for the
+    /// specified collection round.
+    mapping(uint256 => mapping(address => bool)) public sentReveal;
+
+    /// @dev The address of the `ValidatorSet` contract.
+    IValidatorSetAuRa public validatorSetContract;
 
     // ============================================== Modifiers =======================================================
 
     /// @dev Ensures the caller is the BlockRewardAuRa contract address
     /// (EternalStorageProxy proxy contract for BlockRewardAuRa).
     modifier onlyBlockReward() {
-        require(msg.sender == validatorSetContract().blockRewardContract());
+        require(msg.sender == validatorSetContract.blockRewardContract());
+        _;
+    }
+
+    /// @dev Ensures the `initialize` function was called before.
+    modifier onlyInitialized {
+        require(isInitialized());
         _;
     }
 
@@ -38,9 +67,9 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
         uint256 collectRound = currentCollectRound();
 
-        _setCommit(collectRound, miningAddress, _secretHash);
-        _setCipher(collectRound, miningAddress, _cipher);
-        _addCommittedValidator(collectRound, miningAddress);
+        _commits[collectRound][miningAddress] = _secretHash;
+        _ciphers[collectRound][miningAddress] = _cipher;
+        _committedValidators[collectRound].push(miningAddress);
     }
 
     /// @dev Called by the validator's node to XOR its secret with the current random seed.
@@ -53,8 +82,8 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         require(revealSecretCallable(miningAddress, _secret));
         require(_getCoinbase() == miningAddress); // make sure validator node is live
 
-        _setCurrentSeed(getCurrentSeed() ^ _secret);
-        _setSentReveal(currentCollectRound(), miningAddress);
+        currentSeed = currentSeed ^ _secret;
+        sentReveal[currentCollectRound()][miningAddress] = true;
     }
 
     /// @dev Initializes the contract at network startup.
@@ -65,14 +94,14 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         uint256 _collectRoundLength, // in blocks
         address _validatorSet
     ) external {
-        IValidatorSet validatorSet = IValidatorSet(_validatorSet);
+        IValidatorSetAuRa validatorSet = IValidatorSetAuRa(_validatorSet);
         require(_collectRoundLength % 2 == 0);
         require(_collectRoundLength % validatorSet.MAX_VALIDATORS() == 0);
         require(IStakingAuRa(validatorSet.stakingContract()).stakingEpochDuration() % _collectRoundLength == 0);
         require(_collectRoundLength > 0);
-        require(collectRoundLength() == 0);
-        uintStorage[COLLECT_ROUND_LENGTH] = _collectRoundLength;
-        super._initialize(_validatorSet);
+        require(collectRoundLength == 0);
+        collectRoundLength = _collectRoundLength;
+        _initialize(_validatorSet);
     }
 
     /// @dev Checks whether the current validators at the end of each collection round revealed their secrets,
@@ -80,7 +109,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     /// This function does nothing if the current block is not the last block of the current collection round.
     /// Can only be called by the `BlockRewardAuRa` contract (its `reward` function).
     function onFinishCollectRound() external onlyBlockReward {
-        if (_getCurrentBlockNumber() % collectRoundLength() != 0) return;
+        if (_getCurrentBlockNumber() % collectRoundLength != 0) return;
 
         // This is the last block of the current collection round
 
@@ -88,29 +117,29 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         address validator;
         uint256 i;
 
-        address stakingContract = validatorSetContract().stakingContract();
+        address stakingContract = validatorSetContract.stakingContract();
 
-        uint256 stakingEpoch = IStaking(stakingContract).stakingEpoch();
-        uint256 applyBlock = validatorSetContract().validatorSetApplyBlock();
+        uint256 stakingEpoch = IStakingAuRa(stakingContract).stakingEpoch();
+        uint256 applyBlock = validatorSetContract.validatorSetApplyBlock();
         uint256 endBlock = IStakingAuRa(stakingContract).stakingEpochEndBlock();
         uint256 currentRound = currentCollectRound();
 
-        if (applyBlock != 0 && _getCurrentBlockNumber() > applyBlock + collectRoundLength() * 2) {
+        if (applyBlock != 0 && _getCurrentBlockNumber() > applyBlock + collectRoundLength * 2) {
             // Check whether each validator didn't reveal their secret
             // during the current collection round
-            validators = validatorSetContract().getValidators();
+            validators = validatorSetContract.getValidators();
             for (i = 0; i < validators.length; i++) {
                 validator = validators[i];
-                if (!sentReveal(currentRound, validator)) {
-                    _incrementRevealSkips(stakingEpoch, validator);
+                if (!sentReveal[currentRound][validator]) {
+                    revealSkips[stakingEpoch][validator]++;
                 }
             }
         }
 
         // If this is the last collection round in the current staking epoch.
-        if (_getCurrentBlockNumber() == endBlock || _getCurrentBlockNumber() + collectRoundLength() > endBlock) {
+        if (_getCurrentBlockNumber() == endBlock || _getCurrentBlockNumber() + collectRoundLength > endBlock) {
             uint256 maxRevealSkipsAllowed =
-                IStakingAuRa(stakingContract).stakeWithdrawDisallowPeriod() / collectRoundLength();
+                IStakingAuRa(stakingContract).stakeWithdrawDisallowPeriod() / collectRoundLength;
 
             if (maxRevealSkipsAllowed > 0) {
                 maxRevealSkipsAllowed--;
@@ -119,7 +148,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
             // Check each validator to see if they didn't reveal
             // their secret during the last full `reveals phase`
             // or if they missed the required number of reveals per staking epoch.
-            validators = validatorSetContract().getValidators();
+            validators = validatorSetContract.getValidators();
 
             address[] memory maliciousValidators = new address[](validators.length);
             uint256 maliciousValidatorsLength = 0;
@@ -127,8 +156,8 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
             for (i = 0; i < validators.length; i++) {
                 validator = validators[i];
                 if (
-                    !sentReveal(currentRound, validator) ||
-                    revealSkips(stakingEpoch, validator) > maxRevealSkipsAllowed
+                    !sentReveal[currentRound][validator] ||
+                    revealSkips[stakingEpoch][validator] > maxRevealSkipsAllowed
                 ) {
                     // Mark the validator as malicious
                     maliciousValidators[maliciousValidatorsLength++] = validator;
@@ -140,7 +169,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
                 for (i = 0; i < maliciousValidatorsLength; i++) {
                     miningAddresses[i] = maliciousValidators[i];
                 }
-                IValidatorSetAuRa(address(validatorSetContract())).removeMaliciousValidators(miningAddresses);
+                validatorSetContract.removeMaliciousValidators(miningAddresses);
             }
         }
 
@@ -150,19 +179,14 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
     // =============================================== Getters ========================================================
 
-    /// @dev Returns the length of the collection round (in blocks).
-    function collectRoundLength() public view returns(uint256) {
-        return uintStorage[COLLECT_ROUND_LENGTH];
-    }
-
     /// @dev Returns the length of the commits/reveals phase which is always half of the collection round length.
     function commitPhaseLength() public view returns(uint256) {
-        return collectRoundLength() / 2;
+        return collectRoundLength / 2;
     }
 
     /// @dev Returns the serial number of the current collection round.
     function currentCollectRound() public view returns(uint256) {
-        return (_getCurrentBlockNumber() - 1) / collectRoundLength();
+        return (_getCurrentBlockNumber() - 1) / collectRoundLength;
     }
 
     /// @dev Returns the cipher of the validator's secret for the specified collection round and the specified validator
@@ -170,7 +194,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     /// @param _collectRound The serial number of the collection round for which the cipher should be retrieved.
     /// @param _miningAddress The mining address of validator.
     function getCipher(uint256 _collectRound, address _miningAddress) public view returns(bytes memory) {
-        return bytesStorage[keccak256(abi.encode(CIPHERS, _collectRound, _miningAddress))];
+        return _ciphers[_collectRound][_miningAddress];
     }
 
     /// @dev Returns the Keccak-256 hash of the validator's secret for the specified collection round and the specified
@@ -178,7 +202,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     /// @param _collectRound The serial number of the collection round for which the hash should be retrieved.
     /// @param _miningAddress The mining address of validator.
     function getCommit(uint256 _collectRound, address _miningAddress) public view returns(bytes32) {
-        return bytes32Storage[keccak256(abi.encode(COMMITS, _collectRound, _miningAddress))];
+        return _commits[_collectRound][_miningAddress];
     }
 
     /// @dev Returns a boolean flag indicating whether the specified validator has committed their secret's hash for the
@@ -193,7 +217,12 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     /// is a `commits phase`. Used by the validator's node to determine if it should commit the hash of
     /// the secret during the current collection round.
     function isCommitPhase() public view returns(bool) {
-        return ((_getCurrentBlockNumber() - 1) % collectRoundLength()) < commitPhaseLength();
+        return ((_getCurrentBlockNumber() - 1) % collectRoundLength) < commitPhaseLength();
+    }
+
+    /// @dev Returns a boolean flag indicating if the `initialize` function has been called.
+    function isInitialized() public view returns(bool) {
+        return validatorSetContract != IValidatorSetAuRa(0);
     }
 
     /// @dev Returns a boolean flag indicating whether the current phase of the current collection round
@@ -212,7 +241,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
         if (_secretHash == bytes32(0)) return false;
 
-        if (!validatorSetContract().isValidator(_miningAddress)) return false;
+        if (!validatorSetContract.isValidator(_miningAddress)) return false;
 
         if (isCommitted(currentCollectRound(), _miningAddress)) return false; // cannot commit more than once
 
@@ -230,11 +259,11 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
 
         if (secretHash == bytes32(0)) return false;
 
-        if (!validatorSetContract().isValidator(_miningAddress)) return false;
+        if (!validatorSetContract.isValidator(_miningAddress)) return false;
 
         uint256 collectRound = currentCollectRound();
 
-        if (sentReveal(collectRound, _miningAddress)) {
+        if (sentReveal[collectRound][_miningAddress]) {
             return false; // cannot reveal more than once during the same collectRound
         }
 
@@ -245,37 +274,7 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         return true;
     }
 
-    /// @dev Returns the number of reveal skips made by the specified validator during the specified staking epoch.
-    /// @param _stakingEpoch The serial number of the staking epoch for which the number of skips should be returned.
-    /// @param _miningAddress The mining address of the validator for which the number of skips should be returned.
-    function revealSkips(uint256 _stakingEpoch, address _miningAddress) public view returns(uint256) {
-        return uintStorage[keccak256(abi.encode(REVEAL_SKIPS, _stakingEpoch, _miningAddress))];
-    }
-
-    /// @dev Returns a boolean flag of whether the specified validator has revealed their secret for the
-    /// specified collection round.
-    /// @param _collectRound The serial number of the collection round for which the checkup should be done.
-    /// @param _miningAddress The mining address of the validator.
-    function sentReveal(uint256 _collectRound, address _miningAddress) public view returns(bool) {
-        return boolStorage[keccak256(abi.encode(SENT_REVEAL, _collectRound, _miningAddress))];
-    }
-
     // =============================================== Private ========================================================
-
-    bytes32 internal constant COLLECT_ROUND_LENGTH = keccak256("collectRoundLength");
-    bytes32 internal constant CIPHERS = "ciphers";
-    bytes32 internal constant COMMITS = "commits";
-    bytes32 internal constant COMMITTED_VALIDATORS = "committedValidators";
-    bytes32 internal constant REVEAL_SKIPS = "revealSkips";
-    bytes32 internal constant SENT_REVEAL = "sentReveal";
-
-    /// @dev Adds the specified validator to the array of validators that committed their
-    /// hashes during the specified collection round. Used by the `commitHash` function.
-    /// @param _collectRound The serial number of the collection round.
-    /// @param _miningAddress The validator's mining address to be added.
-    function _addCommittedValidator(uint256 _collectRound, address _miningAddress) private {
-        addressArrayStorage[keccak256(abi.encode(COMMITTED_VALIDATORS, _collectRound))].push(_miningAddress);
-    }
 
     /// @dev Removes the ciphers of all committed validators for the specified collection round.
     /// @param _collectRound The serial number of the collection round.
@@ -285,12 +284,20 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
         }
 
         uint256 collectRound = _collectRound - 1;
-        address[] storage miningAddresses =
-            addressArrayStorage[keccak256(abi.encode(COMMITTED_VALIDATORS, collectRound))];
+        address[] storage miningAddresses = _committedValidators[collectRound];
+        uint256 miningAddressesLength = miningAddresses.length;
 
-        for (uint256 i = 0; i < miningAddresses.length; i++) {
-            delete bytesStorage[keccak256(abi.encode(CIPHERS, collectRound, miningAddresses[i]))];
+        for (uint256 i = 0; i < miningAddressesLength; i++) {
+            delete _ciphers[collectRound][miningAddresses[i]];
         }
+    }
+
+    /// @dev Initializes the network parameters. Used by the `initialize` function.
+    /// @param _validatorSet The address of the `ValidatorSet` contract.
+    function _initialize(address _validatorSet) internal {
+        require(!isInitialized());
+        require(_validatorSet != address(0));
+        validatorSetContract = IValidatorSetAuRa(_validatorSet);
     }
 
     /// @dev Returns the current `coinbase` address. Needed mostly for unit tests.
@@ -301,39 +308,5 @@ contract RandomAuRa is RandomBase, IRandomAuRa {
     /// @dev Returns the current block number. Needed mostly for unit tests.
     function _getCurrentBlockNumber() internal view returns(uint256) {
         return block.number;
-    }
-
-    /// @dev Increments the reveal skips counter for the specified validator and staking epoch.
-    /// Used by the `onFinishCollectRound` function.
-    /// @param _stakingEpoch The serial number of the staking epoch.
-    /// @param _miningAddress The validator's mining address.
-    function _incrementRevealSkips(uint256 _stakingEpoch, address _miningAddress) private {
-        uintStorage[keccak256(abi.encode(REVEAL_SKIPS, _stakingEpoch, _miningAddress))]++;
-    }
-
-    /// @dev Stores the cipher of the secret for the specified validator and collection round.
-    /// Used by the `commitHash` function.
-    /// @param _collectRound The serial number of the collection round.
-    /// @param _miningAddress The validator's mining address.
-    /// @param _cipher The cipher's bytes sequence to be stored.
-    function _setCipher(uint256 _collectRound, address _miningAddress, bytes memory _cipher) private {
-        bytesStorage[keccak256(abi.encode(CIPHERS, _collectRound, _miningAddress))] = _cipher;
-    }
-
-    /// @dev Stores the Keccak-256 hash of the secret for the specified validator and collection round.
-    /// Used by the `commitHash` function.
-    /// @param _collectRound The serial number of the collection round.
-    /// @param _miningAddress The validator's mining address.
-    /// @param _secretHash The hash to be stored.
-    function _setCommit(uint256 _collectRound, address _miningAddress, bytes32 _secretHash) private {
-        bytes32Storage[keccak256(abi.encode(COMMITS, _collectRound, _miningAddress))] = _secretHash;
-    }
-
-    /// @dev Stores the boolean flag of whether the specified validator revealed their secret
-    /// during the specified collection round.
-    /// @param _collectRound The serial number of the collection round.
-    /// @param _miningAddress The validator's mining address.
-    function _setSentReveal(uint256 _collectRound, address _miningAddress) private {
-        boolStorage[keccak256(abi.encode(SENT_REVEAL, _collectRound, _miningAddress))] = true;
     }
 }

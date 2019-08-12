@@ -5,6 +5,8 @@ import '../../contracts/StakingAuRa.sol';
 
 contract StakingAuRaMock is StakingAuRa {
 
+    uint256 internal _currentBlockNumber;
+
     // =============================================== Setters ========================================================
 
     function addPoolActiveMock(address _stakingAddress) public {
@@ -16,29 +18,29 @@ contract StakingAuRaMock is StakingAuRa {
     }
 
     function setCurrentBlockNumber(uint256 _blockNumber) public {
-        uintStorage[keccak256("currentBlockNumber")] = _blockNumber;
+        _currentBlockNumber = _blockNumber;
     }
 
-    function setErc20TokenContractMock(address _erc20TokenContract) public {
-        addressStorage[ERC20_TOKEN_CONTRACT] = _erc20TokenContract;
+    function setErc20TokenContractMock(IERC20Minting _erc20TokenContract) public {
+        erc20TokenContract = _erc20TokenContract;
     }
 
     function setErc20Restricted(bool _erc20Restricted) public {
-        boolStorage[ERC20_RESTRICTED] = _erc20Restricted;
+        erc20Restricted = _erc20Restricted;
     }
 
     function setStakeAmountTotal(address _poolStakingAddress, uint256 _amount) public {
-        _setStakeAmountTotal(_poolStakingAddress, _amount);
+        stakeAmountTotal[_poolStakingAddress] = _amount;
     }
 
-    function setValidatorSetAddress(address _validatorSetAddress) public {
-        addressStorage[VALIDATOR_SET_CONTRACT] = _validatorSetAddress;
+    function setValidatorSetAddress(IValidatorSetAuRa _validatorSetAddress) public {
+        validatorSetContract = _validatorSetAddress;
     }
 
     // =============================================== Private ========================================================
 
     function _getCurrentBlockNumber() internal view returns(uint256) {
-        return uintStorage[keccak256("currentBlockNumber")];
+        return _currentBlockNumber;
     }
 
     function _getMaxCandidates() internal pure returns(uint256) {

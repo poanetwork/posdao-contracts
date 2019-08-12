@@ -1,18 +1,27 @@
 pragma solidity 0.5.9;
 
-import "./interfaces/IBlockReward.sol";
+import "./interfaces/IBlockRewardAuRa.sol";
 import "./interfaces/IRandomAuRa.sol";
 import "./interfaces/IStakingAuRa.sol";
 import "./interfaces/ITxPermission.sol";
-import "./interfaces/IValidatorSet.sol";
 import "./interfaces/IValidatorSetAuRa.sol";
-import "./eternal-storage/OwnedEternalStorage.sol";
+import "./upgradeability/UpgradeableOwned.sol";
 
 
 /// @dev Controls the use of zero gas price by validators in service transactions,
 /// protecting the network against "transaction spamming" by malicious validators.
 /// The protection logic is declared in the `allowedTxTypes` function.
-contract TxPermission is OwnedEternalStorage, ITxPermission {
+contract TxPermission is UpgradeableOwned, ITxPermission {
+
+    // =============================================== Storage ========================================================
+
+    // WARNING: since this contract is upgradeable, do not remove
+    // existing storage variables and do not change their types!
+
+    address[] internal _allowedSenders;
+
+    /// @dev The address of the `ValidatorSet` contract.
+    IValidatorSetAuRa public validatorSetContract;
 
     // ============================================== Constants =======================================================
 
@@ -36,19 +45,19 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
 
     /// @dev Initializes the contract at network startup.
     /// Must be called by the constructor of the `Initializer` contract.
-    /// @param _allowedSenders The addresses for which transactions of any type must be allowed.
+    /// @param _allowed The addresses for which transactions of any type must be allowed.
     /// See the `allowedTxTypes` getter.
     /// @param _validatorSet The address of the `ValidatorSet` contract.
     function initialize(
-        address[] calldata _allowedSenders,
+        address[] calldata _allowed,
         address _validatorSet
     ) external {
         require(!isInitialized());
         require(_validatorSet != address(0));
-        for (uint256 i = 0; i < _allowedSenders.length; i++) {
-            _addAllowedSender(_allowedSenders[i]);
+        for (uint256 i = 0; i < _allowed.length; i++) {
+            _addAllowedSender(_allowed[i]);
         }
-        addressStorage[VALIDATOR_SET_CONTRACT] = _validatorSet;
+        validatorSetContract = IValidatorSetAuRa(_validatorSet);
     }
 
     /// @dev Adds the address for which transactions of any type must be allowed.
@@ -63,12 +72,12 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
     /// See also the `addAllowedSender` function and `allowedSenders` getter.
     /// @param _sender The removed address.
     function removeAllowedSender(address _sender) public onlyOwner onlyInitialized {
-        uint256 allowedSendersLength = addressArrayStorage[ALLOWED_SENDERS].length;
+        uint256 allowedSendersLength = _allowedSenders.length;
 
         for (uint256 i = 0; i < allowedSendersLength; i++) {
-            if (_sender == addressArrayStorage[ALLOWED_SENDERS][i]) {
-                addressArrayStorage[ALLOWED_SENDERS][i] = addressArrayStorage[ALLOWED_SENDERS][allowedSendersLength-1];
-                addressArrayStorage[ALLOWED_SENDERS].length--;
+            if (_sender == _allowedSenders[i]) {
+                _allowedSenders[i] = _allowedSenders[allowedSendersLength-1];
+                _allowedSenders.length--;
                 break;
             }
         }
@@ -95,7 +104,7 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
     /// For these addresses the `allowedTxTypes` getter always returns the `ALL` bit mask
     /// (see https://wiki.parity.io/Permissioning.html#how-it-works-1).
     function allowedSenders() public view returns(address[] memory) {
-        return addressArrayStorage[ALLOWED_SENDERS];
+        return _allowedSenders;
     }
 
     /// @dev Defines the allowed transaction types which may be initiated by the specified sender with
@@ -130,8 +139,6 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
             return (ALL, false);
         }
 
-        IValidatorSet validatorSet = validatorSetContract();
-
         // Get the called function's signature
         bytes4 signature = bytes4(0);
         bytes memory abiParams;
@@ -140,8 +147,8 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
             signature |= bytes4(_data[i]) >> i*8;
         }
 
-        if (_to == validatorSet.randomContract()) {
-            address randomContract = validatorSet.randomContract();
+        if (_to == validatorSetContract.randomContract()) {
+            address randomContract = validatorSetContract.randomContract();
             abiParams = new bytes(_data.length - 4 > 32 ? 32 : _data.length - 4);
 
             for (i = 0; i < abiParams.length; i++) {
@@ -159,12 +166,12 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
             }
         }
 
-        if (_to == address(validatorSet)) {
+        if (_to == address(validatorSetContract)) {
             // The rules for the ValidatorSet contract
             if (signature == bytes4(keccak256("emitInitiateChange()"))) {
                 // The `emitInitiateChange()` can be called by anyone
                 // if `emitInitiateChangeCallable()` returns `true`
-                return (validatorSet.emitInitiateChangeCallable() ? CALL : NONE, false);
+                return (validatorSetContract.emitInitiateChangeCallable() ? CALL : NONE, false);
             } else if (signature == bytes4(keccak256("reportMalicious(address,uint256,bytes)"))) {
                 abiParams = new bytes(_data.length - 4 > 64 ? 64 : _data.length - 4);
 
@@ -182,7 +189,7 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
 
                 // The `reportMalicious()` can only be called by the validator's mining address
                 // when the calling is allowed
-                (bool callable,) = IValidatorSetAuRa(address(validatorSet)).reportMaliciousCallable(
+                (bool callable,) = validatorSetContract.reportMaliciousCallable(
                     _sender, maliciousMiningAddress, blockNumber
                 );
 
@@ -190,16 +197,16 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
             } else if (_gasPrice > 0) {
                 // The other functions of ValidatorSet contract can be called
                 // by anyone except validators' mining addresses if gasPrice is not zero
-                return (validatorSet.isValidator(_sender) ? NONE : CALL, false);
+                return (validatorSetContract.isValidator(_sender) ? NONE : CALL, false);
             }
         }
 
-        if (validatorSet.isValidator(_sender) && _gasPrice > 0) {
+        if (validatorSetContract.isValidator(_sender) && _gasPrice > 0) {
             // Let the validator's mining address send their accumulated tx fees to some wallet
             return (_sender.balance > 0 ? BASIC : NONE, false);
         }
 
-        if (validatorSet.isValidator(_to)) {
+        if (validatorSetContract.isValidator(_to)) {
             // Validator's mining address can't receive any coins
             return (NONE, false);
         }
@@ -213,12 +220,11 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
     /// staking epoch: if there is a rewarding/snapshotting process, the block gas limit
     /// is temporarily reduced. See https://github.com/poanetwork/parity-ethereum/issues/119
     function blockGasLimit() public view returns(uint256) {
-        IValidatorSet validatorSet = validatorSetContract();
-        IBlockReward blockRewardContract = IBlockReward(validatorSet.blockRewardContract());
+        IBlockRewardAuRa blockRewardContract = IBlockRewardAuRa(validatorSetContract.blockRewardContract());
         if (blockRewardContract.isRewarding()) {
             return BLOCK_GAS_LIMIT_REDUCED;
         }
-        address stakingContract = validatorSet.stakingContract();
+        address stakingContract = validatorSetContract.stakingContract();
         uint256 stakingEpochEndBlock = IStakingAuRa(stakingContract).stakingEpochEndBlock();
         if (block.number == stakingEpochEndBlock - 1 || block.number == stakingEpochEndBlock) {
             return BLOCK_GAS_LIMIT_REDUCED;
@@ -231,7 +237,7 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
 
     /// @dev Returns a boolean flag indicating if the `initialize` function has been called.
     function isInitialized() public view returns(bool) {
-        return addressStorage[VALIDATOR_SET_CONTRACT] != address(0);
+        return validatorSetContract != IValidatorSetAuRa(0);
     }
 
     /// @dev Returns a boolean flag indicating whether the specified address is allowed
@@ -239,10 +245,10 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
     /// See also the `addAllowedSender` and `removeAllowedSender` functions.
     /// @param _sender The specified address to check.
     function isSenderAllowed(address _sender) public view returns(bool) {
-        uint256 allowedSendersLength = addressArrayStorage[ALLOWED_SENDERS].length;
+        uint256 allowedSendersLength = _allowedSenders.length;
 
         for (uint256 i = 0; i < allowedSendersLength; i++) {
-            if (_sender == addressArrayStorage[ALLOWED_SENDERS][i]) {
+            if (_sender == _allowedSenders[i]) {
                 return true;
             }
         }
@@ -250,15 +256,7 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
         return false;
     }
 
-    /// @dev Returns the address of the `ValidatorSet` contract.
-    function validatorSetContract() public view returns(IValidatorSet) {
-        return IValidatorSet(addressStorage[VALIDATOR_SET_CONTRACT]);
-    }
-
     // =============================================== Private ========================================================
-
-    bytes32 internal constant ALLOWED_SENDERS = keccak256("allowedSenders");
-    bytes32 internal constant VALIDATOR_SET_CONTRACT = keccak256("validatorSetContract");
 
     // Allowed transaction types mask
     uint32 internal constant NONE = 0;
@@ -273,6 +271,6 @@ contract TxPermission is OwnedEternalStorage, ITxPermission {
     function _addAllowedSender(address _sender) internal {
         require(!isSenderAllowed(_sender));
         require(_sender != address(0));
-        addressArrayStorage[ALLOWED_SENDERS].push(_sender);
+        _allowedSenders.push(_sender);
     }
 }
