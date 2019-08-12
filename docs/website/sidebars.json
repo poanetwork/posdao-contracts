@@ -1,15 +1,13 @@
 {
   "docs-api": {
-    "abstracts": [
-      "abstracts_BlockRewardBase",
-      "abstracts_RandomBase",
-      "abstracts_StakingBase",
-      "abstracts_ValidatorSetBase"
-    ],
-    "eternal-storage": [
-      "eternal-storage_EternalStorage",
-      "eternal-storage_EternalStorageProxy",
-      "eternal-storage_OwnedEternalStorage"
+    "upgradeability": [
+      "upgradeability_AdminUpgradeabilityProxy",
+      "upgradeability_BaseAdminUpgradeabilityProxy",
+      "upgradeability_BaseUpgradeabilityProxy",
+      "upgradeability_Proxy",
+      "upgradeability_UpgradeabilityAdminSlot",
+      "upgradeability_UpgradeabilityProxy",
+      "upgradeability_UpgradeableOwned"
     ],
     "root": [
       "BlockRewardAuRa",

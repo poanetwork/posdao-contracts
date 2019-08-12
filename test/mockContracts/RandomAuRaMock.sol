@@ -5,25 +5,27 @@ import '../../contracts/RandomAuRa.sol';
 
 contract RandomAuRaMock is RandomAuRa {
 
+    address internal _coinbase;
+    uint256 internal _currentBlockNumber;
+
     // =============================================== Setters ========================================================
 
-    function setCoinbase(address _coinbase) public {
-        addressStorage[keccak256("coinbase")] = _coinbase;
+    function setCoinbase(address _base) public {
+        _coinbase = _base;
     }
 
     function setCurrentBlockNumber(uint256 _blockNumber) public {
-        uintStorage[keccak256("currentBlockNumber")] = _blockNumber;
+        _currentBlockNumber = _blockNumber;
     }
 
     // =============================================== Private ========================================================
 
     function _getCoinbase() internal view returns(address) {
-        address coinbase = addressStorage[keccak256("coinbase")];
-        return coinbase != address(0) ? coinbase : block.coinbase;
+        return _coinbase != address(0) ? _coinbase : block.coinbase;
     }
 
     function _getCurrentBlockNumber() internal view returns(uint256) {
-        return uintStorage[keccak256("currentBlockNumber")];
+        return _currentBlockNumber;
     }
 
 }

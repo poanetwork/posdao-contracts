@@ -1,13 +1,23 @@
 pragma solidity 0.5.9;
 
 import "./interfaces/ICertifier.sol";
-import "./interfaces/IValidatorSet.sol";
-import "./eternal-storage/OwnedEternalStorage.sol";
+import "./interfaces/IValidatorSetAuRa.sol";
+import "./upgradeability/UpgradeableOwned.sol";
 
 
 /// @dev Allows validators to use a zero gas price for their service transactions
 /// (see https://wiki.parity.io/Permissioning.html#gas-price for more info).
-contract Certifier is OwnedEternalStorage, ICertifier {
+contract Certifier is UpgradeableOwned, ICertifier {
+
+    // =============================================== Storage ========================================================
+
+    // WARNING: since this contract is upgradeable, do not remove
+    // existing storage variables and do not change their types!
+
+    mapping(address => bool) internal _certified;
+
+    /// @dev The address of the `ValidatorSet` contract.
+    IValidatorSetAuRa public validatorSetContract;
 
     // ================================================ Events ========================================================
 
@@ -44,7 +54,7 @@ contract Certifier is OwnedEternalStorage, ICertifier {
         for (uint256 i = 0; i < _certifiedAddresses.length; i++) {
             _certify(_certifiedAddresses[i]);
         }
-        addressStorage[VALIDATOR_SET_CONTRACT] = _validatorSet;
+        validatorSetContract = IValidatorSetAuRa(_validatorSet);
     }
 
     /// @dev Allows the specified address to use a zero gas price for its transactions.
@@ -59,7 +69,7 @@ contract Certifier is OwnedEternalStorage, ICertifier {
     /// Can only be called by the `owner`.
     /// @param _who The address for which transactions with a zero gas price must be denied.
     function revoke(address _who) external onlyOwner onlyInitialized {
-        boolStorage[keccak256(abi.encode(CERTIFIED, _who))] = false;
+        _certified[_who] = false;
         emit Revoked(_who);
     }
 
@@ -70,31 +80,23 @@ contract Certifier is OwnedEternalStorage, ICertifier {
     /// `ValidatorSet.isReportValidatorValid` returns `true` for the specified address.
     /// @param _who The address for which the boolean flag must be determined.
     function certified(address _who) external view returns(bool) {
-        if (boolStorage[keccak256(abi.encode(CERTIFIED, _who))]) {
+        if (_certified[_who]) {
             return true;
         }
-        return validatorSetContract().isReportValidatorValid(_who);
+        return validatorSetContract.isReportValidatorValid(_who);
     }
 
     /// @dev Returns a boolean flag indicating if the `initialize` function has been called.
     function isInitialized() public view returns(bool) {
-        return addressStorage[VALIDATOR_SET_CONTRACT] != address(0);
-    }
-
-    /// @dev Returns the address of the `ValidatorSet` contract.
-    function validatorSetContract() public view returns(IValidatorSet) {
-        return IValidatorSet(addressStorage[VALIDATOR_SET_CONTRACT]);
+        return validatorSetContract != IValidatorSetAuRa(0);
     }
 
     // =============================================== Private ========================================================
-
-    bytes32 internal constant CERTIFIED = "certified";
-    bytes32 internal constant VALIDATOR_SET_CONTRACT = keccak256("validatorSetContract");
 
     /// @dev An internal function for the `certify` and `initialize` functions.
     /// @param _who The address for which transactions with a zero gas price must be allowed.
     function _certify(address _who) internal {
         require(_who != address(0));
-        boolStorage[keccak256(abi.encode(CERTIFIED, _who))] = true;
+        _certified[_who] = true;
     }
 }
