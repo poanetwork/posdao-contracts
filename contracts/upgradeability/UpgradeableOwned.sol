@@ -1,17 +1,12 @@
 pragma solidity 0.5.9;
 
-import "./UpgradeabilityAdminSlot.sol";
+import "./UpgradeabilityAdmin.sol";
 
 
-contract UpgradeableOwned is UpgradeabilityAdminSlot {
+contract UpgradeableOwned is UpgradeabilityAdmin {
     /// @dev Access check: revert unless `msg.sender` is the owner of the contract.
     modifier onlyOwner() {
-        bytes32 slot = ADMIN_SLOT;
-        address adm;
-        assembly {
-            adm := sload(slot)
-        }
-        require(msg.sender == adm);
+        require(msg.sender == _admin());
         _;
     }
 }

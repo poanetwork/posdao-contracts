@@ -3,12 +3,13 @@ pragma solidity 0.5.9;
 import "./interfaces/IRandomAuRa.sol";
 import "./interfaces/IStakingAuRa.sol";
 import "./interfaces/IValidatorSetAuRa.sol";
+import "./upgradeability/UpgradeabilityAdmin.sol";
 
 
 /// @dev Generates and stores random numbers in a RANDAO manner (and controls when they are revealed by AuRa
 /// validators) and accumulates a random seed. The random seed is used to form a new validator set by the
 /// `ValidatorSet._newValidatorSet` function.
-contract RandomAuRa is IRandomAuRa {
+contract RandomAuRa is UpgradeabilityAdmin, IRandomAuRa {
 
     // =============================================== Storage ========================================================
 
@@ -87,7 +88,7 @@ contract RandomAuRa is IRandomAuRa {
     }
 
     /// @dev Initializes the contract at network startup.
-    /// Must be called by the constructor of the `InitializerAuRa` contract.
+    /// Can only be called by the constructor of the `InitializerAuRa` contract or owner.
     /// @param _collectRoundLength The length of a collection round in blocks.
     /// @param _validatorSet The address of the `ValidatorSet` contract.
     function initialize(
@@ -295,6 +296,7 @@ contract RandomAuRa is IRandomAuRa {
     /// @dev Initializes the network parameters. Used by the `initialize` function.
     /// @param _validatorSet The address of the `ValidatorSet` contract.
     function _initialize(address _validatorSet) internal {
+        require(_getCurrentBlockNumber() == 0 || msg.sender == _admin());
         require(!isInitialized());
         require(_validatorSet != address(0));
         validatorSetContract = IValidatorSetAuRa(_validatorSet);

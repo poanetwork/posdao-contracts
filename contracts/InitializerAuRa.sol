@@ -25,7 +25,7 @@ contract InitializerAuRa {
     /// @param _stakingAddresses The array of initial validators' staking addresses.
     /// @param _firstValidatorIsUnremovable The boolean flag defining whether the first validator in the
     /// `_miningAddresses/_stakingAddresses` array is non-removable.
-    /// Must be `false` for production network.
+    /// Should be `false` for production network.
     /// @param _delegatorMinStake The minimum allowed amount of delegator stake in STAKE_UNITs
     /// (see the `StakingAuRa` contract).
     /// @param _candidateMinStake The minimum allowed amount of candidate stake in STAKE_UNITs

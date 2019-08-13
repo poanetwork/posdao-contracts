@@ -42,13 +42,14 @@ contract Certifier is UpgradeableOwned, ICertifier {
     // =============================================== Setters ========================================================
 
     /// @dev Initializes the contract at network startup.
-    /// Must be called by the constructor of the `Initializer` contract.
+    /// Can only be called by the constructor of the `Initializer` contract or owner.
     /// @param _certifiedAddresses The addresses for which a zero gas price must be allowed.
     /// @param _validatorSet The address of the `ValidatorSet` contract.
     function initialize(
         address[] calldata _certifiedAddresses,
         address _validatorSet
     ) external {
+        require(block.number == 0 || msg.sender == _admin());
         require(!isInitialized());
         require(_validatorSet != address(0));
         for (uint256 i = 0; i < _certifiedAddresses.length; i++) {

@@ -4,14 +4,14 @@ import "./interfaces/IBlockRewardAuRa.sol";
 import "./interfaces/IRandomAuRa.sol";
 import "./interfaces/IStakingAuRa.sol";
 import "./interfaces/IValidatorSetAuRa.sol";
-import "./upgradeability/UpgradeabilityAdminSlot.sol";
+import "./upgradeability/UpgradeabilityAdmin.sol";
 import "./libs/SafeMath.sol";
 
 
 /// @dev stores the current validator set and contains the logic for choosing new validators
 /// at the beginning of each staking epoch. The logic uses a random seed generated
 /// and stored by the `RandomAuRa` contract.
-contract ValidatorSetAuRa is UpgradeabilityAdminSlot, IValidatorSetAuRa {
+contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     using SafeMath for uint256;
 
     // =============================================== Storage ========================================================
@@ -237,7 +237,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdminSlot, IValidatorSetAuRa {
     }
 
     /// @dev Initializes the network parameters. Used by the
-    /// constructor of the `InitializerAuRa` or `InitializerHBBFT` contract.
+    /// constructor of the `InitializerAuRa` contract.
     /// @param _blockRewardContract The address of the `BlockReward` contract.
     /// @param _randomContract The address of the `Random` contract.
     /// @param _stakingContract The address of the `Staking` contract.
@@ -245,7 +245,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdminSlot, IValidatorSetAuRa {
     /// @param _initialStakingAddresses The array of initial validators' staking addresses.
     /// @param _firstValidatorIsUnremovable The boolean flag defining whether the first validator in the
     /// `_initialMiningAddresses/_initialStakingAddresses` array is non-removable.
-    /// Must be `false` for a production network.
+    /// Should be `false` for a production network.
     function initialize(
         address _blockRewardContract,
         address _randomContract,
@@ -254,6 +254,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdminSlot, IValidatorSetAuRa {
         address[] calldata _initialStakingAddresses,
         bool _firstValidatorIsUnremovable
     ) external {
+        require(_getCurrentBlockNumber() == 0 || msg.sender == _admin());
         require(!isInitialized()); // initialization can only be done once
         require(_blockRewardContract != address(0));
         require(_randomContract != address(0));

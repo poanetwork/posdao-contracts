@@ -17,7 +17,7 @@ The algorithm provides a Sybil control mechanism for reporting malicious validat
 
 ## Smart Contract Summaries
 
-_Note: The following descriptions are for AuRa contracts only. HBBFT contract implementations are in progress and are not listed nor described here. All contracts are located in the `contracts` directory._
+_Note: The following descriptions are for AuRa contracts only. HBBFT contract implementations are not started yet and are not listed nor described here. All contracts are located in the `contracts` directory._
 
 - `BlockRewardAuRa`: generates and distributes rewards according to the logic and formulas described in the white paper. Main features include:
   - distributes the entrance/exit fees from the `erc-to-erc`, `native-to-erc`, and/or `erc-to-native` bridges among validators and their delegators;
@@ -26,19 +26,17 @@ _Note: The following descriptions are for AuRa contracts only. HBBFT contract im
   - makes a snapshot of the validators and their delegators at the beginning of each staking epoch and uses that snapshot at the end of staking epoch to accrue rewards to validators and their delegators.
 
 - `Certifier`: allows validators to use a zero gas price for their service transactions (see [Parity Wiki](https://wiki.parity.io/Permissioning.html#gas-price) for more info). The following functions are considered service transactions:
-  - ValidatorSet.emitInitiateChange
-  - ValidatorSet.reportMalicious
+  - ValidatorSetAuRa.emitInitiateChange
+  - ValidatorSetAuRa.reportMalicious
   - RandomAura.commitHash
   - RandomAura.revealSecret
 
 - `InitializerAuRa`: used once on network startup and then destroyed. This contract is needed for initializing upgradable contracts since an upgradable contract can't have the constructor. The bytecode of this contract is written by the `scripts/make_spec.js` into `spec.json` along with other contracts when initializing on genesis block.
 
-- `KeyGenHistory`: stores the validator’s public keys needed for the HoneyBadger BFT engine and for storing events used by HBBFT nodes.
-
 - `RandomAuRa`: generates and stores random numbers in a [RANDAO](https://github.com/randao/randao) manner (and controls when they are revealed by Aura validators). Random numbers are used to form a new validator set at the beginning of each staking epoch by the `ValidatorSet` contract. Key functions include:
   - `commitHash` and `revealSecret`. Can only be called by the validator's node when generating and revealing their secret number (see [RANDAO](https://github.com/randao/randao) to understand principle). Each validator node must call these functions once per `collection round`. This creates a random seed which is used by `ValidatorSetAuRa` contract. See the white paper for more details;
   - `onFinishCollectRound`. This function is automatically called by the `BlockRewardAuRa` contract at the end of each `collection round`. It controls the reveal phase for validator nodes and punishes validators when they don’t reveal (see the white paper for more details on the `banning` protocol);
-  - `getCurrentSeed`. This public getter is used by the `ValidatorSetAuRa` contract at the latest block of each staking epoch to get the accumulated random seed for randomly choosing new validators among active pools. It can also be used by anyone who wants to use the network's random seed. Note, that its value is only updated when `revealSecret` function is called: that's guaranteed to be occurred at least once per `collection round` which length in blocks can be retrieved with the `collectRoundLength` public getter. Since the revealing validator always knows the next random number before sending, your DApp should restrict any business logic actions (that depends on random) during `reveals phase`.
+  - `currentSeed`. This public getter is used by the `ValidatorSetAuRa` contract at the latest block of each staking epoch to get the accumulated random seed for randomly choosing new validators among active pools. It can also be used by anyone who wants to use the network's random seed. Note, that its value is only updated when `revealSecret` function is called: that's expected to be occurred at least once per `collection round` which length in blocks can be retrieved with the `collectRoundLength` public getter. Since the revealing validator always knows the next random number before sending, your DApp should restrict any business logic actions (that depends on random) during `reveals phase`.
 
 - `Registry`: stores human-readable keys associated with addresses, like DNS information (see [Parity Wiki](https://wiki.parity.io/Parity-name-registry.html)). This contract is needed primarily to store the address of the `Certifier` contract (see [Parity Wiki](https://wiki.parity.io/Permissioning.html#gas-price) for details).
 

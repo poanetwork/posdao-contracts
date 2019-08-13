@@ -1,6 +1,6 @@
 pragma solidity 0.5.9;
 
-import "./UpgradeabilityAdminSlot.sol";
+import "./UpgradeabilityAdmin.sol";
 import "./UpgradeabilityProxy.sol";
 
 
@@ -9,7 +9,7 @@ import "./UpgradeabilityProxy.sol";
  * @dev This contract combines an upgradeability proxy with an authorization
  * mechanism for administrative tasks.
  */
-contract BaseAdminUpgradeabilityProxy is UpgradeabilityAdminSlot, BaseUpgradeabilityProxy {
+contract BaseAdminUpgradeabilityProxy is UpgradeabilityAdmin, BaseUpgradeabilityProxy {
     /**
      * @dev Emitted when the administration has been transferred.
      * @param previousAdmin Address of the previous admin.
@@ -72,16 +72,6 @@ contract BaseAdminUpgradeabilityProxy is UpgradeabilityAdminSlot, BaseUpgradeabi
         _upgradeTo(newImplementation);
         (bool success,) = newImplementation.delegatecall(data);
         require(success);
-    }
-
-    /**
-     * @return The admin slot.
-     */
-    function _admin() internal view returns (address adm) {
-        bytes32 slot = ADMIN_SLOT;
-        assembly {
-            adm := sload(slot)
-        }
     }
 
     /**

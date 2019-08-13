@@ -283,7 +283,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     }
 
     /// @dev Initializes the network parameters.
-    /// Must be called by the constructor of the `InitializerAuRa` contract.
+    /// Can only be called by the constructor of the `InitializerAuRa` contract or owner.
     /// @param _validatorSetContract The address of the `ValidatorSetAuRa` contract.
     /// @param _initialStakingAddresses The array of initial validators' staking addresses.
     /// @param _delegatorMinStake The minimum allowed amount of delegator stake in STAKE_UNITs.
@@ -874,6 +874,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         uint256 _candidateMinStake,
         bool _erc20Restricted
     ) internal {
+        require(_getCurrentBlockNumber() == 0 || msg.sender == _admin());
         require(!isInitialized()); // initialization can only be done once
         require(_validatorSetContract != address(0));
         require(_initialStakingAddresses.length > 0);
