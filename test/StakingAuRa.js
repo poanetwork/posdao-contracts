@@ -601,6 +601,23 @@ contract('StakingAuRa', async accounts => {
       (await stakingAuRa.stakeAmount.call(initialStakingAddresses[0], delegatorAddress)).should.be.bignumber.equal(stakeUnit);
       (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(stakeUnit);
     });
+    it('should move part of the stake', async () => {
+      await erc20Token.mint(delegatorAddress, mintAmount, {from: owner}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
+
+      const sourcePool = initialStakingAddresses[0];
+      const targetPool = initialStakingAddresses[1];
+
+      (await stakingAuRa.stakeAmount.call(sourcePool, delegatorAddress)).should.be.bignumber.equal(mintAmount);
+      (await stakingAuRa.stakeAmount.call(targetPool, delegatorAddress)).should.be.bignumber.equal(mintAmount);
+      
+      const moveAmount = stakeUnit.div(new BN(2));
+      moveAmount.should.be.bignumber.below(await stakingAuRa.delegatorMinStake.call());
+      
+      await stakingAuRa.moveStake(sourcePool, targetPool, moveAmount, {from: delegatorAddress}).should.be.fulfilled;
+      (await stakingAuRa.stakeAmount.call(sourcePool, delegatorAddress)).should.be.bignumber.equal(mintAmount.sub(moveAmount));
+      (await stakingAuRa.stakeAmount.call(targetPool, delegatorAddress)).should.be.bignumber.equal(mintAmount.add(moveAmount));
+    });
     it('should fail for zero gas price', async () => {
       await stakingAuRa.moveStake(initialStakingAddresses[0], initialStakingAddresses[1], mintAmount, {from: delegatorAddress, gasPrice: 0}).should.be.rejectedWith(ERROR_MSG);
       await stakingAuRa.moveStake(initialStakingAddresses[0], initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
