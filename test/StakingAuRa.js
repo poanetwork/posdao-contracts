@@ -257,6 +257,42 @@ contract('StakingAuRa', async accounts => {
     });
   });
 
+  describe('balance', async () => {
+    let erc20Token;
+    let mintAmount;
+
+    beforeEach(async () => {
+      // Deploy ERC20 contract
+      erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
+
+      // Mint some balance for an arbitrary address
+      const stakeUnit = await stakingAuRa.STAKE_UNIT.call();
+      mintAmount = stakeUnit.mul(new BN(2));
+      await erc20Token.mint(accounts[10], mintAmount, {from: owner}).should.be.fulfilled;
+      mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(accounts[10]));
+
+      // Pass Staking contract address to ERC20 contract
+      await erc20Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
+      stakingAuRa.address.should.be.equal(
+        await erc20Token.stakingContract.call()
+      );
+    });
+
+    it('cannot be increased by token.transfer function', async () => {
+      await erc20Token.transfer(stakingAuRa.address, mintAmount, {from: accounts[10]}).should.be.rejectedWith(ERROR_MSG);
+      await erc20Token.transfer(accounts[11], mintAmount, {from: accounts[10]}).should.be.fulfilled;
+    });
+    it('cannot be increased by token.transferFrom function', async () => {
+      await erc20Token.approve(accounts[9], mintAmount, {from: accounts[10]}).should.be.fulfilled;
+      await erc20Token.transferFrom(accounts[10], stakingAuRa.address, mintAmount, {from: accounts[9]}).should.be.rejectedWith(ERROR_MSG);
+      await erc20Token.transferFrom(accounts[10], accounts[11], mintAmount, {from: accounts[9]}).should.be.fulfilled;
+    });
+    it('cannot be increased by token.transferAndCall function', async () => {
+      await erc20Token.transferAndCall(stakingAuRa.address, mintAmount, [], {from: accounts[10]}).should.be.rejectedWith(ERROR_MSG);
+      await erc20Token.transferAndCall(accounts[11], mintAmount, [], {from: accounts[10]}).should.be.fulfilled;
+    });
+  });
+
   describe('clearUnremovableValidator()', async () => {
     beforeEach(async () => {
       // Deploy ValidatorSet contract
