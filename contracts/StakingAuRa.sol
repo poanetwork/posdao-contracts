@@ -524,6 +524,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// @param _erc20TokenContract The address of the contract.
     function setErc20TokenContract(IERC20Minting _erc20TokenContract) external onlyOwner onlyInitialized {
         require(_erc20TokenContract != IERC20Minting(0));
+        require(_erc20TokenContract.balanceOf(address(this)) == 0);
         require(!erc20Restricted);
         erc20TokenContract = _erc20TokenContract;
     }

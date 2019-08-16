@@ -5,7 +5,7 @@
       "upgradeability_BaseAdminUpgradeabilityProxy",
       "upgradeability_BaseUpgradeabilityProxy",
       "upgradeability_Proxy",
-      "upgradeability_UpgradeabilityAdminSlot",
+      "upgradeability_UpgradeabilityAdmin",
       "upgradeability_UpgradeabilityProxy",
       "upgradeability_UpgradeableOwned"
     ],
