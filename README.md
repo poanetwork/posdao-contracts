@@ -83,6 +83,7 @@ _Note: The following descriptions are for AuRa contracts only. HBBFT contract im
             uint256 remoteSeed = _posdaoRandomContract.currentSeed();
             if (remoteSeed != _seed) {
                 _seed = remoteSeed;
+                _seedLastBlock = block.number;
                 return true;
             }
             return false;
