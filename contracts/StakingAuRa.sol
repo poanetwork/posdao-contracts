@@ -1036,17 +1036,18 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         require(!validatorSetContract.isValidatorBanned(poolMiningAddress));
         require(areStakeAndWithdrawAllowed());
 
-        uint256 newStakeAmount = stakeAmount[_poolStakingAddress][_staker].add(_amount);
         if (_staker == _poolStakingAddress) {
-            require(newStakeAmount >= candidateMinStake); // the staked amount must be at least CANDIDATE_MIN_STAKE
+            // The staked amount must be at least CANDIDATE_MIN_STAKE
+            require(stakeAmountMinusOrderedWithdraw(_poolStakingAddress, _staker).add(_amount) >= candidateMinStake);
         } else {
-            require(newStakeAmount >= delegatorMinStake); // the staked amount must be at least DELEGATOR_MIN_STAKE
+            // The staked amount must be at least DELEGATOR_MIN_STAKE
+            require(stakeAmountMinusOrderedWithdraw(_poolStakingAddress, _staker).add(_amount) >= delegatorMinStake);
 
             // The delegator cannot stake into the pool of the candidate which hasn't self-staked.
             // Also, that candidate shouldn't want to withdraw all his funds.
             require(stakeAmountMinusOrderedWithdraw(_poolStakingAddress, _poolStakingAddress) != 0);
         }
-        stakeAmount[_poolStakingAddress][_staker] = newStakeAmount;
+        stakeAmount[_poolStakingAddress][_staker] = stakeAmount[_poolStakingAddress][_staker].add(_amount);
         _stakeAmountByEpoch[_poolStakingAddress][_staker][stakingEpoch] = 
             stakeAmountByCurrentEpoch(_poolStakingAddress, _staker).add(_amount);
         stakeAmountTotal[_poolStakingAddress] = stakeAmountTotal[_poolStakingAddress].add(_amount);
