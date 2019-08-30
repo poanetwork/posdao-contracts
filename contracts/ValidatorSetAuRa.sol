@@ -39,6 +39,13 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// @dev Returns the block number when the ban will be lifted for the specified mining address.
     mapping(address => uint256) public bannedUntil;
 
+    /// @dev Returns the block number when the ban will be lifted for delegators of the specified mining address.
+    mapping(address => uint256) public bannedDelegatorsUntil;
+
+    /// @dev The reason for the latest ban of the specified mining address. See the `_removeMaliciousValidator`
+    /// function for the list of possible reasons.
+    mapping(address => bytes32) public banReason;
+
     /// @dev The address of the `BlockReward` contract.
     address public blockRewardContract;
 
@@ -299,7 +306,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// @dev Removes malicious validators. Called by the `RandomAuRa.onFinishCollectRound` function.
     /// @param _miningAddresses The mining addresses of the malicious validators.
     function removeMaliciousValidators(address[] calldata _miningAddresses) external onlyRandomContract {
-        _removeMaliciousValidators(_miningAddresses);
+        _removeMaliciousValidators(_miningAddresses, "unrevealed");
     }
 
     /// @dev Reports that the malicious validator misbehaved at the specified block.
@@ -332,7 +339,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
                 // treat them as a malicious as well
                 address[] memory miningAddresses = new address[](1);
                 miningAddresses[0] = reportingMiningAddress;
-                _removeMaliciousValidators(miningAddresses);
+                _removeMaliciousValidators(miningAddresses, "spam");
             }
             return;
         }
@@ -343,7 +350,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
 
         emit ReportedMalicious(reportingMiningAddress, _maliciousMiningAddress, _blockNumber);
 
-        uint256 validatorsLength = getValidators().length;
+        uint256 validatorsLength = _currentValidators.length;
         bool remove;
 
         if (validatorsLength > 3) {
@@ -359,7 +366,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         if (remove) {
             address[] memory miningAddresses = new address[](1);
             miningAddresses[0] = _maliciousMiningAddress;
-            _removeMaliciousValidators(miningAddresses);
+            _removeMaliciousValidators(miningAddresses, "malicious");
         }
     }
 
@@ -373,6 +380,13 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     }
 
     // =============================================== Getters ========================================================
+
+    /// @dev Returns a boolean flag indicating whether delegators of the specified mining address are currently banned.
+    /// A validator pool can be banned when they misbehave (see the `_removeMaliciousValidator` function).
+    /// @param _miningAddress The mining address.
+    function areDelegatorsBanned(address _miningAddress) public view returns(bool) {
+        return _getCurrentBlockNumber() <= bannedDelegatorsUntil[_miningAddress];
+    }
 
     /// @dev Returns a boolean flag indicating whether the `emitInitiateChange` function can be called
     /// at the moment. Used by a validator's node and `TxPermission` contract (to deny dummy calling).
@@ -441,10 +455,10 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     }
 
     /// @dev Returns a boolean flag indicating whether the specified mining address is currently banned.
-    /// A validator can be banned when they misbehave (see the `_banValidator` function).
+    /// A validator can be banned when they misbehave (see the `_removeMaliciousValidator` function).
     /// @param _miningAddress The mining address.
     function isValidatorBanned(address _miningAddress) public view returns(bool) {
-        return _getCurrentBlockNumber() < bannedUntil[_miningAddress];
+        return _getCurrentBlockNumber() <= bannedUntil[_miningAddress];
     }
 
     /// @dev Returns whether the `reportMalicious` function can be called by the specified validator with the
@@ -468,7 +482,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         if (!isReportValidatorValid(_reportingMiningAddress)) return (false, false);
         if (!isReportValidatorValid(_maliciousMiningAddress)) return (false, false);
 
-        uint256 validatorsNumber = getValidators().length;
+        uint256 validatorsNumber = _currentValidators.length;
 
         if (validatorsNumber > 1) {
             uint256 currentStakingEpoch = stakingContract.stakingEpoch();
@@ -528,17 +542,6 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
             validatorIndex[_validators[i]] = i;
             _setIsValidator(_validators[i], true);
         }
-    }
-
-    /// @dev Sets the future block number or unix timestamp (depending on the consensus algorithm)
-    /// until which the specified mining address is banned. Updates the banning statistics.
-    /// Called by the `_removeMaliciousValidator` function.
-    /// @param _miningAddress The banned mining address.
-    function _banValidator(address _miningAddress) internal {
-        if (_getCurrentBlockNumber() > bannedUntil[_miningAddress]) {
-            banCounter[_miningAddress]++;
-        }
-        bannedUntil[_miningAddress] = _banUntil();
     }
 
     /// @dev Updates the total reporting counter (see the `reportingCounterTotal` getter) for the current staking epoch
@@ -671,9 +674,14 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
 
     /// @dev Removes the specified validator as malicious. Used by a child contract.
     /// @param _miningAddress The removed validator mining address.
+    /// @param _reason A short string of the reason why the mining address is treated as malicious:
+    /// "unrevealed" - the validator didn't reveal their secret at the end of staking epoch or skipped
+    /// too many reveals during the staking epoch;
+    /// "spam" - the validator made a lot of `reportMalicious` callings compared with other validators;
+    /// "malicious" - the validator was reported as malicious by other validators with the `reportMalicious` function.
     /// @return Returns `true` if the specified validator has been removed from the pending validator set.
-    /// Otherwise returns `false` (if the specified validator was already removed).
-    function _removeMaliciousValidator(address _miningAddress) internal returns(bool) {
+    /// Otherwise returns `false` (if the specified validator has already been removed or cannot be removed).
+    function _removeMaliciousValidator(address _miningAddress, bytes32 _reason) internal returns(bool) {
         address stakingAddress = stakingByMiningAddress[_miningAddress];
 
         if (stakingAddress == unremovableValidator) {
@@ -685,8 +693,19 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
             return false;
         }
 
+        bool isBanned = isValidatorBanned(_miningAddress);
+
         // Ban the malicious validator for the next 3 months
-        _banValidator(_miningAddress);
+        banCounter[_miningAddress]++;
+        bannedUntil[_miningAddress] = _banUntil();
+        banReason[_miningAddress] = _reason;
+
+        if (isBanned) {
+            // The validator is already banned
+            return false;
+        } else {
+            bannedDelegatorsUntil[_miningAddress] = _banUntil();
+        }
 
         // Remove malicious validator from the `pools`
         stakingContract.removePool(stakingAddress);
@@ -707,16 +726,13 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// pending validator set to be dequeued by the `emitInitiateChange` function. Does nothing if the specified
     /// validators are already banned, non-removable, or don't exist in the pending validator set.
     /// @param _miningAddresses The mining addresses of the malicious validators.
-    function _removeMaliciousValidators(address[] memory _miningAddresses) internal {
+    /// @param _reason A short string of the reason why the mining addresses are treated as malicious,
+    /// see the `_removeMaliciousValidator` function for possible values.
+    function _removeMaliciousValidators(address[] memory _miningAddresses, bytes32 _reason) internal {
         uint256 removedCount = 0;
 
         for (uint256 i = 0; i < _miningAddresses.length; i++) {
-            if (isValidatorBanned(_miningAddresses[i])) {
-                // The malicious validator is already banned
-                continue;
-            }
-
-            if (_removeMaliciousValidator(_miningAddresses[i])) {
+            if (_removeMaliciousValidator(_miningAddresses[i], _reason)) {
                 _clearReportingCounter(_miningAddresses[i]);
                 removedCount++;
             }
@@ -795,7 +811,8 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         stakingByMiningAddress[_miningAddress] = _stakingAddress;
     }
 
-    /// @dev Returns the future block number until which a validator is banned. Used by the `_banValidator` function.
+    /// @dev Returns the future block number until which a validator is banned.
+    /// Used by the `_removeMaliciousValidator` function.
     function _banUntil() internal view returns(uint256) {
         return _getCurrentBlockNumber() + 1555200; // 90 days (for 5 seconds block)
     }

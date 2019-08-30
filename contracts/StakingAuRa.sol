@@ -415,9 +415,12 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     function orderWithdraw(address _poolStakingAddress, int256 _amount) external gasPriceIsValid onlyInitialized {
         require(_poolStakingAddress != address(0));
         require(_amount != 0);
-        require(_isWithdrawAllowed(validatorSetContract.miningByStakingAddress(_poolStakingAddress)));
 
         address staker = msg.sender;
+
+        require(_isWithdrawAllowed(
+            validatorSetContract.miningByStakingAddress(_poolStakingAddress), staker != _poolStakingAddress
+        ));
 
         // How much can `staker` order for withdrawal from `_poolStakingAddress` at the moment?
         require(_amount < 0 || uint256(_amount) <= maxWithdrawOrderAllowed(_poolStakingAddress, staker));
@@ -490,7 +493,9 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
 
         require(_poolStakingAddress != address(0));
         require(epoch > orderWithdrawEpoch[_poolStakingAddress][staker]);
-        require(_isWithdrawAllowed(validatorSetContract.miningByStakingAddress(_poolStakingAddress)));
+        require(_isWithdrawAllowed(
+            validatorSetContract.miningByStakingAddress(_poolStakingAddress), staker != _poolStakingAddress
+        ));
 
         uint256 claimAmount = orderedWithdrawAmount[_poolStakingAddress][staker];
         require(claimAmount != 0);
@@ -618,7 +623,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     function maxWithdrawAllowed(address _poolStakingAddress, address _staker) public view returns(uint256) {
         address miningAddress = validatorSetContract.miningByStakingAddress(_poolStakingAddress);
 
-        if (!_isWithdrawAllowed(miningAddress)) {
+        if (!_isWithdrawAllowed(miningAddress, _poolStakingAddress != _staker)) {
             return 0;
         }
 
@@ -649,7 +654,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     function maxWithdrawOrderAllowed(address _poolStakingAddress, address _staker) public view returns(uint256) {
         address miningAddress = validatorSetContract.miningByStakingAddress(_poolStakingAddress);
 
-        if (!_isWithdrawAllowed(miningAddress)) {
+        if (!_isWithdrawAllowed(miningAddress, _poolStakingAddress != _staker)) {
             return 0;
         }
 
@@ -1148,10 +1153,18 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// @dev Returns `true` if withdrawal from the pool of the specified validator is allowed at the moment.
     /// Used by all withdrawal functions.
     /// @param _miningAddress The mining address of the validator's pool.
-    function _isWithdrawAllowed(address _miningAddress) internal view returns(bool) {
-        if (validatorSetContract.isValidatorBanned(_miningAddress)) {
-            // No one can withdraw from `_poolStakingAddress` until the ban is expired
-            return false;
+    /// @param _isDelegator Whether the withdrawal is requested by a delegator, not by a candidate/validator.
+    function _isWithdrawAllowed(address _miningAddress, bool _isDelegator) internal view returns(bool) {
+        if (_isDelegator) {
+            if (validatorSetContract.areDelegatorsBanned(_miningAddress)) {
+                // The delegator cannot withdraw from the banned validator pool until the ban is expired
+                return false;
+            }
+        } else {
+            if (validatorSetContract.isValidatorBanned(_miningAddress)) {
+                // The banned validator cannot withdraw from their pool until the ban is expired
+                return false;
+            }
         }
 
         if (!areStakeAndWithdrawAllowed()) {
