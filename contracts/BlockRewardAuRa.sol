@@ -47,6 +47,7 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
     /// (beginning from the block when the `finalizeChange` function is called until the block specified by the
     /// `_rewardPointBlock` function). The results are used by the `_distributeRewards` function to track
     /// each validator's downtime (when a validator's node is not running and doesn't produce blocks).
+    /// While the validator is banned, the block producing statistics is not accumulated for them.
     mapping(uint256 => mapping(address => uint256)) public blocksCreated;
 
     /// @dev The current total fee amount of native coins accumulated by
@@ -261,7 +262,7 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
         uint256 rewardPointBlock = _rewardPointBlock(IStakingAuRa(address(stakingContract)));
 
         if (validatorSetContract.validatorSetApplyBlock() != 0 && block.number <= rewardPointBlock) {
-            if (stakingEpoch != 0) {
+            if (stakingEpoch != 0 && !validatorSetContract.isValidatorBanned(benefactors[0])) {
                 // Accumulate blocks producing statistics for each of the
                 // active validators during the current staking epoch
                 blocksCreated[stakingEpoch][benefactors[0]]++;
@@ -279,13 +280,21 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
         if (newStakingEpochHasBegun) {
             // A new staking epoch has begun, so prepare for reward coefficients snapshotting
             // process which begins right from the following block
-            address[] memory newValidatorSet = validatorSetContract.getPendingValidators();
+            address[] memory miningAddresses;
 
-            for (uint256 i = 0; i < newValidatorSet.length; i++) {
-                _enqueueValidator(validatorSetContract.stakingByMiningAddress(newValidatorSet[i]));
+            miningAddresses = validatorSetContract.getValidators();
+            for (uint256 i = 0; i < miningAddresses.length; i++) {
+                _enqueueValidator(validatorSetContract.stakingByMiningAddress(miningAddresses[i]));
             }
 
-            isSnapshotting = (newValidatorSet.length != 0);
+            miningAddresses = validatorSetContract.getPendingValidators();
+            for (uint256 i = 0; i < miningAddresses.length; i++) {
+                if (!validatorSetContract.isValidator(miningAddresses[i])) {
+                    _enqueueValidator(validatorSetContract.stakingByMiningAddress(miningAddresses[i]));
+                }
+            }
+
+            isSnapshotting = (_validatorsQueueSize() != 0);
 
             if (poolsToBeElectedLength > stakingContract.MAX_CANDIDATES() * 2 / 3) {
                 bridgeQueueLimit = 0;
@@ -556,8 +565,12 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
             ) {
                 uint256 j = 0;
                 for (i = 0; i < validators.length; i++) {
-                    ratio[i] = blocksCreated[_stakingEpoch][validators[i]];
-                    j += ratio[i];
+                    if (validatorSetContract.isValidatorBanned(validators[i])) {
+                        ratio[i] = 0;
+                    } else {
+                        ratio[i] = blocksCreated[_stakingEpoch][validators[i]];
+                        j += ratio[i];
+                    }
                     validators[i] = validatorSetContract.stakingByMiningAddress(validators[i]);
                 }
                 if (j != 0) {
@@ -605,9 +618,11 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
 
             if (isRewardingLocal) {
                 for (i = 0; i < validators.length; i++) {
-                    _enqueueValidator(validators[i]);
+                    if (ratio[i] != 0) {
+                        _enqueueValidator(validators[i]);
+                    }
                 }
-                if (validators.length == 0) {
+                if (_validatorsQueueSize() == 0) {
                     isRewarding = false;
                 }
             } else {
