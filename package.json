@@ -5,12 +5,13 @@
   "main": "index.js",
   "scripts": {
     "compile": "node_modules/.bin/truffle compile",
+    "coverage": "SOLIDITY_COVERAGE=true bash scripts/test.sh",
+    "docs-publish": "npm run solidity-docgen && cd docs/website && npm i && npm run publish-gh-pages",
+    "docs-start": "npm run solidity-docgen && cd docs/website && npm i && npm start",
     "flat": "bash scripts/make_flat.sh",
     "solhint": "node_modules/.bin/solhint \"contracts/**/*.sol\"",
-    "test": "node scripts/check_for_clashing.js && bash scripts/test.sh",
     "solidity-docgen": "rm -rf docs/docs/api* && npm i && solidity-docgen --exclude interfaces,libs,Migrations.sol . contracts docs && node docs/website/sidebars-fix.js",
-    "docs-start": "npm run solidity-docgen && cd docs/website && npm i && npm start",
-    "docs-publish": "npm run solidity-docgen && cd docs/website && npm i && npm run publish-gh-pages"
+    "test": "node scripts/check_for_clashing.js && bash scripts/test.sh"
   },
   "repository": {
     "type": "git",
@@ -34,8 +35,8 @@
     "mochawesome": "^3.1.1",
     "solc": "0.5.9",
     "solhint": "^2.0.0",
-    "solidity-coverage": "^0.5.11",
-    "truffle": "^5.0.5",
+    "solidity-coverage": "^0.6.4",
+    "truffle": "^5.0.34",
     "web3": "^1.0.0-beta.52"
   }
 }

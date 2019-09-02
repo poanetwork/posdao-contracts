@@ -668,11 +668,11 @@ contract('ValidatorSetAuRa', async accounts => {
       // Check pools of the new candidates
       (await stakingAuRa.getPoolsToBeElected.call()).should.be.deep.equal(stakingAddresses);
       const poolsLikelihood = await stakingAuRa.getPoolsLikelihood.call();
-      let likelihoodSum = 0;
+      let likelihoodSum = new BN(0);
       for (let i = 0; i < stakingAddresses.length; i++) {
-        const poolLikelihood = 100 * (i + 1);
+        const poolLikelihood = stakeUnit.mul(new BN(i + 1));
         poolsLikelihood[0][i].should.be.bignumber.equal(new BN(poolLikelihood));
-        likelihoodSum += poolLikelihood;
+        likelihoodSum = likelihoodSum.add(poolLikelihood);
       }
       poolsLikelihood[1].should.be.bignumber.equal(new BN(likelihoodSum));
 
@@ -796,11 +796,11 @@ contract('ValidatorSetAuRa', async accounts => {
       // Check pools of the new candidates
       (await stakingAuRa.getPoolsToBeElected.call()).should.be.deep.equal(stakingAddresses);
       const poolsLikelihood = await stakingAuRa.getPoolsLikelihood.call();
-      let likelihoodSum = 0;
+      let likelihoodSum = new BN(0);
       for (let i = 0; i < stakingAddresses.length; i++) {
-        const poolLikelihood = 100 * (i + 1);
+        const poolLikelihood = stakeUnit.mul(new BN(i + 1));
         poolsLikelihood[0][i].should.be.bignumber.equal(new BN(poolLikelihood));
-        likelihoodSum += poolLikelihood;
+        likelihoodSum = likelihoodSum.add(poolLikelihood);
       }
       poolsLikelihood[1].should.be.bignumber.equal(new BN(likelihoodSum));
 

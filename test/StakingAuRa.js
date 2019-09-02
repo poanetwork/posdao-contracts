@@ -291,6 +291,10 @@ contract('StakingAuRa', async accounts => {
       await erc20Token.transferAndCall(stakingAuRa.address, mintAmount, [], {from: accounts[10]}).should.be.rejectedWith(ERROR_MSG);
       await erc20Token.transferAndCall(accounts[11], mintAmount, [], {from: accounts[10]}).should.be.fulfilled;
     });
+    it('cannot be increased by sending native coins', async () => {
+      await web3.eth.sendTransaction({from: owner, to: stakingAuRa.address, value: 1}).should.be.rejectedWith(ERROR_MSG);
+      await web3.eth.sendTransaction({from: owner, to: accounts[1], value: 1}).should.be.fulfilled;
+    });
   });
 
   describe('clearUnremovableValidator()', async () => {
@@ -358,8 +362,8 @@ contract('StakingAuRa', async accounts => {
       ]);
 
       const likelihoodInfo = await stakingAuRa.getPoolsLikelihood.call();
-      likelihoodInfo.likelihoods[0].should.be.bignumber.equal(new BN(100));
-      likelihoodInfo.sum.should.be.bignumber.equal(new BN(100));
+      likelihoodInfo.likelihoods[0].should.be.bignumber.equal(stakeUnit);
+      likelihoodInfo.sum.should.be.bignumber.equal(stakeUnit);
     });
     it('should add validator pool to the poolsToBeRemoved list', async () => {
       await stakingAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
@@ -823,16 +827,16 @@ contract('StakingAuRa', async accounts => {
       likelihoodInfo.sum.should.be.bignumber.equal(new BN(0));
       await stakingAuRa.stake(initialStakingAddresses[1], candidateMinStake, {from: initialStakingAddresses[1]}).should.be.fulfilled;
       likelihoodInfo = await stakingAuRa.getPoolsLikelihood.call();
-      likelihoodInfo.likelihoods[0].should.be.bignumber.equal(new BN(100));
-      likelihoodInfo.sum.should.be.bignumber.equal(new BN(100));
+      likelihoodInfo.likelihoods[0].should.be.bignumber.equal(candidateMinStake);
+      likelihoodInfo.sum.should.be.bignumber.equal(candidateMinStake);
       await stakingAuRa.stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
       likelihoodInfo = await stakingAuRa.getPoolsLikelihood.call();
-      likelihoodInfo.likelihoods[0].should.be.bignumber.equal(new BN(200));
-      likelihoodInfo.sum.should.be.bignumber.equal(new BN(200));
+      likelihoodInfo.likelihoods[0].should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake));
+      likelihoodInfo.sum.should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake));
       await stakingAuRa.stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
       likelihoodInfo = await stakingAuRa.getPoolsLikelihood.call();
-      likelihoodInfo.likelihoods[0].should.be.bignumber.equal(new BN(300));
-      likelihoodInfo.sum.should.be.bignumber.equal(new BN(300));
+      likelihoodInfo.likelihoods[0].should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake.mul(new BN(2))));
+      likelihoodInfo.sum.should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake.mul(new BN(2))));
     });
     it('should fail if the staker stakes more than they have', async () => {
       await stakingAuRa.stake(initialStakingAddresses[1], mintAmount.mul(new BN(2)), {from: initialStakingAddresses[1]}).should.be.rejectedWith(ERROR_MSG);
@@ -979,16 +983,16 @@ contract('StakingAuRa', async accounts => {
       likelihoodInfo.sum.should.be.bignumber.equal(new BN(0));
       await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
       likelihoodInfo = await stakingAuRa.getPoolsLikelihood.call();
-      likelihoodInfo.likelihoods[0].should.be.bignumber.equal(new BN(100));
-      likelihoodInfo.sum.should.be.bignumber.equal(new BN(100));
+      likelihoodInfo.likelihoods[0].should.be.bignumber.equal(candidateMinStake);
+      likelihoodInfo.sum.should.be.bignumber.equal(candidateMinStake);
       await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
       likelihoodInfo = await stakingAuRa.getPoolsLikelihood.call();
-      likelihoodInfo.likelihoods[0].should.be.bignumber.equal(new BN(200));
-      likelihoodInfo.sum.should.be.bignumber.equal(new BN(200));
+      likelihoodInfo.likelihoods[0].should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake));
+      likelihoodInfo.sum.should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake));
       await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
       likelihoodInfo = await stakingAuRa.getPoolsLikelihood.call();
-      likelihoodInfo.likelihoods[0].should.be.bignumber.equal(new BN(300));
-      likelihoodInfo.sum.should.be.bignumber.equal(new BN(300));
+      likelihoodInfo.likelihoods[0].should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake.mul(new BN(2))));
+      likelihoodInfo.sum.should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake.mul(new BN(2))));
     });
     it('should decrease the balance of the staker and increase the balance of the Staking contract', async () => {
       (await web3.eth.getBalance(stakingAuRa.address)).should.be.equal('0');
@@ -1404,14 +1408,14 @@ contract('StakingAuRa', async accounts => {
       await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
 
       likelihoodInfo = await stakingAuRa.getPoolsLikelihood.call();
-      likelihoodInfo.likelihoods[0].should.be.bignumber.equal(new BN(200));
-      likelihoodInfo.sum.should.be.bignumber.equal(new BN(200));
+      likelihoodInfo.likelihoods[0].should.be.bignumber.equal(mintAmount);
+      likelihoodInfo.sum.should.be.bignumber.equal(mintAmount);
 
       await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount.div(new BN(2)), {from: initialStakingAddresses[1]}).should.be.fulfilled;
 
       likelihoodInfo = await stakingAuRa.getPoolsLikelihood.call();
-      likelihoodInfo.likelihoods[0].should.be.bignumber.equal(new BN(100));
-      likelihoodInfo.sum.should.be.bignumber.equal(new BN(100));
+      likelihoodInfo.likelihoods[0].should.be.bignumber.equal(mintAmount.div(new BN(2)));
+      likelihoodInfo.sum.should.be.bignumber.equal(mintAmount.div(new BN(2)));
     });
     // TODO: add unit tests for native coin withdrawal
   });

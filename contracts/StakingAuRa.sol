@@ -236,6 +236,11 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
 
     // =============================================== Setters ========================================================
 
+    /// @dev Fallback function. Prevents sending native coins to `address(this)`.
+    function () payable external {
+        revert();
+    }
+
     /// @dev Adds a new candidate's pool to the list of active pools (see the `getPools` getter) and
     /// moves the specified amount of staking tokens from the candidate's staking address to the candidate's pool.
     /// A participant calls this function using their staking address when they want to create a pool.
@@ -678,7 +683,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     }
 
     /// @dev Prevents sending tokens directly to the `Staking` contract address
-    /// by the `ERC677BridgeTokenRewardable.transferAndCall` function.
+    /// by the `ERC677BridgeTokenRewardable.transfer*` functions.
     function onTokenTransfer(address, uint256, bytes memory) public pure returns(bool) {
         revert();
     }
@@ -984,7 +989,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         if (!isToBeElected) return;
 
         uint256 oldValue = _poolsLikelihood[index];
-        uint256 newValue = stakeAmountTotalMinusOrderedWithdraw(_poolStakingAddress) * 100 / STAKE_UNIT;
+        uint256 newValue = stakeAmountTotalMinusOrderedWithdraw(_poolStakingAddress);
 
         _poolsLikelihood[index] = newValue;
 
