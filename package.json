@@ -23,7 +23,7 @@
   },
   "homepage": "https://github.com/poanetwork/posdao-contracts#readme",
   "dependencies": {
-    "solidity-docgen": "^0.1.1",
+    "solidity-docgen": "0.1.1",
     "solidity-flattener": "github:poanetwork/solidity-flattener#master"
   },
   "devDependencies": {
@@ -31,7 +31,7 @@
     "chai-as-promised": "^7.1.1",
     "chai-bn": "^0.1.1",
     "eth-gas-reporter": "^0.1.12",
-    "ganache-cli": "^6.3.0",
+    "ganache-cli": "^6.6.0",
     "mochawesome": "^3.1.1",
     "solc": "0.5.9",
     "solhint": "^2.0.0",
