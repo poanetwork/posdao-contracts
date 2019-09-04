@@ -8,7 +8,7 @@ import "./upgradeability/UpgradeabilityAdmin.sol";
 
 /// @dev Generates and stores random numbers in a RANDAO manner (and controls when they are revealed by AuRa
 /// validators) and accumulates a random seed. The random seed is used to form a new validator set by the
-/// `ValidatorSet._newValidatorSet` function.
+/// `ValidatorSetAuRa.newValidatorSet` function.
 contract RandomAuRa is UpgradeabilityAdmin, IRandomAuRa {
 
     // =============================================== Storage ========================================================

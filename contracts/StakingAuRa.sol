@@ -1,6 +1,5 @@
 pragma solidity 0.5.9;
 
-import "./interfaces/IBlockRewardAuRa.sol";
 import "./interfaces/IERC20Minting.sol";
 import "./interfaces/IStakingAuRa.sol";
 import "./interfaces/IValidatorSetAuRa.sol";
@@ -125,11 +124,6 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
 
     /// @dev The max number of candidates (including validators). This limit was determined through stress testing.
     uint256 public constant MAX_CANDIDATES = 3000;
-
-    /// @dev The max number of delegators for one pool. In total there can be
-    /// MAX_CANDIDATES * MAX_DELEGATORS_PER_POOL delegators. This value must be
-    /// divisible by BlockReward.DELEGATORS_ALIQUOT. The limit was determined through stress testing.
-    uint256 public constant MAX_DELEGATORS_PER_POOL = 3000;
 
     /// @dev Represents an integer value of a staking unit (1 unit = 10**18).
     /// Used by the `_setLikelihood` function to calculate the probability of
@@ -268,7 +262,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
 
     /// @dev Adds the `unremovable validator` to either the `poolsToBeElected` or the `poolsToBeRemoved` array
     /// depending on their own stake in their own pool when they become removable. This allows the
-    /// `ValidatorSet._newValidatorSet` function to recognize the unremovable validator as a regular removable pool.
+    /// `ValidatorSetAuRa.newValidatorSet` function to recognize the unremovable validator as a regular removable pool.
     /// Called by the `ValidatorSet.clearUnremovableValidator` function.
     /// @param _unremovableStakingAddress The staking address of the unremovable validator.
     function clearUnremovableValidator(address _unremovableStakingAddress) external onlyValidatorSetContract {
@@ -281,8 +275,8 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         }
     }
 
-    /// @dev Increments the serial number of the current staking epoch. Called by the `ValidatorSet._newValidatorSet` at
-    /// the last block of the finished staking epoch.
+    /// @dev Increments the serial number of the current staking epoch.
+    /// Called by the `ValidatorSetAuRa.newValidatorSet` at the last block of the finished staking epoch.
     function incrementStakingEpoch() external onlyValidatorSetContract {
         stakingEpoch++;
     }
@@ -314,9 +308,6 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     ) external {
         require(_stakingEpochDuration != 0);
         require(_stakingEpochDuration > _stakeWithdrawDisallowPeriod);
-        IValidatorSetAuRa validatorSet = IValidatorSetAuRa(_validatorSetContract);
-        IBlockRewardAuRa blockReward = IBlockRewardAuRa(validatorSet.blockRewardContract());
-        require(_stakingEpochDuration >= validatorSet.MAX_VALIDATORS() * blockReward.DELEGATORS_ALIQUOT() * 2 + 1);
         require(_stakeWithdrawDisallowPeriod != 0);
         _initialize(
             _validatorSetContract,
@@ -331,11 +322,20 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     }
 
     /// @dev Removes a specified pool from the `pools` array (a list of active pools which can be retrieved by the
-    /// `getPools` getter). Called by the `ValidatorSet._removeMaliciousValidator` or
-    /// the `ValidatorSet._newValidatorSet` function when a pool must be removed by the algorithm.
+    /// `getPools` getter). Called by the `ValidatorSetAuRa._removeMaliciousValidator` function
+    /// when a pool must be removed by the algorithm.
     /// @param _stakingAddress The staking address of the pool to be removed.
     function removePool(address _stakingAddress) external onlyValidatorSetContract {
         _removePool(_stakingAddress);
+    }
+
+    /// @dev Removes pools which are in the `_poolsToBeRemoved` array from the `pools` array.
+    /// Called by the `ValidatorSetAuRa.newValidatorSet` function when a pool must be removed by the algorithm.
+    function removePools() external onlyValidatorSetContract {
+        uint256 poolsToBeRemovedLength = _poolsToBeRemoved.length;
+        for (uint256 i = 0; i < poolsToBeRemovedLength; i++) {
+            _removePool(_poolsToBeRemoved[i]);
+        }
     }
 
     /// @dev Removes the candidate's or validator's pool from the `pools` array (a list of active pools which
@@ -573,7 +573,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
 
     /// @dev Returns the list of probability coefficients of being selected as a validator for each corresponding
     /// address in the `poolsToBeElected` array (see the `getPoolsToBeElected` getter) and a sum of these coefficients.
-    /// Used by the `ValidatorSet._newValidatorSet` function when randomly selecting new validators at the last
+    /// Used by the `ValidatorSetAuRa.newValidatorSet` function when randomly selecting new validators at the last
     /// block of a staking epoch. A pool's coefficient is updated every time any staked amount is changed in this pool
     /// (see the `_setLikelihood` function).
     /// @return `uint256[] likelihoods` - The array of the coefficients. The array length is always equal to the length
@@ -584,7 +584,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     }
 
     /// @dev Returns the list of pools (their staking addresses) which will participate in a new validator set
-    /// selection process in the `ValidatorSet._newValidatorSet` function. This is an array of pools
+    /// selection process in the `ValidatorSetAuRa.newValidatorSet` function. This is an array of pools
     /// which will be considered as candidates when forming a new validator set (at the last block of a staking epoch).
     /// This array is kept updated by the `_addPoolToBeElected` and `_deletePoolToBeElected` functions.
     function getPoolsToBeElected() external view returns(address[] memory) {
@@ -592,7 +592,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     }
 
     /// @dev Returns the list of pools (their staking addresses) which will be removed by the
-    /// `ValidatorSet._newValidatorSet` function from the active `pools` array (at the last block
+    /// `ValidatorSetAuRa.newValidatorSet` function from the active `pools` array (at the last block
     /// of a staking epoch). This array is kept updated by the `_addPoolToBeRemoved`
     /// and `_deletePoolToBeRemoved` functions. A pool is added to this array when the pool's address
     /// withdraws all of its own staking tokens from the pool, inactivating the pool.
@@ -603,10 +603,9 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// @dev Determines whether staking/withdrawal operations are allowed at the moment.
     /// Used by all staking/withdrawal functions.
     function areStakeAndWithdrawAllowed() public view returns(bool) {
-        bool isSnapshotting = IBlockRewardAuRa(validatorSetContract.blockRewardContract()).isSnapshotting();
         uint256 currentBlock = _getCurrentBlockNumber();
         uint256 allowedDuration = stakingEpochDuration - stakeWithdrawDisallowPeriod;
-        return !isSnapshotting && currentBlock.sub(stakingEpochStartBlock) <= allowedDuration;
+        return currentBlock.sub(stakingEpochStartBlock) <= allowedDuration;
     }
 
     /// @dev Returns a boolean flag indicating if the `initialize` function has been called.
@@ -682,8 +681,8 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         ));
     }
 
-    /// @dev Prevents sending tokens directly to the `Staking` contract address
-    /// by the `ERC677BridgeTokenRewardable.transfer*` functions.
+    /// @dev Prevents sending tokens directly to the `StakingAuRa` contract address
+    /// by the `ERC677BridgeTokenRewardable.transferAndCall` function.
     function onTokenTransfer(address, uint256, bytes memory) public pure returns(bool) {
         revert();
     }
@@ -894,11 +893,6 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
 
         validatorSetContract = IValidatorSetAuRa(_validatorSetContract);
 
-        IBlockRewardAuRa blockRewardContract = IBlockRewardAuRa(
-            validatorSetContract.blockRewardContract()
-        );
-        require(MAX_DELEGATORS_PER_POOL % blockRewardContract.DELEGATORS_ALIQUOT() == 0);
-
         address unremovableStakingAddress = validatorSetContract.unremovableValidator();
 
         for (uint256 i = 0; i < _initialStakingAddresses.length; i++) {
@@ -924,7 +918,6 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         if (delegators.length == 0 || delegators[poolDelegatorIndex[_poolStakingAddress][_delegator]] != _delegator) {
             poolDelegatorIndex[_poolStakingAddress][_delegator] = delegators.length;
             delegators.push(_delegator);
-            require(delegators.length <= MAX_DELEGATORS_PER_POOL);
         }
         _removePoolDelegatorInactive(_poolStakingAddress, _delegator);
     }

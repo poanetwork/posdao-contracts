@@ -1,4 +1,4 @@
-const BlockRewardAuRa = artifacts.require('BlockRewardAuRaMock');
+const BlockRewardAuRa = artifacts.require('BlockRewardAuRa');
 const ERC677BridgeTokenRewardable = artifacts.require('ERC677BridgeTokenRewardableMock');
 const AdminUpgradeabilityProxy = artifacts.require('AdminUpgradeabilityProxy');
 const RandomAuRa = artifacts.require('RandomAuRa');
@@ -1307,13 +1307,6 @@ contract('StakingAuRa', async accounts => {
       await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.rejectedWith(ERROR_MSG);
       await stakingAuRa.setCurrentBlockNumber(116000).should.be.fulfilled;
       await validatorSetAuRa.setCurrentBlockNumber(116000).should.be.fulfilled;
-      await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
-    });
-    it('shouldn\'t allow withdrawing during snapshotting period', async () => {
-      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
-      await blockRewardAuRa.setIsSnapshotting(true).should.be.fulfilled;
-      await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.rejectedWith(ERROR_MSG);
-      await blockRewardAuRa.setIsSnapshotting(false).should.be.fulfilled;
       await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
     });
     it('should fail if non-zero residue is less than CANDIDATE_MIN_STAKE', async () => {

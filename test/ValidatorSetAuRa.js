@@ -443,18 +443,6 @@ contract('ValidatorSetAuRa', async accounts => {
       await validatorSetAuRa.setBlockRewardContract(accounts[4]).should.be.fulfilled;
       await validatorSetAuRa.newValidatorSet({from: accounts[4]}).should.be.fulfilled;
     });
-    it('should only work at the latest block of current staking epoch', async () => {
-      await stakingAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
-      await validatorSetAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
-      (await stakingAuRa.stakingEpochEndBlock.call()).should.be.bignumber.equal(new BN(120954));
-      await validatorSetAuRa.setBlockRewardContract(accounts[4]).should.be.fulfilled;
-      await validatorSetAuRa.newValidatorSet({from: accounts[4]}).should.be.fulfilled;
-      (await stakingAuRa.stakingEpochStartBlock.call()).should.be.bignumber.equal(new BN(0));
-      await stakingAuRa.setCurrentBlockNumber(120954).should.be.fulfilled;
-      await validatorSetAuRa.setCurrentBlockNumber(120954).should.be.fulfilled;
-      await validatorSetAuRa.newValidatorSet({from: accounts[4]}).should.be.fulfilled;
-      (await stakingAuRa.stakingEpochStartBlock.call()).should.be.bignumber.equal(new BN(120955));
-    });
     it('should increment the number of staking epoch', async () => {
       (await stakingAuRa.stakingEpoch.call()).should.be.bignumber.equal(new BN(0));
       await validatorSetAuRa.setBlockRewardContract(accounts[4]).should.be.fulfilled;

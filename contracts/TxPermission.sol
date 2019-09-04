@@ -1,6 +1,5 @@
 pragma solidity 0.5.9;
 
-import "./interfaces/IBlockRewardAuRa.sol";
 import "./interfaces/IRandomAuRa.sol";
 import "./interfaces/IStakingAuRa.sol";
 import "./interfaces/ITxPermission.sol";
@@ -218,19 +217,11 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
     }
 
     /// @dev Returns the current block gas limit which depends on the stage of the current
-    /// staking epoch: if there is a rewarding/snapshotting process, the block gas limit
-    /// is temporarily reduced. See https://github.com/poanetwork/parity-ethereum/issues/119
+    /// staking epoch: the block gas limit is temporarily reduced for the latest block of the epoch.
     function blockGasLimit() public view returns(uint256) {
-        IBlockRewardAuRa blockRewardContract = IBlockRewardAuRa(validatorSetContract.blockRewardContract());
-        if (blockRewardContract.isRewarding()) {
-            return BLOCK_GAS_LIMIT_REDUCED;
-        }
         address stakingContract = validatorSetContract.stakingContract();
         uint256 stakingEpochEndBlock = IStakingAuRa(stakingContract).stakingEpochEndBlock();
         if (block.number == stakingEpochEndBlock - 1 || block.number == stakingEpochEndBlock) {
-            return BLOCK_GAS_LIMIT_REDUCED;
-        }
-        if (blockRewardContract.isSnapshotting()) {
             return BLOCK_GAS_LIMIT_REDUCED;
         }
         return BLOCK_GAS_LIMIT;

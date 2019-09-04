@@ -621,11 +621,13 @@ contract ERC677BridgeTokenRewardable is ERC677BridgeToken {
   }
 
   function transfer(address _to, uint256 _value) public returns(bool) {
+    require(_to != blockRewardContract);
     require(_to != stakingContract);
     return super.transfer(_to, _value);
   }
 
   function transferFrom(address _from, address _to, uint256 _value) public returns(bool) {
+    require(_to != blockRewardContract);
     require(_to != stakingContract);
     return super.transferFrom(_from, _to, _value);
   }

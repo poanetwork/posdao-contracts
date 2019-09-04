@@ -10,7 +10,7 @@ interface IValidatorSetAuRa {
         address[] calldata,
         bool
     ) external;
-    function newValidatorSet() external returns(bool, uint256);
+    function newValidatorSet() external returns(bool);
     function removeMaliciousValidators(address[] calldata) external;
     function setStakingAddress(address, address) external;
     function areDelegatorsBanned(address) external view returns(bool);
