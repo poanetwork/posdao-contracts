@@ -332,9 +332,9 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// @dev Removes pools which are in the `_poolsToBeRemoved` array from the `pools` array.
     /// Called by the `ValidatorSetAuRa.newValidatorSet` function when a pool must be removed by the algorithm.
     function removePools() external onlyValidatorSetContract {
-        uint256 poolsToBeRemovedLength = _poolsToBeRemoved.length;
-        for (uint256 i = 0; i < poolsToBeRemovedLength; i++) {
-            _removePool(_poolsToBeRemoved[i]);
+        address[] memory poolsToRemove = _poolsToBeRemoved;
+        for (uint256 i = 0; i < poolsToRemove.length; i++) {
+            _removePool(poolsToRemove[i]);
         }
     }
 

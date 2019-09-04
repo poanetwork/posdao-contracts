@@ -174,12 +174,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// non-removable validator or by the `owner`.
     function clearUnremovableValidator() external onlyInitialized {
         address unremovableStakingAddress = unremovableValidator;
-        bytes32 slot = ADMIN_SLOT;
-        address owner;
-        assembly {
-            owner := sload(slot)
-        }
-        require(msg.sender == unremovableStakingAddress || msg.sender == owner);
+        require(msg.sender == unremovableStakingAddress || msg.sender == _admin());
         unremovableValidator = address(0);
         stakingContract.clearUnremovableValidator(unremovableStakingAddress);
     }
@@ -796,7 +791,9 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// @dev Returns the future block number until which a validator is banned.
     /// Used by the `_removeMaliciousValidator` function.
     function _banUntil() internal view returns(uint256) {
-        return _getCurrentBlockNumber() + 1555200; // 90 days (for 5 seconds block)
+        uint256 blocksUntilEnd = stakingContract.stakingEpochEndBlock() - _getCurrentBlockNumber();
+        // ~90 days, at least 12 full staking epochs (for 5 seconds block)
+        return _getCurrentBlockNumber() + 12 * stakingContract.stakingEpochDuration() + blocksUntilEnd;
     }
 
     /// @dev Returns the current block number. Needed mostly for unit tests.

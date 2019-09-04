@@ -496,6 +496,7 @@ contract('ValidatorSetAuRa', async accounts => {
       const stakeUnit = await stakingAuRa.STAKE_UNIT.call();
       const mintAmount = stakeUnit.mul(new BN(2));
 
+      await validatorSetAuRa.setValidatorSetApplyBlock(1).should.be.fulfilled;
       await stakingAuRa.setCurrentBlockNumber(10).should.be.fulfilled;
       await validatorSetAuRa.setCurrentBlockNumber(10).should.be.fulfilled;
 
@@ -563,6 +564,7 @@ contract('ValidatorSetAuRa', async accounts => {
       const stakeUnit = await stakingAuRa.STAKE_UNIT.call();
       const mintAmount = stakeUnit.mul(new BN(2));
 
+      await validatorSetAuRa.setValidatorSetApplyBlock(1).should.be.fulfilled;
       await stakingAuRa.setCurrentBlockNumber(10).should.be.fulfilled;
       await validatorSetAuRa.setCurrentBlockNumber(10).should.be.fulfilled;
 
@@ -626,6 +628,7 @@ contract('ValidatorSetAuRa', async accounts => {
       const stakeUnit = await stakingAuRa.STAKE_UNIT.call();
       const mintAmount = stakeUnit.mul(new BN(100));
 
+      await validatorSetAuRa.setValidatorSetApplyBlock(1).should.be.fulfilled;
       await stakingAuRa.setCurrentBlockNumber(20).should.be.fulfilled;
       await validatorSetAuRa.setCurrentBlockNumber(20).should.be.fulfilled;
 
@@ -753,6 +756,7 @@ contract('ValidatorSetAuRa', async accounts => {
       const stakeUnit = await stakingAuRa.STAKE_UNIT.call();
       const mintAmount = stakeUnit.mul(new BN(100));
 
+      await validatorSetAuRa.setValidatorSetApplyBlock(1).should.be.fulfilled;
       await validatorSetAuRa.setCurrentBlockNumber(20).should.be.fulfilled;
       await stakingAuRa.setCurrentBlockNumber(20).should.be.fulfilled;
 
