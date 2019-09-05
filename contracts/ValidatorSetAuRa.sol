@@ -1,5 +1,6 @@
 pragma solidity 0.5.9;
 
+import "./interfaces/IBlockRewardAuRa.sol";
 import "./interfaces/IRandomAuRa.sol";
 import "./interfaces/IStakingAuRa.sol";
 import "./interfaces/IValidatorSetAuRa.sol";
@@ -21,16 +22,12 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     address[] internal _currentValidators;
     address[] internal _pendingValidators;
     address[] internal _previousValidators;
-    address[] internal _queueValidators;
-    int256 internal _queuePVFirst;
-    int256 internal _queuePVLast;
-    bool internal _queueValidatorsNewStakingEpoch;
-    struct PendingValidatorsQueue {
-        uint256 block;
+    struct ValidatorsList {
         bool newEpoch;
         address[] list;
     }
-    mapping(int256 => PendingValidatorsQueue) internal _queuePV;
+    ValidatorsList internal _newValidators;
+    ValidatorsList internal _queuedPendingValidators;
 
     /// @dev How many times a given mining address was banned.
     mapping(address => uint256) public banCounter;
@@ -63,9 +60,9 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// See the `getValidators` getter.
     mapping(address => bool) public isValidator;
 
-    /// @dev A boolean flag indicating whether the specified mining address was a validator at the end of
-    /// the previous staking epoch. See the `getPreviousValidators` getter.
-    mapping(address => bool) public isValidatorOnPreviousEpoch;
+    /// @dev A boolean flag indicating whether the specified mining address was a validator in the previous set.
+    /// See the `getPreviousValidators` getter.
+    mapping(address => bool) public isValidatorPrevious;
 
     /// @dev An array of the validators (their mining addresses) which reported that the specified malicious
     /// validator (mining address) misbehaved at the specified block.
@@ -187,11 +184,11 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// See https://wiki.parity.io/Validator-Set.html for more info about the `InitiateChange` event.
     function emitInitiateChange() external onlyInitialized {
         require(emitInitiateChangeCallable());
-        (address[] memory newSet, bool newStakingEpoch) = _dequeuePendingValidators();
-        if (newSet.length > 0) {
-            emit InitiateChange(blockhash(_getCurrentBlockNumber() - 1), newSet);
+        ValidatorsList memory newValidators = _dequeuePendingValidators();
+        if (newValidators.list.length > 0) {
+            emit InitiateChange(blockhash(_getCurrentBlockNumber() - 1), newValidators.list);
             initiateChangeAllowed = false;
-            _setQueueValidators(newSet, newStakingEpoch);
+            _newValidators = newValidators;
         }
     }
 
@@ -206,32 +203,17 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// (this is achieved by the queue, `emitInitiateChange` function, and `initiateChangeAllowed` boolean flag -
     /// see the `_setInitiateChangeAllowed` function).
     function finalizeChange() external onlySystem {
-        (address[] memory queueValidators, bool newStakingEpoch) = getQueueValidators();
-
-        if (validatorSetApplyBlock == 0 && newStakingEpoch) {
+        if (_newValidators.newEpoch) {
             // Apply a new validator set formed by the `newValidatorSet` function
-
-            address[] memory previousValidators = getPreviousValidators();
-            address[] memory currentValidators = getValidators();
-            uint256 i;
-
-            // Save the previous validator set
-            for (i = 0; i < previousValidators.length; i++) {
-                isValidatorOnPreviousEpoch[previousValidators[i]] = false;
-            }
-            for (i = 0; i < currentValidators.length; i++) {
-                isValidatorOnPreviousEpoch[currentValidators[i]] = true;
-            }
-            _previousValidators = currentValidators;
-
-            _applyQueueValidators(queueValidators);
-
+            _savePreviousValidators();
+            _applyNewValidators();
+            IBlockRewardAuRa(blockRewardContract).setSnapshotTotalStakeAmount();
             validatorSetApplyBlock = _getCurrentBlockNumber();
-        } else if (queueValidators.length > 0) {
-            // Apply new validator set after malicious validator is discovered
-            _applyQueueValidators(queueValidators);
+        } else if (_newValidators.list.length > 0) {
+            // Apply the changed validator set after malicious validator is removed
+            _applyNewValidators();
         } else {
-            // This is the very first call of the `finalizeChange`
+            // This is the very first call of the `finalizeChange` (block #1)
             validatorSetApplyBlock = _getCurrentBlockNumber();
         }
         initiateChangeAllowed = true;
@@ -279,66 +261,54 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         if (_firstValidatorIsUnremovable) {
             unremovableValidator = _initialStakingAddresses[0];
         }
-
-        _queuePVFirst = 1;
-        _queuePVLast = 0;
     }
 
     /// @dev Implements the logic which forms a new validator set. If the number of active pools
     /// is greater than MAX_VALIDATORS, the logic chooses the validators randomly using a random seed generated and
     /// stored by the `RandomAuRa` contract.
     /// Automatically called by the `BlockRewardAuRa.reward` function at the latest block of the staking epoch.
-    /// @return `bool pendingValidatorsEnqueued` - a boolean flag indicating whether the pending validators
-    /// were enqueued.
-    function newValidatorSet() external onlyBlockRewardContract returns(bool pendingValidatorsEnqueued) {
-        if (validatorSetApplyBlock != 0) {
-            address[] memory poolsToBeElected = stakingContract.getPoolsToBeElected();
+    function newValidatorSet() external onlyBlockRewardContract {
+        address[] memory poolsToBeElected = stakingContract.getPoolsToBeElected();
 
-            // Choose new validators
-            if (
-                poolsToBeElected.length >= MAX_VALIDATORS &&
-                (poolsToBeElected.length != MAX_VALIDATORS || unremovableValidator != address(0))
-            ) {
-                uint256 randomNumber = IRandomAuRa(randomContract).currentSeed();
+        // Choose new validators
+        if (
+            poolsToBeElected.length >= MAX_VALIDATORS &&
+            (poolsToBeElected.length != MAX_VALIDATORS || unremovableValidator != address(0))
+        ) {
+            uint256 randomNumber = IRandomAuRa(randomContract).currentSeed();
 
-                (uint256[] memory likelihood, uint256 likelihoodSum) = stakingContract.getPoolsLikelihood();
+            (uint256[] memory likelihood, uint256 likelihoodSum) = stakingContract.getPoolsLikelihood();
 
-                if (likelihood.length > 0 && likelihoodSum > 0) {
-                    address[] memory newValidators = new address[](
-                        unremovableValidator == address(0) ? MAX_VALIDATORS : MAX_VALIDATORS - 1
-                    );
+            if (likelihood.length > 0 && likelihoodSum > 0) {
+                address[] memory newValidators = new address[](
+                    unremovableValidator == address(0) ? MAX_VALIDATORS : MAX_VALIDATORS - 1
+                );
 
-                    uint256 poolsToBeElectedLength = poolsToBeElected.length;
-                    for (uint256 i = 0; i < newValidators.length; i++) {
-                        randomNumber = uint256(keccak256(abi.encode(randomNumber)));
-                        uint256 randomPoolIndex = _getRandomIndex(likelihood, likelihoodSum, randomNumber);
-                        newValidators[i] = poolsToBeElected[randomPoolIndex];
-                        likelihoodSum -= likelihood[randomPoolIndex];
-                        poolsToBeElectedLength--;
-                        poolsToBeElected[randomPoolIndex] = poolsToBeElected[poolsToBeElectedLength];
-                        likelihood[randomPoolIndex] = likelihood[poolsToBeElectedLength];
-                    }
-
-                    _setPendingValidators(newValidators);
+                uint256 poolsToBeElectedLength = poolsToBeElected.length;
+                for (uint256 i = 0; i < newValidators.length; i++) {
+                    randomNumber = uint256(keccak256(abi.encode(randomNumber)));
+                    uint256 randomPoolIndex = _getRandomIndex(likelihood, likelihoodSum, randomNumber);
+                    newValidators[i] = poolsToBeElected[randomPoolIndex];
+                    likelihoodSum -= likelihood[randomPoolIndex];
+                    poolsToBeElectedLength--;
+                    poolsToBeElected[randomPoolIndex] = poolsToBeElected[poolsToBeElectedLength];
+                    likelihood[randomPoolIndex] = likelihood[poolsToBeElectedLength];
                 }
-            } else {
-                _setPendingValidators(poolsToBeElected);
-            }
 
-            // From this moment the `getPendingValidators()` will return a new validator set
-            changeRequestCount++;
-            _enqueuePendingValidators(true);
-            pendingValidatorsEnqueued = true;
+                _setPendingValidators(newValidators);
+            }
         } else {
-            pendingValidatorsEnqueued = false;
+            _setPendingValidators(poolsToBeElected);
         }
+
+        // From this moment the `getPendingValidators()` will return a new validator set
+        changeRequestCount++;
+        _enqueuePendingValidators(true);
 
         stakingContract.removePools();
         stakingContract.incrementStakingEpoch();
         stakingContract.setStakingEpochStartBlock(_getCurrentBlockNumber() + 1);
         validatorSetApplyBlock = 0;
-
-        return pendingValidatorsEnqueued;
     }
 
     /// @dev Removes malicious validators. Called by the `RandomAuRa.onFinishCollectRound` function.
@@ -429,11 +399,11 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// @dev Returns a boolean flag indicating whether the `emitInitiateChange` function can be called
     /// at the moment. Used by a validator's node and `TxPermission` contract (to deny dummy calling).
     function emitInitiateChangeCallable() public view returns(bool) {
-        return initiateChangeAllowed && _queuePVLast >= _queuePVFirst;
+        return initiateChangeAllowed && _queuedPendingValidators.list.length != 0;
     }
 
-    /// @dev Returns the validator set (validators' mining addresses array) which was active
-    /// at the end of the previous staking epoch. The array is stored by the `finalizeChange` function
+    /// @dev Returns the previous validator set (validators' mining addresses array).
+    /// The array is stored by the `finalizeChange` function
     /// when a new staking epoch's validator set is finalized.
     function getPreviousValidators() public view returns(address[] memory) {
         return _previousValidators;
@@ -450,12 +420,11 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     }
 
     /// @dev Returns a validator set to be finalized by the `finalizeChange` function.
-    /// Used by the `finalizeChange` function.
     /// @param miningAddresses An array set by the `emitInitiateChange` function.
     /// @param newStakingEpoch A boolean flag indicating whether the `miningAddresses` array was formed by the
     /// `newValidatorSet` function. The `finalizeChange` function logic depends on this flag.
-    function getQueueValidators() public view returns(address[] memory miningAddresses, bool newStakingEpoch) {
-        return (_queueValidators, _queueValidatorsNewStakingEpoch);
+    function getNewValidators() public view returns(address[] memory miningAddresses, bool newStakingEpoch) {
+        return (_newValidators.list, _newValidators.newEpoch);
     }
 
     /// @dev Returns the current validator set (an array of mining addresses)
@@ -485,9 +454,8 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
             // The current validator set was finalized by the engine,
             // but we should let the previous validators finish
             // reporting malicious validator within a few blocks
-            bool previousEpochValidator =
-                isValidatorOnPreviousEpoch[_miningAddress] && !isValidatorBanned(_miningAddress);
-            return isValid || previousEpochValidator;
+            bool previousValidator = isValidatorPrevious[_miningAddress] && !isValidatorBanned(_miningAddress);
+            return isValid || previousValidator;
         }
         return isValid;
     }
@@ -560,25 +528,26 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
 
     // =============================================== Private ========================================================
 
-    /// @dev Sets a new validator set returned by the `getValidators` getter.
+    /// @dev Sets a new validator set stored in `_newValidators.list` array.
     /// Called by the `finalizeChange` function.
-    /// @param _validators An array of new validators (their mining addresses).
-    function _applyQueueValidators(address[] memory _validators) internal {
-        address[] memory prevValidators = getValidators();
+    function _applyNewValidators() internal {
+        address[] memory validators;
         uint256 i;
 
         // Clear indexes for old validator set
-        for (i = 0; i < prevValidators.length; i++) {
-            validatorIndex[prevValidators[i]] = 0;
-            _setIsValidator(prevValidators[i], false);
+        validators = _currentValidators;
+        for (i = 0; i < validators.length; i++) {
+            validatorIndex[validators[i]] = 0;
+            _setIsValidator(validators[i], false);
         }
 
-        _currentValidators = _validators;
+        _currentValidators = _newValidators.list;
 
         // Set indexes for new validator set
-        for (i = 0; i < _validators.length; i++) {
-            validatorIndex[_validators[i]] = i;
-            _setIsValidator(_validators[i], true);
+        validators = _currentValidators;
+        for (i = 0; i < validators.length; i++) {
+            validatorIndex[validators[i]] = i;
+            _setIsValidator(validators[i], true);
         }
     }
 
@@ -606,46 +575,17 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// @param _newStakingEpoch A boolean flag defining whether the pending validator set was formed by the
     /// `newValidatorSet` function. The `finalizeChange` function logic depends on this flag.
     function _enqueuePendingValidators(bool _newStakingEpoch) internal {
-        int256 queueFirst = _queuePVFirst;
-        int256 queueLast = _queuePVLast;
-
-        for (int256 i = queueLast; i >= queueFirst; i--) {
-            if (_queuePV[i].block == _getCurrentBlockNumber()) {
-                _queuePV[i].list = _pendingValidators;
-                if (_newStakingEpoch) {
-                    _queuePV[i].newEpoch = true;
-                }
-                return;
-            }
+        _queuedPendingValidators.list = _pendingValidators;
+        if (_newStakingEpoch && _pendingValidators.length != 0) {
+            _queuedPendingValidators.newEpoch = true;
         }
-
-        queueLast++;
-        _queuePV[queueLast] = PendingValidatorsQueue({
-            block: _getCurrentBlockNumber(),
-            newEpoch: _newStakingEpoch,
-            list: _pendingValidators
-        });
-        _queuePVLast = queueLast;
     }
 
     /// @dev Dequeues the pending validator set to pass it to the `InitiateChange` event
     /// (and then to the `finalizeChange` function). Called by the `emitInitiateChange` function.
-    /// @param newSet An array of mining addresses.
-    /// @param newStakingEpoch A boolean flag indicating whether the `newSet` array was formed by the
-    /// `newValidatorSet` function. The `finalizeChange` function logic depends on this flag.
-    function _dequeuePendingValidators() internal returns(address[] memory newSet, bool newStakingEpoch) {
-        int256 queueFirst = _queuePVFirst;
-        int256 queueLast = _queuePVLast;
-
-        if (queueLast < queueFirst) {
-            newSet = new address[](0);
-            newStakingEpoch = false;
-        } else {
-            newSet = _queuePV[queueFirst].list;
-            newStakingEpoch = _queuePV[queueFirst].newEpoch;
-            delete _queuePV[queueFirst];
-            _queuePVFirst++;
-        }
+    function _dequeuePendingValidators() internal returns(ValidatorsList memory list) {
+        list = _queuedPendingValidators;
+        delete _queuedPendingValidators;
     }
 
     /// @dev Increments the reporting counter for the specified validator and the current staking epoch.
@@ -732,9 +672,25 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         }
     }
 
+    /// @dev Stores previous validators.
+    function _savePreviousValidators() internal {
+        address[] memory previousValidators = getPreviousValidators();
+        address[] memory currentValidators = getValidators();
+        uint256 i;
+
+        // Save the previous validator set
+        for (i = 0; i < previousValidators.length; i++) {
+            isValidatorPrevious[previousValidators[i]] = false;
+        }
+        for (i = 0; i < currentValidators.length; i++) {
+            isValidatorPrevious[currentValidators[i]] = true;
+        }
+        _previousValidators = currentValidators;
+    }
+
     /// @dev Sets a boolean flag defining whether the specified mining address is a validator
     /// (whether it is existed in the array returned by the `getValidators` getter).
-    /// See the `_applyQueueValidators` function and `isValidator`/`getValidators` getters.
+    /// See the `_applyNewValidators` function and `isValidator`/`getValidators` getters.
     /// @param _miningAddress The mining address.
     /// @param _isValidator The boolean flag.
     function _setIsValidator(address _miningAddress, bool _isValidator) internal {
@@ -760,16 +716,6 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         for (uint256 i = 0; i < _stakingAddresses.length; i++) {
             _pendingValidators.push(miningByStakingAddress[_stakingAddresses[i]]);
         }
-    }
-
-    /// @dev Sets a validator set for the `finalizeChange` function.
-    /// Called by the `emitInitiateChange` function.
-    /// @param _miningAddresses An array of the new validator set mining addresses.
-    /// @param _newStakingEpoch A boolean flag indicating whether the `_miningAddresses` array was formed by the
-    /// `newValidatorSet` function. The `finalizeChange` function logic depends on this flag.
-    function _setQueueValidators(address[] memory _miningAddresses, bool _newStakingEpoch) internal {
-        _queueValidators = _miningAddresses;
-        _queueValidatorsNewStakingEpoch = _newStakingEpoch;
     }
 
     /// @dev Binds a mining address to the specified staking address. Used by the `setStakingAddress` function.

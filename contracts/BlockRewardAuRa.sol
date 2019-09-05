@@ -50,14 +50,14 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
     uint256 public bridgeTokenFee;
 
     /// @dev The reward amount to be distributed in native coins among participants (the validator and their
-    /// delegators) of the specified pool for the specified staking epoch.
+    /// delegators) of the specified pool (mining address) for the specified staking epoch.
     mapping(uint256 => mapping(address => uint256)) public epochPoolNativeReward;
 
     /// @dev The reward amount to be distributed in staking tokens among participants (the validator and their
-    /// delegators) of the specified pool for the specified staking epoch.
+    /// delegators) of the specified pool (mining address) for the specified staking epoch.
     mapping(uint256 => mapping(address => uint256)) public epochPoolTokenReward;
 
-    /// @dev Stores an array of epoch numbers for which the specified pool (staking address)
+    /// @dev Stores an array of epoch numbers for which the specified pool (mining address)
     /// got a non-zero reward.
     mapping(address => uint256[]) public epochsPoolGotRewardFor;
 
@@ -87,11 +87,11 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
     /// @dev The total reward amount in staking tokens which is not yet distributed among pools.
     uint256 public tokenRewardUndistributed;
 
-    /// @dev The total amount staked into the specified pool (staking address)
+    /// @dev The total amount staked into the specified pool (mining address)
     /// before the specified staking epoch. Filled by the `_snapshotPoolStakeAmounts` function.
     mapping(uint256 => mapping(address => uint256)) public snapshotPoolTotalStakeAmount;
 
-    /// @dev The validator's amount staked into the specified pool (staking address)
+    /// @dev The validator's amount staked into the specified pool (mining address)
     /// before the specified staking epoch. Filled by the `_snapshotPoolStakeAmounts` function.
     mapping(uint256 => mapping(address => uint256)) public snapshotPoolValidatorStakeAmount;
 
@@ -143,6 +143,12 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
     /// @dev Ensures the caller is the SYSTEM_ADDRESS. See https://wiki.parity.io/Block-Reward-Contract.html
     modifier onlySystem {
         require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
+        _;
+    }
+
+    /// @dev Ensures the caller is the ValidatorSet contract address.
+    modifier onlyValidatorSetContract() {
+        require(msg.sender == address(validatorSetContract));
         _;
     }
 
@@ -255,38 +261,49 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
         }
 
         if (block.number == stakingContract.stakingEpochEndBlock()) {
-            bool usePendingValidators = validatorSetContract.newValidatorSet();
+            // Choose new validators
+            validatorSetContract.newValidatorSet();
 
+            // Distribute rewards among validator pools
             if (stakingEpoch != 0) {
                 (receiversNative, rewardsNative) = _distributeRewards(stakingContract, stakingEpoch);
             }
 
+            // Snapshot total amounts staked into the pools
             uint256 i;
-            uint256 totalStakeAmount = 0;
             uint256 nextStakingEpoch = stakingEpoch + 1;
+            address[] memory miningAddresses;
 
-            address[] memory currentValidators = validatorSetContract.getValidators();
-            address[] memory pendingValidators = validatorSetContract.getPendingValidators();
-
-            for (i = 0; i < currentValidators.length; i++) {
-                address stakingAddress = validatorSetContract.stakingByMiningAddress(currentValidators[i]);
-                uint256 amount = _snapshotPoolStakeAmounts(stakingContract, nextStakingEpoch, stakingAddress);
-                if (!usePendingValidators) totalStakeAmount += amount;
+            // We need to remember the total staked amounts for the pending addresses
+            // for the possible case when these pending addresses are finalized
+            // by the `ValidatorSetAuRa.finalizeChange` function and thus become validators
+            miningAddresses = validatorSetContract.getPendingValidators();
+            for (i = 0; i < miningAddresses.length; i++) {
+                _snapshotPoolStakeAmounts(stakingContract, nextStakingEpoch, miningAddresses[i]);
             }
 
-            for (i = 0; i < pendingValidators.length; i++) {
-                address stakingAddress = validatorSetContract.stakingByMiningAddress(pendingValidators[i]);
-                uint256 amount;
-                if (!validatorSetContract.isValidator(pendingValidators[i])) {
-                    amount = _snapshotPoolStakeAmounts(stakingContract, nextStakingEpoch, stakingAddress);
-                } else {
-                    amount = snapshotPoolTotalStakeAmount[nextStakingEpoch][stakingAddress];
+            // We need to remember the total staked amounts for the current validators
+            // for the possible case when these validators continue to be validators
+            // throughout the upcoming staking epoch (if the new validator set is not finalized
+            // for some reason)
+            miningAddresses = validatorSetContract.getValidators();
+            for (i = 0; i < miningAddresses.length; i++) {
+                _snapshotPoolStakeAmounts(stakingContract, nextStakingEpoch, miningAddresses[i]);
+            }
+
+            // We need to remember the total staked amounts for the addresses currently
+            // being finalized but not yet finalized (i.e. the `InitiateChange` event is emitted
+            // for them but not yet handled by validator nodes thus the `ValidatorSetAuRa.finalizeChange`
+            // function is not called yet) for the possible case when these addresses finally
+            // become validators on the upcoming staking epoch
+            if (!validatorSetContract.initiateChangeAllowed()) {
+                (miningAddresses, ) = validatorSetContract.getNewValidators();
+                for (i = 0; i < miningAddresses.length; i++) {
+                    _snapshotPoolStakeAmounts(stakingContract, nextStakingEpoch, miningAddresses[i]);
                 }
-                if (usePendingValidators) totalStakeAmount += amount;
             }
 
-            snapshotTotalStakeAmount = totalStakeAmount;
-
+            snapshotTotalStakeAmount = 0;
             bridgeQueueLimit = 0;
         }
 
@@ -343,6 +360,20 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
         for (i = 0; i < _bridgesAllowed.length; i++) {
             _ercToErcBridgeAllowed[_bridgesAllowed[i]] = true;
         }
+    }
+
+    /// @dev Called by the `ValidatorSetAuRa.finalizeChange` to set the value of
+    /// `snapshotTotalStakeAmount`.
+    function setSnapshotTotalStakeAmount() external onlyValidatorSetContract {
+        IStakingAuRa stakingContract = IStakingAuRa(validatorSetContract.stakingContract());
+        uint256 stakingEpoch = stakingContract.stakingEpoch();
+        address[] memory validators = validatorSetContract.getValidators();
+        uint256 totalStakeAmount = 0;
+        for (uint256 i = 0; i < validators.length; i++) {
+            totalStakeAmount += snapshotPoolTotalStakeAmount[stakingEpoch][validators[i]];
+            blocksCreated[stakingEpoch][validators[i]] = 0;
+        }
+        snapshotTotalStakeAmount = totalStakeAmount;
     }
 
     // =============================================== Getters ========================================================
@@ -449,7 +480,6 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
             if (!validatorSetContract.isValidatorBanned(validators[i])) {
                 ratio[i] = blocksCreated[_stakingEpoch][validators[i]];
             }
-            validators[i] = validatorSetContract.stakingByMiningAddress(validators[i]);
             totalBlocksCreated += ratio[i];
         }
 
@@ -619,18 +649,20 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
     /// before the specified staking epoch. Used by the `reward` function.
     /// @param stakingContract The address of the `StakingAuRa` contract.
     /// @param stakingEpoch The number of staking epoch.
-    /// @param stakingAddress The staking address of the pool.
-    /// @return Returns the total amount staked into the specified pool.
+    /// @param miningAddress The mining address of the pool.
     function _snapshotPoolStakeAmounts(
         IStakingAuRa stakingContract,
         uint256 stakingEpoch,
-        address stakingAddress
-    ) internal returns(uint256) {
-        uint256 amount = stakingContract.stakeAmountTotalMinusOrderedWithdraw(stakingAddress);
-        snapshotPoolTotalStakeAmount[stakingEpoch][stakingAddress] = amount;
-        snapshotPoolValidatorStakeAmount[stakingEpoch][stakingAddress] =
+        address miningAddress
+    ) internal {
+        if (snapshotPoolTotalStakeAmount[stakingEpoch][miningAddress] != 0) {
+            return;
+        }
+        address stakingAddress = validatorSetContract.stakingByMiningAddress(miningAddress);
+        snapshotPoolTotalStakeAmount[stakingEpoch][miningAddress] =
+            stakingContract.stakeAmountTotalMinusOrderedWithdraw(stakingAddress);
+        snapshotPoolValidatorStakeAmount[stakingEpoch][miningAddress] =
             stakingContract.stakeAmountMinusOrderedWithdraw(stakingAddress, stakingAddress);
-        return amount;
     }
 
     /// @dev Calculates the reward coefficient for a validator (or a candidate).

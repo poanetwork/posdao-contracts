@@ -221,8 +221,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         _;
     }
 
-    /// @dev Ensures the caller is the ValidatorSet contract address
-    /// (EternalStorageProxy proxy contract for ValidatorSet).
+    /// @dev Ensures the caller is the ValidatorSet contract address.
     modifier onlyValidatorSetContract() {
         require(msg.sender == address(validatorSetContract));
         _;

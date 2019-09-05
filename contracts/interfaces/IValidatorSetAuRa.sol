@@ -10,16 +10,18 @@ interface IValidatorSetAuRa {
         address[] calldata,
         bool
     ) external;
-    function newValidatorSet() external returns(bool);
+    function newValidatorSet() external;
     function removeMaliciousValidators(address[] calldata) external;
     function setStakingAddress(address, address) external;
     function areDelegatorsBanned(address) external view returns(bool);
     function blockRewardContract() external view returns(address);
     function changeRequestCount() external view returns(uint256);
     function emitInitiateChangeCallable() external view returns(bool);
+    function getNewValidators() external view returns(address[] memory, bool);
     function getPendingValidators() external view returns(address[] memory);
     function getPreviousValidators() external view returns(address[] memory);
     function getValidators() external view returns(address[] memory);
+    function initiateChangeAllowed() external view returns(bool);
     function isReportValidatorValid(address) external view returns(bool);
     function isValidator(address) external view returns(bool);
     function isValidatorBanned(address) external view returns(bool);
