@@ -23,11 +23,13 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     address[] internal _pendingValidators;
     address[] internal _previousValidators;
     struct ValidatorsList {
-        bool newEpoch;
+        bool forNewEpoch;
         address[] list;
     }
-    ValidatorsList internal _newValidators;
-    ValidatorsList internal _queuedPendingValidators;
+    ValidatorsList internal _finalizeValidators;
+
+    bool internal _pendingValidatorsChanged;
+    bool internal _pendingValidatorsChangedForNewEpoch;
 
     /// @dev How many times a given mining address was banned.
     mapping(address => uint256) public banCounter;
@@ -48,13 +50,6 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// @dev The serial number of a validator set change request. The counter is incremented
     /// every time a validator set needs to be changed.
     uint256 public changeRequestCount;
-
-    /// @dev A boolean flag indicating whether the `emitInitiateChange` can be called at the moment.
-    /// Used by the `emitInitiateChangeCallable` getter. This flag is set to `false` by the `emitInitiateChange`
-    /// and set to `true` by the `finalizeChange` function. When the `InitiateChange` event is emitted by
-    /// `emitInitiateChange`, the next `emitInitiateChange` call is not possible until the previous call is
-    /// finalized by the `finalizeChange` function.
-    bool public initiateChangeAllowed;
 
     /// @dev A boolean flag indicating whether the specified mining address is in the current validator set.
     /// See the `getValidators` getter.
@@ -184,11 +179,11 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// See https://wiki.parity.io/Validator-Set.html for more info about the `InitiateChange` event.
     function emitInitiateChange() external onlyInitialized {
         require(emitInitiateChangeCallable());
-        ValidatorsList memory newValidators = _dequeuePendingValidators();
-        if (newValidators.list.length > 0) {
-            emit InitiateChange(blockhash(_getCurrentBlockNumber() - 1), newValidators.list);
-            initiateChangeAllowed = false;
-            _newValidators = newValidators;
+        bool forNewEpoch = _unsetPendingValidatorsChanged();
+        if (_pendingValidators.length > 0) {
+            emit InitiateChange(blockhash(_getCurrentBlockNumber() - 1), _pendingValidators);
+            _finalizeValidators.list = _pendingValidators;
+            _finalizeValidators.forNewEpoch = forNewEpoch;
         }
     }
 
@@ -203,20 +198,20 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// (this is achieved by the queue, `emitInitiateChange` function, and `initiateChangeAllowed` boolean flag -
     /// see the `_setInitiateChangeAllowed` function).
     function finalizeChange() external onlySystem {
-        if (_newValidators.newEpoch) {
+        if (_finalizeValidators.forNewEpoch) {
             // Apply a new validator set formed by the `newValidatorSet` function
             _savePreviousValidators();
-            _applyNewValidators();
+            _finalizeNewValidators();
             IBlockRewardAuRa(blockRewardContract).setSnapshotTotalStakeAmount();
             validatorSetApplyBlock = _getCurrentBlockNumber();
-        } else if (_newValidators.list.length > 0) {
+        } else if (_finalizeValidators.list.length != 0) {
             // Apply the changed validator set after malicious validator is removed
-            _applyNewValidators();
+            _finalizeNewValidators();
         } else {
             // This is the very first call of the `finalizeChange` (block #1)
             validatorSetApplyBlock = _getCurrentBlockNumber();
         }
-        initiateChangeAllowed = true;
+        delete _finalizeValidators; // since this moment the `emitInitiateChange` is allowed
     }
 
     /// @dev Initializes the network parameters. Used by the
@@ -302,8 +297,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         }
 
         // From this moment the `getPendingValidators()` will return a new validator set
-        changeRequestCount++;
-        _enqueuePendingValidators(true);
+        _setPendingValidatorsChanged(true);
 
         stakingContract.removePools();
         stakingContract.incrementStakingEpoch();
@@ -399,7 +393,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// @dev Returns a boolean flag indicating whether the `emitInitiateChange` function can be called
     /// at the moment. Used by a validator's node and `TxPermission` contract (to deny dummy calling).
     function emitInitiateChangeCallable() public view returns(bool) {
-        return initiateChangeAllowed && _queuedPendingValidators.list.length != 0;
+        return initiateChangeAllowed() && _pendingValidatorsChanged;
     }
 
     /// @dev Returns the previous validator set (validators' mining addresses array).
@@ -411,26 +405,27 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
 
     /// @dev Returns the current array of validators which is not yet finalized by the
     /// `finalizeChange` function. The pending array is changed when a validator is removed as malicious
-    /// or the validator set is updated at the beginning of a new staking epoch (see the `newValidatorSet` function).
-    /// Every time the pending array is updated, it is enqueued by the `_enqueuePendingValidators` and then
-    /// dequeued by the `emitInitiateChange` function which emits the `InitiateChange` event to all
+    /// or the validator set is updated by the `newValidatorSet` function.
+    /// Every time the pending array is changed, it is marked by the `_setPendingValidatorsChanged` and then
+    /// used by the `emitInitiateChange` function which emits the `InitiateChange` event to all
     /// validator nodes.
     function getPendingValidators() public view returns(address[] memory) {
         return _pendingValidators;
-    }
-
-    /// @dev Returns a validator set to be finalized by the `finalizeChange` function.
-    /// @param miningAddresses An array set by the `emitInitiateChange` function.
-    /// @param newStakingEpoch A boolean flag indicating whether the `miningAddresses` array was formed by the
-    /// `newValidatorSet` function. The `finalizeChange` function logic depends on this flag.
-    function getNewValidators() public view returns(address[] memory miningAddresses, bool newStakingEpoch) {
-        return (_newValidators.list, _newValidators.newEpoch);
     }
 
     /// @dev Returns the current validator set (an array of mining addresses)
     /// which always matches the validator set in the Parity engine.
     function getValidators() public view returns(address[] memory) {
         return _currentValidators;
+    }
+
+    /// @dev A boolean flag indicating whether the `emitInitiateChange` can be called at the moment.
+    /// Used by the `emitInitiateChangeCallable` getter. This flag is set to `false` by the `emitInitiateChange`
+    /// and set to `true` by the `finalizeChange` function. When the `InitiateChange` event is emitted by
+    /// `emitInitiateChange`, the next `emitInitiateChange` call is not possible until the previous call is
+    /// finalized by the `finalizeChange` function.
+    function initiateChangeAllowed() public view returns(bool) {
+        return _finalizeValidators.list.length == 0;
     }
 
     /// @dev Returns a boolean flag indicating if the `initialize` function has been called.
@@ -526,30 +521,15 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         return (true, false);
     }
 
-    // =============================================== Private ========================================================
-
-    /// @dev Sets a new validator set stored in `_newValidators.list` array.
-    /// Called by the `finalizeChange` function.
-    function _applyNewValidators() internal {
-        address[] memory validators;
-        uint256 i;
-
-        // Clear indexes for old validator set
-        validators = _currentValidators;
-        for (i = 0; i < validators.length; i++) {
-            validatorIndex[validators[i]] = 0;
-            _setIsValidator(validators[i], false);
-        }
-
-        _currentValidators = _newValidators.list;
-
-        // Set indexes for new validator set
-        validators = _currentValidators;
-        for (i = 0; i < validators.length; i++) {
-            validatorIndex[validators[i]] = i;
-            _setIsValidator(validators[i], true);
-        }
+    /// @dev Returns a validator set about to be finalized by the `finalizeChange` function.
+    /// @param miningAddresses An array set by the `emitInitiateChange` function.
+    /// @param forNewEpoch A boolean flag indicating whether the `miningAddresses` array was formed by the
+    /// `newValidatorSet` function. The `finalizeChange` function logic depends on this flag.
+    function validatorsToBeFinalized() public view returns(address[] memory miningAddresses, bool forNewEpoch) {
+        return (_finalizeValidators.list, _finalizeValidators.forNewEpoch);
     }
+
+    // =============================================== Private ========================================================
 
     /// @dev Updates the total reporting counter (see the `reportingCounterTotal` getter) for the current staking epoch
     /// after the specified validator is removed as malicious. The `reportMaliciousCallable` getter uses this counter
@@ -569,23 +549,49 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         }
     }
 
-    /// @dev Enqueues the pending validator set which is returned by the `getPendingValidators` getter
-    /// to be dequeued later by the `emitInitiateChange` function. Called when a validator is removed
-    /// from the set as malicious or when a new validator set is formed by the `newValidatorSet` function.
-    /// @param _newStakingEpoch A boolean flag defining whether the pending validator set was formed by the
-    /// `newValidatorSet` function. The `finalizeChange` function logic depends on this flag.
-    function _enqueuePendingValidators(bool _newStakingEpoch) internal {
-        _queuedPendingValidators.list = _pendingValidators;
-        if (_newStakingEpoch && _pendingValidators.length != 0) {
-            _queuedPendingValidators.newEpoch = true;
+    /// @dev Sets a new validator set stored in `_finalizeValidators.list` array.
+    /// Called by the `finalizeChange` function.
+    function _finalizeNewValidators() internal {
+        address[] memory validators;
+        uint256 i;
+
+        // Clear indexes for old validator set
+        validators = _currentValidators;
+        for (i = 0; i < validators.length; i++) {
+            validatorIndex[validators[i]] = 0;
+            _setIsValidator(validators[i], false);
+        }
+
+        _currentValidators = _finalizeValidators.list;
+
+        // Set indexes for new validator set
+        validators = _currentValidators;
+        for (i = 0; i < validators.length; i++) {
+            validatorIndex[validators[i]] = i;
+            _setIsValidator(validators[i], true);
         }
     }
 
-    /// @dev Dequeues the pending validator set to pass it to the `InitiateChange` event
+    /// @dev Marks the pending validator set as changed to be used later by the `emitInitiateChange` function.
+    /// Called when a validator is removed from the set as malicious or when a new validator set is formed by
+    /// the `newValidatorSet` function.
+    /// @param _newStakingEpoch A boolean flag defining whether the pending validator set was formed by the
+    /// `newValidatorSet` function. The `finalizeChange` function logic depends on this flag.
+    function _setPendingValidatorsChanged(bool _newStakingEpoch) internal {
+        _pendingValidatorsChanged = true;
+        if (_newStakingEpoch && _pendingValidators.length != 0) {
+            _pendingValidatorsChangedForNewEpoch = true;
+        }
+        changeRequestCount++;
+    }
+
+    /// @dev Marks the pending validator set as unchanged before passing it to the `InitiateChange` event
     /// (and then to the `finalizeChange` function). Called by the `emitInitiateChange` function.
-    function _dequeuePendingValidators() internal returns(ValidatorsList memory list) {
-        list = _queuedPendingValidators;
-        delete _queuedPendingValidators;
+    function _unsetPendingValidatorsChanged() internal returns(bool) {
+        bool forNewEpoch = _pendingValidatorsChangedForNewEpoch;
+        _pendingValidatorsChanged = false;
+        _pendingValidatorsChangedForNewEpoch = false;
+        return forNewEpoch;
     }
 
     /// @dev Increments the reporting counter for the specified validator and the current staking epoch.
@@ -656,19 +662,18 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// @param _reason A short string of the reason why the mining addresses are treated as malicious,
     /// see the `_removeMaliciousValidator` function for possible values.
     function _removeMaliciousValidators(address[] memory _miningAddresses, bytes32 _reason) internal {
-        uint256 removedCount = 0;
+        bool removed = false;
 
         for (uint256 i = 0; i < _miningAddresses.length; i++) {
             if (_removeMaliciousValidator(_miningAddresses[i], _reason)) {
                 _clearReportingCounter(_miningAddresses[i]);
-                removedCount++;
+                removed = true;
             }
         }
 
-        if (removedCount > 0) {
-            changeRequestCount++;
+        if (removed) {
             // From this moment `getPendingValidators()` will return the new validator set
-            _enqueuePendingValidators(false);
+            _setPendingValidatorsChanged(false);
         }
     }
 
@@ -690,7 +695,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
 
     /// @dev Sets a boolean flag defining whether the specified mining address is a validator
     /// (whether it is existed in the array returned by the `getValidators` getter).
-    /// See the `_applyNewValidators` function and `isValidator`/`getValidators` getters.
+    /// See the `_finalizeNewValidators` function and `isValidator`/`getValidators` getters.
     /// @param _miningAddress The mining address.
     /// @param _isValidator The boolean flag.
     function _setIsValidator(address _miningAddress, bool _isValidator) internal {

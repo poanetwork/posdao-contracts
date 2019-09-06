@@ -3,7 +3,7 @@ pragma solidity 0.5.9;
 
 interface IERC20Minting {
     // This function may only be called by BlockReward contract
-    function mintReward(address[] calldata _receivers, uint256[] calldata _rewards) external;
+    function mintReward(address _receiver, uint256 _amount) external;
 
     // This function may only be called by Staking contract
     function stake(address _staker, uint256 _amount) external;

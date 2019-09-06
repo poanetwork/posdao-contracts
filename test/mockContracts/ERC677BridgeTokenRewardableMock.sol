@@ -596,20 +596,14 @@ contract ERC677BridgeTokenRewardable is ERC677BridgeToken {
     stakingContract = _stakingContract;
   }
 
+  function mintReward(address _receiver, uint256 _amount) external onlyBlockRewardContract {
+    _mintReward(_receiver, _amount);
+  }
+
   function mintReward(address[] calldata _receivers, uint256[] calldata _rewards) external onlyBlockRewardContract {
     uint256 receiversLength = _receivers.length;
     for (uint256 i = 0; i < receiversLength; i++) {
-      uint256 amount = _rewards[i];
-
-      if (amount == 0) continue;
-
-      address to = _receivers[i];
-
-      // Mint `amount` for `to`
-      totalSupply_ = totalSupply_.add(amount);
-      balances[to] = balances[to].add(amount);
-      emit Mint(to, amount);
-      emit Transfer(address(0), to, amount);
+      _mintReward(_receivers[i], _rewards[i]);
     }
   }
 
@@ -630,6 +624,15 @@ contract ERC677BridgeTokenRewardable is ERC677BridgeToken {
     require(_to != blockRewardContract);
     require(_to != stakingContract);
     return super.transferFrom(_from, _to, _value);
+  }
+
+  function _mintReward(address _to, uint256 _amount) private {
+    if (_amount == 0) return;
+    // Mint `_amount` for `_to`
+    totalSupply_ = totalSupply_.add(_amount);
+    balances[_to] = balances[_to].add(_amount);
+    emit Mint(_to, _amount);
+    emit Transfer(address(0), _to, _amount);
   }
 
 }

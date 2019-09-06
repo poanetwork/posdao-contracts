@@ -251,6 +251,7 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
         uint256 bridgeQueueLimit = 100;
         IStakingAuRa stakingContract = IStakingAuRa(validatorSetContract.stakingContract());
         uint256 stakingEpoch = stakingContract.stakingEpoch();
+        uint256 stakingEpochEndBlock = stakingContract.stakingEpochEndBlock();
 
         if (validatorSetContract.validatorSetApplyBlock() != 0) {
             if (stakingEpoch != 0 && !validatorSetContract.isValidatorBanned(benefactors[0])) {
@@ -260,14 +261,18 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
             }
         }
 
-        if (block.number == stakingContract.stakingEpochEndBlock()) {
-            // Choose new validators
-            validatorSetContract.newValidatorSet();
-
+        if (block.number == stakingEpochEndBlock) {
             // Distribute rewards among validator pools
             if (stakingEpoch != 0) {
-                (receiversNative, rewardsNative) = _distributeRewards(stakingContract, stakingEpoch);
+                (receiversNative, rewardsNative) = _distributeRewards(
+                    stakingContract,
+                    stakingEpoch,
+                    stakingEpochEndBlock
+                );
             }
+
+            // Choose new validators
+            validatorSetContract.newValidatorSet();
 
             // Snapshot total amounts staked into the pools
             uint256 i;
@@ -296,11 +301,9 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
             // for them but not yet handled by validator nodes thus the `ValidatorSetAuRa.finalizeChange`
             // function is not called yet) for the possible case when these addresses finally
             // become validators on the upcoming staking epoch
-            if (!validatorSetContract.initiateChangeAllowed()) {
-                (miningAddresses, ) = validatorSetContract.getNewValidators();
-                for (i = 0; i < miningAddresses.length; i++) {
-                    _snapshotPoolStakeAmounts(stakingContract, nextStakingEpoch, miningAddresses[i]);
-                }
+            (miningAddresses, ) = validatorSetContract.validatorsToBeFinalized();
+            for (i = 0; i < miningAddresses.length; i++) {
+                _snapshotPoolStakeAmounts(stakingContract, nextStakingEpoch, miningAddresses[i]);
             }
 
             snapshotTotalStakeAmount = 0;
@@ -418,25 +421,59 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
 
     /// @dev Returns the reward coefficient for the specified validator. The given value should be divided by 10000
     /// to get the value of the reward percent (since EVM doesn't support float values). If the specified staking
-    /// address is an address of a candidate, the potentially possible reward coefficient is returned for the specified
-    /// candidate instead.
+    /// address is an address of a candidate that is not about to be a validator on the current staking epoch
+    /// the potentially possible reward coefficient is returned.
     /// @param _stakingAddress The staking address of the validator/candidate
     /// pool for which the getter must return the coefficient.
     function validatorRewardPercent(address _stakingAddress) public view returns(uint256) {
         IStakingAuRa stakingContract = IStakingAuRa(validatorSetContract.stakingContract());
-        
-        /*
-        if (_snapshotRewardPercents[_stakingAddress].length != 0) {
-            return _snapshotRewardPercents[_stakingAddress][0];
-        }
+        uint256 stakingEpoch = stakingContract.stakingEpoch();
+        address miningAddress = validatorSetContract.miningByStakingAddress(_stakingAddress);
 
-        if (stakingContract.stakingEpoch() == 0) {
-            if (validatorSetContract.isValidator(validatorSetContract.miningByStakingAddress(_stakingAddress))) {
+        if (validatorSetContract.isValidator(miningAddress)) {
+            // For the validator we return the coefficient based on
+            // snapshotted total amounts
+            if (stakingEpoch != 0) {
+                return _validatorRewardPercent(
+                    snapshotPoolValidatorStakeAmount[stakingEpoch][miningAddress],
+                    snapshotPoolTotalStakeAmount[stakingEpoch][miningAddress]
+                );
+            } else {
+                // No one gets a reward for the initial staking epoch, so we return zero
                 return 0;
             }
         }
-        */
 
+        if (validatorSetContract.validatorSetApplyBlock() == 0) {
+            // For the candidate that is about to be a validator on the current
+            // staking epoch we return the coefficient based on snapshotted total amounts
+
+            address[] memory miningAddresses;
+            uint256 i;
+            
+            miningAddresses = validatorSetContract.getPendingValidators();
+            for (i = 0; i < miningAddresses.length; i++) {
+                if (miningAddress == miningAddresses[i]) {
+                    return _validatorRewardPercent(
+                        snapshotPoolValidatorStakeAmount[stakingEpoch][miningAddress],
+                        snapshotPoolTotalStakeAmount[stakingEpoch][miningAddress]
+                    );
+                }
+            }
+
+            (miningAddresses, ) = validatorSetContract.validatorsToBeFinalized();
+            for (i = 0; i < miningAddresses.length; i++) {
+                if (miningAddress == miningAddresses[i]) {
+                    return _validatorRewardPercent(
+                        snapshotPoolValidatorStakeAmount[stakingEpoch][miningAddress],
+                        snapshotPoolTotalStakeAmount[stakingEpoch][miningAddress]
+                    );
+                }
+            }
+        }
+
+        // For the candidate that is not about to be a validator on the current staking epoch,
+        // we return the potentially possible reward coefficient
         return _validatorRewardPercent(
             stakingContract.stakeAmountMinusOrderedWithdraw(_stakingAddress, _stakingAddress),
             stakingContract.stakeAmountTotalMinusOrderedWithdraw(_stakingAddress)
@@ -451,42 +488,162 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
     /// This function is called by the `reward` function.
     /// @param _stakingContract The address of the StakingAuRa contract.
     /// @param _stakingEpoch The number of the current staking epoch.
+    /// @param _stakingEpochEndBlock The number of the latest block of the current staking epoch.
     /// @return `address[] receivers` - The array of native coins receivers which should be
     /// rewarded at the current block by the `erc-to-native` bridge or by the fixed native reward.
     /// `uint256[] rewards` - The array of amounts corresponding to the `receivers` array.
     function _distributeRewards(
         IStakingAuRa _stakingContract,
-        uint256 _stakingEpoch
+        uint256 _stakingEpoch,
+        uint256 _stakingEpochEndBlock
     ) internal returns(address[] memory receivers, uint256[] memory rewards) {
-        address erc20TokenContract = _stakingContract.erc20TokenContract();
         bool erc20Restricted = _stakingContract.erc20Restricted();
+        address[] memory validators = validatorSetContract.getValidators();
 
+        // Determine shares
+        uint256 totalRewardShareNum = 0;
+        uint256 totalRewardShareDenom = 1;
+        uint256 realFinalizeBlock = validatorSetContract.validatorSetApplyBlock();
+        if (realFinalizeBlock != 0) {
+            uint256 idealFinalizeBlock =
+                _stakingContract.stakingEpochStartBlock() + validatorSetContract.MAX_VALIDATORS()*2/3 + 1;
+
+            if (realFinalizeBlock < idealFinalizeBlock) {
+                realFinalizeBlock = idealFinalizeBlock;
+            }
+
+            totalRewardShareNum = _stakingEpochEndBlock - realFinalizeBlock + 1;
+            totalRewardShareDenom = _stakingEpochEndBlock - idealFinalizeBlock + 1;
+        }
+
+        uint256[] memory blocksCreatedShareNum = new uint256[](validators.length);
+        uint256 blocksCreatedShareDenom = 0;
+        if (totalRewardShareNum != 0) {
+            for (uint256 i = 0; i < validators.length; i++) {
+                if (!validatorSetContract.isValidatorBanned(validators[i])) {
+                    blocksCreatedShareNum[i] = blocksCreated[_stakingEpoch][validators[i]];
+                } else {
+                    blocksCreatedShareNum[i] = 0;
+                }
+                blocksCreatedShareDenom += blocksCreatedShareNum[i];
+            }
+        }
+
+        // Distribute ERC tokens among pools
+        _distributeTokenRewards(
+            _stakingContract,
+            _stakingEpoch,
+            totalRewardShareNum,
+            totalRewardShareDenom,
+            erc20Restricted,
+            validators,
+            blocksCreatedShareNum,
+            blocksCreatedShareDenom
+        );
+
+        // Distribute native coins among pools
         receivers = new address[](1);
         rewards = new uint256[](1);
 
         receivers[0] = address(this);
-        rewards[0] = 0;
+        rewards[0] = _distributeNativeRewards(
+            _stakingContract,
+            _stakingEpoch,
+            totalRewardShareNum,
+            totalRewardShareDenom,
+            erc20Restricted,
+            validators,
+            blocksCreatedShareNum,
+            blocksCreatedShareDenom
+        );
 
-        address[] memory validators = validatorSetContract.getValidators();
-        uint256[] memory ratio = new uint256[](validators.length);
+        return (receivers, rewards);
+    }
 
-        uint256 i;
-        uint256 totalReward;
-        uint256 distributedAmount;
+    /// @dev Distributes rewards in native coins among pools at the latest block of a staking epoch.
+    /// This function is called by the `_distributeRewards` function.
+    /// @param _stakingContract The address of the StakingAuRa contract.
+    /// @param _stakingEpoch The number of the current staking epoch.
+    /// @param _totalRewardShareNum Numerator of the total reward share.
+    /// @param _totalRewardShareDenom Denominator of the total reward share.
+    /// @param _erc20Restricted A boolean flag indicating whether StakingAuRa contract restricts
+    /// using ERC20/677 contract.
+    /// @param _validators The array of the current validators (their mining addresses).
+    /// @param _blocksCreatedShareNum Numerators of blockCreated share for each of the validators.
+    /// @param _blocksCreatedShareDenom Denominator of blockCreated share.
+    /// @return Returns the amount of native coins which need to be minted.
+    function _distributeNativeRewards(
+        IStakingAuRa _stakingContract,
+        uint256 _stakingEpoch,
+        uint256 _totalRewardShareNum,
+        uint256 _totalRewardShareDenom,
+        bool _erc20Restricted,
+        address[] memory _validators,
+        uint256[] memory _blocksCreatedShareNum,
+        uint256 _blocksCreatedShareDenom
+    ) internal returns(uint256) {
+        uint256 totalReward = bridgeNativeFee;
+        if (_erc20Restricted) {
+            // Accumulated bridge fee plus 2.5% per year coin inflation
+            totalReward += _stakingContract.stakingEpochDuration() * 1 ether;
+        }
+        totalReward += nativeRewardUndistributed;
 
-        uint256 totalBlocksCreated = 0;
-        for (i = 0; i < validators.length; i++) {
-            ratio[i] = 0;
-            if (!validatorSetContract.isValidatorBanned(validators[i])) {
-                ratio[i] = blocksCreated[_stakingEpoch][validators[i]];
-            }
-            totalBlocksCreated += ratio[i];
+        if (totalReward == 0) {
+            return 0;
         }
 
-        // Distribute ERC tokens among pools
-        totalReward = bridgeTokenFee;
+        bridgeNativeFee = 0;
 
-        if (!erc20Restricted) {
+        uint256 rewardToDistribute = 0;
+        uint256 distributedAmount = 0;
+
+        if (_blocksCreatedShareDenom != 0 && _totalRewardShareDenom != 0) {
+            rewardToDistribute = totalReward * _totalRewardShareNum / _totalRewardShareDenom;
+
+            if (rewardToDistribute != 0) {
+                for (uint256 i = 0; i < _validators.length; i++) {
+                    uint256 poolReward =
+                        rewardToDistribute * _blocksCreatedShareNum[i] / _blocksCreatedShareDenom;
+                    epochPoolNativeReward[_stakingEpoch][_validators[i]] = poolReward;
+                    distributedAmount += poolReward;
+                    if (poolReward != 0 && epochPoolTokenReward[_stakingEpoch][_validators[i]] == 0) {
+                        epochsPoolGotRewardFor[_validators[i]].push(_stakingEpoch);
+                    }
+                }
+            }
+        }
+
+        nativeRewardUndistributed = totalReward - distributedAmount;
+
+        return rewardToDistribute;
+    }
+
+    /// @dev Distributes rewards in tokens among pools at the latest block of a staking epoch.
+    /// This function is called by the `_distributeRewards` function.
+    /// @param _stakingContract The address of the StakingAuRa contract.
+    /// @param _stakingEpoch The number of the current staking epoch.
+    /// @param _totalRewardShareNum Numerator of the total reward share.
+    /// @param _totalRewardShareDenom Denominator of the total reward share.
+    /// @param _erc20Restricted A boolean flag indicating whether StakingAuRa contract restricts
+    /// using ERC20/677 contract.
+    /// @param _validators The array of the current validators (their mining addresses).
+    /// @param _blocksCreatedShareNum Numerators of blockCreated share for each of the validators.
+    /// @param _blocksCreatedShareDenom Denominator of blockCreated share.
+    function _distributeTokenRewards(
+        IStakingAuRa _stakingContract,
+        uint256 _stakingEpoch,
+        uint256 _totalRewardShareNum,
+        uint256 _totalRewardShareDenom,
+        bool _erc20Restricted,
+        address[] memory _validators,
+        uint256[] memory _blocksCreatedShareNum,
+        uint256 _blocksCreatedShareDenom
+    ) internal {
+        address erc20TokenContract = _stakingContract.erc20TokenContract();
+
+        uint256 totalReward = bridgeTokenFee;
+        if (!_erc20Restricted) {
             uint256 inflationPercent;
             if (_stakingEpoch <= 24) inflationPercent = 32;
             else if (_stakingEpoch <= 48) inflationPercent = 16;
@@ -494,56 +651,34 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
             else inflationPercent = 4; // solhint-disable-line indent
             totalReward += snapshotTotalStakeAmount * inflationPercent / 4800;
         }
+        totalReward += tokenRewardUndistributed;
+
+        if (totalReward == 0) {
+            return;
+        }
 
         bridgeTokenFee = 0;
 
-        totalReward += tokenRewardUndistributed;
+        uint256 distributedAmount = 0;
+        if (erc20TokenContract != address(0) && _blocksCreatedShareDenom != 0 && _totalRewardShareDenom != 0) {
+            uint256 rewardToDistribute = totalReward * _totalRewardShareNum / _totalRewardShareDenom;
 
-        distributedAmount = 0;
-        if (erc20TokenContract != address(0) && totalBlocksCreated != 0) {
-            for (i = 0; i < validators.length; i++) {
-                uint256 poolReward = totalReward * ratio[i] / totalBlocksCreated;
-                epochPoolTokenReward[_stakingEpoch][validators[i]] = poolReward;
-                distributedAmount += poolReward;
-                if (poolReward != 0) {
-                    epochsPoolGotRewardFor[validators[i]].push(_stakingEpoch);
+            if (rewardToDistribute != 0) {
+                for (uint256 i = 0; i < _validators.length; i++) {
+                    uint256 poolReward =
+                        rewardToDistribute * _blocksCreatedShareNum[i] / _blocksCreatedShareDenom;
+                    epochPoolTokenReward[_stakingEpoch][_validators[i]] = poolReward;
+                    distributedAmount += poolReward;
+                    if (poolReward != 0 && epochPoolNativeReward[_stakingEpoch][_validators[i]] == 0) {
+                        epochsPoolGotRewardFor[_validators[i]].push(_stakingEpoch);
+                    }
                 }
+
+                IERC20Minting(erc20TokenContract).mintReward(address(this), rewardToDistribute);
             }
-            rewards[0] = totalReward;
-            IERC20Minting(erc20TokenContract).mintReward(receivers, rewards);
-            rewards[0] = 0;
         }
 
         tokenRewardUndistributed = totalReward - distributedAmount;
-
-        // Distribute native coins among pools
-        totalReward = bridgeNativeFee;
-
-        if (erc20Restricted) {
-            // Accumulated bridge fee plus 2.5% per year coin inflation
-            totalReward += _stakingContract.stakingEpochDuration() * 1 ether;
-        }
-
-        bridgeNativeFee = 0;
-
-        totalReward += nativeRewardUndistributed;
-
-        distributedAmount = 0;
-        if (totalBlocksCreated != 0) {
-            for (i = 0; i < validators.length; i++) {
-                uint256 poolReward = totalReward * ratio[i] / totalBlocksCreated;
-                epochPoolNativeReward[_stakingEpoch][validators[i]] = poolReward;
-                distributedAmount += poolReward;
-                if (poolReward != 0 && epochPoolTokenReward[_stakingEpoch][validators[i]] == 0) {
-                    epochsPoolGotRewardFor[validators[i]].push(_stakingEpoch);
-                }
-            }
-            rewards[0] = totalReward;
-        }
-
-        nativeRewardUndistributed = totalReward - distributedAmount;
-
-        return (receivers, rewards);
     }
 
     /// @dev Joins two native coin receiver elements into a single set and returns the result
@@ -659,8 +794,11 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
             return;
         }
         address stakingAddress = validatorSetContract.stakingByMiningAddress(miningAddress);
-        snapshotPoolTotalStakeAmount[stakingEpoch][miningAddress] =
-            stakingContract.stakeAmountTotalMinusOrderedWithdraw(stakingAddress);
+        uint256 totalAmount = stakingContract.stakeAmountTotalMinusOrderedWithdraw(stakingAddress);
+        if (totalAmount == 0) {
+            return;
+        }
+        snapshotPoolTotalStakeAmount[stakingEpoch][miningAddress] = totalAmount;
         snapshotPoolValidatorStakeAmount[stakingEpoch][miningAddress] =
             stakingContract.stakeAmountMinusOrderedWithdraw(stakingAddress, stakingAddress);
     }

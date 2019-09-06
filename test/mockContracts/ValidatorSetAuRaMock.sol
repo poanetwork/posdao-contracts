@@ -19,10 +19,7 @@ contract ValidatorSetAuRaMock is ValidatorSetAuRa {
 
     function clearPendingValidators() public {
         delete _pendingValidators;
-    }
-
-    function enqueuePendingValidators() public {
-        _enqueuePendingValidators(true);
+        _setPendingValidatorsChanged(true);
     }
 
     function setBannedUntil(address _miningAddress, uint256 _bannedUntil) public {

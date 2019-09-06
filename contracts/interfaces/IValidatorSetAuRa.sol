@@ -17,11 +17,9 @@ interface IValidatorSetAuRa {
     function blockRewardContract() external view returns(address);
     function changeRequestCount() external view returns(uint256);
     function emitInitiateChangeCallable() external view returns(bool);
-    function getNewValidators() external view returns(address[] memory, bool);
     function getPendingValidators() external view returns(address[] memory);
     function getPreviousValidators() external view returns(address[] memory);
     function getValidators() external view returns(address[] memory);
-    function initiateChangeAllowed() external view returns(bool);
     function isReportValidatorValid(address) external view returns(bool);
     function isValidator(address) external view returns(bool);
     function isValidatorBanned(address) external view returns(bool);
@@ -34,4 +32,5 @@ interface IValidatorSetAuRa {
     function unremovableValidator() external view returns(address);
     function validatorIndex(address) external view returns(uint256);
     function validatorSetApplyBlock() external view returns(uint256);
+    function validatorsToBeFinalized() external view returns(address[] memory, bool);
 }
