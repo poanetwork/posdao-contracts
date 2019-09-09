@@ -18,6 +18,10 @@ contract RandomAuRaMock is RandomAuRa {
         _currentBlockNumber = _blockNumber;
     }
 
+    function setSentReveal(address _validator) public {
+        sentReveal[currentCollectRound()][_validator] = true;
+    }
+
     // =============================================== Private ========================================================
 
     function _getCoinbase() internal view returns(address) {

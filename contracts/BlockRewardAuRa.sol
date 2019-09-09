@@ -18,6 +18,7 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
     // WARNING: since this contract is upgradeable, do not remove
     // existing storage variables and do not change their types!
 
+    mapping(address => uint256[]) internal _epochsPoolGotRewardFor;
     mapping(address => bool) internal _ercToErcBridgeAllowed;
     mapping(address => bool) internal _ercToNativeBridgeAllowed;
     mapping(address => bool) internal _nativeToErcBridgeAllowed;
@@ -56,10 +57,6 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
     /// @dev The reward amount to be distributed in staking tokens among participants (the validator and their
     /// delegators) of the specified pool (mining address) for the specified staking epoch.
     mapping(uint256 => mapping(address => uint256)) public epochPoolTokenReward;
-
-    /// @dev Stores an array of epoch numbers for which the specified pool (mining address)
-    /// got a non-zero reward.
-    mapping(address => uint256[]) public epochsPoolGotRewardFor;
 
     /// @dev The total amount of native coins minted for the specified address
     /// by the `erc-to-native` bridges through the `addExtraReceiver` function.
@@ -193,7 +190,7 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
     /// Can only be called by the constructor of the `Initializer` contract or owner.
     /// @param _validatorSet The address of the `ValidatorSet` contract.
     function initialize(address _validatorSet) external {
-        require(block.number == 0 || msg.sender == _admin());
+        require(_getCurrentBlockNumber() == 0 || msg.sender == _admin());
         require(!isInitialized());
         require(_validatorSet != address(0));
         validatorSetContract = IValidatorSetAuRa(_validatorSet);
@@ -261,7 +258,7 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
             }
         }
 
-        if (block.number == stakingEpochEndBlock) {
+        if (_getCurrentBlockNumber() == stakingEpochEndBlock) {
             // Distribute rewards among validator pools
             if (stakingEpoch != 0) {
                 (receiversNative, rewardsNative) = _distributeRewards(
@@ -385,6 +382,12 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
     /// ensure it works with the BlockReward contract.
     function blockRewardContractId() public pure returns(bytes4) {
         return bytes4(keccak256("blockReward"));
+    }
+
+    /// @dev Returns an array of epoch numbers for which the specified pool (mining address)
+    /// got a non-zero reward.
+    function epochsPoolGotRewardFor(address _miningAddress) public view returns(uint256[] memory) {
+        return _epochsPoolGotRewardFor[_miningAddress];
     }
 
     /// @dev Returns the array of `erc-to-erc` bridge addresses set by the `setErcToErcBridgesAllowed` setter.
@@ -520,7 +523,10 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
         uint256 blocksCreatedShareDenom = 0;
         if (totalRewardShareNum != 0) {
             for (uint256 i = 0; i < validators.length; i++) {
-                if (!validatorSetContract.isValidatorBanned(validators[i])) {
+                if (
+                    !validatorSetContract.isValidatorBanned(validators[i]) &&
+                    snapshotPoolValidatorStakeAmount[_stakingEpoch][validators[i]] != 0
+                ) {
                     blocksCreatedShareNum[i] = blocksCreated[_stakingEpoch][validators[i]];
                 } else {
                     blocksCreatedShareNum[i] = 0;
@@ -608,7 +614,7 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
                     epochPoolNativeReward[_stakingEpoch][_validators[i]] = poolReward;
                     distributedAmount += poolReward;
                     if (poolReward != 0 && epochPoolTokenReward[_stakingEpoch][_validators[i]] == 0) {
-                        epochsPoolGotRewardFor[_validators[i]].push(_stakingEpoch);
+                        _epochsPoolGotRewardFor[_validators[i]].push(_stakingEpoch);
                     }
                 }
             }
@@ -616,7 +622,7 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
 
         nativeRewardUndistributed = totalReward - distributedAmount;
 
-        return rewardToDistribute;
+        return distributedAmount;
     }
 
     /// @dev Distributes rewards in tokens among pools at the latest block of a staking epoch.
@@ -670,15 +676,20 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
                     epochPoolTokenReward[_stakingEpoch][_validators[i]] = poolReward;
                     distributedAmount += poolReward;
                     if (poolReward != 0 && epochPoolNativeReward[_stakingEpoch][_validators[i]] == 0) {
-                        epochsPoolGotRewardFor[_validators[i]].push(_stakingEpoch);
+                        _epochsPoolGotRewardFor[_validators[i]].push(_stakingEpoch);
                     }
                 }
 
-                IERC20Minting(erc20TokenContract).mintReward(address(this), rewardToDistribute);
+                IERC20Minting(erc20TokenContract).mintReward(address(this), distributedAmount);
             }
         }
 
         tokenRewardUndistributed = totalReward - distributedAmount;
+    }
+
+    /// @dev Returns the current block number. Needed mostly for unit tests.
+    function _getCurrentBlockNumber() internal view returns(uint256) {
+        return block.number;
     }
 
     /// @dev Joins two native coin receiver elements into a single set and returns the result
@@ -773,9 +784,10 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
     /// @param _account The address for which the `_amount` is minted.
     /// @param _bridge The address of the bridge contract which called the `addExtraReceiver` function.
     function _setMinted(uint256 _amount, address _account, address _bridge) internal {
-        mintedForAccountInBlock[_account][block.number] = _amount;
+        uint256 blockNumber = _getCurrentBlockNumber();
+        mintedForAccountInBlock[_account][blockNumber] = _amount;
         mintedForAccount[_account] += _amount;
-        mintedInBlock[block.number] += _amount;
+        mintedInBlock[blockNumber] += _amount;
         mintedTotallyByBridge[_bridge] += _amount;
         mintedTotally += _amount;
     }
