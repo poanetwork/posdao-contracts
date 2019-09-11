@@ -710,7 +710,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     function _setPendingValidators(
         address[] memory _stakingAddresses
     ) internal {
-        if (_stakingAddresses.length == 0) return;
+        if (_stakingAddresses.length == 0 && unremovableValidator == address(0)) return;
 
         delete _pendingValidators;
 

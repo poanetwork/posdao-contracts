@@ -144,7 +144,7 @@ contract('BlockRewardAuRa', async accounts => {
       (await validatorSetAuRa.getValidators.call()).should.be.deep.equal(validators);
     });
 
-    it('validators and their delegators place stakes during the epoch #1', async () => {
+    it('  validators and their delegators place stakes during the epoch #1', async () => {
       const validators = await validatorSetAuRa.getValidators.call();
 
       for (let i = 0; i < validators.length; i++) {
@@ -169,7 +169,7 @@ contract('BlockRewardAuRa', async accounts => {
       }
     });
 
-    it('bridge fee accumulated during the epoch #1', async () => {
+    it('  bridge fee accumulated during the epoch #1', async () => {
       await accrueBridgeFees();
     });
 
@@ -238,7 +238,7 @@ contract('BlockRewardAuRa', async accounts => {
       );
     });
 
-    it('bridge fee accumulated during the epoch #2', async () => {
+    it('  bridge fee accumulated during the epoch #2', async () => {
       await accrueBridgeFees();
     });
 
@@ -316,9 +316,13 @@ contract('BlockRewardAuRa', async accounts => {
       );
     });
 
-    it('three other candidates are added during the epoch #3', async () => {
-      const candidatesMiningAddresses = accounts.slice(21, 23 + 1); // accounts[21...23]
-      const candidatesStakingAddresses = accounts.slice(24, 26 + 1); // accounts[24...26]
+    let epoch3NewCandidatesMiningAddresses;
+
+    it('  three other candidates are added during the epoch #3', async () => {
+      const candidatesMiningAddresses = accounts.slice(31, 33 + 1); // accounts[31...33]
+      const candidatesStakingAddresses = accounts.slice(34, 36 + 1); // accounts[34...36]
+
+      epoch3NewCandidatesMiningAddresses = candidatesMiningAddresses;
 
       for (let i = 0; i < candidatesMiningAddresses.length; i++) {
         // Mint some balance for each candidate (imagine that each candidate got the tokens from a bridge)
@@ -331,23 +335,357 @@ contract('BlockRewardAuRa', async accounts => {
         await stakingAuRa.addPool(candidateMinStake, miningAddress, {from: stakingAddress}).should.be.fulfilled;
 
         const delegatorsLength = 3;
-        const delegators = accounts.slice(31 + i*delegatorsLength, 31 + i*delegatorsLength + delegatorsLength);
+        const delegators = accounts.slice(41 + i*delegatorsLength, 41 + i*delegatorsLength + delegatorsLength);
         for (let j = 0; j < delegators.length; j++) {
           // Mint some balance for each delegator (imagine that each delegator got the tokens from a bridge)
           await erc20Token.mint(delegators[j], delegatorMinStake, {from: owner}).should.be.fulfilled;
           delegatorMinStake.should.be.bignumber.equal(await erc20Token.balanceOf.call(delegators[j]));
 
-          // Delegator places stake on the validator
+          // Delegator places stake on the candidate
           await stakingAuRa.stake(stakingAddress, delegatorMinStake, {from: delegators[j]}).should.be.fulfilled;
         }
       }
     });
 
-    it('bridge fee accumulated during the epoch #3', async () => {
+    it('  bridge fee accumulated during the epoch #3', async () => {
       await accrueBridgeFees();
     });
 
-    // ...
+    it('staking epoch #3 finished', async () => {
+      const stakingEpoch = await stakingAuRa.stakingEpoch.call();
+      stakingEpoch.should.be.bignumber.equal(new BN(3));
+
+      const stakingEpochEndBlock = (await stakingAuRa.stakingEpochStartBlock.call()).add(new BN(STAKING_EPOCH_DURATION)).sub(new BN(1));
+      await setCurrentBlockNumber(stakingEpochEndBlock);
+
+      const validators = await validatorSetAuRa.getValidators.call();
+      const blocksCreated = stakingEpochEndBlock.sub(await validatorSetAuRa.validatorSetApplyBlock.call()).div(new BN(validators.length));
+      blocksCreated.should.be.bignumber.above(new BN(0));
+      for (let i = 0; i < validators.length; i++) {
+        await blockRewardAuRa.setBlocksCreated(stakingEpoch, validators[i], blocksCreated).should.be.fulfilled;
+        if (i < validators.length - 1) { // the last validator turns off their node
+          await randomAuRa.setSentReveal(validators[i]).should.be.fulfilled;
+        }
+      }
+
+      const blockRewardBalanceBeforeReward = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+
+      (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(false);
+      (await validatorSetAuRa.isValidatorBanned.call(validators[2])).should.be.equal(false);
+      await callReward();
+      const nextStakingEpoch = stakingEpoch.add(new BN(1)); // 4
+      (await stakingAuRa.stakingEpoch.call()).should.be.bignumber.equal(nextStakingEpoch);
+      (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(true);
+      (await validatorSetAuRa.isValidatorBanned.call(validators[2])).should.be.equal(true);
+
+      let rewardDistributed = new BN(0);
+      for (let i = 0; i < validators.length; i++) {
+        const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, validators[i]);
+        if (i < validators.length - 1) {
+          epochPoolTokenReward.should.be.bignumber.above(new BN(0));
+        } else {
+          epochPoolTokenReward.should.be.bignumber.equal(new BN(0));
+        }
+        rewardDistributed = rewardDistributed.add(epochPoolTokenReward);
+        const epochsPoolGotRewardFor = await blockRewardAuRa.epochsPoolGotRewardFor.call(validators[i]);
+        if (i < validators.length - 1) {
+          epochsPoolGotRewardFor.length.should.be.equal(2);
+          epochsPoolGotRewardFor[0].should.be.bignumber.equal(new BN(2));
+          epochsPoolGotRewardFor[1].should.be.bignumber.equal(new BN(3));
+        } else {
+          epochsPoolGotRewardFor.length.should.be.equal(1);
+          epochsPoolGotRewardFor[0].should.be.bignumber.equal(new BN(2));
+        }
+      }
+      rewardDistributed.should.be.bignumber.above(web3.utils.toWei(new BN(1)));
+
+      const blockRewardBalanceAfterReward = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+
+      blockRewardBalanceAfterReward.should.be.bignumber.equal(blockRewardBalanceBeforeReward.add(rewardDistributed));
+      (await blockRewardAuRa.bridgeTokenFee.call()).should.be.bignumber.equal(new BN(0));
+      (await blockRewardAuRa.bridgeNativeFee.call()).should.be.bignumber.equal(new BN(0));
+
+      const pendingValidators = await validatorSetAuRa.getPendingValidators.call();
+      for (let i = 0; i < pendingValidators.length; i++) {
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, pendingValidators[i])).should.be.bignumber.equal(
+          candidateMinStake
+        );
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, pendingValidators[i])).should.be.bignumber.equal(
+          candidateMinStake.add(delegatorMinStake.mul(new BN(3)))
+        );
+      }
+      for (let i = 0; i < validators.length; i++) {
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
+          candidateMinStake
+        );
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
+          candidateMinStake.add(delegatorMinStake.mul(new BN(3)))
+        );
+      }
+
+      pendingValidators.length.should.be.equal(5);
+      pendingValidators[0].should.be.equal(validators[0]);
+      pendingValidators[1].should.be.equal(validators[1]);
+      pendingValidators[2].should.be.equal(epoch3NewCandidatesMiningAddresses[2]);
+      pendingValidators[3].should.be.equal(epoch3NewCandidatesMiningAddresses[0]);
+      pendingValidators[4].should.be.equal(epoch3NewCandidatesMiningAddresses[1]);
+    });
+
+    let epoch4Validators;
+
+    it('staking epoch #4 started', async () => {
+      const prevValidators = await validatorSetAuRa.getValidators.call();
+      const pendingValidators = await validatorSetAuRa.getPendingValidators.call();
+
+      const stakingEpochStartBlock = await stakingAuRa.stakingEpochStartBlock.call();
+      let currentBlock = stakingEpochStartBlock.add(new BN(STAKING_EPOCH_DURATION / 2));
+      await setCurrentBlockNumber(currentBlock);
+
+      const {logs} = await validatorSetAuRa.emitInitiateChange().should.be.fulfilled;
+      logs[0].event.should.be.equal("InitiateChange");
+      logs[0].args.newSet.should.be.deep.equal(pendingValidators);
+
+      const validatorsToBeFinalized = await validatorSetAuRa.validatorsToBeFinalized.call();
+      validatorsToBeFinalized.miningAddresses.should.be.deep.equal(pendingValidators);
+      validatorsToBeFinalized.forNewEpoch.should.be.equal(true);
+
+      currentBlock = currentBlock.add(new BN(Math.floor(prevValidators.length / 2) + 1));
+      await setCurrentBlockNumber(currentBlock);
+
+      (await validatorSetAuRa.validatorSetApplyBlock.call()).should.be.bignumber.equal(new BN(0));
+      await callFinalizeChange();
+      (await validatorSetAuRa.validatorSetApplyBlock.call()).should.be.bignumber.equal(currentBlock);
+      epoch4Validators = await validatorSetAuRa.getValidators.call();
+      epoch4Validators.should.be.deep.equal(pendingValidators);
+
+      (await blockRewardAuRa.snapshotTotalStakeAmount.call()).should.be.bignumber.equal(
+        candidateMinStake.add(delegatorMinStake.mul(new BN(3))).mul(new BN(5))
+      );
+    });
+
+    it('  bridge fee accumulated during the epoch #4', async () => {
+      await accrueBridgeFees();
+    });
+
+    let epoch4CandidatesMiningAddresses;
+
+    it('  three other candidates are added during the epoch #4', async () => {
+      const candidatesMiningAddresses = accounts.slice(61, 63 + 1); // accounts[61...63]
+      const candidatesStakingAddresses = accounts.slice(64, 66 + 1); // accounts[64...66]
+
+      epoch4CandidatesMiningAddresses = candidatesMiningAddresses;
+
+      for (let i = 0; i < candidatesMiningAddresses.length; i++) {
+        // Mint some balance for each candidate (imagine that each candidate got the tokens from a bridge)
+        const miningAddress = candidatesMiningAddresses[i];
+        const stakingAddress = candidatesStakingAddresses[i];
+        await erc20Token.mint(stakingAddress, candidateMinStake, {from: owner}).should.be.fulfilled;
+        candidateMinStake.should.be.bignumber.equal(await erc20Token.balanceOf.call(stakingAddress));
+
+        // Candidate places stake on themselves
+        await stakingAuRa.addPool(candidateMinStake, miningAddress, {from: stakingAddress}).should.be.fulfilled;
+
+        const delegatorsLength = 3;
+        const delegators = accounts.slice(71 + i*delegatorsLength, 71 + i*delegatorsLength + delegatorsLength);
+        for (let j = 0; j < delegators.length; j++) {
+          // Mint some balance for each delegator (imagine that each delegator got the tokens from a bridge)
+          await erc20Token.mint(delegators[j], delegatorMinStake, {from: owner}).should.be.fulfilled;
+          delegatorMinStake.should.be.bignumber.equal(await erc20Token.balanceOf.call(delegators[j]));
+
+          // Delegator places stake on the candidate
+          await stakingAuRa.stake(stakingAddress, delegatorMinStake, {from: delegators[j]}).should.be.fulfilled;
+        }
+      }
+    });
+
+    it('  current validators remove their pools during the epoch #4', async () => {
+      const validators = await validatorSetAuRa.getValidators.call();
+      for (let i = 0; i < validators.length; i++) {
+        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(validators[i]);
+        await stakingAuRa.removeMyPool({from: stakingAddress}).should.be.fulfilled;
+      }
+    });
+
+    it('staking epoch #4 finished', async () => {
+      const stakingEpoch = await stakingAuRa.stakingEpoch.call();
+      stakingEpoch.should.be.bignumber.equal(new BN(4));
+
+      const stakingEpochEndBlock = (await stakingAuRa.stakingEpochStartBlock.call()).add(new BN(STAKING_EPOCH_DURATION)).sub(new BN(1));
+      await setCurrentBlockNumber(stakingEpochEndBlock);
+
+      const validators = await validatorSetAuRa.getValidators.call();
+      const blocksCreated = stakingEpochEndBlock.sub(await validatorSetAuRa.validatorSetApplyBlock.call()).div(new BN(validators.length));
+      blocksCreated.should.be.bignumber.above(new BN(0));
+      for (let i = 0; i < validators.length; i++) {
+        await blockRewardAuRa.setBlocksCreated(stakingEpoch, validators[i], blocksCreated).should.be.fulfilled;
+        await randomAuRa.setSentReveal(validators[i]).should.be.fulfilled;
+      }
+
+      const blockRewardBalanceBeforeReward = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+
+      (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(false);
+      await callReward();
+      const nextStakingEpoch = stakingEpoch.add(new BN(1)); // 4
+      (await stakingAuRa.stakingEpoch.call()).should.be.bignumber.equal(nextStakingEpoch);
+      (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(true);
+
+      let rewardDistributed = new BN(0);
+      for (let i = 0; i < validators.length; i++) {
+        const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, validators[i]);
+        epochPoolTokenReward.should.be.bignumber.above(new BN(0));
+        rewardDistributed = rewardDistributed.add(epochPoolTokenReward);
+        const epochsPoolGotRewardFor = await blockRewardAuRa.epochsPoolGotRewardFor.call(validators[i]);
+        if (i < 2) {
+          epochsPoolGotRewardFor.length.should.be.equal(3);
+          epochsPoolGotRewardFor[0].should.be.bignumber.equal(new BN(2));
+          epochsPoolGotRewardFor[1].should.be.bignumber.equal(new BN(3));
+          epochsPoolGotRewardFor[2].should.be.bignumber.equal(new BN(4));
+        } else {
+          epochsPoolGotRewardFor.length.should.be.equal(1);
+          epochsPoolGotRewardFor[0].should.be.bignumber.equal(new BN(4));
+        }
+      }
+      rewardDistributed.should.be.bignumber.above(web3.utils.toWei(new BN(1)).div(new BN(2)));
+      rewardDistributed.should.be.bignumber.below(web3.utils.toWei(new BN(1)));
+
+      const blockRewardBalanceAfterReward = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+
+      blockRewardBalanceAfterReward.should.be.bignumber.equal(blockRewardBalanceBeforeReward.add(rewardDistributed));
+      (await blockRewardAuRa.bridgeTokenFee.call()).should.be.bignumber.equal(new BN(0));
+      (await blockRewardAuRa.bridgeNativeFee.call()).should.be.bignumber.equal(new BN(0));
+
+      const pendingValidators = await validatorSetAuRa.getPendingValidators.call();
+      [...pendingValidators].sort().should.be.deep.equal([...epoch4CandidatesMiningAddresses].sort());
+      for (let i = 0; i < pendingValidators.length; i++) {
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, pendingValidators[i])).should.be.bignumber.equal(
+          candidateMinStake
+        );
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, pendingValidators[i])).should.be.bignumber.equal(
+          candidateMinStake.add(delegatorMinStake.mul(new BN(3)))
+        );
+      }
+      for (let i = 0; i < validators.length; i++) {
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
+          candidateMinStake
+        );
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
+          candidateMinStake.add(delegatorMinStake.mul(new BN(3)))
+        );
+      }
+    });
+
+    it('staking epoch #5 started', async () => {
+      const prevValidators = await validatorSetAuRa.getValidators.call();
+      const pendingValidators = await validatorSetAuRa.getPendingValidators.call();
+
+      const stakingEpochStartBlock = await stakingAuRa.stakingEpochStartBlock.call();
+      await setCurrentBlockNumber(stakingEpochStartBlock);
+
+      const {logs} = await validatorSetAuRa.emitInitiateChange().should.be.fulfilled;
+      logs[0].event.should.be.equal("InitiateChange");
+      logs[0].args.newSet.should.be.deep.equal(pendingValidators);
+
+      (await validatorSetAuRa.validatorSetApplyBlock.call()).should.be.bignumber.equal(new BN(0));
+      (await blockRewardAuRa.snapshotTotalStakeAmount.call()).should.be.bignumber.equal(new BN(0));
+    });
+
+    it('  current pending validators remove their pools during the epoch #5', async () => {
+      const pendingValidators = await validatorSetAuRa.getPendingValidators.call();
+      for (let i = 0; i < pendingValidators.length; i++) {
+        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(pendingValidators[i]);
+        await stakingAuRa.removeMyPool({from: stakingAddress}).should.be.fulfilled;
+      }
+    });
+
+    let epoch5CandidatesMiningAddresses;
+
+    it('  three other candidates are added during the epoch #5', async () => {
+      const candidatesMiningAddresses = accounts.slice(91, 93 + 1); // accounts[91...93]
+      const candidatesStakingAddresses = accounts.slice(94, 96 + 1); // accounts[94...96]
+
+      epoch5CandidatesMiningAddresses = candidatesMiningAddresses;
+
+      for (let i = 0; i < candidatesMiningAddresses.length; i++) {
+        // Mint some balance for each candidate (imagine that each candidate got the tokens from a bridge)
+        const miningAddress = candidatesMiningAddresses[i];
+        const stakingAddress = candidatesStakingAddresses[i];
+        await erc20Token.mint(stakingAddress, candidateMinStake, {from: owner}).should.be.fulfilled;
+        candidateMinStake.should.be.bignumber.equal(await erc20Token.balanceOf.call(stakingAddress));
+
+        // Candidate places stake on themselves
+        await stakingAuRa.addPool(candidateMinStake, miningAddress, {from: stakingAddress}).should.be.fulfilled;
+      }
+    });
+
+    it('staking epoch #5 finished', async () => {
+      const stakingEpoch = await stakingAuRa.stakingEpoch.call();
+      stakingEpoch.should.be.bignumber.equal(new BN(5));
+
+      const stakingEpochEndBlock = (await stakingAuRa.stakingEpochStartBlock.call()).add(new BN(STAKING_EPOCH_DURATION)).sub(new BN(1));
+      await setCurrentBlockNumber(stakingEpochEndBlock);
+
+      const validators = await validatorSetAuRa.getValidators.call();
+      validators.should.be.deep.equal(epoch4Validators);
+      for (let i = 0; i < validators.length; i++) {
+        if (i < 2) { // the last three validators turn off their nodes
+          await randomAuRa.setSentReveal(validators[i]).should.be.fulfilled;
+        }
+      }
+
+      const blockRewardBalanceBeforeReward = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+
+      (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(false);
+      (await validatorSetAuRa.isValidatorBanned.call(validators[2])).should.be.equal(false);
+      (await validatorSetAuRa.isValidatorBanned.call(validators[3])).should.be.equal(false);
+      (await validatorSetAuRa.isValidatorBanned.call(validators[4])).should.be.equal(false);
+      await callReward();
+      const nextStakingEpoch = stakingEpoch.add(new BN(1)); // 6
+      (await stakingAuRa.stakingEpoch.call()).should.be.bignumber.equal(nextStakingEpoch);
+      (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(false);
+      (await validatorSetAuRa.isValidatorBanned.call(validators[2])).should.be.equal(true);
+      (await validatorSetAuRa.isValidatorBanned.call(validators[3])).should.be.equal(true);
+      (await validatorSetAuRa.isValidatorBanned.call(validators[4])).should.be.equal(true);
+
+      for (let i = 0; i < validators.length; i++) {
+        const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, validators[i]);
+        epochPoolTokenReward.should.be.bignumber.equal(new BN(0));
+      }
+
+      const blockRewardBalanceAfterReward = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+
+      blockRewardBalanceAfterReward.should.be.bignumber.equal(blockRewardBalanceBeforeReward);
+      (await blockRewardAuRa.bridgeTokenFee.call()).should.be.bignumber.equal(new BN(0));
+      (await blockRewardAuRa.bridgeNativeFee.call()).should.be.bignumber.equal(new BN(0));
+
+      const pendingValidators = await validatorSetAuRa.getPendingValidators.call();
+      [...pendingValidators].sort().should.be.deep.equal([...epoch5CandidatesMiningAddresses].sort());
+      for (let i = 0; i < pendingValidators.length; i++) {
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, pendingValidators[i])).should.be.bignumber.equal(
+          candidateMinStake
+        );
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, pendingValidators[i])).should.be.bignumber.equal(
+          candidateMinStake
+        );
+      }
+      for (let i = 0; i < validators.length; i++) {
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
+          candidateMinStake
+        );
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
+          candidateMinStake.add(delegatorMinStake.mul(new BN(3)))
+        );
+      }
+      const validatorsToBeFinalized = (await validatorSetAuRa.validatorsToBeFinalized.call()).miningAddresses;
+      [...validatorsToBeFinalized].sort().should.be.deep.equal([...epoch4CandidatesMiningAddresses].sort());
+      for (let i = 0; i < validatorsToBeFinalized.length; i++) {
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, validatorsToBeFinalized[i])).should.be.bignumber.equal(
+          candidateMinStake
+        );
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, validatorsToBeFinalized[i])).should.be.bignumber.equal(
+          candidateMinStake.add(delegatorMinStake.mul(new BN(3)))
+        );
+      }
+    });
   });
 
   async function accrueBridgeFees() {
