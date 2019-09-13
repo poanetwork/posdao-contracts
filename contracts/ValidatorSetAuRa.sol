@@ -462,6 +462,37 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         return _getCurrentBlockNumber() <= bannedUntil[_miningAddress];
     }
 
+    /// @dev Returns a boolean flag indicating whether the specified mining address is a validator
+    /// or is in the `_pendingValidators` or `_finalizeValidators` array.
+    /// Used by the `StakingAuRa.maxWithdrawAllowed` and `StakingAuRa.maxWithdrawOrderAllowed` getters.
+    /// @param _miningAddress The mining address.
+    function isValidatorOrPending(address _miningAddress) public view returns(bool) {
+        if (isValidator[_miningAddress]) {
+            return true;
+        }
+
+        uint256 i;
+        uint256 length;
+
+        length = _finalizeValidators.list.length;
+        for (i = 0; i < length; i++) {
+            if (_miningAddress == _finalizeValidators.list[i]) {
+                // This validator waits to be finalized,
+                // so we treat them as `pending`
+                return true;
+            }
+        }
+
+        length = _pendingValidators.length;
+        for (i = 0; i < length; i++) {
+            if (_miningAddress == _pendingValidators[i]) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /// @dev Returns whether the `reportMalicious` function can be called by the specified validator with the
     /// given parameters. Used by the `reportMalicious` function and `TxPermission` contract. Also, returns
     /// a boolean flag indicating whether the reporting validator should be removed as malicious due to

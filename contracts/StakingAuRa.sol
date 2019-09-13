@@ -604,7 +604,8 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     function areStakeAndWithdrawAllowed() public view returns(bool) {
         uint256 currentBlock = _getCurrentBlockNumber();
         uint256 allowedDuration = stakingEpochDuration - stakeWithdrawDisallowPeriod;
-        return currentBlock.sub(stakingEpochStartBlock) <= allowedDuration;
+        if (currentBlock < stakingEpochStartBlock) return false;
+        return currentBlock - stakingEpochStartBlock <= allowedDuration;
     }
 
     /// @dev Returns a boolean flag indicating if the `initialize` function has been called.
@@ -632,13 +633,14 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
 
         uint256 canWithdraw = stakeAmountMinusOrderedWithdraw(_poolStakingAddress, _staker);
 
-        if (!validatorSetContract.isValidator(miningAddress)) {
-            // The pool is not an active validator, so the staker can
-            // only withdraw staked amount minus already ordered amount
+        if (!validatorSetContract.isValidatorOrPending(miningAddress)) {
+            // The pool is not a validator and is not going to become one,
+            // so the staker can only withdraw staked amount minus already
+            // ordered amount
             return canWithdraw;
         }
 
-        // The pool is an active validator, so the staker can only
+        // The pool is a validator (active or pending), so the staker can only
         // withdraw staked amount minus already ordered amount but
         // no more than the amount staked during the current staking epoch
         uint256 stakedDuringEpoch = stakeAmountByCurrentEpoch(_poolStakingAddress, _staker);
@@ -661,14 +663,14 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
             return 0;
         }
 
-        if (!validatorSetContract.isValidator(miningAddress)) {
-            // If the pool is a candidate (not a validator), no one can order
-            // withdrawal from the `_poolStakingAddress`, but anyone can withdraw
-            // immediately (see the `maxWithdrawAllowed` getter)
+        if (!validatorSetContract.isValidatorOrPending(miningAddress)) {
+            // If the pool is a candidate (not an active validator and not pending one),
+            // no one can order withdrawal from the `_poolStakingAddress`, but
+            // anyone can withdraw immediately (see the `maxWithdrawAllowed` getter)
             return 0;
         }
 
-        // If the pool is an active validator, the staker can order withdrawal
+        // If the pool is an active or pending validator, the staker can order withdrawal
         // up to their total staking amount minus an already ordered amount
         // minus an amount staked during the current staking epoch
         return stakeAmountMinusOrderedWithdraw(
