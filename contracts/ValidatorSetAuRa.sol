@@ -445,7 +445,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         if (stakingContract.stakingEpoch() == 0 || validatorSetApplyBlock == 0) {
             return isValid;
         }
-        if (_getCurrentBlockNumber() - validatorSetApplyBlock <= 20) {
+        if (_getCurrentBlockNumber() - validatorSetApplyBlock <= MAX_VALIDATORS) {
             // The current validator set was finalized by the engine,
             // but we should let the previous validators finish
             // reporting malicious validator within a few blocks
