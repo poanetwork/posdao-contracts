@@ -17,6 +17,9 @@ contract BlockRewardAuRaMock is BlockRewardAuRa {
 
     // =============================================== Setters ========================================================
 
+    function sendCoins() public payable {
+    }
+
     function setBlocksCreated(uint256 _stakingEpoch, address _miningAddress, uint256 _value) public {
         blocksCreated[_stakingEpoch][_miningAddress] = _value;
     }

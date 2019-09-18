@@ -9,6 +9,13 @@ import "./upgradeability/UpgradeableOwned.sol";
 import "./libs/SafeMath.sol";
 
 
+contract Sacrifice {
+    constructor(address payable _recipient) public payable {
+        selfdestruct(_recipient);
+    }
+}
+
+
 /// @dev Generates and distributes rewards according to the logic and formulas described in the POSDAO white paper.
 contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
     using SafeMath for uint256;
@@ -143,7 +150,13 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
         _;
     }
 
-    /// @dev Ensures the caller is the ValidatorSet contract address.
+    /// @dev Ensures the caller is the StakingAuRa contract address.
+    modifier onlyStakingContract() {
+        require(msg.sender == address(validatorSetContract.stakingContract()));
+        _;
+    }
+
+    /// @dev Ensures the caller is the ValidatorSetAuRa contract address.
     modifier onlyValidatorSetContract() {
         require(msg.sender == address(validatorSetContract));
         _;
@@ -376,6 +389,26 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
         snapshotTotalStakeAmount = totalStakeAmount;
     }
 
+    /// @dev Called by the `StakingAuRa.claimReward` function to transfer tokens and native coins
+    /// from the balance of the `BlockRewardAuRa` contract to the specified address as a reward.
+    /// @param _tokens The amount of tokens to transfer as a reward.
+    /// @param _nativeCoins The amount of native coins to transfer as a reward.
+    /// @param _to The target address to transfer to.
+    function transferReward(uint256 _tokens, uint256 _nativeCoins, address payable _to) external onlyStakingContract {
+        if (_tokens != 0) {
+            IStakingAuRa stakingContract = IStakingAuRa(msg.sender);
+            IERC20Minting erc20TokenContract = IERC20Minting(stakingContract.erc20TokenContract());
+            erc20TokenContract.transfer(_to, _tokens);
+        }
+
+        if (_nativeCoins != 0 && !_to.send(_nativeCoins)) {
+            // We use the `Sacrifice` trick to be sure the coins can be 100% sent to the receiver.
+            // Otherwise, if the receiver is a contract which has a revert in its fallback function,
+            // the sending will fail.
+            (new Sacrifice).value(_nativeCoins)(_to);
+        }
+    }
+
     // =============================================== Getters ========================================================
 
     /// @dev Returns an identifier for the bridge contract so that the latter could
@@ -437,9 +470,10 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
             // For the validator we return the coefficient based on
             // snapshotted total amounts
             if (stakingEpoch != 0) {
-                return _validatorRewardPercent(
+                return validatorShare(
                     snapshotPoolValidatorStakeAmount[stakingEpoch][miningAddress],
-                    snapshotPoolTotalStakeAmount[stakingEpoch][miningAddress]
+                    snapshotPoolTotalStakeAmount[stakingEpoch][miningAddress],
+                    REWARD_PERCENT_MULTIPLIER
                 );
             } else {
                 // No one gets a reward for the initial staking epoch, so we return zero
@@ -457,9 +491,10 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
             miningAddresses = validatorSetContract.getPendingValidators();
             for (i = 0; i < miningAddresses.length; i++) {
                 if (miningAddress == miningAddresses[i]) {
-                    return _validatorRewardPercent(
+                    return validatorShare(
                         snapshotPoolValidatorStakeAmount[stakingEpoch][miningAddress],
-                        snapshotPoolTotalStakeAmount[stakingEpoch][miningAddress]
+                        snapshotPoolTotalStakeAmount[stakingEpoch][miningAddress],
+                        REWARD_PERCENT_MULTIPLIER
                     );
                 }
             }
@@ -467,9 +502,10 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
             (miningAddresses, ) = validatorSetContract.validatorsToBeFinalized();
             for (i = 0; i < miningAddresses.length; i++) {
                 if (miningAddress == miningAddresses[i]) {
-                    return _validatorRewardPercent(
+                    return validatorShare(
                         snapshotPoolValidatorStakeAmount[stakingEpoch][miningAddress],
-                        snapshotPoolTotalStakeAmount[stakingEpoch][miningAddress]
+                        snapshotPoolTotalStakeAmount[stakingEpoch][miningAddress],
+                        REWARD_PERCENT_MULTIPLIER
                     );
                 }
             }
@@ -477,14 +513,68 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
 
         // For the candidate that is not about to be a validator on the current staking epoch,
         // we return the potentially possible reward coefficient
-        return _validatorRewardPercent(
+        return validatorShare(
             stakingContract.stakeAmountMinusOrderedWithdraw(_stakingAddress, _stakingAddress),
-            stakingContract.stakeAmountTotalMinusOrderedWithdraw(_stakingAddress)
+            stakingContract.stakeAmountTotalMinusOrderedWithdraw(_stakingAddress),
+            REWARD_PERCENT_MULTIPLIER
         );
+    }
+
+    /// @dev Calculates delegator's share for the given pool reward amount.
+    /// Used by the `StakingAuRa.claimReward` function.
+    /// @param _delegatorStaked The amount staked by a delegator.
+    /// @param _validatorStaked The amount staked by a validator.
+    /// @param _totalStaked The total amount staked by a validator and their delegators.
+    /// @param _poolReward The value of pool reward.
+    function delegatorShare(
+        uint256 _delegatorStaked,
+        uint256 _validatorStaked,
+        uint256 _totalStaked,
+        uint256 _poolReward
+    ) public pure returns(uint256) {
+        if (_delegatorStaked == 0 || _validatorStaked == 0 || _totalStaked == 0) {
+            return 0;
+        }
+        uint256 share = 0;
+        uint256 delegatorsStaked = _totalStaked >= _validatorStaked ? _totalStaked - _validatorStaked : 0;
+        if (_validatorStaked * (100 - REWARD_VALIDATOR_MIN_SHARE) > delegatorsStaked * REWARD_VALIDATOR_MIN_SHARE) {
+            // Validator has more than REWARD_VALIDATOR_MIN_SHARE %
+            share = _poolReward * _delegatorStaked / _totalStaked;
+        } else {
+            // Validator has REWARD_VALIDATOR_MIN_SHARE %
+            share = _poolReward * _delegatorStaked * (100 - REWARD_VALIDATOR_MIN_SHARE) / (delegatorsStaked * 100);
+        }
+        return share;
+    }
+
+    /// @dev Calculates validator's share for the given pool reward amount.
+    /// Used by the `validatorRewardPercent` and `StakingAuRa.claimReward` functions.
+    /// @param _validatorStaked The amount staked by a validator.
+    /// @param _totalStaked The total amount staked by a validator and their delegators.
+    /// @param _poolReward The value of pool reward.
+    function validatorShare(
+        uint256 _validatorStaked,
+        uint256 _totalStaked,
+        uint256 _poolReward
+    ) public pure returns(uint256) {
+        if (_validatorStaked == 0 || _totalStaked == 0) {
+            return 0;
+        }
+        uint256 share = 0;
+        uint256 delegatorsStaked = _totalStaked >= _validatorStaked ? _totalStaked - _validatorStaked : 0;
+        if (_validatorStaked * (100 - REWARD_VALIDATOR_MIN_SHARE) > delegatorsStaked * REWARD_VALIDATOR_MIN_SHARE) {
+            // Validator has more than REWARD_VALIDATOR_MIN_SHARE %
+            share = _poolReward * _validatorStaked / _totalStaked;
+        } else {
+            // Validator has REWARD_VALIDATOR_MIN_SHARE %
+            share = _poolReward * REWARD_VALIDATOR_MIN_SHARE / 100;
+        }
+        return share;
     }
 
     // =============================================== Private ========================================================
 
+    uint256 internal constant REWARD_VALIDATOR_MIN_SHARE = 30; // 30%
     uint256 internal constant REWARD_PERCENT_MULTIPLIER = 1000000;
 
     /// @dev Distributes rewards among pools at the latest block of a staking epoch.
@@ -794,44 +884,24 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
 
     /// @dev Makes snapshots of total amount staked into the specified pool
     /// before the specified staking epoch. Used by the `reward` function.
-    /// @param stakingContract The address of the `StakingAuRa` contract.
-    /// @param stakingEpoch The number of staking epoch.
-    /// @param miningAddress The mining address of the pool.
+    /// @param _stakingContract The address of the `StakingAuRa` contract.
+    /// @param _stakingEpoch The number of staking epoch.
+    /// @param _miningAddress The mining address of the pool.
     function _snapshotPoolStakeAmounts(
-        IStakingAuRa stakingContract,
-        uint256 stakingEpoch,
-        address miningAddress
+        IStakingAuRa _stakingContract,
+        uint256 _stakingEpoch,
+        address _miningAddress
     ) internal {
-        if (snapshotPoolTotalStakeAmount[stakingEpoch][miningAddress] != 0) {
+        if (snapshotPoolTotalStakeAmount[_stakingEpoch][_miningAddress] != 0) {
             return;
         }
-        address stakingAddress = validatorSetContract.stakingByMiningAddress(miningAddress);
-        uint256 totalAmount = stakingContract.stakeAmountTotalMinusOrderedWithdraw(stakingAddress);
+        address stakingAddress = validatorSetContract.stakingByMiningAddress(_miningAddress);
+        uint256 totalAmount = _stakingContract.stakeAmountTotalMinusOrderedWithdraw(stakingAddress);
         if (totalAmount == 0) {
             return;
         }
-        snapshotPoolTotalStakeAmount[stakingEpoch][miningAddress] = totalAmount;
-        snapshotPoolValidatorStakeAmount[stakingEpoch][miningAddress] =
-            stakingContract.stakeAmountMinusOrderedWithdraw(stakingAddress, stakingAddress);
-    }
-
-    /// @dev Calculates the reward coefficient for a validator (or a candidate).
-    /// Used by the `validatorRewardPercent` function.
-    /// @param _validatorStaked The amount staked by a validator.
-    /// @param _totalStaked The total amount staked by a validator and their delegators.
-    function _validatorRewardPercent(
-        uint256 _validatorStaked,
-        uint256 _totalStaked
-    ) internal pure returns(uint256 rewardPercent) {
-        rewardPercent = 0;
-        if (_validatorStaked != 0 && _totalStaked != 0) {
-            uint256 delegatorsStaked = _totalStaked >= _validatorStaked ? _totalStaked - _validatorStaked : 0;
-            if (_validatorStaked * 7 > delegatorsStaked * 3) {
-                // Validator has more than 30%
-                rewardPercent = REWARD_PERCENT_MULTIPLIER * _validatorStaked / _totalStaked;
-            } else {
-                rewardPercent = REWARD_PERCENT_MULTIPLIER * 3 / 10;
-            }
-        }
+        snapshotPoolTotalStakeAmount[_stakingEpoch][_miningAddress] = totalAmount;
+        snapshotPoolValidatorStakeAmount[_stakingEpoch][_miningAddress] =
+            _stakingContract.stakeAmountMinusOrderedWithdraw(stakingAddress, stakingAddress);
     }
 }

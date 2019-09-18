@@ -1,5 +1,6 @@
 pragma solidity 0.5.9;
 
+import "./interfaces/IBlockRewardAuRa.sol";
 import "./interfaces/IERC20Minting.sol";
 import "./interfaces/IStakingAuRa.sol";
 import "./interfaces/IValidatorSetAuRa.sol";
@@ -25,6 +26,9 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     mapping(address => address[]) internal _poolDelegators;
     mapping(address => address[]) internal _poolDelegatorsInactive;
     mapping(address => mapping(address => mapping(uint256 => uint256))) internal _stakeAmountByEpoch;
+    mapping(address => mapping(address => mapping(uint256 => uint256))) internal _stakeAmountSnapshot;
+    mapping(address => mapping(address => uint256)) internal _stakeFirstEpoch;
+    mapping(address => mapping(address => uint256)) internal _stakeLastEpoch;
 
     /// @dev The limit of the minimum candidate stake (CANDIDATE_MIN_STAKE).
     uint256 public candidateMinStake;
@@ -93,6 +97,11 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// Check the address is in the array using the `getPoolsToBeRemoved` getter.
     mapping(address => uint256) public poolToBeRemovedIndex;
 
+    /// @dev A boolean flag indicating whether the reward was already taken
+    /// from the specified pool (staking address) by the specified staker for
+    /// the specified staking epoch.
+    mapping(address => mapping(address => mapping(uint256 => bool))) public rewardWasTaken;
+
     /// @dev The amount of staking tokens/coins currently staked into the specified pool by the specified
     /// staker. Doesn't take into account the ordered amount to be withdrawn (use the
     /// `stakeAmountMinusOrderedWithdraw` instead). The first parameter is the pool staking address,
@@ -138,11 +147,26 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// @param staker The address of the staker that withdrew the `amount`.
     /// @param stakingEpoch The serial number of the staking epoch during which the claim was made.
     /// @param amount The withdrawal amount.
-    event Claimed(
+    event ClaimedOrderedWithdraw(
         address indexed fromPoolStakingAddress,
         address indexed staker,
         uint256 indexed stakingEpoch,
         uint256 amount
+    );
+
+    /// @dev Emitted by the `claimReward` function to signal the staker withdrew the specified
+    /// amount of tokens and native coins from the specified pool for the specified staking epoch.
+    /// @param fromPoolStakingAddress The pool from which the `staker` withdrew the amounts.
+    /// @param staker The address of the staker that withdrew the amounts.
+    /// @param stakingEpoch The serial number of the staking epoch for which the claim was made.
+    /// @param tokensAmount The withdrawal amount of tokens.
+    /// @param nativeCoinsAmount The withdrawal amount of native coins.
+    event ClaimedReward(
+        address indexed fromPoolStakingAddress,
+        address indexed staker,
+        uint256 indexed stakingEpoch,
+        uint256 tokensAmount,
+        uint256 nativeCoinsAmount
     );
 
     /// @dev Emitted by the `stake` function to signal the staker placed a stake of the specified
@@ -485,6 +509,10 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
 
         _setLikelihood(_poolStakingAddress);
 
+        if (staker != _poolStakingAddress) {
+            _snapshotAmount(_poolStakingAddress, staker);
+        }
+
         emit WithdrawalOrdered(_poolStakingAddress, staker, epoch, _amount);
     }
 
@@ -525,7 +553,57 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
             staker.transfer(claimAmount);
         }
 
-        emit Claimed(_poolStakingAddress, staker, epoch, claimAmount);
+        emit ClaimedOrderedWithdraw(_poolStakingAddress, staker, epoch, claimAmount);
+    }
+
+    /// @dev Withdraws a reward from the specified pool for the specified staking epoch
+    /// to the staker address (msg.sender).
+    /// @param _poolStakingAddress The staking address of the pool from which the reward needs to be withdrawn.
+    /// @param _stakingEpoch The number of staking epoch.
+    function claimReward(address _poolStakingAddress, uint256 _stakingEpoch) external gasPriceIsValid onlyInitialized {
+        IBlockRewardAuRa blockRewardContract = IBlockRewardAuRa(validatorSetContract.blockRewardContract());
+        address payable staker = msg.sender;
+        address miningAddress = validatorSetContract.miningByStakingAddress(_poolStakingAddress);
+        uint256 totalStake = blockRewardContract.snapshotPoolTotalStakeAmount(_stakingEpoch, miningAddress);
+        uint256 validatorStake = blockRewardContract.snapshotPoolValidatorStakeAmount(_stakingEpoch, miningAddress);
+        uint256 poolTokenReward = blockRewardContract.epochPoolTokenReward(_stakingEpoch, miningAddress);
+        uint256 poolNativeReward = blockRewardContract.epochPoolNativeReward(_stakingEpoch, miningAddress);
+
+        require(poolTokenReward != 0 || poolNativeReward != 0);
+        require(!rewardWasTaken[_poolStakingAddress][staker][_stakingEpoch]);
+
+        uint256 tokenReward;
+        uint256 nativeReward;
+
+        if (_poolStakingAddress != staker) { // this is a delegator
+            uint256 firstEpoch = _stakeFirstEpoch[_poolStakingAddress][staker];
+            uint256 lastEpoch = _stakeLastEpoch[_poolStakingAddress][staker];
+
+            require(firstEpoch != 0);
+            require(firstEpoch <= _stakingEpoch);
+            require(lastEpoch > _stakingEpoch || lastEpoch == 0);
+
+            uint256 delegatorStake = 0;
+            for (lastEpoch = _stakingEpoch; lastEpoch >= firstEpoch; lastEpoch--) {
+                delegatorStake = _stakeAmountSnapshot[_poolStakingAddress][staker][lastEpoch];
+                if (delegatorStake != 0) {
+                    delegatorStake = (delegatorStake == uint256(-1)) ? 0 : delegatorStake;
+                    break;
+                }
+            }
+
+            tokenReward = blockRewardContract.delegatorShare(delegatorStake, validatorStake, totalStake, poolTokenReward);
+            nativeReward = blockRewardContract.delegatorShare(delegatorStake, validatorStake, totalStake, poolNativeReward);
+        } else { // this is a validator
+            tokenReward = blockRewardContract.validatorShare(validatorStake, totalStake, poolTokenReward);
+            nativeReward = blockRewardContract.validatorShare(validatorStake, totalStake, poolNativeReward);
+        }
+
+        blockRewardContract.transferReward(tokenReward, nativeReward, staker);
+
+        rewardWasTaken[_poolStakingAddress][staker][_stakingEpoch] = true;
+
+        emit ClaimedReward(_poolStakingAddress, staker, _stakingEpoch, tokenReward, nativeReward);
     }
 
     /// @dev Sets (updates) the address of the ERC20/ERC677 staking token contract. Can only be called by the `owner`.
@@ -1008,6 +1086,23 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         delegatorMinStake = _minStake.mul(STAKE_UNIT);
     }
 
+    /// @dev Makes a snapshot of the amount currently staked by the specified delegator
+    /// in the specified pool (staking address). Used by the `orderWithdraw`, `_stake`, and `_withdraw` functions.
+    /// @param _poolStakingAddress The staking address of the pool.
+    /// @param _delegator The address of the delegator.
+    function _snapshotAmount(address _poolStakingAddress, address _delegator) internal {
+        uint256 nextStakingEpoch = stakingEpoch + 1;
+        uint256 newAmount = stakeAmountMinusOrderedWithdraw(_poolStakingAddress, _delegator);
+
+        _stakeAmountSnapshot[_poolStakingAddress][_delegator][nextStakingEpoch] =
+            (newAmount != 0) ? newAmount : uint256(-1);
+
+        if (_stakeFirstEpoch[_poolStakingAddress][_delegator] == 0) {
+            _stakeFirstEpoch[_poolStakingAddress][_delegator] = nextStakingEpoch;
+        }
+        _stakeLastEpoch[_poolStakingAddress][_delegator] = (newAmount == 0) ? nextStakingEpoch : 0;
+    }
+
     /// @dev The internal function used by the `stake` and `addPool` functions.
     /// See the `stake` public function for more details.
     /// @param _toPoolStakingAddress The staking address of the pool where the tokens/coins should be staked.
@@ -1065,6 +1160,10 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         }
 
         _setLikelihood(_poolStakingAddress);
+
+        if (_staker != _poolStakingAddress) {
+            _snapshotAmount(_poolStakingAddress, _staker);
+        }
     }
 
     /// @dev The internal function used by the `withdraw` and `moveStake` functions.
@@ -1099,6 +1198,10 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         }
 
         _setLikelihood(_poolStakingAddress);
+
+        if (_staker != _poolStakingAddress) {
+            _snapshotAmount(_poolStakingAddress, _staker);
+        }
     }
 
     /// @dev The internal function used by the `_withdraw` and `claimOrderedWithdraw` functions.
