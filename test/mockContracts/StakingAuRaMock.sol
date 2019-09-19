@@ -33,6 +33,10 @@ contract StakingAuRaMock is StakingAuRa {
         stakeAmountTotal[_poolStakingAddress] = _amount;
     }
 
+    function setStakingEpoch(uint256 _stakingEpoch) public {
+        stakingEpoch = _stakingEpoch;
+    }
+
     function setValidatorSetAddress(IValidatorSetAuRa _validatorSetAddress) public {
         validatorSetContract = _validatorSetAddress;
     }

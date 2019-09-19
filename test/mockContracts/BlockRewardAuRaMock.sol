@@ -32,6 +32,14 @@ contract BlockRewardAuRaMock is BlockRewardAuRa {
         _systemAddress = _address;
     }
 
+    function snapshotPoolStakeAmounts(
+        IStakingAuRa _stakingContract,
+        uint256 _stakingEpoch,
+        address _miningAddress
+    ) public {
+        _snapshotPoolStakeAmounts(_stakingContract, _stakingEpoch, _miningAddress);
+    }
+
     // =============================================== Private ========================================================
 
     function _getCurrentBlockNumber() internal view returns(uint256) {
