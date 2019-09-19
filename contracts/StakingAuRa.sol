@@ -592,8 +592,18 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
                 }
             }
 
-            tokenReward = blockRewardContract.delegatorShare(delegatorStake, validatorStake, totalStake, poolTokenReward);
-            nativeReward = blockRewardContract.delegatorShare(delegatorStake, validatorStake, totalStake, poolNativeReward);
+            tokenReward = blockRewardContract.delegatorShare(
+                delegatorStake,
+                validatorStake,
+                totalStake,
+                poolTokenReward
+            );
+            nativeReward = blockRewardContract.delegatorShare(
+                delegatorStake,
+                validatorStake,
+                totalStake,
+                poolNativeReward
+            );
         } else { // this is a validator
             tokenReward = blockRewardContract.validatorShare(validatorStake, totalStake, poolTokenReward);
             nativeReward = blockRewardContract.validatorShare(validatorStake, totalStake, poolNativeReward);
