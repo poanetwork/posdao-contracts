@@ -139,6 +139,13 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// a candidate being selected as a validator for each pool.
     uint256 public constant STAKE_UNIT = 1 ether;
 
+    // =============================================== Structs ========================================================
+
+    struct RewardAmounts {
+        uint256 tokenAmount;
+        uint256 nativeAmount;
+    }
+
     // ================================================ Events ========================================================
 
     /// @dev Emitted by the `claimOrderedWithdraw` function to signal the staker withdrew the specified
@@ -556,64 +563,80 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         emit ClaimedOrderedWithdraw(_poolStakingAddress, staker, epoch, claimAmount);
     }
 
-    /// @dev Withdraws a reward from the specified pool for the specified staking epoch
+    /// @dev Withdraws a reward from the specified pool for the specified staking epochs
     /// to the staker address (msg.sender).
     /// @param _poolStakingAddress The staking address of the pool from which the reward needs to be withdrawn.
-    /// @param _stakingEpoch The number of staking epoch.
-    function claimReward(address _poolStakingAddress, uint256 _stakingEpoch) external gasPriceIsValid onlyInitialized {
-        IBlockRewardAuRa blockRewardContract = IBlockRewardAuRa(validatorSetContract.blockRewardContract());
+    /// @param _stakingEpochs The list of staking epochs in ascending order.
+    /// If the list is empty, it is taken with `BlockRewardAuRa.epochsPoolGotRewardFor` getter.
+    function claimReward(
+        address _poolStakingAddress,
+        uint256[] memory _stakingEpochs
+    ) public gasPriceIsValid onlyInitialized {
         address payable staker = msg.sender;
-        address miningAddress = validatorSetContract.miningByStakingAddress(_poolStakingAddress);
-        uint256 totalStake = blockRewardContract.snapshotPoolTotalStakeAmount(_stakingEpoch, miningAddress);
-        uint256 validatorStake = blockRewardContract.snapshotPoolValidatorStakeAmount(_stakingEpoch, miningAddress);
-        uint256 poolTokenReward = blockRewardContract.epochPoolTokenReward(_stakingEpoch, miningAddress);
-        uint256 poolNativeReward = blockRewardContract.epochPoolNativeReward(_stakingEpoch, miningAddress);
-
-        require(poolTokenReward != 0 || poolNativeReward != 0);
-        require(!rewardWasTaken[_poolStakingAddress][staker][_stakingEpoch]);
-
-        uint256 tokenReward;
-        uint256 nativeReward;
+        uint256 firstEpoch;
+        uint256 lastEpoch;
 
         if (_poolStakingAddress != staker) { // this is a delegator
-            uint256 firstEpoch = _stakeFirstEpoch[_poolStakingAddress][staker];
-            uint256 lastEpoch = _stakeLastEpoch[_poolStakingAddress][staker];
-
+            firstEpoch = _stakeFirstEpoch[_poolStakingAddress][staker];
             require(firstEpoch != 0);
-            require(firstEpoch <= _stakingEpoch);
-            require(lastEpoch > _stakingEpoch || lastEpoch == 0);
-
-            uint256 delegatorStake = 0;
-            for (lastEpoch = _stakingEpoch; lastEpoch >= firstEpoch; lastEpoch--) {
-                delegatorStake = _stakeAmountSnapshot[_poolStakingAddress][staker][lastEpoch];
-                if (delegatorStake != 0) {
-                    delegatorStake = (delegatorStake == uint256(-1)) ? 0 : delegatorStake;
-                    break;
-                }
-            }
-
-            tokenReward = blockRewardContract.delegatorShare(
-                delegatorStake,
-                validatorStake,
-                totalStake,
-                poolTokenReward
-            );
-            nativeReward = blockRewardContract.delegatorShare(
-                delegatorStake,
-                validatorStake,
-                totalStake,
-                poolNativeReward
-            );
-        } else { // this is a validator
-            tokenReward = blockRewardContract.validatorShare(validatorStake, totalStake, poolTokenReward);
-            nativeReward = blockRewardContract.validatorShare(validatorStake, totalStake, poolNativeReward);
+            lastEpoch = _stakeLastEpoch[_poolStakingAddress][staker];
         }
 
-        blockRewardContract.transferReward(tokenReward, nativeReward, staker);
+        IBlockRewardAuRa blockRewardContract = IBlockRewardAuRa(validatorSetContract.blockRewardContract());
+        address miningAddress = validatorSetContract.miningByStakingAddress(_poolStakingAddress);
+        RewardAmounts memory rewardSum = RewardAmounts(0, 0);
+        uint256 prevDelegatorStake = 0;
 
-        rewardWasTaken[_poolStakingAddress][staker][_stakingEpoch] = true;
+        if (_stakingEpochs.length == 0) {
+            _stakingEpochs = blockRewardContract.epochsPoolGotRewardFor(miningAddress);
+        }
 
-        emit ClaimedReward(_poolStakingAddress, staker, _stakingEpoch, tokenReward, nativeReward);
+        for (uint256 i = 0; i < _stakingEpochs.length; i++) {
+            uint256 epoch = _stakingEpochs[i];
+
+            require(i == 0 || epoch > _stakingEpochs[i - 1]);
+            require(epoch < stakingEpoch);
+
+            if (rewardWasTaken[_poolStakingAddress][staker][epoch]) continue;
+
+            RewardAmounts memory reward;
+
+            if (_poolStakingAddress != staker) { // this is a delegator
+                if (epoch < firstEpoch) continue;
+                if (lastEpoch <= epoch && lastEpoch != 0) break;
+
+                uint256 delegatorStake;
+                uint256 e = epoch;
+                while (true) {
+                    delegatorStake = _stakeAmountSnapshot[_poolStakingAddress][staker][e];
+                    if (delegatorStake != 0) {
+                        delegatorStake = (delegatorStake == uint256(-1)) ? 0 : delegatorStake;
+                        break;
+                    } else if (e == firstEpoch) {
+                        delegatorStake = prevDelegatorStake;
+                        break;
+                    }
+                    e--;
+                }
+                firstEpoch = epoch + 1;
+                prevDelegatorStake = delegatorStake;
+
+                (reward.tokenAmount, reward.nativeAmount) =
+                    blockRewardContract.getDelegatorRewards(delegatorStake, epoch, miningAddress);
+            } else { // this is a validator
+                (reward.tokenAmount, reward.nativeAmount) =
+                    blockRewardContract.getValidatorRewards(epoch, miningAddress);
+            }
+
+            rewardSum.tokenAmount = rewardSum.tokenAmount.add(reward.tokenAmount);
+            rewardSum.nativeAmount = rewardSum.nativeAmount.add(reward.nativeAmount);
+
+            rewardWasTaken[_poolStakingAddress][staker][epoch] = true;
+
+            emit ClaimedReward(_poolStakingAddress, staker, epoch, reward.tokenAmount, reward.nativeAmount);
+        }
+
+        blockRewardContract.transferReward(rewardSum.tokenAmount, rewardSum.nativeAmount, staker);
     }
 
     /// @dev Sets (updates) the address of the ERC20/ERC677 staking token contract. Can only be called by the `owner`.

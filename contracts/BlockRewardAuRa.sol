@@ -438,6 +438,64 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
         return _queueERLast + 1 - _queueERFirst;
     }
 
+    /// @dev Returns the reward amounts in tokens and native coins for
+    /// some delegator with the specified stake amount placed into the specified
+    /// pool before the specified staking epoch. Used by the `StakingAuRa.claimReward` function.
+    /// @param _delegatorStake The stake amount placed by some delegator into the `_poolMiningAddress` pool.
+    /// @param _stakingEpoch The serial number of staking epoch.
+    /// @param _poolMiningAddress The pool mining address.
+    /// @return `uint256 tokenReward` - the reward amount in tokens.
+    /// `uint256 nativeReward` - the reward amount in native coins.
+    function getDelegatorRewards(
+        uint256 _delegatorStake,
+        uint256 _stakingEpoch,
+        address _poolMiningAddress
+    ) external view returns(uint256 tokenReward, uint256 nativeReward) {
+        uint256 validatorStake = snapshotPoolValidatorStakeAmount[_stakingEpoch][_poolMiningAddress];
+        uint256 totalStake = snapshotPoolTotalStakeAmount[_stakingEpoch][_poolMiningAddress];
+
+        tokenReward = delegatorShare(
+            _delegatorStake,
+            validatorStake,
+            totalStake,
+            epochPoolTokenReward[_stakingEpoch][_poolMiningAddress]
+        );
+
+        nativeReward = delegatorShare(
+            _delegatorStake,
+            validatorStake,
+            totalStake,
+            epochPoolNativeReward[_stakingEpoch][_poolMiningAddress]
+        );
+    }
+
+    /// @dev Returns the reward amounts in tokens and native coins for
+    /// the specified validator and for the specified staking epoch.
+    /// Used by the `StakingAuRa.claimReward` function.
+    /// @param _stakingEpoch The serial number of staking epoch.
+    /// @param _poolMiningAddress The pool mining address.
+    /// @return `uint256 tokenReward` - the reward amount in tokens.
+    /// `uint256 nativeReward` - the reward amount in native coins.
+    function getValidatorRewards(
+        uint256 _stakingEpoch,
+        address _poolMiningAddress
+    ) external view returns(uint256 tokenReward, uint256 nativeReward) {
+        uint256 validatorStake = snapshotPoolValidatorStakeAmount[_stakingEpoch][_poolMiningAddress];
+        uint256 totalStake = snapshotPoolTotalStakeAmount[_stakingEpoch][_poolMiningAddress];
+
+        tokenReward = validatorShare(
+            validatorStake,
+            totalStake,
+            epochPoolTokenReward[_stakingEpoch][_poolMiningAddress]
+        );
+
+        nativeReward = validatorShare(
+            validatorStake,
+            totalStake,
+            epochPoolNativeReward[_stakingEpoch][_poolMiningAddress]
+        );
+    }
+
     /// @dev Returns a boolean flag indicating if the `initialize` function has been called.
     function isInitialized() public view returns(bool) {
         return validatorSetContract != IValidatorSetAuRa(0);
