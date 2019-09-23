@@ -565,12 +565,12 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
 
     /// @dev Withdraws a reward from the specified pool for the specified staking epochs
     /// to the staker address (msg.sender).
-    /// @param _poolStakingAddress The staking address of the pool from which the reward needs to be withdrawn.
     /// @param _stakingEpochs The list of staking epochs in ascending order.
     /// If the list is empty, it is taken with `BlockRewardAuRa.epochsPoolGotRewardFor` getter.
+    /// @param _poolStakingAddress The staking address of the pool from which the reward needs to be withdrawn.
     function claimReward(
-        address _poolStakingAddress,
-        uint256[] memory _stakingEpochs
+        uint256[] memory _stakingEpochs,
+        address _poolStakingAddress
     ) public gasPriceIsValid onlyInitialized {
         address payable staker = msg.sender;
         uint256 firstEpoch;
@@ -585,7 +585,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         IBlockRewardAuRa blockRewardContract = IBlockRewardAuRa(validatorSetContract.blockRewardContract());
         address miningAddress = validatorSetContract.miningByStakingAddress(_poolStakingAddress);
         RewardAmounts memory rewardSum = RewardAmounts(0, 0);
-        uint256 prevDelegatorStake = 0;
+        uint256 delegatorStake = 0;
 
         if (_stakingEpochs.length == 0) {
             _stakingEpochs = blockRewardContract.epochsPoolGotRewardFor(miningAddress);
@@ -598,28 +598,15 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
             require(epoch < stakingEpoch);
 
             if (rewardWasTaken[_poolStakingAddress][staker][epoch]) continue;
-
+            
             RewardAmounts memory reward;
 
             if (_poolStakingAddress != staker) { // this is a delegator
                 if (epoch < firstEpoch) continue;
                 if (lastEpoch <= epoch && lastEpoch != 0) break;
 
-                uint256 delegatorStake;
-                uint256 e = epoch;
-                while (true) {
-                    delegatorStake = _stakeAmountSnapshot[_poolStakingAddress][staker][e];
-                    if (delegatorStake != 0) {
-                        delegatorStake = (delegatorStake == uint256(-1)) ? 0 : delegatorStake;
-                        break;
-                    } else if (e == firstEpoch) {
-                        delegatorStake = prevDelegatorStake;
-                        break;
-                    }
-                    e--;
-                }
+                delegatorStake = _getDelegatorStake(epoch, firstEpoch, delegatorStake, _poolStakingAddress, staker);
                 firstEpoch = epoch + 1;
-                prevDelegatorStake = delegatorStake;
 
                 (reward.tokenAmount, reward.nativeAmount) =
                     blockRewardContract.getDelegatorRewards(delegatorStake, epoch, miningAddress);
@@ -708,6 +695,62 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// withdraws all of its own staking tokens from the pool, inactivating the pool.
     function getPoolsToBeRemoved() external view returns(address[] memory) {
         return _poolsToBeRemoved;
+    }
+
+    /// @dev Returns reward amounts for the specified pool, the specified staking epochs,
+    /// and the specified staker address (delegator or validator).
+    /// @param _stakingEpochs The list of staking epochs in ascending order.
+    /// If the list is empty, it is taken with `BlockRewardAuRa.epochsPoolGotRewardFor` getter.
+    /// @param _poolStakingAddress The staking address of the pool for which the amounts need to be returned.
+    /// @param _staker The staker address (validator's staking address or delegator's address).
+    function getRewardAmounts(
+        uint256[] memory _stakingEpochs,
+        address _poolStakingAddress,
+        address _staker
+    ) public view returns(uint256 tokenRewardSum, uint256 nativeRewardSum) {
+        uint256 firstEpoch;
+        uint256 lastEpoch;
+
+        if (_poolStakingAddress != _staker) { // this is a delegator
+            firstEpoch = _stakeFirstEpoch[_poolStakingAddress][_staker];
+            require(firstEpoch != 0);
+            lastEpoch = _stakeLastEpoch[_poolStakingAddress][_staker];
+        }
+
+        IBlockRewardAuRa blockRewardContract = IBlockRewardAuRa(validatorSetContract.blockRewardContract());
+        address miningAddress = validatorSetContract.miningByStakingAddress(_poolStakingAddress);
+        uint256 delegatorStake = 0;
+        tokenRewardSum = 0;
+        nativeRewardSum = 0;
+
+        if (_stakingEpochs.length == 0) {
+            _stakingEpochs = blockRewardContract.epochsPoolGotRewardFor(miningAddress);
+        }
+
+        for (uint256 i = 0; i < _stakingEpochs.length; i++) {
+            uint256 epoch = _stakingEpochs[i];
+
+            require(i == 0 || epoch > _stakingEpochs[i - 1]);
+            require(epoch < stakingEpoch);
+
+            if (_poolStakingAddress != _staker) { // this is a delegator
+                if (epoch < firstEpoch) continue;
+                if (lastEpoch <= epoch && lastEpoch != 0) break;
+
+                delegatorStake = _getDelegatorStake(epoch, firstEpoch, delegatorStake, _poolStakingAddress, _staker);
+                firstEpoch = epoch + 1;
+
+                (uint256 tokenAmount, uint256 nativeAmount) =
+                    blockRewardContract.getDelegatorRewards(delegatorStake, epoch, miningAddress);
+                tokenRewardSum += tokenAmount;
+                nativeRewardSum += nativeAmount;
+            } else { // this is a validator
+                (uint256 tokenAmount, uint256 nativeAmount) =
+                    blockRewardContract.getValidatorRewards(epoch, miningAddress);
+                tokenRewardSum += tokenAmount;
+                nativeRewardSum += nativeAmount;
+            }
+        }
     }
 
     /// @dev Determines whether staking/withdrawal operations are allowed at the moment.
@@ -1261,6 +1304,27 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// @dev Returns the current block number. Needed mostly for unit tests.
     function _getCurrentBlockNumber() internal view returns(uint256) {
         return block.number;
+    }
+
+    /// @dev The internal function used by the `claimReward` function and `getRewardAmounts` getter.
+    function _getDelegatorStake(
+        uint256 _epoch,
+        uint256 _firstEpoch,
+        uint256 _prevDelegatorStake,
+        address _poolStakingAddress,
+        address _staker
+    ) internal view returns(uint256 delegatorStake) {
+        while (true) {
+            delegatorStake = _stakeAmountSnapshot[_poolStakingAddress][_staker][_epoch];
+            if (delegatorStake != 0) {
+                delegatorStake = (delegatorStake == uint256(-1)) ? 0 : delegatorStake;
+                break;
+            } else if (_epoch == _firstEpoch) {
+                delegatorStake = _prevDelegatorStake;
+                break;
+            }
+            _epoch--;
+        }
     }
 
     /// @dev Returns the max number of candidates (including validators). See the MAX_CANDIDATES constant.
