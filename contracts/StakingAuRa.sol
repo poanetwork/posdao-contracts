@@ -1312,10 +1312,10 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         uint256 _firstEpoch,
         uint256 _prevDelegatorStake,
         address _poolStakingAddress,
-        address _staker
+        address _delegator
     ) internal view returns(uint256 delegatorStake) {
         while (true) {
-            delegatorStake = _stakeAmountSnapshot[_poolStakingAddress][_staker][_epoch];
+            delegatorStake = _stakeAmountSnapshot[_poolStakingAddress][_delegator][_epoch];
             if (delegatorStake != 0) {
                 delegatorStake = (delegatorStake == uint256(-1)) ? 0 : delegatorStake;
                 break;

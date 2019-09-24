@@ -370,6 +370,86 @@ contract('StakingAuRa', async accounts => {
       await callReward();
     });
 
+    async function testStakeMovements(epochsPoolRewarded, epochsStakeMovement) {
+      const delegatorMinStake = await stakingAuRa.delegatorMinStake.call();
+      const miningAddress = initialValidators[0];
+      const stakingAddress = initialStakingAddresses[0];
+      const epochPoolReward = new BN(web3.utils.toWei('1', 'ether'));
+
+      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(new BN(0));
+      (await web3.eth.getBalance(blockRewardAuRa.address)).should.be.equal('0');
+
+      for (let i = 0; i < epochsPoolRewarded.length; i++) {
+        const stakingEpoch = epochsPoolRewarded[i];
+
+        // Emulate snapshotting for the pool
+        await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch, miningAddress).should.be.fulfilled;
+
+        // Emulate rewards for the pool
+        await blockRewardAuRa.setEpochPoolReward(stakingEpoch, miningAddress, epochPoolReward, {value: epochPoolReward}).should.be.fulfilled;
+      }
+
+      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward.mul(new BN(epochsPoolRewarded.length)));
+      (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(epochPoolReward.mul(new BN(epochsPoolRewarded.length)));
+
+      for (let i = 0; i < epochsStakeMovement.length; i++) {
+        const stakingEpoch = epochsStakeMovement[i];
+
+        // Emulate delegator's stake movement
+        const stakingEpochStartBlock = new BN(120954 * stakingEpoch + 1);
+        await stakingAuRa.setStakingEpoch(stakingEpoch).should.be.fulfilled;
+        await stakingAuRa.setValidatorSetAddress(owner).should.be.fulfilled;
+        await stakingAuRa.setStakingEpochStartBlock(stakingEpochStartBlock).should.be.fulfilled;
+        await stakingAuRa.setValidatorSetAddress(validatorSetAuRa.address).should.be.fulfilled;
+        await setCurrentBlockNumber(stakingEpochStartBlock);
+        await stakingAuRa.orderWithdraw(stakingAddress, delegatorMinStake, {from: delegator}).should.be.fulfilled;
+        await stakingAuRa.orderWithdraw(stakingAddress, delegatorMinStake.neg(), {from: delegator}).should.be.fulfilled;
+      }
+
+      await stakingAuRa.setStakingEpoch(epochsPoolRewarded[epochsPoolRewarded.length - 1] + 1).should.be.fulfilled;
+
+      const delegatorTokensBalanceBefore = await erc20Token.balanceOf.call(delegator);
+      const delegatorCoinsBalanceBefore = new BN(await web3.eth.getBalance(delegator));
+      const result = await stakingAuRa.claimReward([], stakingAddress, {from: delegator}).should.be.fulfilled;
+      const tx = await web3.eth.getTransaction(result.tx);
+      const weiSpent = (new BN(result.receipt.gasUsed)).mul(new BN(tx.gasPrice));
+      const delegatorTokensBalanceAfter = await erc20Token.balanceOf.call(delegator);
+      const delegatorCoinsBalanceAfter = new BN(await web3.eth.getBalance(delegator));
+
+      const delegatorRewardExpected = epochPoolReward.mul(new BN(epochsPoolRewarded.length)).div(new BN(2));
+      delegatorTokensBalanceAfter.should.be.bignumber.equal(delegatorTokensBalanceBefore.add(delegatorRewardExpected));
+      delegatorCoinsBalanceAfter.should.be.bignumber.equal(delegatorCoinsBalanceBefore.add(delegatorRewardExpected).sub(weiSpent));
+
+      const rewardAmountsCalculated = await stakingAuRa.getRewardAmounts.call([], stakingAddress, delegator);
+      rewardAmountsCalculated.tokenRewardSum.should.be.bignumber.equal(delegatorRewardExpected);
+      rewardAmountsCalculated.nativeRewardSum.should.be.bignumber.equal(delegatorRewardExpected);
+
+      const blockRewardBalanceExpected = epochPoolReward.mul(new BN(epochsPoolRewarded.length)).div(new BN(2));
+      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(blockRewardBalanceExpected);
+      (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(blockRewardBalanceExpected);
+    }
+
+    it('stake movements between rewarded epochs', async () => {
+      await testStakeMovements(
+        [5, 15, 25, 35],
+        [10, 20, 30]
+      );
+    });
+
+    it('stake movements on every next epoch', async () => {
+      await testStakeMovements(
+        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+        [1, 2, 3, 4, 5, 6, 7, 8, 9]
+      );
+    });
+
+    it('stake movements on every next epoch', async () => {
+      await testStakeMovements(
+        [1, 3, 6, 10],
+        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+      );
+    });
+
     it('gas consumption for one staking epoch is OK', async () => {
       const stakingEpoch = 2600;
 
