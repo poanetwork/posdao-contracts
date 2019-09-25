@@ -370,7 +370,191 @@ contract('StakingAuRa', async accounts => {
       await callReward();
     });
 
-    async function testStakeMovements(epochsPoolRewarded, epochsStakeMovement) {
+    async function _claimRewardStakeIncreasing(epochsPoolRewarded, epochsStakeIncreased) {
+      const delegatorMinStake = await stakingAuRa.delegatorMinStake.call();
+      const miningAddress = initialValidators[0];
+      const stakingAddress = initialStakingAddresses[0];
+      const epochPoolReward = new BN(web3.utils.toWei('1', 'ether'));
+      const maxStakingEpoch = Math.max(Math.max.apply(null, epochsPoolRewarded), Math.max.apply(null, epochsStakeIncreased));
+
+      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(new BN(0));
+      (await web3.eth.getBalance(blockRewardAuRa.address)).should.be.equal('0');
+
+      // Emulate rewards for the pool
+      for (let i = 0; i < epochsPoolRewarded.length; i++) {
+        const stakingEpoch = epochsPoolRewarded[i];
+        await blockRewardAuRa.setEpochPoolReward(stakingEpoch, miningAddress, epochPoolReward, {value: epochPoolReward}).should.be.fulfilled;
+      }
+
+      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward.mul(new BN(epochsPoolRewarded.length)));
+      (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(epochPoolReward.mul(new BN(epochsPoolRewarded.length)));
+
+      let prevStakingEpoch = 0;
+      const validatorStakeAmount = await stakingAuRa.stakeAmount.call(stakingAddress, stakingAddress);
+      let stakeAmount = await stakingAuRa.stakeAmount.call(stakingAddress, delegator);
+      let stakeAmountOnEpoch = [new BN(0)];
+
+      let s = 0;
+      for (let epoch = 1; epoch <= maxStakingEpoch; epoch++) {
+        const stakingEpoch = epochsStakeIncreased[s];
+
+        if (stakingEpoch == epoch) {
+          const stakingEpochStartBlock = new BN(120954 * stakingEpoch + 1);
+          await stakingAuRa.setStakingEpoch(stakingEpoch).should.be.fulfilled;
+          await stakingAuRa.setValidatorSetAddress(owner).should.be.fulfilled;
+          await stakingAuRa.setStakingEpochStartBlock(stakingEpochStartBlock).should.be.fulfilled;
+          await stakingAuRa.setValidatorSetAddress(validatorSetAuRa.address).should.be.fulfilled;
+          await setCurrentBlockNumber(stakingEpochStartBlock);
+
+          // Emulate delegator's stake increasing
+          await erc20Token.mint(delegator, delegatorMinStake, {from: owner}).should.be.fulfilled;
+          delegatorMinStake.should.be.bignumber.equal(await erc20Token.balanceOf.call(delegator));
+          await stakingAuRa.stake(stakingAddress, delegatorMinStake, {from: delegator}).should.be.fulfilled;
+
+          for (let e = prevStakingEpoch + 1; e <= stakingEpoch; e++) {
+            stakeAmountOnEpoch[e] = stakeAmount;
+          }
+          stakeAmount = await stakingAuRa.stakeAmount.call(stakingAddress, delegator);
+          prevStakingEpoch = stakingEpoch;
+          s++;
+        }
+
+        // Emulate snapshotting for the pool
+        await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, epoch + 1, miningAddress).should.be.fulfilled;
+      }
+
+      const lastEpochRewarded = epochsPoolRewarded[epochsPoolRewarded.length - 1];
+      await stakingAuRa.setStakingEpoch(lastEpochRewarded + 1).should.be.fulfilled;
+
+      if (prevStakingEpoch < lastEpochRewarded) {
+        for (let e = prevStakingEpoch + 1; e <= lastEpochRewarded; e++) {
+          stakeAmountOnEpoch[e] = stakeAmount;
+        }
+      }
+
+      let delegatorRewardExpected = new BN(0);
+      let validatorRewardExpected = new BN(0);
+      for (let i = 0; i < epochsPoolRewarded.length; i++) {
+        const stakingEpoch = epochsPoolRewarded[i];
+        const delegatorShare = await blockRewardAuRa.delegatorShare.call(
+          stakeAmountOnEpoch[stakingEpoch],
+          validatorStakeAmount,
+          validatorStakeAmount.add(stakeAmountOnEpoch[stakingEpoch]),
+          epochPoolReward
+        );
+        const validatorShare = await blockRewardAuRa.validatorShare.call(
+          validatorStakeAmount,
+          validatorStakeAmount.add(stakeAmountOnEpoch[stakingEpoch]),
+          epochPoolReward
+        );
+        delegatorRewardExpected = delegatorRewardExpected.add(delegatorShare);
+        validatorRewardExpected = validatorRewardExpected.add(validatorShare);
+      }
+
+      return {
+        delegatorMinStake,
+        miningAddress,
+        stakingAddress,
+        epochPoolReward,
+        maxStakingEpoch,
+        delegatorRewardExpected,
+        validatorRewardExpected
+      };
+    }
+
+    async function testClaimRewardRandom(epochsPoolRewarded, epochsStakeIncreased) {
+      const {
+        delegatorMinStake,
+        miningAddress,
+        stakingAddress,
+        epochPoolReward,
+        maxStakingEpoch,
+        delegatorRewardExpected,
+        validatorRewardExpected
+      } = await _claimRewardStakeIncreasing(
+        epochsPoolRewarded,
+        epochsStakeIncreased
+      );
+
+      const delegatorTokensBalanceBefore = await erc20Token.balanceOf.call(delegator);
+      const delegatorCoinsBalanceBefore = new BN(await web3.eth.getBalance(delegator));
+      let weiSpent = new BN(0);
+      let epochsPoolRewardedRandom = epochsPoolRewarded;
+      shuffle(epochsPoolRewardedRandom);
+      for (let i = 0; i < epochsPoolRewardedRandom.length; i++) {
+        const stakingEpoch = epochsPoolRewardedRandom[i];
+        const result = await stakingAuRa.claimReward([stakingEpoch], stakingAddress, {from: delegator}).should.be.fulfilled;
+        const tx = await web3.eth.getTransaction(result.tx);
+        weiSpent = weiSpent.add((new BN(result.receipt.gasUsed)).mul(new BN(tx.gasPrice)));
+      }
+      const delegatorTokensBalanceAfter = await erc20Token.balanceOf.call(delegator);
+      const delegatorCoinsBalanceAfter = new BN(await web3.eth.getBalance(delegator));
+
+      delegatorTokensBalanceAfter.should.be.bignumber.equal(delegatorTokensBalanceBefore.add(delegatorRewardExpected));
+      delegatorCoinsBalanceAfter.should.be.bignumber.equal(delegatorCoinsBalanceBefore.add(delegatorRewardExpected).sub(weiSpent));
+
+      const validatorTokensBalanceBefore = await erc20Token.balanceOf.call(stakingAddress);
+      const validatorCoinsBalanceBefore = new BN(await web3.eth.getBalance(stakingAddress));
+      weiSpent = new BN(0);
+      shuffle(epochsPoolRewardedRandom);
+      for (let i = 0; i < epochsPoolRewardedRandom.length; i++) {
+        const stakingEpoch = epochsPoolRewardedRandom[i];
+        const result = await stakingAuRa.claimReward([stakingEpoch], stakingAddress, {from: stakingAddress}).should.be.fulfilled;
+        const tx = await web3.eth.getTransaction(result.tx);
+        weiSpent = weiSpent.add((new BN(result.receipt.gasUsed)).mul(new BN(tx.gasPrice)));
+      }
+      const validatorTokensBalanceAfter = await erc20Token.balanceOf.call(stakingAddress);
+      const validatorCoinsBalanceAfter = new BN(await web3.eth.getBalance(stakingAddress));
+
+      validatorTokensBalanceAfter.should.be.bignumber.equal(validatorTokensBalanceBefore.add(validatorRewardExpected));
+      validatorCoinsBalanceAfter.should.be.bignumber.equal(validatorCoinsBalanceBefore.add(validatorRewardExpected).sub(weiSpent));
+
+      const blockRewardBalanceExpected = epochPoolReward.mul(new BN(epochsPoolRewarded.length)).sub(delegatorRewardExpected).sub(validatorRewardExpected);
+      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(blockRewardBalanceExpected);
+      (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(blockRewardBalanceExpected);
+    }
+
+    async function testClaimRewardAfterStakeIncreasing(epochsPoolRewarded, epochsStakeIncreased) {
+      const {
+        delegatorMinStake,
+        miningAddress,
+        stakingAddress,
+        epochPoolReward,
+        maxStakingEpoch,
+        delegatorRewardExpected,
+        validatorRewardExpected
+      } = await _claimRewardStakeIncreasing(
+        epochsPoolRewarded,
+        epochsStakeIncreased
+      );
+
+      const delegatorTokensBalanceBefore = await erc20Token.balanceOf.call(delegator);
+      const delegatorCoinsBalanceBefore = new BN(await web3.eth.getBalance(delegator));
+      const result = await stakingAuRa.claimReward([], stakingAddress, {from: delegator}).should.be.fulfilled;
+      const tx = await web3.eth.getTransaction(result.tx);
+      const weiSpent = (new BN(result.receipt.gasUsed)).mul(new BN(tx.gasPrice));
+      const delegatorTokensBalanceAfter = await erc20Token.balanceOf.call(delegator);
+      const delegatorCoinsBalanceAfter = new BN(await web3.eth.getBalance(delegator));
+
+      delegatorTokensBalanceAfter.should.be.bignumber.equal(delegatorTokensBalanceBefore.add(delegatorRewardExpected));
+      delegatorCoinsBalanceAfter.should.be.bignumber.equal(delegatorCoinsBalanceBefore.add(delegatorRewardExpected).sub(weiSpent));
+
+      await stakingAuRa.claimReward([], stakingAddress, {from: stakingAddress}).should.be.fulfilled;
+
+      let rewardAmountsCalculated = await stakingAuRa.getRewardAmounts.call([], stakingAddress, delegator);
+      rewardAmountsCalculated.tokenRewardSum.should.be.bignumber.equal(delegatorRewardExpected);
+      rewardAmountsCalculated.nativeRewardSum.should.be.bignumber.equal(delegatorRewardExpected);
+
+      rewardAmountsCalculated = await stakingAuRa.getRewardAmounts.call([], stakingAddress, stakingAddress);
+      rewardAmountsCalculated.tokenRewardSum.should.be.bignumber.equal(validatorRewardExpected);
+      rewardAmountsCalculated.nativeRewardSum.should.be.bignumber.equal(validatorRewardExpected);
+
+      const blockRewardBalanceExpected = epochPoolReward.mul(new BN(epochsPoolRewarded.length)).sub(delegatorRewardExpected).sub(validatorRewardExpected);
+      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(blockRewardBalanceExpected);
+      (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(blockRewardBalanceExpected);
+    }
+
+    async function testClaimRewardAfterStakeMovements(epochsPoolRewarded, epochsStakeMovement) {
       const delegatorMinStake = await stakingAuRa.delegatorMinStake.call();
       const miningAddress = initialValidators[0];
       const stakingAddress = initialStakingAddresses[0];
@@ -429,24 +613,96 @@ contract('StakingAuRa', async accounts => {
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(blockRewardBalanceExpected);
     }
 
-    it('stake movements between rewarded epochs', async () => {
-      await testStakeMovements(
+    it('stake movements', async () => {
+      await testClaimRewardAfterStakeMovements(
         [5, 15, 25, 35],
         [10, 20, 30]
       );
     });
-
-    it('stake movements on every next epoch', async () => {
-      await testStakeMovements(
+    it('stake movements', async () => {
+      await testClaimRewardAfterStakeMovements(
         [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
         [1, 2, 3, 4, 5, 6, 7, 8, 9]
       );
     });
-
-    it('stake movements on every next epoch', async () => {
-      await testStakeMovements(
+    it('stake movements', async () => {
+      await testClaimRewardAfterStakeMovements(
         [1, 3, 6, 10],
         [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+      );
+    });
+    
+    it('stake increasing', async () => {
+      await testClaimRewardAfterStakeIncreasing(
+        [5, 15, 25, 35],
+        [4, 14, 24, 34]
+      );
+    });
+    it('stake increasing', async () => {
+      await testClaimRewardAfterStakeIncreasing(
+        [5, 15, 25, 35],
+        [10, 20, 30]
+      );
+    });
+    it('stake increasing', async () => {
+      await testClaimRewardAfterStakeIncreasing(
+        [1, 2, 3, 4, 5, 6],
+        [1, 2, 3, 4, 5]
+      );
+    });
+    it('stake increasing', async () => {
+      await testClaimRewardAfterStakeIncreasing(
+        [1, 3, 6, 10],
+        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+      );
+    });
+    it('stake increasing', async () => {
+      await testClaimRewardAfterStakeIncreasing(
+        [5, 15, 25],
+        [5, 15, 25]
+      );
+    });
+    it('stake increasing', async () => {
+      await testClaimRewardAfterStakeIncreasing(
+        [5, 7, 9],
+        [6, 8, 10]
+      );
+    });
+
+    it('random withdrawal', async () => {
+      await testClaimRewardRandom(
+        [5, 15, 25, 35],
+        [4, 14, 24, 34]
+      );
+    });
+    it('random withdrawal', async () => {
+      await testClaimRewardRandom(
+        [5, 15, 25, 35],
+        [10, 20, 30]
+      );
+    });
+    it('random withdrawal', async () => {
+      await testClaimRewardRandom(
+        [1, 2, 3, 4, 5, 6],
+        [1, 2, 3, 4, 5]
+      );
+    });
+    it('random withdrawal', async () => {
+      await testClaimRewardRandom(
+        [1, 3, 6, 10],
+        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+      );
+    });
+    it('random withdrawal', async () => {
+      await testClaimRewardRandom(
+        [5, 15, 25],
+        [5, 15, 25]
+      );
+    });
+    it('random withdrawal', async () => {
+      await testClaimRewardRandom(
+        [5, 7, 9],
+        [6, 8, 10]
       );
     });
 
