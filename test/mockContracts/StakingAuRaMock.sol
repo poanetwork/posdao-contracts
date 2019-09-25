@@ -17,6 +17,10 @@ contract StakingAuRaMock is StakingAuRa {
         _addPoolInactive(_stakingAddress);
     }
 
+    function clearStakeAmountSnapshot(address _poolStakingAddress, address _delegator, uint256 _stakingEpoch) public {
+        _stakeAmountSnapshot[_poolStakingAddress][_delegator][_stakingEpoch] = 0;
+    }
+
     function setCurrentBlockNumber(uint256 _blockNumber) public {
         _currentBlockNumber = _blockNumber;
     }
@@ -33,12 +37,30 @@ contract StakingAuRaMock is StakingAuRa {
         stakeAmountTotal[_poolStakingAddress] = _amount;
     }
 
+    function setStakeFirstEpoch(address _poolStakingAddress, address _delegator, uint256 _value) public {
+        _stakeFirstEpoch[_poolStakingAddress][_delegator] = _value;
+    }
+
+    function setStakeLastEpoch(address _poolStakingAddress, address _delegator, uint256 _value) public {
+        _stakeLastEpoch[_poolStakingAddress][_delegator] = _value;
+    }
+
     function setStakingEpoch(uint256 _stakingEpoch) public {
         stakingEpoch = _stakingEpoch;
     }
 
     function setValidatorSetAddress(IValidatorSetAuRa _validatorSetAddress) public {
         validatorSetContract = _validatorSetAddress;
+    }
+
+    // =============================================== Getters ========================================================
+
+    function stakeFirstEpoch(address _poolStakingAddress, address _delegator) public view returns(uint256) {
+        return _stakeFirstEpoch[_poolStakingAddress][_delegator];
+    }
+
+    function stakeLastEpoch(address _poolStakingAddress, address _delegator) public view returns(uint256) {
+        return _stakeLastEpoch[_poolStakingAddress][_delegator];
     }
 
     // =============================================== Private ========================================================
