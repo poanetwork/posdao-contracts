@@ -26,7 +26,6 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     mapping(address => address[]) internal _poolDelegators;
     mapping(address => address[]) internal _poolDelegatorsInactive;
     mapping(address => mapping(address => mapping(uint256 => uint256))) internal _stakeAmountByEpoch;
-    mapping(address => mapping(address => mapping(uint256 => uint256))) internal _stakeAmountSnapshot;
     mapping(address => mapping(address => uint256)) internal _stakeFirstEpoch;
     mapping(address => mapping(address => uint256)) internal _stakeLastEpoch;
 
@@ -102,11 +101,15 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// the specified staking epoch.
     mapping(address => mapping(address => mapping(uint256 => bool))) public rewardWasTaken;
 
-    /// @dev The amount of staking tokens/coins currently staked into the specified pool by the specified
+    /// @dev The amount of tokens currently staked into the specified pool by the specified
     /// staker. Doesn't take into account the ordered amount to be withdrawn (use the
     /// `stakeAmountMinusOrderedWithdraw` instead). The first parameter is the pool staking address,
     /// the second one is the staker address.
     mapping(address => mapping(address => uint256)) public stakeAmount;
+
+    /// @dev The snapshot of tokens amount staked into the specified pool (staking address)
+    /// by the specified staker before the specified staking epoch. Used by the `claimReward` function.
+    mapping(address => mapping(address => mapping(uint256 => uint256))) public stakeAmountSnapshot;
 
     /// @dev The duration period (in blocks) at the end of staking epoch during which
     /// participants are not allowed to stake and withdraw their staking tokens/coins.
@@ -1170,7 +1173,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         uint256 nextStakingEpoch = stakingEpoch + 1;
         uint256 newAmount = stakeAmountMinusOrderedWithdraw(_poolStakingAddress, _delegator);
 
-        _stakeAmountSnapshot[_poolStakingAddress][_delegator][nextStakingEpoch] =
+        stakeAmountSnapshot[_poolStakingAddress][_delegator][nextStakingEpoch] =
             (newAmount != 0) ? newAmount : uint256(-1);
 
         if (_stakeFirstEpoch[_poolStakingAddress][_delegator] == 0) {
@@ -1315,7 +1318,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         address _delegator
     ) internal view returns(uint256 delegatorStake) {
         while (true) {
-            delegatorStake = _stakeAmountSnapshot[_poolStakingAddress][_delegator][_epoch];
+            delegatorStake = stakeAmountSnapshot[_poolStakingAddress][_delegator][_epoch];
             if (delegatorStake != 0) {
                 delegatorStake = (delegatorStake == uint256(-1)) ? 0 : delegatorStake;
                 break;

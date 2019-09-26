@@ -169,9 +169,9 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
         revert();
     }
 
-    /// @dev Called by the `erc-to-native` bridge contract when a portion of the bridge fee should be distributed to
-    /// participants (validators and their delegators) in native coins. The specified amount is used by the
-    /// `_distributeRewards` function.
+    /// @dev Called by the `erc-to-native` bridge contract when a portion of the bridge fee should be minted
+    /// and distributed to participants (validators and their delegators) in native coins. The specified amount
+    /// is used by the `_distributeRewards` function.
     /// @param _amount The fee amount distributed to participants.
     function addBridgeNativeFeeReceivers(uint256 _amount) external onlyErcToNativeBridge {
         require(_amount != 0);
@@ -179,8 +179,8 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
     }
 
     /// @dev Called by the `erc-to-erc` or `native-to-erc` bridge contract when a portion of the bridge fee should be
-    /// distributed to participants in staking tokens. The specified amount is used by the `_distributeRewards`
-    /// function.
+    /// minted and distributed to participants in staking tokens. The specified amount is used by the
+    /// `_distributeRewards` function.
     /// @param _amount The fee amount distributed to participants.
     function addBridgeTokenFeeReceivers(uint256 _amount) external onlyXToErcBridge {
         require(_amount != 0);

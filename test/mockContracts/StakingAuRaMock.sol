@@ -17,8 +17,12 @@ contract StakingAuRaMock is StakingAuRa {
         _addPoolInactive(_stakingAddress);
     }
 
+    function clearRewardWasTaken(address _poolStakingAddress, address _staker, uint256 _epoch) public {
+        rewardWasTaken[_poolStakingAddress][_staker][_epoch] = false;
+    }
+
     function clearStakeAmountSnapshot(address _poolStakingAddress, address _delegator, uint256 _stakingEpoch) public {
-        _stakeAmountSnapshot[_poolStakingAddress][_delegator][_stakingEpoch] = 0;
+        stakeAmountSnapshot[_poolStakingAddress][_delegator][_stakingEpoch] = 0;
     }
 
     function setCurrentBlockNumber(uint256 _blockNumber) public {
