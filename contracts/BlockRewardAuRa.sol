@@ -111,6 +111,22 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
     /// @param bridge The bridge address which called the `addExtraReceiver` function.
     event AddedReceiver(uint256 amount, address indexed receiver, address indexed bridge);
 
+    /// @dev Emitted by the `addBridgeNativeFeeReceivers` function.
+    /// @param amount The fee amount in native coins passed to the
+    /// `addBridgeNativeFeeReceivers` function as a parameter.
+    /// @param cumulativeAmount The value of `bridgeNativeFee` state variable
+    /// after adding the `amount` to it.
+    /// @param bridge The bridge address which called the `addBridgeNativeFeeReceivers` function.
+    event BridgeNativeFeeAdded(uint256 amount, uint256 cumulativeAmount, address indexed bridge);
+
+    /// @dev Emitted by the `addBridgeTokenFeeReceivers` function.
+    /// @param amount The fee amount in tokens passed to the
+    /// `addBridgeTokenFeeReceivers` function as a parameter.
+    /// @param cumulativeAmount The value of `bridgeTokenFee` state variable
+    /// after adding the `amount` to it.
+    /// @param bridge The bridge address which called the `addBridgeTokenFeeReceivers` function.
+    event BridgeTokenFeeAdded(uint256 amount, uint256 cumulativeAmount, address indexed bridge);
+
     /// @dev Emitted by the `_mintNativeCoins` function which is called by the `reward` function.
     /// This event is only used by the unit tests because the `reward` function cannot emit events.
     /// @param receivers The array of receiver addresses for which native coins are minted. The length of this
@@ -171,6 +187,7 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
     function addBridgeNativeFeeReceivers(uint256 _amount) external onlyErcToNativeBridge {
         require(_amount != 0);
         bridgeNativeFee = bridgeNativeFee.add(_amount);
+        emit BridgeNativeFeeAdded(_amount, bridgeNativeFee, msg.sender);
     }
 
     /// @dev Called by the `erc-to-erc` or `native-to-erc` bridge contract when a portion of the bridge fee should be
@@ -180,6 +197,7 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
     function addBridgeTokenFeeReceivers(uint256 _amount) external onlyXToErcBridge {
         require(_amount != 0);
         bridgeTokenFee = bridgeTokenFee.add(_amount);
+        emit BridgeTokenFeeAdded(_amount, bridgeTokenFee, msg.sender);
     }
 
     /// @dev Called by the `erc-to-native` bridge contract when the bridge needs to mint a specified amount of native
