@@ -2160,7 +2160,7 @@ contract('StakingAuRa', async accounts => {
     });
   });
 
-  describe('stake()', async () => {
+  describe('stake() [tokens]', async () => {
     let delegatorAddress;
     let erc20Token;
     let mintAmount;
@@ -2337,7 +2337,7 @@ contract('StakingAuRa', async accounts => {
     });
   });
 
-  describe('stakeNative()', async () => {
+  describe('stake() [native coins]', async () => {
     let delegatorAddress;
     let candidateMinStake;
     let delegatorMinStake;
@@ -2366,9 +2366,9 @@ contract('StakingAuRa', async accounts => {
     it('should place a stake', async () => {
       (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], initialStakingAddresses[1])).should.be.bignumber.equal(new BN(0));
       (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
       (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], initialStakingAddresses[1])).should.be.bignumber.equal(candidateMinStake);
-      const result = await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
+      const result = await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
       result.logs[0].event.should.be.equal("Staked");
       result.logs[0].args.toPoolStakingAddress.should.be.equal(initialStakingAddresses[1]);
       result.logs[0].args.staker.should.be.equal(delegatorAddress);
@@ -2378,105 +2378,105 @@ contract('StakingAuRa', async accounts => {
       (await stakingAuRa.stakeAmountTotal.call(initialStakingAddresses[1])).should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake));
     });
     it('should fail for zero gas price', async () => {
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: initialStakingAddresses[1], value: candidateMinStake, gasPrice: 0}).should.be.rejectedWith(ERROR_MSG);
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake, gasPrice: 0}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
     });
     it('should fail if erc20TokenContract address is defined', async () => {
       const erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
       await stakingAuRa.setErc20TokenContractMock(erc20Token.address).should.be.fulfilled;
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.rejectedWith(ERROR_MSG);
       await stakingAuRa.setErc20TokenContractMock('0x0000000000000000000000000000000000000000').should.be.fulfilled;
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
     });
     it('should fail if erc20TokenContract address is not defined and erc20 is not restricted', async () => {
       (await stakingAuRa.erc20TokenContract.call()).should.be.equal('0x0000000000000000000000000000000000000000');
       await stakingAuRa.setErc20Restricted(false).should.be.fulfilled;
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.rejectedWith(ERROR_MSG);
       await stakingAuRa.setErc20Restricted(true).should.be.fulfilled;
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
     });
     it('should fail for a non-existing pool', async () => {
-      await stakingAuRa.stakeNative(accounts[10], {from: delegatorAddress, value: delegatorMinStake}).should.be.rejectedWith(ERROR_MSG);
-      await stakingAuRa.stakeNative('0x0000000000000000000000000000000000000000', {from: delegatorAddress, value: delegatorMinStake}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.stake(accounts[10], 0, {from: delegatorAddress, value: delegatorMinStake}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.stake('0x0000000000000000000000000000000000000000', 0, {from: delegatorAddress, value: delegatorMinStake}).should.be.rejectedWith(ERROR_MSG);
     });
     it('should fail for a zero amount', async () => {
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: delegatorAddress, value: 0}).should.be.rejectedWith(ERROR_MSG);
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: delegatorAddress, value: 0}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
     });
     it('should fail for a banned validator', async () => {
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
       await validatorSetAuRa.setRandomContract(accounts[8]).should.be.fulfilled;
       await validatorSetAuRa.removeMaliciousValidators([initialValidators[1]], {from: accounts[8]}).should.be.fulfilled;
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: delegatorAddress, value: delegatorMinStake}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: delegatorAddress, value: delegatorMinStake}).should.be.rejectedWith(ERROR_MSG);
     });
     it('should only success in the allowed staking window', async () => {
       await stakingAuRa.setCurrentBlockNumber(117000).should.be.fulfilled;
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.rejectedWith(ERROR_MSG);
       await stakingAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
     });
     it('should fail if a candidate stakes less than CANDIDATE_MIN_STAKE', async () => {
       const halfOfCandidateMinStake = candidateMinStake.div(new BN(2));
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: initialStakingAddresses[1], value: halfOfCandidateMinStake}).should.be.rejectedWith(ERROR_MSG);
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: halfOfCandidateMinStake}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
     });
     it('should fail if a delegator stakes less than DELEGATOR_MIN_STAKE', async () => {
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
       const halfOfDelegatorMinStake = delegatorMinStake.div(new BN(2));
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: delegatorAddress, value: halfOfDelegatorMinStake}).should.be.rejectedWith(ERROR_MSG);
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: delegatorAddress, value: halfOfDelegatorMinStake}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
     });
     it('should fail if a delegator stakes into an empty pool', async () => {
       (await stakingAuRa.stakeAmountMinusOrderedWithdraw.call(initialStakingAddresses[1], initialStakingAddresses[1])).should.be.bignumber.equal(new BN(0));
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: delegatorAddress, value: delegatorMinStake}).should.be.rejectedWith(ERROR_MSG);
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: delegatorAddress, value: delegatorMinStake}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
     });
     it('should increase a stake amount', async () => {
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
       (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
       (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(delegatorMinStake);
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
       (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(delegatorMinStake.mul(new BN(2)));
     });
     it('should increase the stakeAmountByCurrentEpoch', async () => {
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
       (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
       (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(delegatorMinStake);
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
       (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(delegatorMinStake.mul(new BN(2)));
     });
     it('should increase a total stake amount', async () => {
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
       (await stakingAuRa.stakeAmountTotal.call(initialStakingAddresses[1])).should.be.bignumber.equal(candidateMinStake);
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
       (await stakingAuRa.stakeAmountTotal.call(initialStakingAddresses[1])).should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake));
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
       (await stakingAuRa.stakeAmountTotal.call(initialStakingAddresses[1])).should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake.mul(new BN(2))));
     });
     it('should add a delegator to the pool', async () => {
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
       (await stakingAuRa.poolDelegators.call(initialStakingAddresses[1])).length.should.be.equal(0);
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
       (await stakingAuRa.poolDelegators.call(initialStakingAddresses[1])).should.be.deep.equal([delegatorAddress]);
     });
     it('should update pool\'s likelihood', async () => {
       let likelihoodInfo = await stakingAuRa.getPoolsLikelihood.call();
       likelihoodInfo.likelihoods.length.should.be.equal(0);
       likelihoodInfo.sum.should.be.bignumber.equal(new BN(0));
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
       likelihoodInfo = await stakingAuRa.getPoolsLikelihood.call();
       likelihoodInfo.likelihoods[0].should.be.bignumber.equal(candidateMinStake);
       likelihoodInfo.sum.should.be.bignumber.equal(candidateMinStake);
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
       likelihoodInfo = await stakingAuRa.getPoolsLikelihood.call();
       likelihoodInfo.likelihoods[0].should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake));
       likelihoodInfo.sum.should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake));
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
       likelihoodInfo = await stakingAuRa.getPoolsLikelihood.call();
       likelihoodInfo.likelihoods[0].should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake.mul(new BN(2))));
       likelihoodInfo.sum.should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake.mul(new BN(2))));
@@ -2484,7 +2484,7 @@ contract('StakingAuRa', async accounts => {
     it('should decrease the balance of the staker and increase the balance of the Staking contract', async () => {
       (await web3.eth.getBalance(stakingAuRa.address)).should.be.equal('0');
       const initialBalance = new BN(await web3.eth.getBalance(initialStakingAddresses[1]));
-      await stakingAuRa.stakeNative(initialStakingAddresses[1], {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
+      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
       (new BN(await web3.eth.getBalance(initialStakingAddresses[1]))).should.be.bignumber.below(initialBalance.sub(candidateMinStake));
       (new BN(await web3.eth.getBalance(stakingAuRa.address))).should.be.bignumber.equal(candidateMinStake);
     });

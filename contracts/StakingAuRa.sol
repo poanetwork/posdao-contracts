@@ -263,34 +263,23 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
 
     // =============================================== Setters ========================================================
 
-    /// @dev Fallback function. Prevents sending native coins to `address(this)`.
+    /// @dev Fallback function. Prevents direct sending native coins to this contract.
     function () payable external {
         revert();
     }
 
     /// @dev Adds a new candidate's pool to the list of active pools (see the `getPools` getter) and
-    /// moves the specified amount of staking tokens from the candidate's staking address to the candidate's pool.
-    /// A participant calls this function using their staking address when they want to create a pool.
-    /// This is a wrapper for the `stake` function.
-    /// @param _amount The amount of tokens to be staked.
+    /// moves the specified amount of staking tokens/coins from the candidate's staking address
+    /// to the candidate's pool. A participant calls this function using their staking address when
+    /// they want to create a pool. This is a wrapper for the `stake` function.
+    /// @param _amount The amount of tokens to be staked. Ignored when staking in native coins
+    /// (`erc20Restricted` should be `true` in this case).
     /// @param _miningAddress The mining address of the candidate. The mining address is bound to the staking address
     /// (msg.sender). This address cannot be equal to `msg.sender`.
-    function addPool(uint256 _amount, address _miningAddress) external gasPriceIsValid onlyInitialized {
+    function addPool(uint256 _amount, address _miningAddress) external gasPriceIsValid onlyInitialized payable {
         address stakingAddress = msg.sender;
         validatorSetContract.setStakingAddress(_miningAddress, stakingAddress);
-        _stake(stakingAddress, _amount);
-    }
-
-    /// @dev Adds a new candidate's pool to the list of active pools (see the `getPools` getter) and
-    /// moves the specified amount of staking coins from the candidate's staking address to the candidate's pool.
-    /// A participant calls this function using their staking address when they want to create a pool.
-    /// This is a wrapper for the `stake` function.
-    /// @param _miningAddress The mining address of the candidate. The mining address is bound to the staking address
-    /// (msg.sender). This address cannot be equal to `msg.sender`.
-    function addPoolNative(address _miningAddress) external gasPriceIsValid onlyInitialized payable {
-        address stakingAddress = msg.sender;
-        validatorSetContract.setStakingAddress(_miningAddress, stakingAddress);
-        _stake(stakingAddress, msg.value);
+        _stake(stakingAddress, erc20Restricted ? msg.value : _amount);
     }
 
     /// @dev Adds the `unremovable validator` to either the `poolsToBeElected` or the `poolsToBeRemoved` array
@@ -409,19 +398,13 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         emit StakeMoved(_fromPoolStakingAddress, _toPoolStakingAddress, staker, stakingEpoch, _amount);
     }
 
-    /// @dev Moves the specified amount of staking tokens from the staker's address to the staking address of
+    /// @dev Moves the specified amount of staking tokens/coins from the staker's address to the staking address of
     /// the specified pool. A staker calls this function when they want to make a stake into a pool.
     /// @param _toPoolStakingAddress The staking address of the pool where the tokens should be staked.
-    /// @param _amount The amount of tokens to be staked.
-    function stake(address _toPoolStakingAddress, uint256 _amount) external gasPriceIsValid onlyInitialized {
-        _stake(_toPoolStakingAddress, _amount);
-    }
-
-    /// @dev Receives the staking coins from the staker's address to the staking address of
-    /// the specified pool. A staker calls this function when they want to make a stake into a pool.
-    /// @param _toPoolStakingAddress The staking address of the pool where the coins should be staked.
-    function stakeNative(address _toPoolStakingAddress) external gasPriceIsValid onlyInitialized payable {
-        _stake(_toPoolStakingAddress, msg.value);
+    /// @param _amount The amount of tokens to be staked. Ignored when staking in native coins
+    /// (`erc20Restricted` should be `true` in this case).
+    function stake(address _toPoolStakingAddress, uint256 _amount) external gasPriceIsValid onlyInitialized payable {
+        _stake(_toPoolStakingAddress, erc20Restricted ? msg.value : _amount);
     }
 
     /// @dev Moves the specified amount of staking tokens/coins from the staking address of
@@ -1187,12 +1170,10 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// @param _toPoolStakingAddress The staking address of the pool where the tokens/coins should be staked.
     /// @param _amount The amount of tokens/coins to be staked.
     function _stake(address _toPoolStakingAddress, uint256 _amount) internal {
-        if (erc20TokenContract != IERC20Minting(0)) {
-            require(msg.value == 0);
-        }
         address staker = msg.sender;
         _stake(_toPoolStakingAddress, staker, _amount);
         if (erc20TokenContract != IERC20Minting(0)) {
+            require(msg.value == 0);
             erc20TokenContract.stake(staker, _amount);
         } else {
             require(erc20Restricted);
@@ -1225,6 +1206,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
             // Also, that candidate shouldn't want to withdraw all his funds.
             require(stakeAmountMinusOrderedWithdraw(_poolStakingAddress, _poolStakingAddress) != 0);
         }
+
         stakeAmount[_poolStakingAddress][_staker] = stakeAmount[_poolStakingAddress][_staker].add(_amount);
         _stakeAmountByEpoch[_poolStakingAddress][_staker][stakingEpoch] = 
             stakeAmountByCurrentEpoch(_poolStakingAddress, _staker).add(_amount);
@@ -1236,13 +1218,12 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         } else {
             // Add `_staker` to the array of pool's delegators
             _addPoolDelegator(_poolStakingAddress, _staker);
+
+            // Save amount value staked by the delegator
+            _snapshotAmount(_poolStakingAddress, _staker);
         }
 
         _setLikelihood(_poolStakingAddress);
-
-        if (_staker != _poolStakingAddress) {
-            _snapshotAmount(_poolStakingAddress, _staker);
-        }
     }
 
     /// @dev The internal function used by the `withdraw` and `moveStake` functions.

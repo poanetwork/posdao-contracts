@@ -1543,7 +1543,7 @@ contract('BlockRewardAuRa', async accounts => {
       (await validatorSetAuRa.validatorSetApplyBlock.call()).should.be.bignumber.equal(new BN(0));
       await callFinalizeChange();
       (await validatorSetAuRa.validatorSetApplyBlock.call()).should.be.bignumber.equal(new BN(0));
-      //(await blockRewardAuRa.snapshotTotalStakeAmount.call()).should.be.bignumber.equal(new BN(0));
+
       const validators = await validatorSetAuRa.getValidators.call();
       validators.sortedEqual([
         accounts[131],
