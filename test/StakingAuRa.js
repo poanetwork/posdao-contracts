@@ -2217,7 +2217,7 @@ contract('StakingAuRa', async accounts => {
       await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
       (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], initialStakingAddresses[1])).should.be.bignumber.equal(mintAmount);
       const result = await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
-      result.logs[0].event.should.be.equal("Staked");
+      result.logs[0].event.should.be.equal("PlacedStake");
       result.logs[0].args.toPoolStakingAddress.should.be.equal(initialStakingAddresses[1]);
       result.logs[0].args.staker.should.be.equal(delegatorAddress);
       result.logs[0].args.stakingEpoch.should.be.bignumber.equal(new BN(0));
@@ -2369,7 +2369,7 @@ contract('StakingAuRa', async accounts => {
       await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
       (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], initialStakingAddresses[1])).should.be.bignumber.equal(candidateMinStake);
       const result = await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
-      result.logs[0].event.should.be.equal("Staked");
+      result.logs[0].event.should.be.equal("PlacedStake");
       result.logs[0].args.toPoolStakingAddress.should.be.equal(initialStakingAddresses[1]);
       result.logs[0].args.staker.should.be.equal(delegatorAddress);
       result.logs[0].args.stakingEpoch.should.be.bignumber.equal(new BN(0));
@@ -2745,7 +2745,7 @@ contract('StakingAuRa', async accounts => {
       (await erc20Token.balanceOf.call(delegatorAddress)).should.be.bignumber.equal(new BN(0));
 
       const result = await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
-      result.logs[0].event.should.be.equal("Withdrawn");
+      result.logs[0].event.should.be.equal("WithdrewStake");
       result.logs[0].args.fromPoolStakingAddress.should.be.equal(initialStakingAddresses[1]);
       result.logs[0].args.staker.should.be.equal(delegatorAddress);
       result.logs[0].args.stakingEpoch.should.be.bignumber.equal(new BN(0));

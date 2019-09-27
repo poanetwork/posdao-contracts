@@ -157,7 +157,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// @param staker The address of the staker that withdrew the `amount`.
     /// @param stakingEpoch The serial number of the staking epoch during which the claim was made.
     /// @param amount The withdrawal amount.
-    event ClaimedOrderedWithdraw(
+    event ClaimedOrderedWithdrawal(
         address indexed fromPoolStakingAddress,
         address indexed staker,
         uint256 indexed stakingEpoch,
@@ -179,19 +179,6 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         uint256 nativeCoinsAmount
     );
 
-    /// @dev Emitted by the `stake` function to signal the staker placed a stake of the specified
-    /// amount for the specified pool during the specified staking epoch.
-    /// @param toPoolStakingAddress The pool in which the `staker` placed the stake.
-    /// @param staker The address of the staker that placed the stake.
-    /// @param stakingEpoch The serial number of the staking epoch during which the stake was made.
-    /// @param amount The stake amount.
-    event Staked(
-        address indexed toPoolStakingAddress,
-        address indexed staker,
-        uint256 indexed stakingEpoch,
-        uint256 amount
-    );
-
     /// @dev Emitted by the `moveStake` function to signal the staker moved the specified
     /// amount of stake from one pool to another during the specified staking epoch.
     /// @param fromPoolStakingAddress The pool from which the `staker` moved the stake.
@@ -199,7 +186,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// @param staker The address of the staker who moved the `amount`.
     /// @param stakingEpoch The serial number of the staking epoch during which the `amount` was moved.
     /// @param amount The stake amount.
-    event StakeMoved(
+    event MovedStake(
         address fromPoolStakingAddress,
         address indexed toPoolStakingAddress,
         address indexed staker,
@@ -214,11 +201,24 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// @param stakingEpoch The serial number of the staking epoch during which the order was made.
     /// @param amount The ordered withdrawal amount. Can be either positive or negative.
     /// See the `orderWithdraw` function.
-    event WithdrawalOrdered(
+    event OrderedWithdrawal(
         address indexed fromPoolStakingAddress,
         address indexed staker,
         uint256 indexed stakingEpoch,
         int256 amount
+    );
+
+    /// @dev Emitted by the `stake` function to signal the staker placed a stake of the specified
+    /// amount for the specified pool during the specified staking epoch.
+    /// @param toPoolStakingAddress The pool in which the `staker` placed the stake.
+    /// @param staker The address of the staker that placed the stake.
+    /// @param stakingEpoch The serial number of the staking epoch during which the stake was made.
+    /// @param amount The stake amount.
+    event PlacedStake(
+        address indexed toPoolStakingAddress,
+        address indexed staker,
+        uint256 indexed stakingEpoch,
+        uint256 amount
     );
 
     /// @dev Emitted by the `withdraw` function to signal the staker withdrew the specified
@@ -227,7 +227,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// @param staker The address of staker that withdrew the `amount`.
     /// @param stakingEpoch The serial number of the staking epoch during which the withdrawal was made.
     /// @param amount The withdrawal amount.
-    event Withdrawn(
+    event WithdrewStake(
         address indexed fromPoolStakingAddress,
         address indexed staker,
         uint256 indexed stakingEpoch,
@@ -395,7 +395,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         address staker = msg.sender;
         _withdraw(_fromPoolStakingAddress, staker, _amount);
         _stake(_toPoolStakingAddress, staker, _amount);
-        emit StakeMoved(_fromPoolStakingAddress, _toPoolStakingAddress, staker, stakingEpoch, _amount);
+        emit MovedStake(_fromPoolStakingAddress, _toPoolStakingAddress, staker, stakingEpoch, _amount);
     }
 
     /// @dev Moves the specified amount of staking tokens/coins from the staker's address to the staking address of
@@ -422,7 +422,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
             require(erc20Restricted);
             staker.transfer(_amount);
         }
-        emit Withdrawn(_fromPoolStakingAddress, staker, stakingEpoch, _amount);
+        emit WithdrewStake(_fromPoolStakingAddress, staker, stakingEpoch, _amount);
     }
 
     /// @dev Orders a token/coin withdrawal from the staking address of the specified pool to the
@@ -506,7 +506,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
             _snapshotAmount(_poolStakingAddress, staker);
         }
 
-        emit WithdrawalOrdered(_poolStakingAddress, staker, epoch, _amount);
+        emit OrderedWithdrawal(_poolStakingAddress, staker, epoch, _amount);
     }
 
     /// @dev Withdraws the staking tokens/coins from the specified pool ordered during the previous staking epochs with
@@ -546,7 +546,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
             staker.transfer(claimAmount);
         }
 
-        emit ClaimedOrderedWithdraw(_poolStakingAddress, staker, epoch, claimAmount);
+        emit ClaimedOrderedWithdrawal(_poolStakingAddress, staker, epoch, claimAmount);
     }
 
     /// @dev Withdraws a reward from the specified pool for the specified staking epochs
@@ -1178,7 +1178,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         } else {
             require(erc20Restricted);
         }
-        emit Staked(_toPoolStakingAddress, staker, stakingEpoch, _amount);
+        emit PlacedStake(_toPoolStakingAddress, staker, stakingEpoch, _amount);
     }
 
     /// @dev The internal function used by the `_stake` and `moveStake` functions.
