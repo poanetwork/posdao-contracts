@@ -99,11 +99,6 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
     /// before the specified staking epoch. Filled by the `_snapshotPoolStakeAmounts` function.
     mapping(uint256 => mapping(address => uint256)) public snapshotPoolValidatorStakeAmount;
 
-    /// @dev The total amount staked during the previous staking epoch. This value is used by the
-    /// `_distributeRewards` function at the end of the current staking epoch to calculate the inflation amount
-    /// for the staking token in the current staking epoch.
-    uint256 public snapshotTotalStakeAmount;
-
     /// @dev The address of the `ValidatorSet` contract.
     IValidatorSetAuRa public validatorSetContract;
 
@@ -197,6 +192,17 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
         require(_queueERInitialized);
         _enqueueExtraReceiver(_amount, _receiver, msg.sender);
         emit AddedReceiver(_amount, _receiver, msg.sender);
+    }
+
+    /// @dev Called by the `ValidatorSetAuRa.finalizeChange` to clear the values in
+    /// the `blocksCreated` mapping.
+    function clearBlocksCreated() external onlyValidatorSetContract {
+        IStakingAuRa stakingContract = IStakingAuRa(validatorSetContract.stakingContract());
+        uint256 stakingEpoch = stakingContract.stakingEpoch();
+        address[] memory validators = validatorSetContract.getValidators();
+        for (uint256 i = 0; i < validators.length; i++) {
+            blocksCreated[stakingEpoch][validators[i]] = 0;
+        }
     }
 
     /// @dev Initializes the contract at network startup.
@@ -316,7 +322,6 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
                 _snapshotPoolStakeAmounts(stakingContract, nextStakingEpoch, miningAddresses[i]);
             }
 
-            snapshotTotalStakeAmount = 0;
             bridgeQueueLimit = 0;
         }
 
@@ -373,20 +378,6 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
         for (i = 0; i < _bridgesAllowed.length; i++) {
             _ercToErcBridgeAllowed[_bridgesAllowed[i]] = true;
         }
-    }
-
-    /// @dev Called by the `ValidatorSetAuRa.finalizeChange` to set the value of
-    /// `snapshotTotalStakeAmount`.
-    function setSnapshotTotalStakeAmount() external onlyValidatorSetContract {
-        IStakingAuRa stakingContract = IStakingAuRa(validatorSetContract.stakingContract());
-        uint256 stakingEpoch = stakingContract.stakingEpoch();
-        address[] memory validators = validatorSetContract.getValidators();
-        uint256 totalStakeAmount = 0;
-        for (uint256 i = 0; i < validators.length; i++) {
-            totalStakeAmount += snapshotPoolTotalStakeAmount[stakingEpoch][validators[i]];
-            blocksCreated[stakingEpoch][validators[i]] = 0;
-        }
-        snapshotTotalStakeAmount = totalStakeAmount;
     }
 
     /// @dev Called by the `StakingAuRa.claimReward` function to transfer tokens and native coins
@@ -648,7 +639,6 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
         uint256 _stakingEpoch,
         uint256 _stakingEpochEndBlock
     ) internal returns(address[] memory receivers, uint256[] memory rewards) {
-        bool erc20Restricted = _stakingContract.erc20Restricted();
         address[] memory validators = validatorSetContract.getValidators();
 
         // Determine shares
@@ -685,11 +675,10 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
 
         // Distribute ERC tokens among pools
         _distributeTokenRewards(
-            _stakingContract,
+            _stakingContract.erc20TokenContract(),
             _stakingEpoch,
             totalRewardShareNum,
             totalRewardShareDenom,
-            erc20Restricted,
             validators,
             blocksCreatedShareNum,
             blocksCreatedShareDenom
@@ -701,11 +690,9 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
 
         receivers[0] = address(this);
         rewards[0] = _distributeNativeRewards(
-            _stakingContract,
             _stakingEpoch,
             totalRewardShareNum,
             totalRewardShareDenom,
-            erc20Restricted,
             validators,
             blocksCreatedShareNum,
             blocksCreatedShareDenom
@@ -716,32 +703,22 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
 
     /// @dev Distributes rewards in native coins among pools at the latest block of a staking epoch.
     /// This function is called by the `_distributeRewards` function.
-    /// @param _stakingContract The address of the StakingAuRa contract.
     /// @param _stakingEpoch The number of the current staking epoch.
     /// @param _totalRewardShareNum Numerator of the total reward share.
     /// @param _totalRewardShareDenom Denominator of the total reward share.
-    /// @param _erc20Restricted A boolean flag indicating whether StakingAuRa contract restricts
-    /// using ERC20/677 contract.
     /// @param _validators The array of the current validators (their mining addresses).
     /// @param _blocksCreatedShareNum Numerators of blockCreated share for each of the validators.
     /// @param _blocksCreatedShareDenom Denominator of blockCreated share.
     /// @return Returns the amount of native coins which need to be minted.
     function _distributeNativeRewards(
-        IStakingAuRa _stakingContract,
         uint256 _stakingEpoch,
         uint256 _totalRewardShareNum,
         uint256 _totalRewardShareDenom,
-        bool _erc20Restricted,
         address[] memory _validators,
         uint256[] memory _blocksCreatedShareNum,
         uint256 _blocksCreatedShareDenom
     ) internal returns(uint256) {
-        uint256 totalReward = bridgeNativeFee;
-        if (_erc20Restricted) {
-            // Accumulated bridge fee plus 2.5% per year coin inflation
-            totalReward += _stakingContract.stakingEpochDuration() * 1 ether;
-        }
-        totalReward += nativeRewardUndistributed;
+        uint256 totalReward = bridgeNativeFee + nativeRewardUndistributed;
 
         if (totalReward == 0) {
             return 0;
@@ -775,37 +752,23 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
 
     /// @dev Distributes rewards in tokens among pools at the latest block of a staking epoch.
     /// This function is called by the `_distributeRewards` function.
-    /// @param _stakingContract The address of the StakingAuRa contract.
+    /// @param _erc20TokenContract The address of the ERC token contract.
     /// @param _stakingEpoch The number of the current staking epoch.
     /// @param _totalRewardShareNum Numerator of the total reward share.
     /// @param _totalRewardShareDenom Denominator of the total reward share.
-    /// @param _erc20Restricted A boolean flag indicating whether StakingAuRa contract restricts
-    /// using ERC20/677 contract.
     /// @param _validators The array of the current validators (their mining addresses).
     /// @param _blocksCreatedShareNum Numerators of blockCreated share for each of the validators.
     /// @param _blocksCreatedShareDenom Denominator of blockCreated share.
     function _distributeTokenRewards(
-        IStakingAuRa _stakingContract,
+        address _erc20TokenContract,
         uint256 _stakingEpoch,
         uint256 _totalRewardShareNum,
         uint256 _totalRewardShareDenom,
-        bool _erc20Restricted,
         address[] memory _validators,
         uint256[] memory _blocksCreatedShareNum,
         uint256 _blocksCreatedShareDenom
     ) internal {
-        address erc20TokenContract = _stakingContract.erc20TokenContract();
-
-        uint256 totalReward = bridgeTokenFee;
-        if (!_erc20Restricted) {
-            uint256 inflationPercent;
-            if (_stakingEpoch <= 24) inflationPercent = 32;
-            else if (_stakingEpoch <= 48) inflationPercent = 16;
-            else if (_stakingEpoch <= 72) inflationPercent = 8;
-            else inflationPercent = 4; // solhint-disable-line indent
-            totalReward += snapshotTotalStakeAmount * inflationPercent / 4800;
-        }
-        totalReward += tokenRewardUndistributed;
+        uint256 totalReward = bridgeTokenFee + tokenRewardUndistributed;
 
         if (totalReward == 0) {
             return;
@@ -814,7 +777,7 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
         bridgeTokenFee = 0;
 
         uint256 distributedAmount = 0;
-        if (erc20TokenContract != address(0) && _blocksCreatedShareDenom != 0 && _totalRewardShareDenom != 0) {
+        if (_erc20TokenContract != address(0) && _blocksCreatedShareDenom != 0 && _totalRewardShareDenom != 0) {
             uint256 rewardToDistribute = totalReward * _totalRewardShareNum / _totalRewardShareDenom;
 
             if (rewardToDistribute != 0) {
@@ -828,7 +791,7 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
                     }
                 }
 
-                IERC20Minting(erc20TokenContract).mintReward(address(this), distributedAmount);
+                IERC20Minting(_erc20TokenContract).mintReward(address(this), distributedAmount);
             }
         }
 

@@ -17,7 +17,6 @@ interface IStakingAuRa {
     function removePool(address) external;
     function removePools() external;
     function setStakingEpochStartBlock(uint256) external;
-    function erc20Restricted() external view returns(bool);
     function erc20TokenContract() external view returns(address);
     function getPoolsLikelihood() external view returns(uint256[] memory, uint256);
     function getPoolsToBeElected() external view returns(address[] memory);

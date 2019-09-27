@@ -202,7 +202,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
             // Apply a new validator set formed by the `newValidatorSet` function
             _savePreviousValidators();
             _finalizeNewValidators();
-            IBlockRewardAuRa(blockRewardContract).setSnapshotTotalStakeAmount();
+            IBlockRewardAuRa(blockRewardContract).clearBlocksCreated();
             validatorSetApplyBlock = _getCurrentBlockNumber();
         } else if (_finalizeValidators.list.length != 0) {
             // Apply the changed validator set after malicious validator is removed

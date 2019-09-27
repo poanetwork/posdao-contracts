@@ -251,12 +251,6 @@ contract('BlockRewardAuRa', async accounts => {
       await callFinalizeChange();
       (await validatorSetAuRa.validatorSetApplyBlock.call()).should.be.bignumber.equal(currentBlock);
       (await validatorSetAuRa.getValidators.call()).should.be.deep.equal(validators);
-
-      const snapshotTotalStakeAmount = await blockRewardAuRa.snapshotTotalStakeAmount.call();
-      snapshotTotalStakeAmount.should.be.bignumber.equal(
-        candidateMinStake.add(delegatorMinStake.mul(new BN(3))).mul(new BN(3))
-      );
-      tokenRewardUndistributed = tokenRewardUndistributed.add(snapshotTotalStakeAmount.mul(new BN(32)).div(new BN(4800)));
     });
 
     it('  bridge fee accumulated during the epoch #2', async () => {
@@ -294,7 +288,8 @@ contract('BlockRewardAuRa', async accounts => {
         epochsPoolGotRewardFor.length.should.be.equal(1);
         epochsPoolGotRewardFor[0].should.be.bignumber.equal(new BN(2));
       }
-      rewardDistributed.should.be.bignumber.above(web3.utils.toWei(new BN(2)));
+      rewardDistributed.should.be.bignumber.above(new BN(web3.utils.toWei('1.9')));
+      rewardDistributed.should.be.bignumber.below(new BN(web3.utils.toWei('2.1')));
       tokenRewardUndistributed = tokenRewardUndistributed.sub(rewardDistributed);
       tokenRewardUndistributed.should.be.bignumber.equal(await blockRewardAuRa.tokenRewardUndistributed.call());
 
@@ -350,12 +345,6 @@ contract('BlockRewardAuRa', async accounts => {
       await callFinalizeChange();
       (await validatorSetAuRa.validatorSetApplyBlock.call()).should.be.bignumber.equal(currentBlock);
       (await validatorSetAuRa.getValidators.call()).should.be.deep.equal(validators);
-
-      const snapshotTotalStakeAmount = await blockRewardAuRa.snapshotTotalStakeAmount.call();
-      snapshotTotalStakeAmount.should.be.bignumber.equal(
-        candidateMinStake.add(delegatorMinStake.mul(new BN(3))).mul(new BN(3))
-      );
-      tokenRewardUndistributed = tokenRewardUndistributed.add(snapshotTotalStakeAmount.mul(new BN(32)).div(new BN(4800)));
     });
 
     it('  three other candidates are added during the epoch #3', async () => {
@@ -505,12 +494,6 @@ contract('BlockRewardAuRa', async accounts => {
       await callFinalizeChange();
       (await validatorSetAuRa.validatorSetApplyBlock.call()).should.be.bignumber.equal(currentBlock);
       (await validatorSetAuRa.getValidators.call()).should.be.deep.equal(pendingValidators);
-
-      const snapshotTotalStakeAmount = await blockRewardAuRa.snapshotTotalStakeAmount.call();
-      snapshotTotalStakeAmount.should.be.bignumber.equal(
-        candidateMinStake.add(delegatorMinStake.mul(new BN(3))).mul(new BN(4))
-      );
-      tokenRewardUndistributed = tokenRewardUndistributed.add(snapshotTotalStakeAmount.mul(new BN(32)).div(new BN(4800)));
     });
 
     it('  bridge fee accumulated during the epoch #4', async () => {
@@ -651,7 +634,11 @@ contract('BlockRewardAuRa', async accounts => {
       logs[0].args.newSet.should.be.deep.equal(pendingValidators); // 61 62 63
 
       (await validatorSetAuRa.validatorSetApplyBlock.call()).should.be.bignumber.equal(new BN(0));
-      (await blockRewardAuRa.snapshotTotalStakeAmount.call()).should.be.bignumber.equal(new BN(0));
+    });
+
+    it('  bridge fee accumulated during the epoch #5', async () => {
+      const fee = await accrueBridgeFees();
+      tokenRewardUndistributed = tokenRewardUndistributed.add(fee);
     });
 
     it('  current pending validators remove their pools during the epoch #5', async () => {
@@ -785,12 +772,6 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[63]
       ]);
 
-      const snapshotTotalStakeAmount = await blockRewardAuRa.snapshotTotalStakeAmount.call();
-      snapshotTotalStakeAmount.should.be.bignumber.equal(
-        candidateMinStake.add(delegatorMinStake.mul(new BN(3))).mul(new BN(3))
-      );
-      tokenRewardUndistributed = tokenRewardUndistributed.add(snapshotTotalStakeAmount.mul(new BN(32)).div(new BN(4800)));
-
       const {logs} = await validatorSetAuRa.emitInitiateChange().should.be.fulfilled;
       logs[0].event.should.be.equal("InitiateChange");
       logs[0].args.newSet.should.be.deep.equal([
@@ -798,6 +779,11 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[92],
         accounts[93]
       ]);
+    });
+
+    it('  bridge fee accumulated during the epoch #6', async () => {
+      const fee = await accrueBridgeFees();
+      tokenRewardUndistributed = tokenRewardUndistributed.add(fee);
     });
 
     it('  all upcoming validators remove their pools during the epoch #6', async () => {
@@ -869,7 +855,9 @@ contract('BlockRewardAuRa', async accounts => {
         }
         rewardDistributed = rewardDistributed.add(epochPoolTokenReward);
       }
-      rewardDistributed.toString().substring(0, 3).should.be.equal(tokenRewardUndistributed.div(new BN(2)).toString().substring(0, 3));
+      Math.round(Number(web3.utils.fromWei(rewardDistributed)) * 100).should.be.equal(
+        Math.round(Number(web3.utils.fromWei(tokenRewardUndistributed.div(new BN(2)))) * 100)
+      );
       tokenRewardUndistributed = tokenRewardUndistributed.sub(rewardDistributed);
       tokenRewardUndistributed.should.be.bignumber.equal(await blockRewardAuRa.tokenRewardUndistributed.call());
 
@@ -938,8 +926,12 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[63]
       ]);
 
-      (await blockRewardAuRa.snapshotTotalStakeAmount.call()).should.be.bignumber.equal(new BN(0));
       await validatorSetAuRa.emitInitiateChange().should.be.rejectedWith(ERROR_MSG);
+    });
+
+    it('  bridge fee accumulated during the epoch #7', async () => {
+      const fee = await accrueBridgeFees();
+      tokenRewardUndistributed = tokenRewardUndistributed.add(fee);
     });
 
     it('  all pending validators remove their pools during the epoch #7', async () => {
@@ -1085,8 +1077,12 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[63]
       ]);
 
-      (await blockRewardAuRa.snapshotTotalStakeAmount.call()).should.be.bignumber.equal(new BN(0));
       await validatorSetAuRa.emitInitiateChange().should.be.rejectedWith(ERROR_MSG);
+    });
+
+    it('  bridge fee accumulated during the epoch #8', async () => {
+      const fee = await accrueBridgeFees();
+      tokenRewardUndistributed = tokenRewardUndistributed.add(fee);
     });
 
     it('  all pending validators remove their pools during the epoch #8', async () => {
@@ -1235,11 +1231,6 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[93]
       ]);
 
-      let snapshotTotalStakeAmount = await blockRewardAuRa.snapshotTotalStakeAmount.call();
-      snapshotTotalStakeAmount.should.be.bignumber.equal(
-        candidateMinStake.mul(new BN(3))
-      );
-
       currentBlock = stakingEpochStartBlock.add(new BN(STAKING_EPOCH_DURATION / 2));
       await setCurrentBlockNumber(currentBlock);
 
@@ -1260,11 +1251,11 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[122],
         accounts[123]
       ]);
-      snapshotTotalStakeAmount = await blockRewardAuRa.snapshotTotalStakeAmount.call();
-      snapshotTotalStakeAmount.should.be.bignumber.equal(
-        candidateMinStake.mul(new BN(3))
-      );
-      tokenRewardUndistributed = tokenRewardUndistributed.add(snapshotTotalStakeAmount.mul(new BN(32)).div(new BN(4800)));
+    });
+
+    it('  bridge fee accumulated during the epoch #9', async () => {
+      const fee = await accrueBridgeFees();
+      tokenRewardUndistributed = tokenRewardUndistributed.add(fee);
     });
 
     it('  all current validators remove their pools during the epoch #9', async () => {
@@ -1397,12 +1388,11 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[132],
         accounts[133]
       ]);
+    });
 
-      const snapshotTotalStakeAmount = await blockRewardAuRa.snapshotTotalStakeAmount.call();
-      snapshotTotalStakeAmount.should.be.bignumber.equal(
-        candidateMinStake.mul(new BN(3))
-      );
-      tokenRewardUndistributed = tokenRewardUndistributed.add(snapshotTotalStakeAmount.mul(new BN(32)).div(new BN(4800)));
+    it('  bridge fee accumulated during the epoch #10', async () => {
+      const fee = await accrueBridgeFees();
+      tokenRewardUndistributed = tokenRewardUndistributed.add(fee);
     });
 
     it('  all current validators remove their pools during the epoch #10', async () => {
@@ -1553,7 +1543,7 @@ contract('BlockRewardAuRa', async accounts => {
       (await validatorSetAuRa.validatorSetApplyBlock.call()).should.be.bignumber.equal(new BN(0));
       await callFinalizeChange();
       (await validatorSetAuRa.validatorSetApplyBlock.call()).should.be.bignumber.equal(new BN(0));
-      (await blockRewardAuRa.snapshotTotalStakeAmount.call()).should.be.bignumber.equal(new BN(0));
+      //(await blockRewardAuRa.snapshotTotalStakeAmount.call()).should.be.bignumber.equal(new BN(0));
       const validators = await validatorSetAuRa.getValidators.call();
       validators.sortedEqual([
         accounts[131],
@@ -1567,6 +1557,11 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[142],
         accounts[143]
       ]);
+    });
+
+    it('  bridge fee accumulated during the epoch #11', async () => {
+      const fee = await accrueBridgeFees();
+      tokenRewardUndistributed = tokenRewardUndistributed.add(fee);
     });
 
     it('  all pending validators remove their pools during the epoch #11', async () => {
@@ -1716,12 +1711,11 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[152],
         accounts[153]
       ]);
+    });
 
-      const snapshotTotalStakeAmount = await blockRewardAuRa.snapshotTotalStakeAmount.call();
-      snapshotTotalStakeAmount.should.be.bignumber.equal(
-        candidateMinStake.mul(new BN(3))
-      );
-      tokenRewardUndistributed = tokenRewardUndistributed.add(snapshotTotalStakeAmount.mul(new BN(32)).div(new BN(4800)));
+    it('  bridge fee accumulated during the epoch #12', async () => {
+      const fee = await accrueBridgeFees();
+      tokenRewardUndistributed = tokenRewardUndistributed.add(fee);
     });
 
     it('staking epoch #12 finished', async () => {
