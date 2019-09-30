@@ -23,8 +23,8 @@ interface IStakingAuRa {
     function getPoolsToBeRemoved() external view returns(address[] memory);
     function MAX_CANDIDATES() external pure returns(uint256); // solhint-disable-line func-name-mixedcase
     function poolDelegators(address) external view returns(address[] memory);
-    function stakeAmountMinusOrderedWithdraw(address, address) external view returns(uint256);
-    function stakeAmountTotalMinusOrderedWithdraw(address) external view returns(uint256);
+    function stakeAmount(address, address) external view returns(uint256);
+    function stakeAmountTotal(address) external view returns(uint256);
     function stakeWithdrawDisallowPeriod() external view returns(uint256);
     function stakingEpoch() external view returns(uint256);
     function stakingEpochDuration() external view returns(uint256);

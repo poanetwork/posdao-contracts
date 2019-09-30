@@ -35,6 +35,10 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// @dev The limit of the minimum delegator stake (DELEGATOR_MIN_STAKE).
     uint256 public delegatorMinStake;
 
+    /// @dev The snapshot of tokens amount staked into the specified pool (staking address)
+    /// by the specified delegator before the specified staking epoch. Used by the `claimReward` function.
+    mapping(address => mapping(address => mapping(uint256 => uint256))) public delegatorStakeSnapshot;
+
     /// @dev A boolean flag indicating whether this contract restricts
     /// using ERC20/677 contract. If it returns `true`, native staking coins
     /// are used instead of ERC staking tokens.
@@ -102,14 +106,9 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     mapping(address => mapping(address => mapping(uint256 => bool))) public rewardWasTaken;
 
     /// @dev The amount of tokens currently staked into the specified pool by the specified
-    /// staker. Doesn't take into account the ordered amount to be withdrawn (use the
-    /// `stakeAmountMinusOrderedWithdraw` instead). The first parameter is the pool staking address,
+    /// staker. The first parameter is the pool staking address,
     /// the second one is the staker address.
     mapping(address => mapping(address => uint256)) public stakeAmount;
-
-    /// @dev The snapshot of tokens amount staked into the specified pool (staking address)
-    /// by the specified staker before the specified staking epoch. Used by the `claimReward` function.
-    mapping(address => mapping(address => mapping(uint256 => uint256))) public stakeAmountSnapshot;
 
     /// @dev The duration period (in blocks) at the end of staking epoch during which
     /// participants are not allowed to stake and withdraw their staking tokens/coins.
@@ -125,8 +124,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     uint256 public stakingEpochStartBlock;
 
     /// @dev Returns the total amount of staking tokens/coins currently staked into the specified pool.
-    /// Doesn't take into account the ordered amounts to be withdrawn (use the
-    /// `stakeAmountTotalMinusOrderedWithdraw` instead). The pool staking address is accepted as a parameter.
+    /// The pool staking address is accepted as a parameter.
     mapping(address => uint256) public stakeAmountTotal;
 
     /// @dev The address of the `ValidatorSet` contract.
@@ -289,7 +287,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// @param _unremovableStakingAddress The staking address of the unremovable validator.
     function clearUnremovableValidator(address _unremovableStakingAddress) external onlyValidatorSetContract {
         require(_unremovableStakingAddress != address(0));
-        if (stakeAmountMinusOrderedWithdraw(_unremovableStakingAddress, _unremovableStakingAddress) != 0) {
+        if (stakeAmount[_unremovableStakingAddress][_unremovableStakingAddress] != 0) {
             _addPoolToBeElected(_unremovableStakingAddress);
             _setLikelihood(_unremovableStakingAddress);
         } else {
@@ -443,81 +441,84 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
             validatorSetContract.miningByStakingAddress(_poolStakingAddress), staker != _poolStakingAddress
         ));
 
-        // How much can `staker` order for withdrawal from `_poolStakingAddress` at the moment?
-        require(_amount < 0 || uint256(_amount) <= maxWithdrawOrderAllowed(_poolStakingAddress, staker));
-
-        uint256 alreadyOrderedAmount = orderedWithdrawAmount[_poolStakingAddress][staker];
-
-        require(_amount > 0 || uint256(-_amount) <= alreadyOrderedAmount);
-
-        uint256 newOrderedAmount;
+        uint256 newOrderedAmount = orderedWithdrawAmount[_poolStakingAddress][staker];
+        uint256 newOrderedAmountTotal = orderedWithdrawAmountTotal[_poolStakingAddress];
+        uint256 newStakeAmount = stakeAmount[_poolStakingAddress][staker];
+        uint256 newStakeAmountTotal = stakeAmountTotal[_poolStakingAddress];
         if (_amount > 0) {
-            newOrderedAmount = alreadyOrderedAmount.add(uint256(_amount));
+            uint256 amount = uint256(_amount);
+
+            // How much can `staker` order for withdrawal from `_poolStakingAddress` at the moment?
+            require(amount <= maxWithdrawOrderAllowed(_poolStakingAddress, staker));
+
+            newOrderedAmount = newOrderedAmount.add(amount);
+            newOrderedAmountTotal = newOrderedAmountTotal.add(amount);
+            newStakeAmount = newStakeAmount.sub(amount);
+            newStakeAmountTotal = newStakeAmountTotal.sub(amount);
+            orderWithdrawEpoch[_poolStakingAddress][staker] = stakingEpoch;
         } else {
-            newOrderedAmount = alreadyOrderedAmount.sub(uint256(-_amount));
+            uint256 amount = uint256(-_amount);
+            newOrderedAmount = newOrderedAmount.sub(amount);
+            newOrderedAmountTotal = newOrderedAmountTotal.sub(amount);
+            newStakeAmount = newStakeAmount.add(amount);
+            newStakeAmountTotal = newStakeAmountTotal.add(amount);
         }
         orderedWithdrawAmount[_poolStakingAddress][staker] = newOrderedAmount;
+        orderedWithdrawAmountTotal[_poolStakingAddress] = newOrderedAmountTotal;
+        stakeAmount[_poolStakingAddress][staker] = newStakeAmount;
+        stakeAmountTotal[_poolStakingAddress] = newStakeAmountTotal;
 
-        // The amount to be withdrawn must be the whole staked amount or
-        // must not exceed the diff between the entire amount and MIN_STAKE
-        uint256 newStakeAmount = stakeAmount[_poolStakingAddress][staker].sub(newOrderedAmount);
         if (staker == _poolStakingAddress) {
+            // The amount to be withdrawn must be the whole staked amount or
+            // must not exceed the diff between the entire amount and `candidateMinStake`
             require(newStakeAmount == 0 || newStakeAmount >= candidateMinStake);
 
             address unremovableStakingAddress = validatorSetContract.unremovableValidator();
 
-            if (_amount > 0) {
+            if (_amount > 0) { // if the validator orders the `_amount` for withdrawal
                 if (newStakeAmount == 0 && _poolStakingAddress != unremovableStakingAddress) {
+                    // If the removable validator orders their entire stake,
+                    // mark their pool as `to be removed`
                     _addPoolToBeRemoved(_poolStakingAddress);
                 }
             } else {
+                // If the validator wants to reduce withdrawal value,
+                // add their pool as `active` if it hasn't already done
                 _addPoolActive(_poolStakingAddress, _poolStakingAddress != unremovableStakingAddress);
             }
         } else {
+            // The amount to be withdrawn must be the whole staked amount or
+            // must not exceed the diff between the entire amount and `delegatorMinStake`
             require(newStakeAmount == 0 || newStakeAmount >= delegatorMinStake);
 
-            if (_amount > 0) {
+            if (_amount > 0) { // if the delegator orders the `_amount` for withdrawal
                 if (newStakeAmount == 0) {
+                    // If the delegator orders their entire stake,
+                    // remove the delegator from delegator list of the pool
                     _removePoolDelegator(_poolStakingAddress, staker);
                 }
             } else {
+                // If the delegator wants to reduce withdrawal value,
+                // add them to delegator list of the pool if it hasn't already done
                 _addPoolDelegator(_poolStakingAddress, staker);
             }
-        }
 
-        // Set total ordered amount for this pool
-        alreadyOrderedAmount = orderedWithdrawAmountTotal[_poolStakingAddress];
-        if (_amount > 0) {
-            newOrderedAmount = alreadyOrderedAmount.add(uint256(_amount));
-        } else {
-            newOrderedAmount = alreadyOrderedAmount.sub(uint256(-_amount));
-        }
-        orderedWithdrawAmountTotal[_poolStakingAddress] = newOrderedAmount;
-
-        uint256 epoch = stakingEpoch;
-
-        if (_amount > 0) {
-            orderWithdrawEpoch[_poolStakingAddress][staker] = epoch;
+            // Remember stake movement to use it later in the `claimReward` function
+            _snapshotDelegatorStake(_poolStakingAddress, staker);
         }
 
         _setLikelihood(_poolStakingAddress);
 
-        if (staker != _poolStakingAddress) {
-            _snapshotAmount(_poolStakingAddress, staker);
-        }
-
-        emit OrderedWithdrawal(_poolStakingAddress, staker, epoch, _amount);
+        emit OrderedWithdrawal(_poolStakingAddress, staker, stakingEpoch, _amount);
     }
 
     /// @dev Withdraws the staking tokens/coins from the specified pool ordered during the previous staking epochs with
     /// the `orderWithdraw` function. The ordered amount can be retrieved by the `orderedWithdrawAmount` getter.
     /// @param _poolStakingAddress The staking address of the pool from which the ordered tokens/coins are withdrawn.
     function claimOrderedWithdraw(address _poolStakingAddress) external gasPriceIsValid onlyInitialized {
-        uint256 epoch = stakingEpoch;
         address payable staker = msg.sender;
 
-        require(_poolStakingAddress != address(0));
-        require(epoch > orderWithdrawEpoch[_poolStakingAddress][staker]);
+        require(stakingEpoch > orderWithdrawEpoch[_poolStakingAddress][staker]);
         require(_isWithdrawAllowed(
             validatorSetContract.miningByStakingAddress(_poolStakingAddress), staker != _poolStakingAddress
         ));
@@ -525,19 +526,13 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         uint256 claimAmount = orderedWithdrawAmount[_poolStakingAddress][staker];
         require(claimAmount != 0);
 
-        uint256 resultingStakeAmount = stakeAmount[_poolStakingAddress][staker].sub(claimAmount);
-
         orderedWithdrawAmount[_poolStakingAddress][staker] = 0;
         orderedWithdrawAmountTotal[_poolStakingAddress] =
             orderedWithdrawAmountTotal[_poolStakingAddress].sub(claimAmount);
-        stakeAmount[_poolStakingAddress][staker] = resultingStakeAmount;
-        stakeAmountTotal[_poolStakingAddress] = stakeAmountTotal[_poolStakingAddress].sub(claimAmount);
 
-        if (resultingStakeAmount == 0) {
+        if (stakeAmount[_poolStakingAddress][staker] == 0) {
             _withdrawCheckPool(_poolStakingAddress, staker);
         }
-
-        _setLikelihood(_poolStakingAddress);
 
         if (erc20TokenContract != IERC20Minting(0)) {
             erc20TokenContract.transfer(staker, claimAmount);
@@ -546,7 +541,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
             staker.transfer(claimAmount);
         }
 
-        emit ClaimedOrderedWithdrawal(_poolStakingAddress, staker, epoch, claimAmount);
+        emit ClaimedOrderedWithdrawal(_poolStakingAddress, staker, stakingEpoch, claimAmount);
     }
 
     /// @dev Withdraws a reward from the specified pool for the specified staking epochs
@@ -757,7 +752,8 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// See the `getPools` getter.
     /// @param _stakingAddress The staking address of the pool.
     function isPoolActive(address _stakingAddress) public view returns(bool) {
-        return _pools.length != 0 && _pools[poolIndex[_stakingAddress]] == _stakingAddress;
+        uint256 index = poolIndex[_stakingAddress];
+        return index < _pools.length && _pools[index] == _stakingAddress;
     }
 
     /// @dev Returns the maximum amount which can be withdrawn from the specified pool by the specified staker
@@ -771,7 +767,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
             return 0;
         }
 
-        uint256 canWithdraw = stakeAmountMinusOrderedWithdraw(_poolStakingAddress, _staker);
+        uint256 canWithdraw = stakeAmount[_poolStakingAddress][_staker];
 
         if (!validatorSetContract.isValidatorOrPending(miningAddress)) {
             // The pool is not a validator and is not going to become one,
@@ -813,13 +809,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         // If the pool is an active or pending validator, the staker can order withdrawal
         // up to their total staking amount minus an already ordered amount
         // minus an amount staked during the current staking epoch
-        return stakeAmountMinusOrderedWithdraw(
-            _poolStakingAddress,
-            _staker
-        ).sub(stakeAmountByCurrentEpoch(
-            _poolStakingAddress,
-            _staker
-        ));
+        return stakeAmount[_poolStakingAddress][_staker].sub(stakeAmountByCurrentEpoch(_poolStakingAddress, _staker));
     }
 
     /// @dev Prevents sending tokens directly to the `StakingAuRa` contract address
@@ -857,30 +847,6 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         return _stakeAmountByEpoch[_poolStakingAddress][_staker][stakingEpoch];
     }
 
-    /// @dev Returns the amount of staking tokens/coins currently staked into the specified pool by the specified
-    /// staker taking into account the ordered amount to be withdrawn. See also the `stakeAmount` and
-    /// `orderedWithdrawAmount`.
-    /// @param _poolStakingAddress The pool staking address.
-    /// @param _staker The staker's address.
-    function stakeAmountMinusOrderedWithdraw(
-        address _poolStakingAddress,
-        address _staker
-    ) public view returns(uint256) {
-        uint256 amount = stakeAmount[_poolStakingAddress][_staker];
-        uint256 orderedAmount = orderedWithdrawAmount[_poolStakingAddress][_staker];
-        return amount >= orderedAmount ? amount - orderedAmount : 0;
-    }
-
-    /// @dev Returns the total amount of staking tokens/coins currently staked into the specified pool taking into
-    /// account the ordered amounts to be withdrawn. See also the `stakeAmountTotal` and `orderedWithdrawAmountTotal`
-    /// getters.
-    /// @param _poolStakingAddress The pool staking address.
-    function stakeAmountTotalMinusOrderedWithdraw(address _poolStakingAddress) public view returns(uint256) {
-        uint256 amount = stakeAmountTotal[_poolStakingAddress];
-        uint256 orderedAmount = orderedWithdrawAmountTotal[_poolStakingAddress];
-        return amount >= orderedAmount ? amount - orderedAmount : 0;
-    }
-
     /// @dev Returns the number of the last block of the current staking epoch.
     function stakingEpochEndBlock() public view returns(uint256) {
         uint256 startBlock = stakingEpochStartBlock;
@@ -911,8 +877,9 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// @param _stakingAddress The pool added to the array of inactive pools.
     function _addPoolInactive(address _stakingAddress) internal {
         uint256 index = poolInactiveIndex[_stakingAddress];
-        if (index >= _poolsInactive.length || _poolsInactive[index] != _stakingAddress) {
-            poolInactiveIndex[_stakingAddress] = _poolsInactive.length;
+        uint256 length = _poolsInactive.length;
+        if (index >= length || _poolsInactive[index] != _stakingAddress) {
+            poolInactiveIndex[_stakingAddress] = length;
             _poolsInactive.push(_stakingAddress);
         }
     }
@@ -922,10 +889,11 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// @param _stakingAddress The pool added to the `poolsToBeElected` array.
     function _addPoolToBeElected(address _stakingAddress) internal {
         uint256 index = poolToBeElectedIndex[_stakingAddress];
-        if (index >= _poolsToBeElected.length || _poolsToBeElected[index] != _stakingAddress) {
-            poolToBeElectedIndex[_stakingAddress] = _poolsToBeElected.length;
+        uint256 length = _poolsToBeElected.length;
+        if (index >= length || _poolsToBeElected[index] != _stakingAddress) {
+            poolToBeElectedIndex[_stakingAddress] = length;
             _poolsToBeElected.push(_stakingAddress);
-            _poolsLikelihood.push(0);
+            _poolsLikelihood.push(0); // assumes the likelihood is set with `_setLikelihood` function
         }
         _deletePoolToBeRemoved(_stakingAddress);
     }
@@ -935,8 +903,9 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// @param _stakingAddress The pool added to the `poolsToBeRemoved` array.
     function _addPoolToBeRemoved(address _stakingAddress) internal {
         uint256 index = poolToBeRemovedIndex[_stakingAddress];
-        if (index >= _poolsToBeRemoved.length || _poolsToBeRemoved[index] != _stakingAddress) {
-            poolToBeRemovedIndex[_stakingAddress] = _poolsToBeRemoved.length;
+        uint256 length = _poolsToBeRemoved.length;
+        if (index >= length || _poolsToBeRemoved[index] != _stakingAddress) {
+            poolToBeRemovedIndex[_stakingAddress] = length;
             _poolsToBeRemoved.push(_stakingAddress);
         }
         _deletePoolToBeElected(_stakingAddress);
@@ -955,9 +924,11 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
             } else {
                 _poolsLikelihoodSum = 0;
             }
-            _poolsToBeElected[indexToDelete] = _poolsToBeElected[_poolsToBeElected.length - 1];
-            _poolsLikelihood[indexToDelete] = _poolsLikelihood[_poolsToBeElected.length - 1];
-            poolToBeElectedIndex[_poolsToBeElected[indexToDelete]] = indexToDelete;
+            uint256 lastPoolIndex = _poolsToBeElected.length - 1;
+            address lastPool = _poolsToBeElected[lastPoolIndex];
+            _poolsToBeElected[indexToDelete] = lastPool;
+            _poolsLikelihood[indexToDelete] = _poolsLikelihood[lastPoolIndex];
+            poolToBeElectedIndex[lastPool] = indexToDelete;
             poolToBeElectedIndex[_stakingAddress] = 0;
             _poolsToBeElected.length--;
             _poolsLikelihood.length--;
@@ -971,8 +942,9 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     function _deletePoolToBeRemoved(address _stakingAddress) internal {
         uint256 indexToDelete = poolToBeRemovedIndex[_stakingAddress];
         if (_poolsToBeRemoved.length > indexToDelete && _poolsToBeRemoved[indexToDelete] == _stakingAddress) {
-            _poolsToBeRemoved[indexToDelete] = _poolsToBeRemoved[_poolsToBeRemoved.length - 1];
-            poolToBeRemovedIndex[_poolsToBeRemoved[indexToDelete]] = indexToDelete;
+            address lastPool = _poolsToBeRemoved[_poolsToBeRemoved.length - 1];
+            _poolsToBeRemoved[indexToDelete] = lastPool;
+            poolToBeRemovedIndex[lastPool] = indexToDelete;
             poolToBeRemovedIndex[_stakingAddress] = 0;
             _poolsToBeRemoved.length--;
         }
@@ -984,15 +956,16 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     function _removePool(address _stakingAddress) internal {
         uint256 indexToRemove = poolIndex[_stakingAddress];
         if (_pools.length > indexToRemove && _pools[indexToRemove] == _stakingAddress) {
-            _pools[indexToRemove] = _pools[_pools.length - 1];
-            poolIndex[_pools[indexToRemove]] = indexToRemove;
+            address lastPool = _pools[_pools.length - 1];
+            _pools[indexToRemove] = lastPool;
+            poolIndex[lastPool] = indexToRemove;
             poolIndex[_stakingAddress] = 0;
             _pools.length--;
         }
-        if (stakeAmountTotal[_stakingAddress] != 0) {
-            _addPoolInactive(_stakingAddress);
-        } else {
+        if (_poolIsEmpty(_stakingAddress)) {
             _removePoolInactive(_stakingAddress);
+        } else {
+            _addPoolInactive(_stakingAddress);
         }
         _deletePoolToBeElected(_stakingAddress);
         _deletePoolToBeRemoved(_stakingAddress);
@@ -1004,8 +977,9 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     function _removePoolInactive(address _stakingAddress) internal {
         uint256 indexToRemove = poolInactiveIndex[_stakingAddress];
         if (_poolsInactive.length > indexToRemove && _poolsInactive[indexToRemove] == _stakingAddress) {
-            _poolsInactive[indexToRemove] = _poolsInactive[_poolsInactive.length - 1];
-            poolInactiveIndex[_poolsInactive[indexToRemove]] = indexToRemove;
+            address lastPool = _poolsInactive[_poolsInactive.length - 1];
+            _poolsInactive[indexToRemove] = lastPool;
+            poolInactiveIndex[lastPool] = indexToRemove;
             poolInactiveIndex[_stakingAddress] = 0;
             _poolsInactive.length--;
         }
@@ -1056,8 +1030,10 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// @param _delegator The delegator's address.
     function _addPoolDelegator(address _poolStakingAddress, address _delegator) internal {
         address[] storage delegators = _poolDelegators[_poolStakingAddress];
-        if (delegators.length == 0 || delegators[poolDelegatorIndex[_poolStakingAddress][_delegator]] != _delegator) {
-            poolDelegatorIndex[_poolStakingAddress][_delegator] = delegators.length;
+        uint256 index = poolDelegatorIndex[_poolStakingAddress][_delegator];
+        uint256 length = delegators.length;
+        if (index >= length || delegators[index] != _delegator) {
+            poolDelegatorIndex[_poolStakingAddress][_delegator] = length;
             delegators.push(_delegator);
         }
         _removePoolDelegatorInactive(_poolStakingAddress, _delegator);
@@ -1069,11 +1045,10 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// @param _delegator The delegator's address.
     function _addPoolDelegatorInactive(address _poolStakingAddress, address _delegator) internal {
         address[] storage delegators = _poolDelegatorsInactive[_poolStakingAddress];
-        if (
-            delegators.length == 0 ||
-            delegators[poolDelegatorInactiveIndex[_poolStakingAddress][_delegator]] != _delegator
-        ) {
-            poolDelegatorInactiveIndex[_poolStakingAddress][_delegator] = delegators.length;
+        uint256 index = poolDelegatorInactiveIndex[_poolStakingAddress][_delegator];
+        uint256 length = delegators.length;
+        if (index >= length || delegators[index] != _delegator) {
+            poolDelegatorInactiveIndex[_poolStakingAddress][_delegator] = length;
             delegators.push(_delegator);
         }
     }
@@ -1085,13 +1060,14 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     function _removePoolDelegator(address _poolStakingAddress, address _delegator) internal {
         address[] storage delegators = _poolDelegators[_poolStakingAddress];
         uint256 indexToRemove = poolDelegatorIndex[_poolStakingAddress][_delegator];
-        if (delegators.length != 0 && delegators[indexToRemove] == _delegator) {
-            delegators[indexToRemove] = delegators[delegators.length - 1];
-            poolDelegatorIndex[_poolStakingAddress][delegators[indexToRemove]] = indexToRemove;
+        if (delegators.length > indexToRemove && delegators[indexToRemove] == _delegator) {
+            address lastDelegator = delegators[delegators.length - 1];
+            delegators[indexToRemove] = lastDelegator;
+            poolDelegatorIndex[_poolStakingAddress][lastDelegator] = indexToRemove;
             poolDelegatorIndex[_poolStakingAddress][_delegator] = 0;
             delegators.length--;
         }
-        if (stakeAmount[_poolStakingAddress][_delegator] != 0) {
+        if (orderedWithdrawAmount[_poolStakingAddress][_delegator] != 0) {
             _addPoolDelegatorInactive(_poolStakingAddress, _delegator);
         } else {
             _removePoolDelegatorInactive(_poolStakingAddress, _delegator);
@@ -1105,9 +1081,10 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     function _removePoolDelegatorInactive(address _poolStakingAddress, address _delegator) internal {
         address[] storage delegators = _poolDelegatorsInactive[_poolStakingAddress];
         uint256 indexToRemove = poolDelegatorInactiveIndex[_poolStakingAddress][_delegator];
-        if (delegators.length != 0 && delegators[indexToRemove] == _delegator) {
-            delegators[indexToRemove] = delegators[delegators.length - 1];
-            poolDelegatorInactiveIndex[_poolStakingAddress][delegators[indexToRemove]] = indexToRemove;
+        if (delegators.length > indexToRemove && delegators[indexToRemove] == _delegator) {
+            address lastDelegator = delegators[delegators.length - 1];
+            delegators[indexToRemove] = lastDelegator;
+            poolDelegatorInactiveIndex[_poolStakingAddress][lastDelegator] = indexToRemove;
             poolDelegatorInactiveIndex[_poolStakingAddress][_delegator] = 0;
             delegators.length--;
         }
@@ -1123,14 +1100,14 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         if (!isToBeElected) return;
 
         uint256 oldValue = _poolsLikelihood[index];
-        uint256 newValue = stakeAmountTotalMinusOrderedWithdraw(_poolStakingAddress);
+        uint256 newValue = stakeAmountTotal[_poolStakingAddress];
 
         _poolsLikelihood[index] = newValue;
 
         if (newValue >= oldValue) {
-            _poolsLikelihoodSum += newValue - oldValue;
+            _poolsLikelihoodSum = _poolsLikelihoodSum.add(newValue - oldValue);
         } else {
-            _poolsLikelihoodSum -= oldValue - newValue;
+            _poolsLikelihoodSum = _poolsLikelihoodSum.sub(oldValue - newValue);
         }
     }
 
@@ -1152,11 +1129,11 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// in the specified pool (staking address). Used by the `orderWithdraw`, `_stake`, and `_withdraw` functions.
     /// @param _poolStakingAddress The staking address of the pool.
     /// @param _delegator The address of the delegator.
-    function _snapshotAmount(address _poolStakingAddress, address _delegator) internal {
+    function _snapshotDelegatorStake(address _poolStakingAddress, address _delegator) internal {
         uint256 nextStakingEpoch = stakingEpoch + 1;
-        uint256 newAmount = stakeAmountMinusOrderedWithdraw(_poolStakingAddress, _delegator);
+        uint256 newAmount = stakeAmount[_poolStakingAddress][_delegator];
 
-        stakeAmountSnapshot[_poolStakingAddress][_delegator][nextStakingEpoch] =
+        delegatorStakeSnapshot[_poolStakingAddress][_delegator][nextStakingEpoch] =
             (newAmount != 0) ? newAmount : uint256(-1);
 
         if (_stakeFirstEpoch[_poolStakingAddress][_delegator] == 0) {
@@ -1195,24 +1172,26 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         require(!validatorSetContract.isValidatorBanned(poolMiningAddress));
         require(areStakeAndWithdrawAllowed());
 
+        uint256 newStakeAmount = stakeAmount[_poolStakingAddress][_staker].add(_amount);
+
         if (_staker == _poolStakingAddress) {
             // The staked amount must be at least CANDIDATE_MIN_STAKE
-            require(stakeAmountMinusOrderedWithdraw(_poolStakingAddress, _staker).add(_amount) >= candidateMinStake);
+            require(newStakeAmount >= candidateMinStake);
         } else {
             // The staked amount must be at least DELEGATOR_MIN_STAKE
-            require(stakeAmountMinusOrderedWithdraw(_poolStakingAddress, _staker).add(_amount) >= delegatorMinStake);
+            require(newStakeAmount >= delegatorMinStake);
 
             // The delegator cannot stake into the pool of the candidate which hasn't self-staked.
-            // Also, that candidate shouldn't want to withdraw all his funds.
-            require(stakeAmountMinusOrderedWithdraw(_poolStakingAddress, _poolStakingAddress) != 0);
+            // Also, that candidate shouldn't want to withdraw all their funds.
+            require(stakeAmount[_poolStakingAddress][_poolStakingAddress] != 0);
         }
 
-        stakeAmount[_poolStakingAddress][_staker] = stakeAmount[_poolStakingAddress][_staker].add(_amount);
+        stakeAmount[_poolStakingAddress][_staker] = newStakeAmount;
         _stakeAmountByEpoch[_poolStakingAddress][_staker][stakingEpoch] = 
             stakeAmountByCurrentEpoch(_poolStakingAddress, _staker).add(_amount);
         stakeAmountTotal[_poolStakingAddress] = stakeAmountTotal[_poolStakingAddress].add(_amount);
 
-        if (_staker == _poolStakingAddress) { // `staker` makes a stake for himself and becomes a candidate
+        if (_staker == _poolStakingAddress) { // `staker` places a stake for himself and becomes a candidate
             // Add `_poolStakingAddress` to the array of pools
             _addPoolActive(_poolStakingAddress, _poolStakingAddress != validatorSetContract.unremovableValidator());
         } else {
@@ -1220,7 +1199,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
             _addPoolDelegator(_poolStakingAddress, _staker);
 
             // Save amount value staked by the delegator
-            _snapshotAmount(_poolStakingAddress, _staker);
+            _snapshotDelegatorStake(_poolStakingAddress, _staker);
         }
 
         _setLikelihood(_poolStakingAddress);
@@ -1238,30 +1217,28 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         // How much can `staker` withdraw from `_poolStakingAddress` at the moment?
         require(_amount <= maxWithdrawAllowed(_poolStakingAddress, _staker));
 
-        uint256 currentStakeAmount = stakeAmount[_poolStakingAddress][_staker];
-        uint256 alreadyOrderedAmount = orderedWithdrawAmount[_poolStakingAddress][_staker];
-        uint256 resultingStakeAmount = currentStakeAmount.sub(alreadyOrderedAmount).sub(_amount);
+        uint256 newStakeAmount = stakeAmount[_poolStakingAddress][_staker].sub(_amount);
 
         // The amount to be withdrawn must be the whole staked amount or
         // must not exceed the diff between the entire amount and MIN_STAKE
         uint256 minAllowedStake = (_poolStakingAddress == _staker) ? candidateMinStake : delegatorMinStake;
-        require(resultingStakeAmount == 0 || resultingStakeAmount >= minAllowedStake);
+        require(newStakeAmount == 0 || newStakeAmount >= minAllowedStake);
 
-        stakeAmount[_poolStakingAddress][_staker] = currentStakeAmount.sub(_amount);
+        stakeAmount[_poolStakingAddress][_staker] = newStakeAmount;
         uint256 amountByEpoch = stakeAmountByCurrentEpoch(_poolStakingAddress, _staker);
         _stakeAmountByEpoch[_poolStakingAddress][_staker][stakingEpoch] = 
             amountByEpoch >= _amount ? amountByEpoch - _amount : 0;
         stakeAmountTotal[_poolStakingAddress] = stakeAmountTotal[_poolStakingAddress].sub(_amount);
 
-        if (resultingStakeAmount == 0) {
+        if (newStakeAmount == 0) {
             _withdrawCheckPool(_poolStakingAddress, _staker);
         }
 
-        _setLikelihood(_poolStakingAddress);
-
         if (_staker != _poolStakingAddress) {
-            _snapshotAmount(_poolStakingAddress, _staker);
+            _snapshotDelegatorStake(_poolStakingAddress, _staker);
         }
+
+        _setLikelihood(_poolStakingAddress);
     }
 
     /// @dev The internal function used by the `_withdraw` and `claimOrderedWithdraw` functions.
@@ -1282,6 +1259,10 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
             }
         } else {
             _removePoolDelegator(_poolStakingAddress, _staker);
+
+            if (_poolIsEmpty(_poolStakingAddress)) {
+                _removePoolInactive(_poolStakingAddress);
+            }
         }
     }
 
@@ -1299,7 +1280,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         address _delegator
     ) internal view returns(uint256 delegatorStake) {
         while (true) {
-            delegatorStake = stakeAmountSnapshot[_poolStakingAddress][_delegator][_epoch];
+            delegatorStake = delegatorStakeSnapshot[_poolStakingAddress][_delegator][_epoch];
             if (delegatorStake != 0) {
                 delegatorStake = (delegatorStake == uint256(-1)) ? 0 : delegatorStake;
                 break;
@@ -1324,11 +1305,9 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// `poolsToBeElected` array.
     /// `uint256 index` - The position of the item in the `poolsToBeElected` array if `toBeElected` is `true`.
     function _isPoolToBeElected(address _stakingAddress) internal view returns(bool toBeElected, uint256 index) {
-        if (_poolsToBeElected.length != 0) {
-            index = poolToBeElectedIndex[_stakingAddress];
-            if (_poolsToBeElected[index] == _stakingAddress) {
-                return (true, index);
-            }
+        index = poolToBeElectedIndex[_stakingAddress];
+        if (_poolsToBeElected.length > index && _poolsToBeElected[index] == _stakingAddress) {
+            return (true, index);
         }
         return (false, 0);
     }
@@ -1355,5 +1334,11 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         }
 
         return true;
+    }
+
+    /// @dev Returns a boolean flag indicating whether the specified pool (staking address)
+    /// is fully empty (all stakes are withdrawn including ordered withdrawals)
+    function _poolIsEmpty(address _poolStakingAddress) internal view returns(bool) {
+        return stakeAmountTotal[_poolStakingAddress] == 0 && orderedWithdrawAmountTotal[_poolStakingAddress] == 0;
     }
 }

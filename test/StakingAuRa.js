@@ -506,8 +506,8 @@ contract('StakingAuRa', async accounts => {
 
       await stakingAuRa.setStakeFirstEpoch(stakingAddress, delegator, new BN(0)).should.be.fulfilled;
       await stakingAuRa.setStakeLastEpoch(stakingAddress, delegator, new BN(0)).should.be.fulfilled;
-      await stakingAuRa.clearStakeAmountSnapshot(stakingAddress, delegator, new BN(1)).should.be.fulfilled;
-      await stakingAuRa.clearStakeAmountSnapshot(stakingAddress, delegator, new BN(2)).should.be.fulfilled;
+      await stakingAuRa.clearDelegatorStakeSnapshot(stakingAddress, delegator, new BN(1)).should.be.fulfilled;
+      await stakingAuRa.clearDelegatorStakeSnapshot(stakingAddress, delegator, new BN(2)).should.be.fulfilled;
 
       stakingEpochEndBlock = stakingEpochStartBlock.add(new BN(120954 - 1));
       await setCurrentBlockNumber(stakingEpochEndBlock);
@@ -2272,7 +2272,7 @@ contract('StakingAuRa', async accounts => {
       await stakingAuRa.stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
     });
     it('should fail if a delegator stakes into an empty pool', async () => {
-      (await stakingAuRa.stakeAmountMinusOrderedWithdraw.call(initialStakingAddresses[1], initialStakingAddresses[1])).should.be.bignumber.equal(new BN(0));
+      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], initialStakingAddresses[1])).should.be.bignumber.equal(new BN(0));
       await stakingAuRa.stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.rejectedWith(ERROR_MSG);
       await stakingAuRa.stake(initialStakingAddresses[1], candidateMinStake, {from: initialStakingAddresses[1]}).should.be.fulfilled;
       await stakingAuRa.stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
@@ -2428,7 +2428,7 @@ contract('StakingAuRa', async accounts => {
       await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
     });
     it('should fail if a delegator stakes into an empty pool', async () => {
-      (await stakingAuRa.stakeAmountMinusOrderedWithdraw.call(initialStakingAddresses[1], initialStakingAddresses[1])).should.be.bignumber.equal(new BN(0));
+      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], initialStakingAddresses[1])).should.be.bignumber.equal(new BN(0));
       await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: delegatorAddress, value: delegatorMinStake}).should.be.rejectedWith(ERROR_MSG);
       await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
       await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
@@ -2871,14 +2871,14 @@ contract('StakingAuRa', async accounts => {
       // Check withdrawal for a delegator
       const restOfAmount = mintAmount.mul(new BN(3)).div(new BN(4));
       (await stakingAuRa.poolDelegators.call(initialStakingAddresses[1])).should.be.deep.equal([delegatorAddress]);
-      (await stakingAuRa.stakeAmountMinusOrderedWithdraw.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(restOfAmount);
+      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(restOfAmount);
       (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
       await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.rejectedWith(ERROR_MSG);
       await stakingAuRa.withdraw(initialStakingAddresses[1], restOfAmount.add(new BN(1)), {from: delegatorAddress}).should.be.rejectedWith(ERROR_MSG);
       await stakingAuRa.withdraw(initialStakingAddresses[1], restOfAmount, {from: delegatorAddress}).should.be.fulfilled;
       (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
-      (await stakingAuRa.stakeAmountMinusOrderedWithdraw.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
-      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(orderedAmount);
+      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
+      (await stakingAuRa.orderedWithdrawAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(orderedAmount);
       (await stakingAuRa.poolDelegators.call(initialStakingAddresses[1])).length.should.be.equal(0);
       (await stakingAuRa.poolDelegatorsInactive.call(initialStakingAddresses[1])).should.be.deep.equal([delegatorAddress]);
     });

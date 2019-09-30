@@ -43,17 +43,17 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
     mapping(uint256 => ExtraReceiverQueue) internal _queueER;
 
     /// @dev A number of blocks produced by the specified validator during the specified staking epoch
-    /// (beginning from the block when the `finalizeChange` function is called until the block specified by the
-    /// `_rewardPointBlock` function). The results are used by the `_distributeRewards` function to track
+    /// (beginning from the block when the `finalizeChange` function is called until the latest block
+    /// of the staking epoch. The results are used by the `_distributeRewards` function to track
     /// each validator's downtime (when a validator's node is not running and doesn't produce blocks).
     /// While the validator is banned, the block producing statistics is not accumulated for them.
     mapping(uint256 => mapping(address => uint256)) public blocksCreated;
 
-    /// @dev The current total fee amount of native coins accumulated by
+    /// @dev The current bridge's total fee amount of native coins accumulated by
     /// the `addBridgeNativeFeeReceivers` function.
     uint256 public bridgeNativeFee;
 
-    /// @dev The current total fee amount of staking tokens accumulated by
+    /// @dev The current bridge's total fee amount of staking tokens accumulated by
     /// the `addBridgeTokenFeeReceivers` function.
     uint256 public bridgeTokenFee;
 
@@ -175,7 +175,7 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
 
     // =============================================== Setters ========================================================
 
-    /// @dev Fallback function. Prevents sending native coins to `address(this)`.
+    /// @dev Fallback function. Prevents direct sending native coins to this contract.
     function () payable external {
         revert();
     }
@@ -213,7 +213,7 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
     }
 
     /// @dev Called by the `ValidatorSetAuRa.finalizeChange` to clear the values in
-    /// the `blocksCreated` mapping.
+    /// the `blocksCreated` mapping for the current staking epoch and a new validator set.
     function clearBlocksCreated() external onlyValidatorSetContract {
         IStakingAuRa stakingContract = IStakingAuRa(validatorSetContract.stakingContract());
         uint256 stakingEpoch = stakingContract.stakingEpoch();
@@ -225,7 +225,7 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
 
     /// @dev Initializes the contract at network startup.
     /// Can only be called by the constructor of the `Initializer` contract or owner.
-    /// @param _validatorSet The address of the `ValidatorSet` contract.
+    /// @param _validatorSet The address of the `ValidatorSetAuRa` contract.
     function initialize(address _validatorSet) external {
         require(_getCurrentBlockNumber() == 0 || msg.sender == _admin());
         require(!isInitialized());
@@ -235,7 +235,7 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
 
     /// @dev Copies the minting statistics from the previous BlockReward contract
     /// for the `mintedTotally` and `mintedTotallyByBridge` getters. Can only be called once by the owner.
-    /// This function assumes that the bridge contract address is not changed due to its upgradable nature.
+    /// This function assumes the bridge contract address is not changed due to its upgradable nature.
     /// @param _bridge The address of a bridge contract.
     /// @param _prevBlockRewardContract The address of the previous BlockReward contract.
     function migrateMintingStatistics(address _bridge, IBlockRewardAuRa _prevBlockRewardContract) external onlyOwner {
@@ -251,8 +251,8 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
     /// @dev Called by the validator's node when producing and closing a block,
     /// see https://wiki.parity.io/Block-Reward-Contract.html.
     /// This function performs all of the automatic operations needed for controlling secrets revealing by validators,
-    /// accumulating block producing statistics, starting a new staking epoch, snapshotting reward coefficients 
-    /// at the beginning of a new staking epoch, rewards distributing at the end of a staking epoch, and minting
+    /// accumulating block producing statistics, starting a new staking epoch, snapshotting staking amounts
+    /// for the upcoming staking epoch, rewards distributing at the end of a staking epoch, and minting
     /// native coins needed for the `erc-to-native` bridge.
     function reward(address[] calldata benefactors, uint16[] calldata kind)
         external
@@ -290,7 +290,8 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
         if (validatorSetContract.validatorSetApplyBlock() != 0) {
             if (stakingEpoch != 0 && !validatorSetContract.isValidatorBanned(benefactors[0])) {
                 // Accumulate blocks producing statistics for each of the
-                // active validators during the current staking epoch
+                // active validators during the current staking epoch. This
+                // statistics is used by the `_distributeRewards` function
                 blocksCreated[stakingEpoch][benefactors[0]]++;
             }
         }
@@ -340,7 +341,7 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
                 _snapshotPoolStakeAmounts(stakingContract, nextStakingEpoch, miningAddresses[i]);
             }
 
-            bridgeQueueLimit = 0;
+            bridgeQueueLimit = 0; // pause bridge for this block
         }
 
         // Mint native coins if needed
@@ -402,7 +403,7 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
     /// from the balance of the `BlockRewardAuRa` contract to the specified address as a reward.
     /// @param _tokens The amount of tokens to transfer as a reward.
     /// @param _nativeCoins The amount of native coins to transfer as a reward.
-    /// @param _to The target address to transfer to.
+    /// @param _to The target address to transfer the amounts to.
     function transferReward(uint256 _tokens, uint256 _nativeCoins, address payable _to) external onlyStakingContract {
         if (_tokens != 0) {
             IStakingAuRa stakingContract = IStakingAuRa(msg.sender);
@@ -581,8 +582,8 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
         // For the candidate that is not about to be a validator on the current staking epoch,
         // we return the potentially possible reward coefficient
         return validatorShare(
-            stakingContract.stakeAmountMinusOrderedWithdraw(_stakingAddress, _stakingAddress),
-            stakingContract.stakeAmountTotalMinusOrderedWithdraw(_stakingAddress),
+            stakingContract.stakeAmount(_stakingAddress, _stakingAddress),
+            stakingContract.stakeAmountTotal(_stakingAddress),
             REWARD_PERCENT_MULTIPLIER
         );
     }
@@ -650,7 +651,7 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
     /// @param _stakingEpoch The number of the current staking epoch.
     /// @param _stakingEpochEndBlock The number of the latest block of the current staking epoch.
     /// @return `address[] receivers` - The array of native coins receivers which should be
-    /// rewarded at the current block by the `erc-to-native` bridge or by the fixed native reward.
+    /// rewarded at the current block by the `erc-to-native` bridge.
     /// `uint256[] rewards` - The array of amounts corresponding to the `receivers` array.
     function _distributeRewards(
         IStakingAuRa _stakingContract,
@@ -822,9 +823,8 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
     }
 
     /// @dev Joins two native coin receiver elements into a single set and returns the result
-    /// to the `reward` function: the first element comes from the `erc-to-native` bridge fee distribution
-    /// (or from native coins fixed distribution), the second - from the `erc-to-native` bridge when native
-    /// coins are minted for the specified addresses.
+    /// to the `reward` function: the first element comes from the `erc-to-native` bridge fee distribution,
+    /// the second - from the `erc-to-native` bridge when native coins are minted for the specified addresses.
     /// Dequeues the addresses enqueued with the `addExtraReceiver` function by the `erc-to-native` bridge.
     /// Accumulates minting statistics for the `erc-to-native` bridges.
     /// @param _receivers The array of native coin receivers formed by the `_distributeRewards` function.
@@ -924,7 +924,7 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
     /// @dev Makes snapshots of total amount staked into the specified pool
     /// before the specified staking epoch. Used by the `reward` function.
     /// @param _stakingContract The address of the `StakingAuRa` contract.
-    /// @param _stakingEpoch The number of staking epoch.
+    /// @param _stakingEpoch The number of upcoming staking epoch.
     /// @param _miningAddress The mining address of the pool.
     function _snapshotPoolStakeAmounts(
         IStakingAuRa _stakingContract,
@@ -935,12 +935,12 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
             return;
         }
         address stakingAddress = validatorSetContract.stakingByMiningAddress(_miningAddress);
-        uint256 totalAmount = _stakingContract.stakeAmountTotalMinusOrderedWithdraw(stakingAddress);
+        uint256 totalAmount = _stakingContract.stakeAmountTotal(stakingAddress);
         if (totalAmount == 0) {
             return;
         }
         snapshotPoolTotalStakeAmount[_stakingEpoch][_miningAddress] = totalAmount;
         snapshotPoolValidatorStakeAmount[_stakingEpoch][_miningAddress] =
-            _stakingContract.stakeAmountMinusOrderedWithdraw(stakingAddress, stakingAddress);
+            _stakingContract.stakeAmount(stakingAddress, stakingAddress);
     }
 }

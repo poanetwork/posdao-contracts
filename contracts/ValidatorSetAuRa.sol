@@ -299,7 +299,9 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         // From this moment the `getPendingValidators()` will return a new validator set
         _setPendingValidatorsChanged(true);
 
-        stakingContract.removePools();
+        if (poolsToBeElected.length != 0) {
+            stakingContract.removePools();
+        }
         stakingContract.incrementStakingEpoch();
         stakingContract.setStakingEpochStartBlock(_getCurrentBlockNumber() + 1);
         validatorSetApplyBlock = 0;
