@@ -34,13 +34,12 @@ contract RandomAuRa is UpgradeabilityAdmin, IRandomAuRa {
     /// specified collection round.
     mapping(uint256 => mapping(address => bool)) public sentReveal;
 
-    /// @dev The address of the `ValidatorSet` contract.
+    /// @dev The address of the `ValidatorSetAuRa` contract.
     IValidatorSetAuRa public validatorSetContract;
 
     // ============================================== Modifiers =======================================================
 
-    /// @dev Ensures the caller is the BlockRewardAuRa contract address
-    /// (EternalStorageProxy proxy contract for BlockRewardAuRa).
+    /// @dev Ensures the caller is the BlockRewardAuRa contract address.
     modifier onlyBlockReward() {
         require(msg.sender == validatorSetContract.blockRewardContract());
         _;
@@ -108,7 +107,7 @@ contract RandomAuRa is UpgradeabilityAdmin, IRandomAuRa {
     /// @dev Checks whether the current validators at the end of each collection round revealed their secrets,
     /// and removes malicious validators if needed.
     /// This function does nothing if the current block is not the last block of the current collection round.
-    /// Can only be called by the `BlockRewardAuRa` contract (its `reward` function).
+    /// Can only be called by the `BlockRewardAuRa` contract (by its `reward` function).
     function onFinishCollectRound() external onlyBlockReward {
         if (_getCurrentBlockNumber() % collectRoundLength != 0) return;
 
@@ -294,7 +293,7 @@ contract RandomAuRa is UpgradeabilityAdmin, IRandomAuRa {
     }
 
     /// @dev Initializes the network parameters. Used by the `initialize` function.
-    /// @param _validatorSet The address of the `ValidatorSet` contract.
+    /// @param _validatorSet The address of the `ValidatorSetAuRa` contract.
     function _initialize(address _validatorSet) internal {
         require(_getCurrentBlockNumber() == 0 || msg.sender == _admin());
         require(!isInitialized());

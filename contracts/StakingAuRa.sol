@@ -35,20 +35,22 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// @dev The limit of the minimum delegator stake (DELEGATOR_MIN_STAKE).
     uint256 public delegatorMinStake;
 
-    /// @dev The snapshot of tokens amount staked into the specified pool (staking address)
-    /// by the specified delegator before the specified staking epoch. Used by the `claimReward` function.
+    /// @dev The snapshot of tokens amount staked into the specified pool by the specified delegator
+    /// before the specified staking epoch. Used by the `claimReward` function.
+    /// The first parameter is the pool staking address, the second one is delegator's address,
+    /// the third one is staking epoch number.
     mapping(address => mapping(address => mapping(uint256 => uint256))) public delegatorStakeSnapshot;
 
     /// @dev A boolean flag indicating whether this contract restricts
-    /// using ERC20/677 contract. If it returns `true`, native staking coins
-    /// are used instead of ERC staking tokens.
+    /// using ERC20/677 contract. If it is set to `true`, native staking coins
+    /// are used instead of ERC staking tokens. This flag is set only once when network starts.
     bool public erc20Restricted;
 
     /// @dev The address of the ERC20/677 staking token contract.
     IERC20Minting public erc20TokenContract;
 
     /// @dev The current amount of staking tokens/coins ordered for withdrawal from the specified
-    /// pool by the specified staker. Used by the `orderWithdraw` and `claimOrderedWithdraw` functions.
+    /// pool by the specified staker. Used by the `orderWithdraw`, `claimOrderedWithdraw` and other functions.
     /// The first parameter is the pool staking address, the second one is the staker address.
     mapping(address => mapping(address => uint256)) public orderedWithdrawAmount;
 
@@ -63,55 +65,56 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     mapping(address => mapping(address => uint256)) public orderWithdrawEpoch;
 
     /// @dev The delegator's index in the array returned by the `poolDelegators` getter.
-    /// Used by the `_removePoolDelegator` function. The first parameter is a pool staking address.
+    /// Used by the `_removePoolDelegator` internal function. The first parameter is a pool staking address.
     /// The second parameter is delegator's address.
     /// If the value is zero, it may mean the array doesn't contain the delegator.
     /// Check if the delegator is in the array using the `poolDelegators` getter.
     mapping(address => mapping(address => uint256)) public poolDelegatorIndex;
 
     /// @dev The delegator's index in the `poolDelegatorsInactive` array.
-    /// Used by the `_removePoolDelegatorInactive` function.
-    /// A delegator is considered inactive if they have withdrawn all their tokens from
-    /// the specified pool or their entire stake is ordered to be withdrawn.
+    /// Used by the `_removePoolDelegatorInactive` internal function.
+    /// A delegator is considered inactive if they have withdrawn their stake from
+    /// the specified pool but haven't yet claimed an ordered amount.
     /// The first parameter is a pool staking address. The second parameter is delegator's address.
     mapping(address => mapping(address => uint256)) public poolDelegatorInactiveIndex;
 
     /// @dev The pool's index in the array returned by the `getPoolsInactive` getter.
-    /// Used by the `_removePoolInactive` function. The pool staking address is accepted as a parameter.
+    /// Used by the `_removePoolInactive` internal function. The pool staking address is accepted as a parameter.
     mapping(address => uint256) public poolInactiveIndex;
 
     /// @dev The pool's index in the array returned by the `getPools` getter.
-    /// Used by the `_removePool` function. A pool staking address is accepted as a parameter.
+    /// Used by the `_removePool` internal function. A pool staking address is accepted as a parameter.
     /// If the value is zero, it may mean the array doesn't contain the address.
     /// Check the address is in the array using the `isPoolActive` getter.
     mapping(address => uint256) public poolIndex;
 
     /// @dev The pool's index in the array returned by the `getPoolsToBeElected` getter.
-    /// Used by the `_deletePoolToBeElected` and `_isPoolToBeElected` functions.
+    /// Used by the `_deletePoolToBeElected` and `_isPoolToBeElected` internal functions.
     /// The pool staking address is accepted as a parameter.
     /// If the value is zero, it may mean the array doesn't contain the address.
     /// Check the address is in the array using the `getPoolsToBeElected` getter.
     mapping(address => uint256) public poolToBeElectedIndex;
 
     /// @dev The pool's index in the array returned by the `getPoolsToBeRemoved` getter.
-    /// Used by the `_deletePoolToBeRemoved` function.
+    /// Used by the `_deletePoolToBeRemoved` internal function.
     /// The pool staking address is accepted as a parameter.
     /// If the value is zero, it may mean the array doesn't contain the address.
     /// Check the address is in the array using the `getPoolsToBeRemoved` getter.
     mapping(address => uint256) public poolToBeRemovedIndex;
 
     /// @dev A boolean flag indicating whether the reward was already taken
-    /// from the specified pool (staking address) by the specified staker for
-    /// the specified staking epoch.
+    /// from the specified pool by the specified staker for the specified staking epoch.
+    /// The first parameter is the pool staking address, the second one is staker's address,
+    /// the third one is staking epoch number.
     mapping(address => mapping(address => mapping(uint256 => bool))) public rewardWasTaken;
 
     /// @dev The amount of tokens currently staked into the specified pool by the specified
-    /// staker. The first parameter is the pool staking address,
-    /// the second one is the staker address.
+    /// staker. Doesn't include the amount ordered for withdrawal.
+    /// The first parameter is the pool staking address, the second one is the staker address.
     mapping(address => mapping(address => uint256)) public stakeAmount;
 
     /// @dev The duration period (in blocks) at the end of staking epoch during which
-    /// participants are not allowed to stake and withdraw their staking tokens/coins.
+    /// participants are not allowed to stake/withdraw/order/claim their staking tokens/coins.
     uint256 public stakeWithdrawDisallowPeriod;
 
     /// @dev The serial number of the current staking epoch.
@@ -124,10 +127,11 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     uint256 public stakingEpochStartBlock;
 
     /// @dev Returns the total amount of staking tokens/coins currently staked into the specified pool.
+    /// Doesn't include the amount ordered for withdrawal.
     /// The pool staking address is accepted as a parameter.
     mapping(address => uint256) public stakeAmountTotal;
 
-    /// @dev The address of the `ValidatorSet` contract.
+    /// @dev The address of the `ValidatorSetAuRa` contract.
     IValidatorSetAuRa public validatorSetContract;
 
     // ============================================== Constants =======================================================
@@ -136,12 +140,11 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     uint256 public constant MAX_CANDIDATES = 3000;
 
     /// @dev Represents an integer value of a staking unit (1 unit = 10**18).
-    /// Used by the `_setLikelihood` function to calculate the probability of
-    /// a candidate being selected as a validator for each pool.
     uint256 public constant STAKE_UNIT = 1 ether;
 
     // =============================================== Structs ========================================================
 
+    /// @dev Used by the `claimReward` function to reduce stack depth.
     struct RewardAmounts {
         uint256 tokenAmount;
         uint256 nativeAmount;
@@ -183,7 +186,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// @param toPoolStakingAddress The destination pool where the `staker` moved the stake.
     /// @param staker The address of the staker who moved the `amount`.
     /// @param stakingEpoch The serial number of the staking epoch during which the `amount` was moved.
-    /// @param amount The stake amount.
+    /// @param amount The stake amount which was moved.
     event MovedStake(
         address fromPoolStakingAddress,
         address indexed toPoolStakingAddress,
@@ -240,8 +243,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         _;
     }
 
-    /// @dev Ensures the caller is the BlockReward contract address
-    /// (EternalStorageProxy proxy contract for BlockReward).
+    /// @dev Ensures the caller is the BlockRewardAuRa contract address.
     modifier onlyBlockRewardContract() {
         require(msg.sender == validatorSetContract.blockRewardContract());
         _;
@@ -253,7 +255,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         _;
     }
 
-    /// @dev Ensures the caller is the ValidatorSet contract address.
+    /// @dev Ensures the caller is the ValidatorSetAuRa contract address.
     modifier onlyValidatorSetContract() {
         require(msg.sender == address(validatorSetContract));
         _;
@@ -271,7 +273,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// to the candidate's pool. A participant calls this function using their staking address when
     /// they want to create a pool. This is a wrapper for the `stake` function.
     /// @param _amount The amount of tokens to be staked. Ignored when staking in native coins
-    /// (`erc20Restricted` should be `true` in this case).
+    /// (`erc20Restricted` is `true` in this case) because `msg.value` is used in that case.
     /// @param _miningAddress The mining address of the candidate. The mining address is bound to the staking address
     /// (msg.sender). This address cannot be equal to `msg.sender`.
     function addPool(uint256 _amount, address _miningAddress) external gasPriceIsValid onlyInitialized payable {
@@ -312,7 +314,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// @param _stakingEpochStartBlock The number of the first block of initial staking epoch
     /// (must be zero if the network is starting from genesis block).
     /// @param _stakeWithdrawDisallowPeriod The duration period (in blocks) at the end of a staking epoch
-    /// during which participants cannot stake or withdraw their staking tokens/coins
+    /// during which participants cannot stake/withdraw/order/claim their staking tokens/coins
     /// (e.g., 4320 = 6 hours for 5-seconds blocks in AuRa).
     /// @param _erc20Restricted Defines whether this staking contract restricts using ERC20/677 contract.
     /// If it's set to `true`, native staking coins are used instead of ERC staking tokens.
@@ -342,14 +344,14 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     }
 
     /// @dev Removes a specified pool from the `pools` array (a list of active pools which can be retrieved by the
-    /// `getPools` getter). Called by the `ValidatorSetAuRa._removeMaliciousValidator` function
+    /// `getPools` getter). Called by the `ValidatorSetAuRa._removeMaliciousValidator` internal function
     /// when a pool must be removed by the algorithm.
     /// @param _stakingAddress The staking address of the pool to be removed.
     function removePool(address _stakingAddress) external onlyValidatorSetContract {
         _removePool(_stakingAddress);
     }
 
-    /// @dev Removes pools which are in the `_poolsToBeRemoved` array from the `pools` array.
+    /// @dev Removes pools which are in the `_poolsToBeRemoved` internal array from the `pools` array.
     /// Called by the `ValidatorSetAuRa.newValidatorSet` function when a pool must be removed by the algorithm.
     function removePools() external onlyValidatorSetContract {
         address[] memory poolsToRemove = _poolsToBeRemoved;
@@ -397,10 +399,11 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     }
 
     /// @dev Moves the specified amount of staking tokens/coins from the staker's address to the staking address of
-    /// the specified pool. A staker calls this function when they want to make a stake into a pool.
+    /// the specified pool. Actually, the amount is stored in a balance of this StakingAuRa contract.
+    /// A staker calls this function when they want to make a stake into a pool.
     /// @param _toPoolStakingAddress The staking address of the pool where the tokens should be staked.
     /// @param _amount The amount of tokens to be staked. Ignored when staking in native coins
-    /// (`erc20Restricted` should be `true` in this case).
+    /// (`erc20Restricted` is `true` in this case) because `msg.value` is used instead.
     function stake(address _toPoolStakingAddress, uint256 _amount) external gasPriceIsValid onlyInitialized payable {
         _stake(_toPoolStakingAddress, erc20Restricted ? msg.value : _amount);
     }
@@ -423,7 +426,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         emit WithdrewStake(_fromPoolStakingAddress, staker, stakingEpoch, _amount);
     }
 
-    /// @dev Orders a token/coin withdrawal from the staking address of the specified pool to the
+    /// @dev Orders tokens/coins withdrawal from the staking address of the specified pool to the
     /// staker's address. The requested tokens/coins can be claimed after the current staking epoch is complete using
     /// the `claimOrderedWithdraw` function.
     /// @param _poolStakingAddress The staking address of the pool from which the amount will be withdrawn.
@@ -583,8 +586,17 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
             RewardAmounts memory reward;
 
             if (_poolStakingAddress != staker) { // this is a delegator
-                if (epoch < firstEpoch) continue;
-                if (lastEpoch <= epoch && lastEpoch != 0) break;
+                if (epoch < firstEpoch) {
+                    // If the delegator staked for the first time before
+                    // the `epoch`, skip this staking epoch
+                    continue;
+                }
+
+                if (lastEpoch <= epoch && lastEpoch != 0) {
+                    // If the delegator withdrew all their stake before the `epoch`,
+                    // don't check this and following epochs since it makes no sense
+                    break;
+                }
 
                 delegatorStake = _getDelegatorStake(epoch, firstEpoch, delegatorStake, _poolStakingAddress, staker);
                 firstEpoch = epoch + 1;
@@ -607,11 +619,12 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         blockRewardContract.transferReward(rewardSum.tokenAmount, rewardSum.nativeAmount, staker);
     }
 
-    /// @dev Sets (updates) the address of the ERC20/ERC677 staking token contract. Can only be called by the `owner`.
-    /// Cannot be called if there was at least one stake in native coins before.
+    /// @dev Sets the address of the ERC20/ERC677 staking token contract. Can only be called by the `owner`.
+    /// Cannot be called if there was at least one stake in staking tokens before.
     /// @param _erc20TokenContract The address of the contract.
     function setErc20TokenContract(IERC20Minting _erc20TokenContract) external onlyOwner onlyInitialized {
         require(_erc20TokenContract != IERC20Minting(0));
+        require(erc20TokenContract == IERC20Minting(0));
         require(_erc20TokenContract.balanceOf(address(this)) == 0);
         require(!erc20Restricted);
         erc20TokenContract = _erc20TokenContract;
@@ -635,28 +648,28 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
 
     /// @dev Returns an array of the current active pools (the staking addresses of candidates and validators).
     /// The size of the array cannot exceed MAX_CANDIDATES. A pool can be added to this array with the `_addPoolActive`
-    /// function which is called by the `stake` or `orderWithdraw` function. A pool is considered active
+    /// internal function which is called by the `stake` or `orderWithdraw` function. A pool is considered active
     /// if its address has at least the minimum stake and this stake is not ordered to be withdrawn.
     function getPools() external view returns(address[] memory) {
         return _pools;
     }
 
     /// @dev Returns an array of the current inactive pools (the staking addresses of former candidates).
-    /// A pool can be added to this array with the `_addPoolInactive` function which is called by `_removePool`.
-    /// A pool is considered inactive if it is banned for some reason, if its address has zero stake, or 
-    /// if its entire stake is ordered to be withdrawn.
+    /// A pool can be added to this array with the `_addPoolInactive` internal function which is called
+    /// by `_removePool`. A pool is considered inactive if it is banned for some reason, if its address
+    /// has zero stake, or if its entire stake is ordered to be withdrawn.
     function getPoolsInactive() external view returns(address[] memory) {
         return _poolsInactive;
     }
 
-    /// @dev Returns the list of probability coefficients of being selected as a validator for each corresponding
-    /// address in the `poolsToBeElected` array (see the `getPoolsToBeElected` getter) and a sum of these coefficients.
+    /// @dev Returns the array of stake amounts for each corresponding
+    /// address in the `poolsToBeElected` array (see the `getPoolsToBeElected` getter) and a sum of these amounts.
     /// Used by the `ValidatorSetAuRa.newValidatorSet` function when randomly selecting new validators at the last
-    /// block of a staking epoch. A pool's coefficient is updated every time any staked amount is changed in this pool
-    /// (see the `_setLikelihood` function).
+    /// block of a staking epoch. An array value is updated every time any staked amount is changed in this pool
+    /// (see the `_setLikelihood` internal function).
     /// @return `uint256[] likelihoods` - The array of the coefficients. The array length is always equal to the length
     /// of the `poolsToBeElected` array.
-    /// `uint256 sum` - The sum of the coefficients.
+    /// `uint256 sum` - The total sum of the amounts.
     function getPoolsLikelihood() external view returns(uint256[] memory likelihoods, uint256 sum) {
         return (_poolsLikelihood, _poolsLikelihoodSum);
     }
@@ -664,7 +677,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// @dev Returns the list of pools (their staking addresses) which will participate in a new validator set
     /// selection process in the `ValidatorSetAuRa.newValidatorSet` function. This is an array of pools
     /// which will be considered as candidates when forming a new validator set (at the last block of a staking epoch).
-    /// This array is kept updated by the `_addPoolToBeElected` and `_deletePoolToBeElected` functions.
+    /// This array is kept updated by the `_addPoolToBeElected` and `_deletePoolToBeElected` internal functions.
     function getPoolsToBeElected() external view returns(address[] memory) {
         return _poolsToBeElected;
     }
@@ -672,8 +685,8 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// @dev Returns the list of pools (their staking addresses) which will be removed by the
     /// `ValidatorSetAuRa.newValidatorSet` function from the active `pools` array (at the last block
     /// of a staking epoch). This array is kept updated by the `_addPoolToBeRemoved`
-    /// and `_deletePoolToBeRemoved` functions. A pool is added to this array when the pool's address
-    /// withdraws all of its own staking tokens from the pool, inactivating the pool.
+    /// and `_deletePoolToBeRemoved` internal functions. A pool is added to this array when the pool's
+    /// address withdraws (or orders) all of its own staking tokens from the pool, inactivating the pool.
     function getPoolsToBeRemoved() external view returns(address[] memory) {
         return _poolsToBeRemoved;
     }
@@ -757,7 +770,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     }
 
     /// @dev Returns the maximum amount which can be withdrawn from the specified pool by the specified staker
-    /// at the moment. Used by the `withdraw` function.
+    /// at the moment. Used by the `withdraw` and `moveStake` functions.
     /// @param _poolStakingAddress The pool staking address from which the withdrawal will be made.
     /// @param _staker The staker address that is going to withdraw.
     function maxWithdrawAllowed(address _poolStakingAddress, address _staker) public view returns(uint256) {
@@ -856,7 +869,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     // =============================================== Private ========================================================
 
     /// @dev Adds the specified staking address to the array of active pools returned by
-    /// the `getPools` getter. Used by the `stake` and `orderWithdraw` functions.
+    /// the `getPools` getter. Used by the `stake`, `addPool`, and `orderWithdraw` functions.
     /// @param _stakingAddress The pool added to the array of active pools.
     /// @param _toBeElected The boolean flag which defines whether the specified address should be
     /// added simultaneously to the `poolsToBeElected` array. See the `getPoolsToBeElected` getter.
@@ -873,7 +886,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     }
 
     /// @dev Adds the specified staking address to the array of inactive pools returned by
-    /// the `getPoolsInactive` getter. Used by the `_removePool` function.
+    /// the `getPoolsInactive` getter. Used by the `_removePool` internal function.
     /// @param _stakingAddress The pool added to the array of inactive pools.
     function _addPoolInactive(address _stakingAddress) internal {
         uint256 index = poolInactiveIndex[_stakingAddress];
@@ -885,7 +898,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     }
 
     /// @dev Adds the specified staking address to the array of pools returned by the `getPoolsToBeElected`
-    /// getter. Used by the `_addPoolActive` function. See the `getPoolsToBeElected` getter.
+    /// getter. Used by the `_addPoolActive` internal function. See the `getPoolsToBeElected` getter.
     /// @param _stakingAddress The pool added to the `poolsToBeElected` array.
     function _addPoolToBeElected(address _stakingAddress) internal {
         uint256 index = poolToBeElectedIndex[_stakingAddress];
@@ -893,7 +906,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         if (index >= length || _poolsToBeElected[index] != _stakingAddress) {
             poolToBeElectedIndex[_stakingAddress] = length;
             _poolsToBeElected.push(_stakingAddress);
-            _poolsLikelihood.push(0); // assumes the likelihood is set with `_setLikelihood` function
+            _poolsLikelihood.push(0); // assumes the likelihood is set with `_setLikelihood` function hereinafter
         }
         _deletePoolToBeRemoved(_stakingAddress);
     }
@@ -912,7 +925,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     }
 
     /// @dev Deletes the specified staking address from the array of pools returned by the
-    /// `getPoolsToBeElected` getter. Used by the `_addPoolToBeRemoved` and `_removePool` functions.
+    /// `getPoolsToBeElected` getter. Used by the `_addPoolToBeRemoved` and `_removePool` internal functions.
     /// See the `getPoolsToBeElected` getter.
     /// @param _stakingAddress The pool deleted from the `poolsToBeElected` array.
     function _deletePoolToBeElected(address _stakingAddress) internal {
@@ -936,7 +949,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     }
 
     /// @dev Deletes the specified staking address from the array of pools returned by the
-    /// `getPoolsToBeRemoved` getter. Used by the `_addPoolToBeElected` and `_removePool` functions.
+    /// `getPoolsToBeRemoved` getter. Used by the `_addPoolToBeElected` and `_removePool` internal functions.
     /// See the `getPoolsToBeRemoved` getter.
     /// @param _stakingAddress The pool deleted from the `poolsToBeRemoved` array.
     function _deletePoolToBeRemoved(address _stakingAddress) internal {
@@ -951,7 +964,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     }
 
     /// @dev Removes the specified staking address from the array of active pools returned by
-    /// the `getPools` getter. Used by the `removePool` and withdrawal functions.
+    /// the `getPools` getter. Used by the `removePool`, `removeMyPool`, and withdrawal functions.
     /// @param _stakingAddress The pool removed from the array of active pools.
     function _removePool(address _stakingAddress) internal {
         uint256 indexToRemove = poolIndex[_stakingAddress];
@@ -962,7 +975,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
             poolIndex[_stakingAddress] = 0;
             _pools.length--;
         }
-        if (_poolIsEmpty(_stakingAddress)) {
+        if (_isPoolEmpty(_stakingAddress)) {
             _removePoolInactive(_stakingAddress);
         } else {
             _addPoolInactive(_stakingAddress);
@@ -972,7 +985,8 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     }
 
     /// @dev Removes the specified staking address from the array of inactive pools returned by
-    /// the `getPoolsInactive` getter. Used by the `_addPoolActive` and `_removePool` functions.
+    /// the `getPoolsInactive` getter. Used by withdrawal functions, by the `_addPoolActive` and
+    /// `_removePool` internal functions.
     /// @param _stakingAddress The pool removed from the array of inactive pools.
     function _removePoolInactive(address _stakingAddress) internal {
         uint256 indexToRemove = poolInactiveIndex[_stakingAddress];
@@ -986,7 +1000,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     }
 
     /// @dev Initializes the network parameters. Used by the `initialize` function.
-    /// @param _validatorSetContract The address of the `ValidatorSet` contract.
+    /// @param _validatorSetContract The address of the `ValidatorSetAuRa` contract.
     /// @param _initialStakingAddresses The array of initial validators' staking addresses.
     /// @param _delegatorMinStake The minimum allowed amount of delegator stake in STAKE_UNITs.
     /// @param _candidateMinStake The minimum allowed amount of candidate/validator stake in STAKE_UNITs.
@@ -1040,7 +1054,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     }
 
     /// @dev Adds the specified address to the array of the current inactive delegators of the specified pool.
-    /// Used by the `_removePoolDelegator` function.
+    /// Used by the `_removePoolDelegator` internal function.
     /// @param _poolStakingAddress The pool staking address.
     /// @param _delegator The delegator's address.
     function _addPoolDelegatorInactive(address _poolStakingAddress, address _delegator) internal {
@@ -1075,7 +1089,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     }
 
     /// @dev Removes the specified address from the array of the inactive delegators of the specified pool.
-    /// Used by the `_addPoolDelegator` and `_removePoolDelegator` functions.
+    /// Used by the `_addPoolDelegator` and `_removePoolDelegator` internal functions.
     /// @param _poolStakingAddress The pool staking address.
     /// @param _delegator The delegator's address.
     function _removePoolDelegatorInactive(address _poolStakingAddress, address _delegator) internal {
@@ -1091,7 +1105,8 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     }
 
     /// @dev Calculates (updates) the probability of being selected as a validator for the specified pool
-    /// and updates the total sum of probability coefficients. See the `getPoolsLikelihood` getter.
+    /// and updates the total sum of probability coefficients. Actually, the probability is equal to the
+    /// amount totally staked into the pool. See the `getPoolsLikelihood` getter.
     /// Used by the staking and withdrawal functions.
     /// @param _poolStakingAddress The address of the pool for which the probability coefficient must be updated.
     function _setLikelihood(address _poolStakingAddress) internal {
@@ -1126,7 +1141,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     }
 
     /// @dev Makes a snapshot of the amount currently staked by the specified delegator
-    /// in the specified pool (staking address). Used by the `orderWithdraw`, `_stake`, and `_withdraw` functions.
+    /// into the specified pool (staking address). Used by the `orderWithdraw`, `_stake`, and `_withdraw` functions.
     /// @param _poolStakingAddress The staking address of the pool.
     /// @param _delegator The address of the delegator.
     function _snapshotDelegatorStake(address _poolStakingAddress, address _delegator) internal {
@@ -1260,7 +1275,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         } else {
             _removePoolDelegator(_poolStakingAddress, _staker);
 
-            if (_poolIsEmpty(_poolStakingAddress)) {
+            if (_isPoolEmpty(_poolStakingAddress)) {
                 _removePoolInactive(_poolStakingAddress);
             }
         }
@@ -1272,6 +1287,8 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     }
 
     /// @dev The internal function used by the `claimReward` function and `getRewardAmounts` getter.
+    /// Finds the stake amount made by a specified delegator into a specified pool before a specified
+    /// staking epoch.
     function _getDelegatorStake(
         uint256 _epoch,
         uint256 _firstEpoch,
@@ -1298,8 +1315,15 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         return MAX_CANDIDATES;
     }
 
+    /// @dev Returns a boolean flag indicating whether the specified pool is fully empty
+    /// (all stakes are withdrawn including ordered withdrawals).
+    /// @param _poolStakingAddress The staking address of the pool
+    function _isPoolEmpty(address _poolStakingAddress) internal view returns(bool) {
+        return stakeAmountTotal[_poolStakingAddress] == 0 && orderedWithdrawAmountTotal[_poolStakingAddress] == 0;
+    }
+
     /// @dev Determines if the specified pool is in the `poolsToBeElected` array. See the `getPoolsToBeElected` getter.
-    /// Used by the `_setLikelihood` function.
+    /// Used by the `_setLikelihood` internal function.
     /// @param _stakingAddress The staking address of the pool.
     /// @return `bool toBeElected` - The boolean flag indicating whether the `_stakingAddress` is in the
     /// `poolsToBeElected` array.
@@ -1312,7 +1336,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         return (false, 0);
     }
 
-    /// @dev Returns `true` if withdrawal from the pool of the specified validator is allowed at the moment.
+    /// @dev Returns `true` if withdrawal from the pool of the specified candidate/validator is allowed at the moment.
     /// Used by all withdrawal functions.
     /// @param _miningAddress The mining address of the validator's pool.
     /// @param _isDelegator Whether the withdrawal is requested by a delegator, not by a candidate/validator.
@@ -1334,11 +1358,5 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         }
 
         return true;
-    }
-
-    /// @dev Returns a boolean flag indicating whether the specified pool (staking address)
-    /// is fully empty (all stakes are withdrawn including ordered withdrawals)
-    function _poolIsEmpty(address _poolStakingAddress) internal view returns(bool) {
-        return stakeAmountTotal[_poolStakingAddress] == 0 && orderedWithdrawAmountTotal[_poolStakingAddress] == 0;
     }
 }
