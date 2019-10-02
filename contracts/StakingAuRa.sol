@@ -8,6 +8,13 @@ import "./upgradeability/UpgradeableOwned.sol";
 import "./libs/SafeMath.sol";
 
 
+contract Sacrifice {
+    constructor(address payable _recipient) public payable {
+        selfdestruct(_recipient);
+    }
+}
+
+
 /// @dev Implements staking and withdrawal logic.
 contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     using SafeMath for uint256;
@@ -138,9 +145,6 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
 
     /// @dev The max number of candidates (including validators). This limit was determined through stress testing.
     uint256 public constant MAX_CANDIDATES = 3000;
-
-    /// @dev Represents an integer value of a staking unit (1 unit = 10**18).
-    uint256 public constant STAKE_UNIT = 1 ether;
 
     // =============================================== Structs ========================================================
 
@@ -307,8 +311,8 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// Can only be called by the constructor of the `InitializerAuRa` contract or owner.
     /// @param _validatorSetContract The address of the `ValidatorSetAuRa` contract.
     /// @param _initialStakingAddresses The array of initial validators' staking addresses.
-    /// @param _delegatorMinStake The minimum allowed amount of delegator stake in STAKE_UNITs.
-    /// @param _candidateMinStake The minimum allowed amount of candidate/validator stake in STAKE_UNITs.
+    /// @param _delegatorMinStake The minimum allowed amount of delegator stake in Wei.
+    /// @param _candidateMinStake The minimum allowed amount of candidate/validator stake in Wei.
     /// @param _stakingEpochDuration The duration of a staking epoch in blocks
     /// (e.g., 120954 = 1 week for 5-seconds blocks in AuRa).
     /// @param _stakingEpochStartBlock The number of the first block of initial staking epoch
@@ -417,12 +421,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     function withdraw(address _fromPoolStakingAddress, uint256 _amount) external gasPriceIsValid onlyInitialized {
         address payable staker = msg.sender;
         _withdraw(_fromPoolStakingAddress, staker, _amount);
-        if (erc20TokenContract != IERC20Minting(0)) {
-            erc20TokenContract.transfer(staker, _amount);
-        } else {
-            require(erc20Restricted);
-            staker.transfer(_amount);
-        }
+        _sendWithdrawnAmount(staker, _amount);
         emit WithdrewStake(_fromPoolStakingAddress, staker, stakingEpoch, _amount);
     }
 
@@ -537,12 +536,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
             _withdrawCheckPool(_poolStakingAddress, staker);
         }
 
-        if (erc20TokenContract != IERC20Minting(0)) {
-            erc20TokenContract.transfer(staker, claimAmount);
-        } else {
-            require(erc20Restricted);
-            staker.transfer(claimAmount);
-        }
+        _sendWithdrawnAmount(staker, claimAmount);
 
         emit ClaimedOrderedWithdrawal(_poolStakingAddress, staker, stakingEpoch, claimAmount);
     }
@@ -632,16 +626,16 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
 
     /// @dev Sets (updates) the limit of the minimum candidate stake (CANDIDATE_MIN_STAKE).
     /// Can only be called by the `owner`.
-    /// @param _minStake The value of a new limit in STAKE_UNITs.
+    /// @param _minStake The value of a new limit in Wei.
     function setCandidateMinStake(uint256 _minStake) external onlyOwner onlyInitialized {
-        _setCandidateMinStake(_minStake);
+        candidateMinStake = _minStake;
     }
 
-    /// @dev Sets (updates) the limit of minimum delegator stake (DELEGATOR_MIN_STAKE).
+    /// @dev Sets (updates) the limit of the minimum delegator stake (DELEGATOR_MIN_STAKE).
     /// Can only be called by the `owner`.
-    /// @param _minStake The value of a new limit in STAKE_UNITs.
+    /// @param _minStake The value of a new limit in Wei.
     function setDelegatorMinStake(uint256 _minStake) external onlyOwner onlyInitialized {
-        _setDelegatorMinStake(_minStake);
+        delegatorMinStake = _minStake;
     }
 
     // =============================================== Getters ========================================================
@@ -1002,8 +996,8 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// @dev Initializes the network parameters. Used by the `initialize` function.
     /// @param _validatorSetContract The address of the `ValidatorSetAuRa` contract.
     /// @param _initialStakingAddresses The array of initial validators' staking addresses.
-    /// @param _delegatorMinStake The minimum allowed amount of delegator stake in STAKE_UNITs.
-    /// @param _candidateMinStake The minimum allowed amount of candidate/validator stake in STAKE_UNITs.
+    /// @param _delegatorMinStake The minimum allowed amount of delegator stake in Wei.
+    /// @param _candidateMinStake The minimum allowed amount of candidate/validator stake in Wei.
     /// @param _erc20Restricted Defines whether this staking contract restricts using ERC20/677 contract.
     /// If it's set to `true`, native staking coins are used instead of ERC staking tokens.
     function _initialize(
@@ -1032,8 +1026,8 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
             }
         }
 
-        _setDelegatorMinStake(_delegatorMinStake);
-        _setCandidateMinStake(_candidateMinStake);
+        delegatorMinStake = _delegatorMinStake;
+        candidateMinStake = _candidateMinStake;
 
         erc20Restricted = _erc20Restricted;
     }
@@ -1104,6 +1098,23 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         }
     }
 
+    /// @dev Sends tokens/coins from this contract to the specified address.
+    /// @param _to The target address to send amount to.
+    /// @param _amount The amount to send.
+    function _sendWithdrawnAmount(address payable _to, uint256 _amount) internal {
+        if (erc20TokenContract != IERC20Minting(0)) {
+            erc20TokenContract.transfer(_to, _amount);
+        } else {
+            require(erc20Restricted);
+            if (!_to.send(_amount)) {
+                // We use the `Sacrifice` trick to be sure the coins can be 100% sent to the receiver.
+                // Otherwise, if the receiver is a contract which has a revert in its fallback function,
+                // the sending will fail.
+                (new Sacrifice).value(_amount)(_to);
+            }
+        }
+    }
+
     /// @dev Calculates (updates) the probability of being selected as a validator for the specified pool
     /// and updates the total sum of probability coefficients. Actually, the probability is equal to the
     /// amount totally staked into the pool. See the `getPoolsLikelihood` getter.
@@ -1124,20 +1135,6 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
         } else {
             _poolsLikelihoodSum = _poolsLikelihoodSum.sub(oldValue - newValue);
         }
-    }
-
-    /// @dev Sets (updates) the limit of the minimum candidate stake (CANDIDATE_MIN_STAKE).
-    /// Used by the `_initialize` and `setCandidateMinStake` functions.
-    /// @param _minStake The value of a new limit in STAKE_UNITs.
-    function _setCandidateMinStake(uint256 _minStake) internal {
-        candidateMinStake = _minStake.mul(STAKE_UNIT);
-    }
-
-    /// @dev Sets (updates) the limit of the minimum delegator stake (DELEGATOR_MIN_STAKE).
-    /// Used by the `_initialize` and `setDelegatorMinStake` functions.
-    /// @param _minStake The value of a new limit in STAKE_UNITs.
-    function _setDelegatorMinStake(uint256 _minStake) internal {
-        delegatorMinStake = _minStake.mul(STAKE_UNIT);
     }
 
     /// @dev Makes a snapshot of the amount currently staked by the specified delegator

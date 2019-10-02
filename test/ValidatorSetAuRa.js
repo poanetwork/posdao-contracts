@@ -75,8 +75,8 @@ contract('ValidatorSetAuRa', async accounts => {
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
         initialStakingAddresses, // _initialStakingAddresses
-        1, // _delegatorMinStake
-        1, // _candidateMinStake
+        web3.utils.toWei('1', 'ether'), // _delegatorMinStake
+        web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
@@ -119,8 +119,8 @@ contract('ValidatorSetAuRa', async accounts => {
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
         initialStakingAddresses, // _initialStakingAddresses
-        1, // _delegatorMinStake
-        1, // _candidateMinStake
+        web3.utils.toWei('1', 'ether'), // _delegatorMinStake
+        web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
@@ -165,8 +165,8 @@ contract('ValidatorSetAuRa', async accounts => {
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
         initialStakingAddresses, // _initialStakingAddresses
-        1, // _delegatorMinStake
-        1, // _candidateMinStake
+        web3.utils.toWei('1', 'ether'), // _delegatorMinStake
+        web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
@@ -426,8 +426,8 @@ contract('ValidatorSetAuRa', async accounts => {
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
         initialStakingAddresses, // _initialStakingAddresses
-        1, // _delegatorMinStake
-        1, // _candidateMinStake
+        web3.utils.toWei('1', 'ether'), // _delegatorMinStake
+        web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
@@ -550,8 +550,8 @@ contract('ValidatorSetAuRa', async accounts => {
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
         initialStakingAddresses, // _initialStakingAddresses
-        1, // _delegatorMinStake
-        1, // _candidateMinStake
+        web3.utils.toWei('1', 'ether'), // _delegatorMinStake
+        web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
@@ -726,8 +726,8 @@ contract('ValidatorSetAuRa', async accounts => {
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
         initialStakingAddresses, // _initialStakingAddresses
-        1, // _delegatorMinStake
-        1, // _candidateMinStake
+        web3.utils.toWei('1', 'ether'), // _delegatorMinStake
+        web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod

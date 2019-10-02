@@ -26,9 +26,9 @@ contract InitializerAuRa {
     /// @param _firstValidatorIsUnremovable The boolean flag defining whether the first validator in the
     /// `_miningAddresses/_stakingAddresses` array is non-removable.
     /// Should be `false` for production network.
-    /// @param _delegatorMinStake The minimum allowed amount of delegator stake in STAKE_UNITs
+    /// @param _delegatorMinStake The minimum allowed amount of delegator stake in Wei
     /// (see the `StakingAuRa` contract).
-    /// @param _candidateMinStake The minimum allowed amount of candidate stake in STAKE_UNITs
+    /// @param _candidateMinStake The minimum allowed amount of candidate stake in Wei
     /// (see the `StakingAuRa` contract).
     /// @param _stakingEpochDuration The duration of a staking epoch in blocks
     /// (e.g., 120954 = 1 week for 5-seconds blocks in AuRa).

@@ -70,8 +70,8 @@ contract('BlockRewardAuRa', async accounts => {
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
         initialStakingAddresses, // _initialStakingAddresses
-        1, // _delegatorMinStake
-        1, // _candidateMinStake
+        web3.utils.toWei('1', 'ether'), // _delegatorMinStake
+        web3.utils.toWei('1', 'ether'), // _candidateMinStake
         STAKING_EPOCH_DURATION, // _stakingEpochDuration
         STAKING_EPOCH_START_BLOCK, // _stakingEpochStartBlock
         STAKE_WITHDRAW_DISALLOW_PERIOD, // _stakeWithdrawDisallowPeriod
