@@ -267,9 +267,6 @@ contract('ValidatorSetAuRa', async accounts => {
       (await validatorSetAuRa.getValidators.call()).should.be.deep.equal(initialValidators);
       (await validatorSetAuRa.getPendingValidators.call()).should.be.deep.equal(initialValidators);
       for (let i = 0; i < initialValidators.length; i++) {
-        new BN(i).should.be.bignumber.equal(
-          await validatorSetAuRa.validatorIndex.call(initialValidators[i])
-        );
         true.should.be.equal(
           await validatorSetAuRa.isValidator.call(initialValidators[i])
         );

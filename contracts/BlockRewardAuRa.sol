@@ -224,7 +224,7 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
     }
 
     /// @dev Initializes the contract at network startup.
-    /// Can only be called by the constructor of the `Initializer` contract or owner.
+    /// Can only be called by the constructor of the `InitializerAuRa` contract or owner.
     /// @param _validatorSet The address of the `ValidatorSetAuRa` contract.
     function initialize(address _validatorSet) external {
         require(_getCurrentBlockNumber() == 0 || msg.sender == _admin());

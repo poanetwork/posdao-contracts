@@ -42,7 +42,7 @@ contract Certifier is UpgradeableOwned, ICertifier {
     // =============================================== Setters ========================================================
 
     /// @dev Initializes the contract at network startup.
-    /// Can only be called by the constructor of the `Initializer` contract or owner.
+    /// Can only be called by the constructor of the `InitializerAuRa` contract or owner.
     /// @param _certifiedAddresses The addresses for which a zero gas price must be allowed.
     /// @param _validatorSet The address of the `ValidatorSetAuRa` contract.
     function initialize(
