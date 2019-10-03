@@ -38,8 +38,6 @@ contract InitializerAuRa {
     /// during which participants cannot stake or withdraw their staking tokens
     /// (e.g., 4320 = 6 hours for 5-seconds blocks in AuRa).
     /// @param _collectRoundLength The length of a collection round in blocks (see the `RandomAuRa` contract).
-    /// @param _erc20Restricted Defines whether this staking contract restricts using ERC20/677 contract.
-    /// If it's set to `true`, native staking coins are used instead of ERC staking tokens.
     constructor(
         address[] memory _contracts,
         address _owner,
@@ -51,8 +49,7 @@ contract InitializerAuRa {
         uint256 _stakingEpochDuration,
         uint256 _stakingEpochStartBlock,
         uint256 _stakeWithdrawDisallowPeriod,
-        uint256 _collectRoundLength,
-        bool _erc20Restricted
+        uint256 _collectRoundLength
     ) public {
         IValidatorSetAuRa(_contracts[0]).initialize(
             _contracts[1], // _blockRewardContract
@@ -69,8 +66,7 @@ contract InitializerAuRa {
             _candidateMinStake,
             _stakingEpochDuration,
             _stakingEpochStartBlock,
-            _stakeWithdrawDisallowPeriod,
-            _erc20Restricted
+            _stakeWithdrawDisallowPeriod
         );
         IBlockRewardAuRa(_contracts[1]).initialize(_contracts[0]);
         IRandomAuRa(_contracts[2]).initialize(_collectRoundLength, _contracts[0]);

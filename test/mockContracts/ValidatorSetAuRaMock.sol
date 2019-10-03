@@ -39,6 +39,10 @@ contract ValidatorSetAuRaMock is ValidatorSetAuRa {
         randomContract = _address;
     }
 
+    function setStakingContract(address _address) public {
+        stakingContract = IStakingAuRa(_address);
+    }
+
     function setSystemAddress(address _address) public {
         _systemAddress = _address;
     }

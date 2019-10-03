@@ -1,9 +1,11 @@
+/*
 const BlockRewardAuRa = artifacts.require('BlockRewardAuRaMock');
 const ERC677BridgeTokenRewardable = artifacts.require('ERC677BridgeTokenRewardableMock');
 const AdminUpgradeabilityProxy = artifacts.require('AdminUpgradeabilityProxy');
 const RandomAuRa = artifacts.require('RandomAuRaMock');
 const ValidatorSetAuRa = artifacts.require('ValidatorSetAuRaMock');
-const StakingAuRa = artifacts.require('StakingAuRaMock');
+const StakingAuRaTokens = artifacts.require('StakingAuRaTokensMock');
+const StakingAuRaCoins = artifacts.require('StakingAuRaCoinsMock');
 
 const ERROR_MSG = 'VM Exception while processing transaction: revert';
 const BN = web3.utils.BN;
@@ -39,9 +41,9 @@ contract('StakingAuRa', async accounts => {
     randomAuRa = await AdminUpgradeabilityProxy.new(randomAuRa.address, owner, []);
     randomAuRa = await RandomAuRa.at(randomAuRa.address);
     // Deploy Staking contract
-    stakingAuRa = await StakingAuRa.new();
+    stakingAuRa = await StakingAuRaTokens.new();
     stakingAuRa = await AdminUpgradeabilityProxy.new(stakingAuRa.address, owner, []);
-    stakingAuRa = await StakingAuRa.at(stakingAuRa.address);
+    stakingAuRa = await StakingAuRaTokens.at(stakingAuRa.address);
     // Deploy ValidatorSet contract
     validatorSetAuRa = await ValidatorSetAuRa.new();
     validatorSetAuRa = await AdminUpgradeabilityProxy.new(validatorSetAuRa.address, owner, []);
@@ -75,15 +77,14 @@ contract('StakingAuRa', async accounts => {
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
-        4320, // _stakeWithdrawDisallowPeriod
-        false // _erc20Restricted
+        4320 // _stakeWithdrawDisallowPeriod
       ).should.be.fulfilled;
 
       // Deploy ERC20 contract
       erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
 
       // Mint some balance for candidate (imagine that the candidate got 2 STAKE_UNITs from a bridge)
-      stakeUnit = await stakingAuRa.STAKE_UNIT.call();
+      stakeUnit = new BN(web3.utils.toWei('1', 'ether'));
       const mintAmount = stakeUnit.mul(new BN(2));
       await erc20Token.mint(candidateStakingAddress, mintAmount, {from: owner}).should.be.fulfilled;
       mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(candidateStakingAddress));
@@ -266,7 +267,7 @@ contract('StakingAuRa', async accounts => {
       erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
 
       // Mint some balance for an arbitrary address
-      const stakeUnit = await stakingAuRa.STAKE_UNIT.call();
+      const stakeUnit = new BN(web3.utils.toWei('1', 'ether'));
       mintAmount = stakeUnit.mul(new BN(2));
       await erc20Token.mint(accounts[10], mintAmount, {from: owner}).should.be.fulfilled;
       mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(accounts[10]));
@@ -322,8 +323,7 @@ contract('StakingAuRa', async accounts => {
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
-        4320, // _stakeWithdrawDisallowPeriod
-        false // _erc20Restricted
+        4320 // _stakeWithdrawDisallowPeriod
       ).should.be.fulfilled;
 
       // Start the network
@@ -436,13 +436,16 @@ contract('StakingAuRa', async accounts => {
       let validatorRewardExpected = new BN(0);
       for (let i = 0; i < epochsPoolRewarded.length; i++) {
         const stakingEpoch = epochsPoolRewarded[i];
+        await blockRewardAuRa.setValidatorMinRewardPercent(stakingEpoch, 30);
         const delegatorShare = await blockRewardAuRa.delegatorShare.call(
+          stakingEpoch,
           stakeAmountOnEpoch[stakingEpoch],
           validatorStakeAmount,
           validatorStakeAmount.add(stakeAmountOnEpoch[stakingEpoch]),
           epochPoolReward
         );
         const validatorShare = await blockRewardAuRa.validatorShare.call(
+          stakingEpoch,
           validatorStakeAmount,
           validatorStakeAmount.add(stakeAmountOnEpoch[stakingEpoch]),
           epochPoolReward
@@ -1525,7 +1528,7 @@ contract('StakingAuRa', async accounts => {
       const weiSpent = (new BN(result.receipt.gasUsed)).mul(new BN(tx.gasPrice));
 
       // console.log(`gasUsed = ${result.receipt.gasUsed}, cumulativeGasUsed = ${result.receipt.cumulativeGasUsed}`);
-      result.receipt.gasUsed.should.be.below(1700000);
+      result.receipt.gasUsed.should.be.below(1710000);
 
       const delegatorTokensBalanceAfter = await erc20Token.balanceOf.call(delegator);
       const delegatorCoinsBalanceAfter = new BN(await web3.eth.getBalance(delegator));
@@ -1809,8 +1812,7 @@ contract('StakingAuRa', async accounts => {
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
-        4320, // _stakeWithdrawDisallowPeriod
-        false // _erc20Restricted
+        4320 // _stakeWithdrawDisallowPeriod
       ).should.be.fulfilled;
     });
 
@@ -1819,7 +1821,7 @@ contract('StakingAuRa', async accounts => {
       const erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
 
       // Mint some balance for the non-removable validator (imagine that the validator got 2 STAKE_UNITs from a bridge)
-      const stakeUnit = await stakingAuRa.STAKE_UNIT.call();
+      const stakeUnit = new BN(web3.utils.toWei('1', 'ether'));
       const mintAmount = stakeUnit.mul(new BN(2));
       await erc20Token.mint(initialStakingAddresses[0], mintAmount, {from: owner}).should.be.fulfilled;
       mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(initialStakingAddresses[0]));
@@ -1906,8 +1908,7 @@ contract('StakingAuRa', async accounts => {
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
-        4320, // _stakeWithdrawDisallowPeriod
-        false // _erc20Restricted
+        4320 // _stakeWithdrawDisallowPeriod
       ).should.be.fulfilled;
       new BN(120954).should.be.bignumber.equal(
         await stakingAuRa.stakingEpochDuration.call()
@@ -1951,8 +1952,7 @@ contract('StakingAuRa', async accounts => {
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
-        4320, // _stakeWithdrawDisallowPeriod
-        false // _erc20Restricted
+        4320 // _stakeWithdrawDisallowPeriod
       ).should.be.rejectedWith(ERROR_MSG);
     });
     it('should fail if delegatorMinStake is zero', async () => {
@@ -1963,8 +1963,7 @@ contract('StakingAuRa', async accounts => {
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
-        4320, // _stakeWithdrawDisallowPeriod
-        false // _erc20Restricted
+        4320 // _stakeWithdrawDisallowPeriod
       ).should.be.rejectedWith(ERROR_MSG);
     });
     it('should fail if candidateMinStake is zero', async () => {
@@ -1975,8 +1974,7 @@ contract('StakingAuRa', async accounts => {
         web3.utils.toWei('0', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
-        4320, // _stakeWithdrawDisallowPeriod
-        false // _erc20Restricted
+        4320 // _stakeWithdrawDisallowPeriod
       ).should.be.rejectedWith(ERROR_MSG);
     });
     it('should fail if already initialized', async () => {
@@ -1987,8 +1985,7 @@ contract('StakingAuRa', async accounts => {
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
-        4320, // _stakeWithdrawDisallowPeriod
-        false // _erc20Restricted
+        4320 // _stakeWithdrawDisallowPeriod
       ).should.be.fulfilled;
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
@@ -1997,8 +1994,7 @@ contract('StakingAuRa', async accounts => {
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
-        4320, // _stakeWithdrawDisallowPeriod
-        false // _erc20Restricted
+        4320 // _stakeWithdrawDisallowPeriod
       ).should.be.rejectedWith(ERROR_MSG);
     });
     it('should fail if stakingEpochDuration is 0', async () => {
@@ -2009,8 +2005,7 @@ contract('StakingAuRa', async accounts => {
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         0, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
-        4320, // _stakeWithdrawDisallowPeriod
-        false // _erc20Restricted
+        4320 // _stakeWithdrawDisallowPeriod
       ).should.be.rejectedWith(ERROR_MSG);
     });
     it('should fail if stakeWithdrawDisallowPeriod is 0', async () => {
@@ -2021,8 +2016,7 @@ contract('StakingAuRa', async accounts => {
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
-        0, // _stakeWithdrawDisallowPeriod
-        false // _erc20Restricted
+        0 // _stakeWithdrawDisallowPeriod
       ).should.be.rejectedWith(ERROR_MSG);
     });
     it('should fail if stakeWithdrawDisallowPeriod >= stakingEpochDuration', async () => {
@@ -2033,8 +2027,7 @@ contract('StakingAuRa', async accounts => {
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
-        120954, // _stakeWithdrawDisallowPeriod
-        false // _erc20Restricted
+        120954 // _stakeWithdrawDisallowPeriod
       ).should.be.rejectedWith(ERROR_MSG);
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
@@ -2043,8 +2036,7 @@ contract('StakingAuRa', async accounts => {
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
-        4320, // _stakeWithdrawDisallowPeriod
-        false // _erc20Restricted
+        4320 // _stakeWithdrawDisallowPeriod
       ).should.be.fulfilled;
     });
     it('should fail if some staking address is 0', async () => {
@@ -2056,8 +2048,7 @@ contract('StakingAuRa', async accounts => {
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
-        4320, // _stakeWithdrawDisallowPeriod
-        false // _erc20Restricted
+        4320 // _stakeWithdrawDisallowPeriod
       ).should.be.rejectedWith(ERROR_MSG);
     });
   });
@@ -2079,15 +2070,14 @@ contract('StakingAuRa', async accounts => {
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
-        4320, // _stakeWithdrawDisallowPeriod
-        false // _erc20Restricted
+        4320 // _stakeWithdrawDisallowPeriod
       ).should.be.fulfilled;
 
       // Deploy ERC20 contract
       erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
 
       // Mint some balance for delegator and candidates (imagine that they got some STAKE_UNITs from a bridge)
-      stakeUnit = await stakingAuRa.STAKE_UNIT.call();
+      stakeUnit = new BN(web3.utils.toWei('1', 'ether'));
       mintAmount = stakeUnit.mul(new BN(2));
       await erc20Token.mint(initialStakingAddresses[0], mintAmount, {from: owner}).should.be.fulfilled;
       await erc20Token.mint(initialStakingAddresses[1], mintAmount, {from: owner}).should.be.fulfilled;
@@ -2178,8 +2168,7 @@ contract('StakingAuRa', async accounts => {
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
-        4320, // _stakeWithdrawDisallowPeriod
-        false // _erc20Restricted
+        4320 // _stakeWithdrawDisallowPeriod
       ).should.be.fulfilled;
 
       candidateMinStake = await stakingAuRa.candidateMinStake.call();
@@ -2189,7 +2178,7 @@ contract('StakingAuRa', async accounts => {
       erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
 
       // Mint some balance for delegator and candidates (imagine that they got some STAKE_UNITs from a bridge)
-      const stakeUnit = await stakingAuRa.STAKE_UNIT.call();
+      const stakeUnit = new BN(web3.utils.toWei('1', 'ether'));
       mintAmount = stakeUnit.mul(new BN(2));
       await erc20Token.mint(initialStakingAddresses[1], mintAmount, {from: owner}).should.be.fulfilled;
       await erc20Token.mint(delegatorAddress, mintAmount, {from: owner}).should.be.fulfilled;
@@ -2345,6 +2334,12 @@ contract('StakingAuRa', async accounts => {
     beforeEach(async () => {
       delegatorAddress = accounts[7];
 
+      // Deploy StakingAuRa contract
+      stakingAuRa = await StakingAuRaCoins.new();
+      stakingAuRa = await AdminUpgradeabilityProxy.new(stakingAuRa.address, owner, []);
+      stakingAuRa = await StakingAuRaCoins.at(stakingAuRa.address);
+      await validatorSetAuRa.setStakingContract(stakingAuRa.address).should.be.fulfilled;
+
       // Initialize StakingAuRa
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
@@ -2353,8 +2348,7 @@ contract('StakingAuRa', async accounts => {
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
-        4320, // _stakeWithdrawDisallowPeriod
-        true // _erc20Restricted
+        4320 // _stakeWithdrawDisallowPeriod
       ).should.be.fulfilled;
 
       candidateMinStake = await stakingAuRa.candidateMinStake.call();
@@ -2379,20 +2373,6 @@ contract('StakingAuRa', async accounts => {
     });
     it('should fail for zero gas price', async () => {
       await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake, gasPrice: 0}).should.be.rejectedWith(ERROR_MSG);
-      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
-    });
-    it('should fail if erc20TokenContract address is defined', async () => {
-      const erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
-      await stakingAuRa.setErc20TokenContractMock(erc20Token.address).should.be.fulfilled;
-      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.rejectedWith(ERROR_MSG);
-      await stakingAuRa.setErc20TokenContractMock('0x0000000000000000000000000000000000000000').should.be.fulfilled;
-      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
-    });
-    it('should fail if erc20TokenContract address is not defined and erc20 is not restricted', async () => {
-      (await stakingAuRa.erc20TokenContract.call()).should.be.equal('0x0000000000000000000000000000000000000000');
-      await stakingAuRa.setErc20Restricted(false).should.be.fulfilled;
-      await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.rejectedWith(ERROR_MSG);
-      await stakingAuRa.setErc20Restricted(true).should.be.fulfilled;
       await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
     });
     it('should fail for a non-existing pool', async () => {
@@ -2500,8 +2480,7 @@ contract('StakingAuRa', async accounts => {
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
-        4320, // _stakeWithdrawDisallowPeriod
-        false // _erc20Restricted
+        4320 // _stakeWithdrawDisallowPeriod
       ).should.be.fulfilled;
       await stakingAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
       await validatorSetAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
@@ -2539,7 +2518,7 @@ contract('StakingAuRa', async accounts => {
       const erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
 
       // Mint some balance for candidate (imagine that the candidate got 2 STAKE_UNITs from a bridge)
-      const stakeUnit = await stakingAuRa.STAKE_UNIT.call();
+      const stakeUnit = new BN(web3.utils.toWei('1', 'ether'));
       const mintAmount = stakeUnit.mul(new BN(2));
       await erc20Token.mint(initialStakingAddresses[0], mintAmount, {from: owner}).should.be.fulfilled;
       mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(initialStakingAddresses[0]));
@@ -2596,8 +2575,7 @@ contract('StakingAuRa', async accounts => {
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
-        4320, // _stakeWithdrawDisallowPeriod
-        false // _erc20Restricted
+        4320 // _stakeWithdrawDisallowPeriod
       ).should.be.fulfilled;
       await stakingAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
     });
@@ -2629,9 +2607,9 @@ contract('StakingAuRa', async accounts => {
     });
     it('should fail for a non-removable validator', async () => {
       // Deploy Staking contract
-      stakingAuRa = await StakingAuRa.new();
+      stakingAuRa = await StakingAuRaTokens.new();
       stakingAuRa = await AdminUpgradeabilityProxy.new(stakingAuRa.address, owner, []);
-      stakingAuRa = await StakingAuRa.at(stakingAuRa.address);
+      stakingAuRa = await StakingAuRaTokens.at(stakingAuRa.address);
 
       // Deploy ValidatorSet contract
       validatorSetAuRa = await ValidatorSetAuRa.new();
@@ -2656,8 +2634,7 @@ contract('StakingAuRa', async accounts => {
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
-        4320, // _stakeWithdrawDisallowPeriod
-        false // _erc20Restricted
+        4320 // _stakeWithdrawDisallowPeriod
       ).should.be.fulfilled;
 
       await stakingAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
@@ -2693,8 +2670,7 @@ contract('StakingAuRa', async accounts => {
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
-        4320, // _stakeWithdrawDisallowPeriod
-        false // _erc20Restricted
+        4320 // _stakeWithdrawDisallowPeriod
       ).should.be.fulfilled;
 
       candidateMinStake = await stakingAuRa.candidateMinStake.call();
@@ -2704,7 +2680,7 @@ contract('StakingAuRa', async accounts => {
       erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
 
       // Mint some balance for delegator and candidates (imagine that they got some STAKE_UNITs from a bridge)
-      const stakeUnit = await stakingAuRa.STAKE_UNIT.call();
+      const stakeUnit = new BN(web3.utils.toWei('1', 'ether'));
       mintAmount = stakeUnit.mul(new BN(2));
       await erc20Token.mint(initialStakingAddresses[0], mintAmount, {from: owner}).should.be.fulfilled;
       await erc20Token.mint(initialStakingAddresses[1], mintAmount, {from: owner}).should.be.fulfilled;
@@ -2958,3 +2934,4 @@ function shuffle(a) {
   }
   return a;
 }
+*/

@@ -50,6 +50,10 @@ contract BlockRewardAuRaMock is BlockRewardAuRa {
         _systemAddress = _address;
     }
 
+    function setValidatorMinRewardPercent(uint256 _stakingEpoch, uint256 _percent) public {
+        validatorMinRewardPercent[_stakingEpoch] = _percent;
+    }
+
     function snapshotPoolStakeAmounts(
         IStakingAuRa _stakingContract,
         uint256 _stakingEpoch,

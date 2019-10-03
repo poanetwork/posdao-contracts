@@ -51,10 +51,20 @@ async function main() {
   let contractsCompiled = {};
   for (let i = 0; i < contracts.length; i++) {
     const contractName = contracts[i];
+    let realContractName = contractName;
+    let dir = 'contracts/';
+
+    if (contractName == 'AdminUpgradeabilityProxy') {
+      dir = 'contracts/upgradeability/';
+    } else if (contractName == 'StakingAuRa' && erc20Restricted) {
+      realContractName = 'StakingAuRaCoins';
+      dir = 'contracts/base/';
+    }
+
     console.log(`Compiling ${contractName}...`);
     const compiled = await compile(
-      path.join(__dirname, '..', contractName == 'AdminUpgradeabilityProxy' ? 'contracts/upgradeability/' : 'contracts/'),
-      contractName
+      path.join(__dirname, '..', dir),
+      realContractName
     );
     contractsCompiled[contractName] = compiled;
   }
@@ -194,8 +204,7 @@ async function main() {
     stakingEpochDuration, // _stakingEpochDuration
     0, // _stakingEpochStartBlock
     stakeWithdrawDisallowPeriod, // _stakeWithdrawDisallowPeriod
-    collectRoundLength, // _collectRoundLength
-    erc20Restricted // _erc20Restricted
+    collectRoundLength // _collectRoundLength
   ]});
   spec.accounts['0x7000000000000000000000000000000000000000'] = {
     balance: '0',

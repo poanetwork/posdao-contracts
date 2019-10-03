@@ -11,8 +11,7 @@ interface IStakingAuRa {
         uint256,
         uint256,
         uint256,
-        uint256,
-        bool
+        uint256
     ) external;
     function removePool(address) external;
     function removePools() external;

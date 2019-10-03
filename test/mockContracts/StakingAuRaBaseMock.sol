@@ -1,9 +1,9 @@
 pragma solidity 0.5.9;
 
-import '../../contracts/StakingAuRa.sol';
+import '../../contracts/base/StakingAuRaBase.sol';
 
 
-contract StakingAuRaMock is StakingAuRa {
+contract StakingAuRaBaseMock is StakingAuRaBase {
 
     uint256 internal _currentBlockNumber;
 
@@ -27,14 +27,6 @@ contract StakingAuRaMock is StakingAuRa {
 
     function setCurrentBlockNumber(uint256 _blockNumber) public {
         _currentBlockNumber = _blockNumber;
-    }
-
-    function setErc20TokenContractMock(IERC20Minting _erc20TokenContract) public {
-        erc20TokenContract = _erc20TokenContract;
-    }
-
-    function setErc20Restricted(bool _erc20Restricted) public {
-        erc20Restricted = _erc20Restricted;
     }
 
     function setStakeAmountTotal(address _poolStakingAddress, uint256 _amount) public {

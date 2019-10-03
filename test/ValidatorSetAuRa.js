@@ -2,7 +2,7 @@ const BlockRewardAuRa = artifacts.require('BlockRewardAuRa');
 const ERC677BridgeTokenRewardable = artifacts.require('ERC677BridgeTokenRewardableMock');
 const AdminUpgradeabilityProxy = artifacts.require('AdminUpgradeabilityProxy');
 const RandomAuRa = artifacts.require('RandomAuRaMock');
-const StakingAuRa = artifacts.require('StakingAuRaMock');
+const StakingAuRa = artifacts.require('StakingAuRaTokensMock');
 const ValidatorSetAuRa = artifacts.require('ValidatorSetAuRaMock');
 
 const ERROR_MSG = 'VM Exception while processing transaction: revert';
@@ -79,15 +79,14 @@ contract('ValidatorSetAuRa', async accounts => {
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
-        4320, // _stakeWithdrawDisallowPeriod
-        false // _erc20Restricted
+        4320 // _stakeWithdrawDisallowPeriod
       ).should.be.fulfilled;
 
       // Deploy ERC20 contract
       const erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
 
       // Mint some balance for the non-removable validator (imagine that the validator got 2 STAKE_UNITs from a bridge)
-      const stakeUnit = await stakingAuRa.STAKE_UNIT.call();
+      const stakeUnit = new BN(web3.utils.toWei('1', 'ether'));
       const mintAmount = stakeUnit.mul(new BN(2));
       await erc20Token.mint(initialStakingAddresses[0], mintAmount, {from: owner}).should.be.fulfilled;
       mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(initialStakingAddresses[0]));
@@ -123,8 +122,7 @@ contract('ValidatorSetAuRa', async accounts => {
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
-        4320, // _stakeWithdrawDisallowPeriod
-        false // _erc20Restricted
+        4320 // _stakeWithdrawDisallowPeriod
       ).should.be.fulfilled;
       (await stakingAuRa.getPoolsToBeRemoved.call()).should.be.deep.equal([
         initialStakingAddresses[1],
@@ -169,8 +167,7 @@ contract('ValidatorSetAuRa', async accounts => {
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
-        4320, // _stakeWithdrawDisallowPeriod
-        false // _erc20Restricted
+        4320 // _stakeWithdrawDisallowPeriod
       ).should.be.fulfilled;
 
       // Set `initiateChangeAllowed` boolean flag to `true`
@@ -430,8 +427,7 @@ contract('ValidatorSetAuRa', async accounts => {
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
-        4320, // _stakeWithdrawDisallowPeriod
-        false // _erc20Restricted
+        4320 // _stakeWithdrawDisallowPeriod
       ).should.be.fulfilled;
       await stakingAuRa.setCurrentBlockNumber(120954).should.be.fulfilled;
       await validatorSetAuRa.setCurrentBlockNumber(120954).should.be.fulfilled;
@@ -491,7 +487,7 @@ contract('ValidatorSetAuRa', async accounts => {
       queueResult[1].should.be.equal(true);
     });
     it('should enqueue only one validator which has non-empty pool', async () => {
-      const stakeUnit = await stakingAuRa.STAKE_UNIT.call();
+      const stakeUnit = new BN(web3.utils.toWei('1', 'ether'));
       const mintAmount = stakeUnit.mul(new BN(2));
 
       await validatorSetAuRa.setValidatorSetApplyBlock(1).should.be.fulfilled;
@@ -554,12 +550,11 @@ contract('ValidatorSetAuRa', async accounts => {
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
-        4320, // _stakeWithdrawDisallowPeriod
-        false // _erc20Restricted
+        4320 // _stakeWithdrawDisallowPeriod
       ).should.be.fulfilled;
       await stakingAuRa.setValidatorSetAddress(validatorSetAuRa.address).should.be.fulfilled;
 
-      const stakeUnit = await stakingAuRa.STAKE_UNIT.call();
+      const stakeUnit = new BN(web3.utils.toWei('1', 'ether'));
       const mintAmount = stakeUnit.mul(new BN(2));
 
       await validatorSetAuRa.setValidatorSetApplyBlock(1).should.be.fulfilled;
@@ -623,7 +618,7 @@ contract('ValidatorSetAuRa', async accounts => {
         miningAddresses.push(candidateMiningAddress.toLowerCase());
       }
 
-      const stakeUnit = await stakingAuRa.STAKE_UNIT.call();
+      const stakeUnit = new BN(web3.utils.toWei('1', 'ether'));
       const mintAmount = stakeUnit.mul(new BN(100));
 
       await validatorSetAuRa.setValidatorSetApplyBlock(1).should.be.fulfilled;
@@ -730,8 +725,7 @@ contract('ValidatorSetAuRa', async accounts => {
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
-        4320, // _stakeWithdrawDisallowPeriod
-        false // _erc20Restricted
+        4320 // _stakeWithdrawDisallowPeriod
       ).should.be.fulfilled;
       await stakingAuRa.setValidatorSetAddress(validatorSetAuRa.address).should.be.fulfilled;
 
@@ -751,7 +745,7 @@ contract('ValidatorSetAuRa', async accounts => {
         miningAddresses.push(candidateMiningAddress.toLowerCase());
       }
 
-      const stakeUnit = await stakingAuRa.STAKE_UNIT.call();
+      const stakeUnit = new BN(web3.utils.toWei('1', 'ether'));
       const mintAmount = stakeUnit.mul(new BN(100));
 
       await validatorSetAuRa.setValidatorSetApplyBlock(1).should.be.fulfilled;
