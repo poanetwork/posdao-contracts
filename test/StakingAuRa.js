@@ -1,4 +1,3 @@
-/*
 const BlockRewardAuRa = artifacts.require('BlockRewardAuRaMock');
 const ERC677BridgeTokenRewardable = artifacts.require('ERC677BridgeTokenRewardableMock');
 const AdminUpgradeabilityProxy = artifacts.require('AdminUpgradeabilityProxy');
@@ -2934,4 +2933,3 @@ function shuffle(a) {
   }
   return a;
 }
-*/
