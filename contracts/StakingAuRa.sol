@@ -280,10 +280,10 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// (`erc20Restricted` is `true` in this case) because `msg.value` is used in that case.
     /// @param _miningAddress The mining address of the candidate. The mining address is bound to the staking address
     /// (msg.sender). This address cannot be equal to `msg.sender`.
-    function addPool(uint256 _amount, address _miningAddress) external gasPriceIsValid onlyInitialized payable {
+    function addPool(uint256 _amount, address _miningAddress) external payable {
         address stakingAddress = msg.sender;
         validatorSetContract.setStakingAddress(_miningAddress, stakingAddress);
-        _stake(stakingAddress, erc20Restricted ? msg.value : _amount);
+        _stake(stakingAddress, _amount);
     }
 
     /// @dev Adds the `unremovable validator` to either the `poolsToBeElected` or the `poolsToBeRemoved` array
@@ -408,8 +408,8 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// @param _toPoolStakingAddress The staking address of the pool where the tokens should be staked.
     /// @param _amount The amount of tokens to be staked. Ignored when staking in native coins
     /// (`erc20Restricted` is `true` in this case) because `msg.value` is used instead.
-    function stake(address _toPoolStakingAddress, uint256 _amount) external gasPriceIsValid onlyInitialized payable {
-        _stake(_toPoolStakingAddress, erc20Restricted ? msg.value : _amount);
+    function stake(address _toPoolStakingAddress, uint256 _amount) external payable {
+        _stake(_toPoolStakingAddress, _amount);
     }
 
     /// @dev Moves the specified amount of staking tokens/coins from the staking address of
@@ -421,7 +421,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     function withdraw(address _fromPoolStakingAddress, uint256 _amount) external gasPriceIsValid onlyInitialized {
         address payable staker = msg.sender;
         _withdraw(_fromPoolStakingAddress, staker, _amount);
-        _sendWithdrawnAmount(staker, _amount);
+        _sendWithdrawnStakeAmount(staker, _amount);
         emit WithdrewStake(_fromPoolStakingAddress, staker, stakingEpoch, _amount);
     }
 
@@ -536,7 +536,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
             _withdrawCheckPool(_poolStakingAddress, staker);
         }
 
-        _sendWithdrawnAmount(staker, claimAmount);
+        _sendWithdrawnStakeAmount(staker, claimAmount);
 
         emit ClaimedOrderedWithdrawal(_poolStakingAddress, staker, stakingEpoch, claimAmount);
     }
@@ -1101,7 +1101,7 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// @dev Sends tokens/coins from this contract to the specified address.
     /// @param _to The target address to send amount to.
     /// @param _amount The amount to send.
-    function _sendWithdrawnAmount(address payable _to, uint256 _amount) internal {
+    function _sendWithdrawnStakeAmount(address payable _to, uint256 _amount) internal {
         if (erc20TokenContract != IERC20Minting(0)) {
             erc20TokenContract.transfer(_to, _amount);
         } else {
@@ -1158,8 +1158,9 @@ contract StakingAuRa is UpgradeableOwned, IStakingAuRa {
     /// See the `stake` public function for more details.
     /// @param _toPoolStakingAddress The staking address of the pool where the tokens/coins should be staked.
     /// @param _amount The amount of tokens/coins to be staked.
-    function _stake(address _toPoolStakingAddress, uint256 _amount) internal {
+    function _stake(address _toPoolStakingAddress, uint256 _amount) internal gasPriceIsValid onlyInitialized {
         address staker = msg.sender;
+        _amount = erc20Restricted ? msg.value : _amount;
         _stake(_toPoolStakingAddress, staker, _amount);
         if (erc20TokenContract != IERC20Minting(0)) {
             require(msg.value == 0);
