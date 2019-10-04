@@ -59,6 +59,9 @@ async function main() {
     } else if (contractName == 'StakingAuRa' && erc20Restricted) {
       realContractName = 'StakingAuRaCoins';
       dir = 'contracts/base/';
+    } else if (contractName == 'BlockRewardAuRa' && erc20Restricted) {
+      realContractName = 'BlockRewardAuRaCoins';
+      dir = 'contracts/base/';
     }
 
     console.log(`Compiling ${contractName}...`);

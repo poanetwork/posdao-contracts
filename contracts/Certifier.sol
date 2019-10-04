@@ -92,7 +92,7 @@ contract Certifier is UpgradeableOwned, ICertifier {
         return validatorSetContract != IValidatorSetAuRa(0);
     }
 
-    // =============================================== Private ========================================================
+    // ============================================== Internal ========================================================
 
     /// @dev An internal function for the `certify` and `initialize` functions.
     /// @param _who The address for which transactions with a zero gas price must be allowed.

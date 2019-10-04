@@ -1,4 +1,4 @@
-const BlockRewardAuRa = artifacts.require('BlockRewardAuRaMock');
+const BlockRewardAuRa = artifacts.require('BlockRewardAuRaTokensMock');
 const ERC677BridgeTokenRewardable = artifacts.require('ERC677BridgeTokenRewardableMock');
 const AdminUpgradeabilityProxy = artifacts.require('AdminUpgradeabilityProxy');
 const RandomAuRa = artifacts.require('RandomAuRaMock');
@@ -61,7 +61,7 @@ contract('StakingAuRa', async accounts => {
   describe('addPool()', async () => {
     let candidateMiningAddress;
     let candidateStakingAddress;
-    let erc20Token;
+    let erc677Token;
     let stakeUnit;
 
     beforeEach(async () => {
@@ -79,28 +79,28 @@ contract('StakingAuRa', async accounts => {
         4320 // _stakeWithdrawDisallowPeriod
       ).should.be.fulfilled;
 
-      // Deploy ERC20 contract
-      erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
+      // Deploy ERC677 contract
+      erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, {from: owner});
 
       // Mint some balance for candidate (imagine that the candidate got 2 STAKE_UNITs from a bridge)
       stakeUnit = new BN(web3.utils.toWei('1', 'ether'));
       const mintAmount = stakeUnit.mul(new BN(2));
-      await erc20Token.mint(candidateStakingAddress, mintAmount, {from: owner}).should.be.fulfilled;
-      mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(candidateStakingAddress));
+      await erc677Token.mint(candidateStakingAddress, mintAmount, {from: owner}).should.be.fulfilled;
+      mintAmount.should.be.bignumber.equal(await erc677Token.balanceOf.call(candidateStakingAddress));
 
-      // Pass Staking contract address to ERC20 contract
-      await erc20Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
+      // Pass Staking contract address to ERC677 contract
+      await erc677Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
       stakingAuRa.address.should.be.equal(
-        await erc20Token.stakingContract.call()
+        await erc677Token.stakingContract.call()
       );
 
-      // Pass ERC20 contract address to Staking contract
+      // Pass ERC677 contract address to Staking contract
       '0x0000000000000000000000000000000000000000'.should.be.equal(
-        await stakingAuRa.erc20TokenContract.call()
+        await stakingAuRa.erc677TokenContract.call()
       );
-      await stakingAuRa.setErc20TokenContract(erc20Token.address, {from: owner}).should.be.fulfilled;
-      erc20Token.address.should.be.equal(
-        await stakingAuRa.erc20TokenContract.call()
+      await stakingAuRa.setErc677TokenContract(erc677Token.address, {from: owner}).should.be.fulfilled;
+      erc677Token.address.should.be.equal(
+        await stakingAuRa.erc677TokenContract.call()
       );
 
       // Emulate block number
@@ -126,9 +126,9 @@ contract('StakingAuRa', async accounts => {
       
       await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.fulfilled;
       
-      await erc20Token.mint(candidateMiningAddress, stakeUnit.mul(new BN(2)), {from: owner}).should.be.fulfilled;
-      await erc20Token.mint(candidateMiningAddress2, stakeUnit.mul(new BN(2)), {from: owner}).should.be.fulfilled;
-      await erc20Token.mint(candidateStakingAddress2, stakeUnit.mul(new BN(2)), {from: owner}).should.be.fulfilled;
+      await erc677Token.mint(candidateMiningAddress, stakeUnit.mul(new BN(2)), {from: owner}).should.be.fulfilled;
+      await erc677Token.mint(candidateMiningAddress2, stakeUnit.mul(new BN(2)), {from: owner}).should.be.fulfilled;
+      await erc677Token.mint(candidateStakingAddress2, stakeUnit.mul(new BN(2)), {from: owner}).should.be.fulfilled;
 
       await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress2}).should.be.rejectedWith(ERROR_MSG);
       await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress2, {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
@@ -148,15 +148,15 @@ contract('StakingAuRa', async accounts => {
       await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress, gasPrice: 0}).should.be.rejectedWith(ERROR_MSG);
     });
     it('should fail if ERC contract is not specified', async () => {
-      // Set ERC20 contract address to zero
-      await stakingAuRa.setErc20TokenContractMock('0x0000000000000000000000000000000000000000').should.be.fulfilled;
+      // Set ERC677 contract address to zero
+      await stakingAuRa.setErc677TokenContractMock('0x0000000000000000000000000000000000000000').should.be.fulfilled;
 
       // Try to add a new pool
       await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
       false.should.be.equal(await stakingAuRa.isPoolActive.call(candidateStakingAddress));
 
-      // Pass ERC20 contract address to ValidatorSet contract
-      await stakingAuRa.setErc20TokenContract(erc20Token.address, {from: owner}).should.be.fulfilled;
+      // Pass ERC677 contract address to ValidatorSet contract
+      await stakingAuRa.setErc677TokenContract(erc677Token.address, {from: owner}).should.be.fulfilled;
 
       // Add a new pool
       await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.fulfilled;
@@ -197,8 +197,8 @@ contract('StakingAuRa', async accounts => {
       const amount2 = stakeUnit.mul(new BN(3));
 
       // Emulate having necessary amount for the candidate #2
-      await erc20Token.mint(candidate2StakingAddress, amount2, {from: owner}).should.be.fulfilled;
-      amount2.should.be.bignumber.equal(await erc20Token.balanceOf.call(candidate2StakingAddress));
+      await erc677Token.mint(candidate2StakingAddress, amount2, {from: owner}).should.be.fulfilled;
+      amount2.should.be.bignumber.equal(await erc677Token.balanceOf.call(candidate2StakingAddress));
 
       // Add two new pools
       (await stakingAuRa.isPoolActive.call(candidate1StakingAddress)).should.be.equal(false);
@@ -258,38 +258,38 @@ contract('StakingAuRa', async accounts => {
   });
 
   describe('balance', async () => {
-    let erc20Token;
+    let erc677Token;
     let mintAmount;
 
     beforeEach(async () => {
-      // Deploy ERC20 contract
-      erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
+      // Deploy ERC677 contract
+      erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, {from: owner});
 
       // Mint some balance for an arbitrary address
       const stakeUnit = new BN(web3.utils.toWei('1', 'ether'));
       mintAmount = stakeUnit.mul(new BN(2));
-      await erc20Token.mint(accounts[10], mintAmount, {from: owner}).should.be.fulfilled;
-      mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(accounts[10]));
+      await erc677Token.mint(accounts[10], mintAmount, {from: owner}).should.be.fulfilled;
+      mintAmount.should.be.bignumber.equal(await erc677Token.balanceOf.call(accounts[10]));
 
-      // Pass Staking contract address to ERC20 contract
-      await erc20Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
+      // Pass Staking contract address to ERC677 contract
+      await erc677Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
       stakingAuRa.address.should.be.equal(
-        await erc20Token.stakingContract.call()
+        await erc677Token.stakingContract.call()
       );
     });
 
     it('cannot be increased by token.transfer function', async () => {
-      await erc20Token.transfer(stakingAuRa.address, mintAmount, {from: accounts[10]}).should.be.rejectedWith(ERROR_MSG);
-      await erc20Token.transfer(accounts[11], mintAmount, {from: accounts[10]}).should.be.fulfilled;
+      await erc677Token.transfer(stakingAuRa.address, mintAmount, {from: accounts[10]}).should.be.rejectedWith(ERROR_MSG);
+      await erc677Token.transfer(accounts[11], mintAmount, {from: accounts[10]}).should.be.fulfilled;
     });
     it('cannot be increased by token.transferFrom function', async () => {
-      await erc20Token.approve(accounts[9], mintAmount, {from: accounts[10]}).should.be.fulfilled;
-      await erc20Token.transferFrom(accounts[10], stakingAuRa.address, mintAmount, {from: accounts[9]}).should.be.rejectedWith(ERROR_MSG);
-      await erc20Token.transferFrom(accounts[10], accounts[11], mintAmount, {from: accounts[9]}).should.be.fulfilled;
+      await erc677Token.approve(accounts[9], mintAmount, {from: accounts[10]}).should.be.fulfilled;
+      await erc677Token.transferFrom(accounts[10], stakingAuRa.address, mintAmount, {from: accounts[9]}).should.be.rejectedWith(ERROR_MSG);
+      await erc677Token.transferFrom(accounts[10], accounts[11], mintAmount, {from: accounts[9]}).should.be.fulfilled;
     });
     it('cannot be increased by token.transferAndCall function', async () => {
-      await erc20Token.transferAndCall(stakingAuRa.address, mintAmount, [], {from: accounts[10]}).should.be.rejectedWith(ERROR_MSG);
-      await erc20Token.transferAndCall(accounts[11], mintAmount, [], {from: accounts[10]}).should.be.fulfilled;
+      await erc677Token.transferAndCall(stakingAuRa.address, mintAmount, [], {from: accounts[10]}).should.be.rejectedWith(ERROR_MSG);
+      await erc677Token.transferAndCall(accounts[11], mintAmount, [], {from: accounts[10]}).should.be.fulfilled;
     });
     it('cannot be increased by sending native coins', async () => {
       await web3.eth.sendTransaction({from: owner, to: stakingAuRa.address, value: 1}).should.be.rejectedWith(ERROR_MSG);
@@ -300,7 +300,7 @@ contract('StakingAuRa', async accounts => {
   describe('claimReward()', async () => {
     let delegator;
     let delegatorMinStake;
-    let erc20Token;
+    let erc677Token;
 
     beforeEach(async () => {
       // Initialize BlockRewardAuRa
@@ -330,18 +330,18 @@ contract('StakingAuRa', async accounts => {
       await callFinalizeChange();
       (await validatorSetAuRa.validatorSetApplyBlock.call()).should.be.bignumber.equal(new BN(1));
 
-      // Deploy ERC20 contract
-      erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
-      await stakingAuRa.setErc20TokenContract(erc20Token.address, {from: owner}).should.be.fulfilled;
-      await erc20Token.setBlockRewardContract(blockRewardAuRa.address).should.be.fulfilled;
-      await erc20Token.setStakingContract(stakingAuRa.address).should.be.fulfilled;
+      // Deploy ERC677 contract
+      erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, {from: owner});
+      await stakingAuRa.setErc677TokenContract(erc677Token.address, {from: owner}).should.be.fulfilled;
+      await erc677Token.setBlockRewardContract(blockRewardAuRa.address).should.be.fulfilled;
+      await erc677Token.setStakingContract(stakingAuRa.address).should.be.fulfilled;
 
       // Validators place stakes during the epoch #0
       const candidateMinStake = await stakingAuRa.candidateMinStake.call();
       for (let i = 0; i < initialStakingAddresses.length; i++) {
         // Mint some balance for each validator (imagine that each validator got the tokens from a bridge)
-        await erc20Token.mint(initialStakingAddresses[i], candidateMinStake, {from: owner}).should.be.fulfilled;
-        candidateMinStake.should.be.bignumber.equal(await erc20Token.balanceOf.call(initialStakingAddresses[i]));
+        await erc677Token.mint(initialStakingAddresses[i], candidateMinStake, {from: owner}).should.be.fulfilled;
+        candidateMinStake.should.be.bignumber.equal(await erc677Token.balanceOf.call(initialStakingAddresses[i]));
 
         // Validator places stake on themselves
         await stakingAuRa.stake(initialStakingAddresses[i], candidateMinStake, {from: initialStakingAddresses[i]}).should.be.fulfilled;
@@ -350,8 +350,8 @@ contract('StakingAuRa', async accounts => {
       // Mint some balance for a delegator (imagine that the delegator got the tokens from a bridge)
       delegator = accounts[10];
       delegatorMinStake = await stakingAuRa.delegatorMinStake.call();
-      await erc20Token.mint(delegator, delegatorMinStake, {from: owner}).should.be.fulfilled;
-      delegatorMinStake.should.be.bignumber.equal(await erc20Token.balanceOf.call(delegator));
+      await erc677Token.mint(delegator, delegatorMinStake, {from: owner}).should.be.fulfilled;
+      delegatorMinStake.should.be.bignumber.equal(await erc677Token.balanceOf.call(delegator));
 
       // The delegator places stake on the first validator
       await stakingAuRa.stake(initialStakingAddresses[0], delegatorMinStake, {from: delegator}).should.be.fulfilled;
@@ -376,7 +376,7 @@ contract('StakingAuRa', async accounts => {
       const epochPoolReward = new BN(web3.utils.toWei('1', 'ether'));
       const maxStakingEpoch = Math.max(Math.max.apply(null, epochsPoolRewarded), Math.max.apply(null, epochsStakeIncreased));
 
-      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(new BN(0));
+      (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(new BN(0));
       (await web3.eth.getBalance(blockRewardAuRa.address)).should.be.equal('0');
 
       // Emulate rewards for the pool
@@ -385,7 +385,7 @@ contract('StakingAuRa', async accounts => {
         await blockRewardAuRa.setEpochPoolReward(stakingEpoch, miningAddress, epochPoolReward, {value: epochPoolReward}).should.be.fulfilled;
       }
 
-      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward.mul(new BN(epochsPoolRewarded.length)));
+      (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward.mul(new BN(epochsPoolRewarded.length)));
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(epochPoolReward.mul(new BN(epochsPoolRewarded.length)));
 
       let prevStakingEpoch = 0;
@@ -406,8 +406,8 @@ contract('StakingAuRa', async accounts => {
           await setCurrentBlockNumber(stakingEpochStartBlock);
 
           // Emulate delegator's stake increasing
-          await erc20Token.mint(delegator, delegatorMinStake, {from: owner}).should.be.fulfilled;
-          delegatorMinStake.should.be.bignumber.equal(await erc20Token.balanceOf.call(delegator));
+          await erc677Token.mint(delegator, delegatorMinStake, {from: owner}).should.be.fulfilled;
+          delegatorMinStake.should.be.bignumber.equal(await erc677Token.balanceOf.call(delegator));
           await stakingAuRa.stake(stakingAddress, delegatorMinStake, {from: delegator}).should.be.fulfilled;
 
           for (let e = prevStakingEpoch + 1; e <= stakingEpoch; e++) {
@@ -541,7 +541,7 @@ contract('StakingAuRa', async accounts => {
         epochsStakeIncreased
       );
 
-      const delegatorTokensBalanceBefore = await erc20Token.balanceOf.call(delegator);
+      const delegatorTokensBalanceBefore = await erc677Token.balanceOf.call(delegator);
       const delegatorCoinsBalanceBefore = new BN(await web3.eth.getBalance(delegator));
       let weiSpent = new BN(0);
       let epochsPoolRewardedRandom = epochsPoolRewarded;
@@ -556,13 +556,13 @@ contract('StakingAuRa', async accounts => {
         tx = await web3.eth.getTransaction(result.tx);
         weiSpent = weiSpent.add((new BN(result.receipt.gasUsed)).mul(new BN(tx.gasPrice)));
       }
-      const delegatorTokensBalanceAfter = await erc20Token.balanceOf.call(delegator);
+      const delegatorTokensBalanceAfter = await erc677Token.balanceOf.call(delegator);
       const delegatorCoinsBalanceAfter = new BN(await web3.eth.getBalance(delegator));
 
       delegatorTokensBalanceAfter.should.be.bignumber.equal(delegatorTokensBalanceBefore.add(delegatorRewardExpected));
       delegatorCoinsBalanceAfter.should.be.bignumber.equal(delegatorCoinsBalanceBefore.add(delegatorRewardExpected).sub(weiSpent));
 
-      const validatorTokensBalanceBefore = await erc20Token.balanceOf.call(stakingAddress);
+      const validatorTokensBalanceBefore = await erc677Token.balanceOf.call(stakingAddress);
       const validatorCoinsBalanceBefore = new BN(await web3.eth.getBalance(stakingAddress));
       weiSpent = new BN(0);
       shuffle(epochsPoolRewardedRandom);
@@ -572,14 +572,14 @@ contract('StakingAuRa', async accounts => {
         const tx = await web3.eth.getTransaction(result.tx);
         weiSpent = weiSpent.add((new BN(result.receipt.gasUsed)).mul(new BN(tx.gasPrice)));
       }
-      const validatorTokensBalanceAfter = await erc20Token.balanceOf.call(stakingAddress);
+      const validatorTokensBalanceAfter = await erc677Token.balanceOf.call(stakingAddress);
       const validatorCoinsBalanceAfter = new BN(await web3.eth.getBalance(stakingAddress));
 
       validatorTokensBalanceAfter.should.be.bignumber.equal(validatorTokensBalanceBefore.add(validatorRewardExpected));
       validatorCoinsBalanceAfter.should.be.bignumber.equal(validatorCoinsBalanceBefore.add(validatorRewardExpected).sub(weiSpent));
 
       const blockRewardBalanceExpected = epochPoolReward.mul(new BN(epochsPoolRewarded.length)).sub(delegatorRewardExpected).sub(validatorRewardExpected);
-      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(blockRewardBalanceExpected);
+      (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(blockRewardBalanceExpected);
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(blockRewardBalanceExpected);
     }
 
@@ -597,12 +597,12 @@ contract('StakingAuRa', async accounts => {
         epochsStakeIncreased
       );
 
-      const delegatorTokensBalanceBefore = await erc20Token.balanceOf.call(delegator);
+      const delegatorTokensBalanceBefore = await erc677Token.balanceOf.call(delegator);
       const delegatorCoinsBalanceBefore = new BN(await web3.eth.getBalance(delegator));
       const result = await stakingAuRa.claimReward([], stakingAddress, {from: delegator}).should.be.fulfilled;
       const tx = await web3.eth.getTransaction(result.tx);
       const weiSpent = (new BN(result.receipt.gasUsed)).mul(new BN(tx.gasPrice));
-      const delegatorTokensBalanceAfter = await erc20Token.balanceOf.call(delegator);
+      const delegatorTokensBalanceAfter = await erc677Token.balanceOf.call(delegator);
       const delegatorCoinsBalanceAfter = new BN(await web3.eth.getBalance(delegator));
 
       delegatorTokensBalanceAfter.should.be.bignumber.equal(delegatorTokensBalanceBefore.add(delegatorRewardExpected));
@@ -610,16 +610,16 @@ contract('StakingAuRa', async accounts => {
 
       await stakingAuRa.claimReward([], stakingAddress, {from: stakingAddress}).should.be.fulfilled;
 
-      let rewardAmountsCalculated = await stakingAuRa.getRewardAmounts.call([], stakingAddress, delegator);
+      let rewardAmountsCalculated = await stakingAuRa.getRewardAmount.call([], stakingAddress, delegator);
       rewardAmountsCalculated.tokenRewardSum.should.be.bignumber.equal(delegatorRewardExpected);
       rewardAmountsCalculated.nativeRewardSum.should.be.bignumber.equal(delegatorRewardExpected);
 
-      rewardAmountsCalculated = await stakingAuRa.getRewardAmounts.call([], stakingAddress, stakingAddress);
+      rewardAmountsCalculated = await stakingAuRa.getRewardAmount.call([], stakingAddress, stakingAddress);
       rewardAmountsCalculated.tokenRewardSum.should.be.bignumber.equal(validatorRewardExpected);
       rewardAmountsCalculated.nativeRewardSum.should.be.bignumber.equal(validatorRewardExpected);
 
       const blockRewardBalanceExpected = epochPoolReward.mul(new BN(epochsPoolRewarded.length)).sub(delegatorRewardExpected).sub(validatorRewardExpected);
-      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(blockRewardBalanceExpected);
+      (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(blockRewardBalanceExpected);
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(blockRewardBalanceExpected);
     }
 
@@ -628,7 +628,7 @@ contract('StakingAuRa', async accounts => {
       const stakingAddress = initialStakingAddresses[0];
       const epochPoolReward = new BN(web3.utils.toWei('1', 'ether'));
 
-      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(new BN(0));
+      (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(new BN(0));
       (await web3.eth.getBalance(blockRewardAuRa.address)).should.be.equal('0');
 
       for (let i = 0; i < epochsPoolRewarded.length; i++) {
@@ -641,7 +641,7 @@ contract('StakingAuRa', async accounts => {
         await blockRewardAuRa.setEpochPoolReward(stakingEpoch, miningAddress, epochPoolReward, {value: epochPoolReward}).should.be.fulfilled;
       }
 
-      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward.mul(new BN(epochsPoolRewarded.length)));
+      (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward.mul(new BN(epochsPoolRewarded.length)));
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(epochPoolReward.mul(new BN(epochsPoolRewarded.length)));
 
       for (let i = 0; i < epochsStakeMovement.length; i++) {
@@ -685,7 +685,7 @@ contract('StakingAuRa', async accounts => {
         }
       }
 
-      const delegatorTokensBalanceBefore = await erc20Token.balanceOf.call(delegator);
+      const delegatorTokensBalanceBefore = await erc677Token.balanceOf.call(delegator);
       const delegatorCoinsBalanceBefore = new BN(await web3.eth.getBalance(delegator));
       let weiSpent = new BN(0);
       for (let i = 0; i < 3; i++) {
@@ -694,7 +694,7 @@ contract('StakingAuRa', async accounts => {
         const tx = await web3.eth.getTransaction(result.tx);
         weiSpent = weiSpent.add((new BN(result.receipt.gasUsed)).mul(new BN(tx.gasPrice)));
       }
-      const delegatorTokensBalanceAfter = await erc20Token.balanceOf.call(delegator);
+      const delegatorTokensBalanceAfter = await erc677Token.balanceOf.call(delegator);
       const delegatorCoinsBalanceAfter = new BN(await web3.eth.getBalance(delegator));
 
       const delegatorRewardExpected = epochPoolReward.mul(new BN(epochsPoolRewarded.length)).div(new BN(2));
@@ -711,11 +711,11 @@ contract('StakingAuRa', async accounts => {
         }
       }
 
-      const rewardAmountsCalculated = await stakingAuRa.getRewardAmounts.call([], stakingAddress, delegator);
+      const rewardAmountsCalculated = await stakingAuRa.getRewardAmount.call([], stakingAddress, delegator);
       rewardAmountsCalculated.tokenRewardSum.should.be.bignumber.equal(delegatorRewardExpected);
       rewardAmountsCalculated.nativeRewardSum.should.be.bignumber.equal(delegatorRewardExpected);
 
-      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(new BN(0));
+      (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(new BN(0));
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(new BN(0));
     }
 
@@ -730,7 +730,7 @@ contract('StakingAuRa', async accounts => {
       let stakingEpoch = 9;
       await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch, miningAddress).should.be.fulfilled;
       await blockRewardAuRa.setEpochPoolReward(stakingEpoch, miningAddress, epochPoolReward, {value: epochPoolReward}).should.be.fulfilled;
-      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward);
+      (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward);
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(epochPoolReward);
       await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, miningAddress).should.be.fulfilled;
 
@@ -744,32 +744,32 @@ contract('StakingAuRa', async accounts => {
       await setCurrentBlockNumber(stakingEpochStartBlock);
       await stakingAuRa.stake(stakingAddress, delegatorMinStake, {from: delegator}).should.be.fulfilled;
       await blockRewardAuRa.setEpochPoolReward(stakingEpoch, miningAddress, epochPoolReward, {value: epochPoolReward}).should.be.fulfilled;
-      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward.mul(new BN(2)));
+      (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward.mul(new BN(2)));
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(epochPoolReward.mul(new BN(2)));
       await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, miningAddress).should.be.fulfilled;
 
       // Emulate rewards for the pool on epoch #11
       stakingEpoch = 11;
       await blockRewardAuRa.setEpochPoolReward(stakingEpoch, miningAddress, epochPoolReward, {value: epochPoolReward}).should.be.fulfilled;
-      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward.mul(new BN(3)));
+      (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward.mul(new BN(3)));
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(epochPoolReward.mul(new BN(3)));
       await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, miningAddress).should.be.fulfilled;
 
       await stakingAuRa.setStakingEpoch(12).should.be.fulfilled;
 
-      const delegatorTokensBalanceBefore = await erc20Token.balanceOf.call(delegator);
+      const delegatorTokensBalanceBefore = await erc677Token.balanceOf.call(delegator);
       const delegatorCoinsBalanceBefore = new BN(await web3.eth.getBalance(delegator));
       let result = await stakingAuRa.claimReward([9, 10], stakingAddress, {from: delegator}).should.be.fulfilled;
       const tx = await web3.eth.getTransaction(result.tx);
       const weiSpent = (new BN(result.receipt.gasUsed)).mul(new BN(tx.gasPrice));
-      const delegatorTokensBalanceAfter = await erc20Token.balanceOf.call(delegator);
+      const delegatorTokensBalanceAfter = await erc677Token.balanceOf.call(delegator);
       const delegatorCoinsBalanceAfter = new BN(await web3.eth.getBalance(delegator));
 
       result.logs.length.should.be.equal(0);
       delegatorTokensBalanceAfter.should.be.bignumber.equal(delegatorTokensBalanceBefore);
       delegatorCoinsBalanceAfter.should.be.bignumber.equal(delegatorCoinsBalanceBefore.sub(weiSpent));
 
-      const rewardAmountsCalculated = await stakingAuRa.getRewardAmounts.call([9, 10], stakingAddress, delegator);
+      const rewardAmountsCalculated = await stakingAuRa.getRewardAmount.call([9, 10], stakingAddress, delegator);
       rewardAmountsCalculated.tokenRewardSum.should.be.bignumber.equal(new BN(0));
       rewardAmountsCalculated.nativeRewardSum.should.be.bignumber.equal(new BN(0));
 
@@ -783,7 +783,7 @@ contract('StakingAuRa', async accounts => {
       result.logs.length.should.be.equal(1);
       result.logs[0].args.stakingEpoch.should.be.bignumber.equal(new BN(11));
 
-      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(new BN(0));
+      (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(new BN(0));
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(new BN(0));
 
       (await stakingAuRa.stakeFirstEpoch.call(stakingAddress, delegator)).should.be.bignumber.equal(new BN(11));
@@ -801,7 +801,7 @@ contract('StakingAuRa', async accounts => {
       let stakingEpoch = 9;
       await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch, miningAddress).should.be.fulfilled;
       await blockRewardAuRa.setEpochPoolReward(stakingEpoch, miningAddress, epochPoolReward, {value: epochPoolReward}).should.be.fulfilled;
-      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward);
+      (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward);
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(epochPoolReward);
       await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, miningAddress).should.be.fulfilled;
 
@@ -816,32 +816,32 @@ contract('StakingAuRa', async accounts => {
       await stakingAuRa.stake(stakingAddress, delegatorMinStake, {from: delegator}).should.be.fulfilled;
       await stakingAuRa.withdraw(stakingAddress, delegatorMinStake, {from: delegator}).should.be.fulfilled;
       await blockRewardAuRa.setEpochPoolReward(stakingEpoch, miningAddress, epochPoolReward, {value: epochPoolReward}).should.be.fulfilled;
-      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward.mul(new BN(2)));
+      (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward.mul(new BN(2)));
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(epochPoolReward.mul(new BN(2)));
       await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, miningAddress).should.be.fulfilled;
 
       // Emulate rewards for the pool on epoch #11
       stakingEpoch = 11;
       await blockRewardAuRa.setEpochPoolReward(stakingEpoch, miningAddress, epochPoolReward, {value: epochPoolReward}).should.be.fulfilled;
-      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward.mul(new BN(3)));
+      (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward.mul(new BN(3)));
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(epochPoolReward.mul(new BN(3)));
       await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, miningAddress).should.be.fulfilled;
 
       await stakingAuRa.setStakingEpoch(12).should.be.fulfilled;
 
-      const delegatorTokensBalanceBefore = await erc20Token.balanceOf.call(delegator);
+      const delegatorTokensBalanceBefore = await erc677Token.balanceOf.call(delegator);
       const delegatorCoinsBalanceBefore = new BN(await web3.eth.getBalance(delegator));
       let result = await stakingAuRa.claimReward([], stakingAddress, {from: delegator}).should.be.fulfilled;
       const tx = await web3.eth.getTransaction(result.tx);
       const weiSpent = (new BN(result.receipt.gasUsed)).mul(new BN(tx.gasPrice));
-      const delegatorTokensBalanceAfter = await erc20Token.balanceOf.call(delegator);
+      const delegatorTokensBalanceAfter = await erc677Token.balanceOf.call(delegator);
       const delegatorCoinsBalanceAfter = new BN(await web3.eth.getBalance(delegator));
 
       result.logs.length.should.be.equal(0);
       delegatorTokensBalanceAfter.should.be.bignumber.equal(delegatorTokensBalanceBefore);
       delegatorCoinsBalanceAfter.should.be.bignumber.equal(delegatorCoinsBalanceBefore.sub(weiSpent));
 
-      const rewardAmountsCalculated = await stakingAuRa.getRewardAmounts.call([], stakingAddress, delegator);
+      const rewardAmountsCalculated = await stakingAuRa.getRewardAmount.call([], stakingAddress, delegator);
       rewardAmountsCalculated.tokenRewardSum.should.be.bignumber.equal(new BN(0));
       rewardAmountsCalculated.nativeRewardSum.should.be.bignumber.equal(new BN(0));
 
@@ -851,7 +851,7 @@ contract('StakingAuRa', async accounts => {
       result.logs[1].args.stakingEpoch.should.be.bignumber.equal(new BN(10));
       result.logs[2].args.stakingEpoch.should.be.bignumber.equal(new BN(11));
 
-      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(new BN(0));
+      (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(new BN(0));
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(new BN(0));
 
       (await stakingAuRa.stakeFirstEpoch.call(stakingAddress, delegator)).should.be.bignumber.equal(new BN(11));
@@ -863,7 +863,7 @@ contract('StakingAuRa', async accounts => {
       const stakingAddress = initialStakingAddresses[0];
       const epochPoolReward = new BN(web3.utils.toWei('1', 'ether'));
 
-      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(new BN(0));
+      (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(new BN(0));
       (await web3.eth.getBalance(blockRewardAuRa.address)).should.be.equal('0');
 
       const epochsPoolRewarded = [10, 20, 30, 40, 50];
@@ -877,18 +877,18 @@ contract('StakingAuRa', async accounts => {
         await blockRewardAuRa.setEpochPoolReward(stakingEpoch, miningAddress, epochPoolReward, {value: epochPoolReward}).should.be.fulfilled;
       }
 
-      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward.mul(new BN(epochsPoolRewarded.length)));
+      (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward.mul(new BN(epochsPoolRewarded.length)));
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(epochPoolReward.mul(new BN(epochsPoolRewarded.length)));
 
       await stakingAuRa.setStakingEpoch(51);
 
       const epochsToWithdrawFrom = [15, 25, 35, 45];
-      const delegatorTokensBalanceBefore = await erc20Token.balanceOf.call(delegator);
+      const delegatorTokensBalanceBefore = await erc677Token.balanceOf.call(delegator);
       const delegatorCoinsBalanceBefore = new BN(await web3.eth.getBalance(delegator));
       const result = await stakingAuRa.claimReward(epochsToWithdrawFrom, stakingAddress, {from: delegator}).should.be.fulfilled;
       const tx = await web3.eth.getTransaction(result.tx);
       const weiSpent = (new BN(result.receipt.gasUsed)).mul(new BN(tx.gasPrice));
-      const delegatorTokensBalanceAfter = await erc20Token.balanceOf.call(delegator);
+      const delegatorTokensBalanceAfter = await erc677Token.balanceOf.call(delegator);
       const delegatorCoinsBalanceAfter = new BN(await web3.eth.getBalance(delegator));
 
       result.logs.length.should.be.equal(epochsToWithdrawFrom.length);
@@ -1016,7 +1016,7 @@ contract('StakingAuRa', async accounts => {
       const stakingAddress = initialStakingAddresses[0];
       const epochPoolReward = new BN(web3.utils.toWei('1', 'ether'));
 
-      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(new BN(0));
+      (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(new BN(0));
       (await web3.eth.getBalance(blockRewardAuRa.address)).should.be.equal('0');
 
       let stakingEpoch;
@@ -1025,7 +1025,7 @@ contract('StakingAuRa', async accounts => {
       stakingEpoch = 9;
       await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch, miningAddress).should.be.fulfilled;
       await blockRewardAuRa.setEpochPoolReward(stakingEpoch, miningAddress, epochPoolReward, {value: epochPoolReward}).should.be.fulfilled;
-      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward);
+      (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward);
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(epochPoolReward);
       await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, miningAddress).should.be.fulfilled;
 
@@ -1039,25 +1039,25 @@ contract('StakingAuRa', async accounts => {
       await setCurrentBlockNumber(stakingEpochStartBlock);
       await stakingAuRa.orderWithdraw(stakingAddress, delegatorMinStake, {from: delegator}).should.be.fulfilled;
       await blockRewardAuRa.setEpochPoolReward(stakingEpoch, miningAddress, epochPoolReward, {value: epochPoolReward}).should.be.fulfilled;
-      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward.mul(new BN(2)));
+      (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward.mul(new BN(2)));
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(epochPoolReward.mul(new BN(2)));
       await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, miningAddress).should.be.fulfilled;
 
       // Emulate rewards for the pool
       stakingEpoch = 11;
       await blockRewardAuRa.setEpochPoolReward(stakingEpoch, miningAddress, epochPoolReward, {value: epochPoolReward}).should.be.fulfilled;
-      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward.mul(new BN(3)));
+      (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward.mul(new BN(3)));
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(epochPoolReward.mul(new BN(3)));
       await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, miningAddress).should.be.fulfilled;
 
       await stakingAuRa.setStakingEpoch(12).should.be.fulfilled;
 
-      const delegatorTokensBalanceBefore = await erc20Token.balanceOf.call(delegator);
+      const delegatorTokensBalanceBefore = await erc677Token.balanceOf.call(delegator);
       const delegatorCoinsBalanceBefore = new BN(await web3.eth.getBalance(delegator));
       let result = await stakingAuRa.claimReward([], stakingAddress, {from: delegator}).should.be.fulfilled;
       const tx = await web3.eth.getTransaction(result.tx);
       const weiSpent = (new BN(result.receipt.gasUsed)).mul(new BN(tx.gasPrice));
-      const delegatorTokensBalanceAfter = await erc20Token.balanceOf.call(delegator);
+      const delegatorTokensBalanceAfter = await erc677Token.balanceOf.call(delegator);
       const delegatorCoinsBalanceAfter = new BN(await web3.eth.getBalance(delegator));
 
       result.logs.length.should.be.equal(2);
@@ -1074,7 +1074,7 @@ contract('StakingAuRa', async accounts => {
       delegatorTokensBalanceAfter.should.be.bignumber.equal(delegatorTokensBalanceBefore.add(delegatorRewardExpected));
       delegatorCoinsBalanceAfter.should.be.bignumber.equal(delegatorCoinsBalanceBefore.add(delegatorRewardExpected).sub(weiSpent));
 
-      const rewardAmountsCalculated = await stakingAuRa.getRewardAmounts.call([], stakingAddress, delegator);
+      const rewardAmountsCalculated = await stakingAuRa.getRewardAmount.call([], stakingAddress, delegator);
       rewardAmountsCalculated.tokenRewardSum.should.be.bignumber.equal(delegatorRewardExpected);
       rewardAmountsCalculated.nativeRewardSum.should.be.bignumber.equal(delegatorRewardExpected);
 
@@ -1083,7 +1083,7 @@ contract('StakingAuRa', async accounts => {
       result.logs[0].args.stakingEpoch.should.be.bignumber.equal(new BN(9));
       result.logs[1].args.stakingEpoch.should.be.bignumber.equal(new BN(10));
       result.logs[2].args.stakingEpoch.should.be.bignumber.equal(new BN(11));
-      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(new BN(0));
+      (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(new BN(0));
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(new BN(0));
     });
 
@@ -1092,7 +1092,7 @@ contract('StakingAuRa', async accounts => {
       const stakingAddress = initialStakingAddresses[0];
       const epochPoolReward = new BN(web3.utils.toWei('1', 'ether'));
 
-      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(new BN(0));
+      (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(new BN(0));
       (await web3.eth.getBalance(blockRewardAuRa.address)).should.be.equal('0');
 
       let stakingEpoch;
@@ -1101,7 +1101,7 @@ contract('StakingAuRa', async accounts => {
       stakingEpoch = 9;
       await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch, miningAddress).should.be.fulfilled;
       await blockRewardAuRa.setEpochPoolReward(stakingEpoch, miningAddress, epochPoolReward, {value: epochPoolReward}).should.be.fulfilled;
-      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward);
+      (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward);
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(epochPoolReward);
       await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, miningAddress).should.be.fulfilled;
 
@@ -1115,32 +1115,32 @@ contract('StakingAuRa', async accounts => {
       await setCurrentBlockNumber(stakingEpochStartBlock);
       await stakingAuRa.orderWithdraw(stakingAddress, delegatorMinStake, {from: delegator}).should.be.fulfilled;
       await blockRewardAuRa.setEpochPoolReward(stakingEpoch, miningAddress, epochPoolReward, {value: epochPoolReward}).should.be.fulfilled;
-      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward.mul(new BN(2)));
+      (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward.mul(new BN(2)));
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(epochPoolReward.mul(new BN(2)));
       await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, miningAddress).should.be.fulfilled;
 
       // Emulate rewards for the pool
       stakingEpoch = 11;
       await blockRewardAuRa.setEpochPoolReward(stakingEpoch, miningAddress, epochPoolReward, {value: epochPoolReward}).should.be.fulfilled;
-      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward.mul(new BN(3)));
+      (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward.mul(new BN(3)));
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(epochPoolReward.mul(new BN(3)));
       await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, miningAddress).should.be.fulfilled;
 
       await stakingAuRa.setStakingEpoch(12).should.be.fulfilled;
 
-      const delegatorTokensBalanceBefore = await erc20Token.balanceOf.call(delegator);
+      const delegatorTokensBalanceBefore = await erc677Token.balanceOf.call(delegator);
       const delegatorCoinsBalanceBefore = new BN(await web3.eth.getBalance(delegator));
       const result = await stakingAuRa.claimReward([11], stakingAddress, {from: delegator}).should.be.fulfilled;
       const tx = await web3.eth.getTransaction(result.tx);
       const weiSpent = (new BN(result.receipt.gasUsed)).mul(new BN(tx.gasPrice));
-      const delegatorTokensBalanceAfter = await erc20Token.balanceOf.call(delegator);
+      const delegatorTokensBalanceAfter = await erc677Token.balanceOf.call(delegator);
       const delegatorCoinsBalanceAfter = new BN(await web3.eth.getBalance(delegator));
 
       result.logs.length.should.be.equal(0);
       delegatorTokensBalanceAfter.should.be.bignumber.equal(delegatorTokensBalanceBefore);
       delegatorCoinsBalanceAfter.should.be.bignumber.equal(delegatorCoinsBalanceBefore.sub(weiSpent));
 
-      const rewardAmountsCalculated = await stakingAuRa.getRewardAmounts.call([11], stakingAddress, delegator);
+      const rewardAmountsCalculated = await stakingAuRa.getRewardAmount.call([11], stakingAddress, delegator);
       rewardAmountsCalculated.tokenRewardSum.should.be.bignumber.equal(new BN(0));
       rewardAmountsCalculated.nativeRewardSum.should.be.bignumber.equal(new BN(0));
     });
@@ -1184,7 +1184,7 @@ contract('StakingAuRa', async accounts => {
         await randomAuRa.setSentReveal(initialValidators[i]).should.be.fulfilled;
       }
 
-      let blockRewardTokensBalanceBefore = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+      let blockRewardTokensBalanceBefore = await erc677Token.balanceOf.call(blockRewardAuRa.address);
       let blockRewardCoinsBalanceBefore = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
       for (let i = 0; i < initialValidators.length; i++) {
         (await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialValidators[i])).should.be.bignumber.equal(new BN(0));
@@ -1202,19 +1202,19 @@ contract('StakingAuRa', async accounts => {
         distributedTokensAmount = distributedTokensAmount.add(epochPoolTokenReward);
         distributedCoinsAmount = distributedCoinsAmount.add(epochPoolNativeReward);
       }
-      let blockRewardTokensBalanceAfter = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+      let blockRewardTokensBalanceAfter = await erc677Token.balanceOf.call(blockRewardAuRa.address);
       let blockRewardCoinsBalanceAfter = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
       blockRewardTokensBalanceAfter.should.be.bignumber.equal(blockRewardTokensBalanceBefore.add(distributedTokensAmount));
       blockRewardCoinsBalanceAfter.should.be.bignumber.equal(blockRewardCoinsBalanceBefore.add(distributedCoinsAmount));
 
       // The delegator claims their rewards
-      const delegatorTokensBalanceBefore = await erc20Token.balanceOf.call(delegator);
+      const delegatorTokensBalanceBefore = await erc677Token.balanceOf.call(delegator);
       const delegatorCoinsBalanceBefore = new BN(await web3.eth.getBalance(delegator));
 
-      blockRewardTokensBalanceBefore = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+      blockRewardTokensBalanceBefore = await erc677Token.balanceOf.call(blockRewardAuRa.address);
       blockRewardCoinsBalanceBefore = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
 
-      const expectedClaimRewardAmounts = (await stakingAuRa.getRewardAmounts.call([stakingEpoch], initialStakingAddresses[0], delegator));
+      const expectedClaimRewardAmounts = (await stakingAuRa.getRewardAmount.call([stakingEpoch], initialStakingAddresses[0], delegator));
 
       result = await stakingAuRa.claimReward([stakingEpoch], initialStakingAddresses[0], {from: delegator}).should.be.fulfilled;
 
@@ -1234,10 +1234,10 @@ contract('StakingAuRa', async accounts => {
 
       result.receipt.gasUsed.should.be.below(1700000);
 
-      const delegatorTokensBalanceAfter = await erc20Token.balanceOf.call(delegator);
+      const delegatorTokensBalanceAfter = await erc677Token.balanceOf.call(delegator);
       const delegatorCoinsBalanceAfter = new BN(await web3.eth.getBalance(delegator));
 
-      blockRewardTokensBalanceAfter = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+      blockRewardTokensBalanceAfter = await erc677Token.balanceOf.call(blockRewardAuRa.address);
       blockRewardCoinsBalanceAfter = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
 
       delegatorTokensBalanceAfter.should.be.bignumber.equal(delegatorTokensBalanceBefore.add(claimedTokensAmount));
@@ -1285,7 +1285,7 @@ contract('StakingAuRa', async accounts => {
           await randomAuRa.setSentReveal(initialValidators[i]).should.be.fulfilled;
         }
 
-        const blockRewardTokensBalanceBefore = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+        const blockRewardTokensBalanceBefore = await erc677Token.balanceOf.call(blockRewardAuRa.address);
         const blockRewardCoinsBalanceBefore = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
         for (let i = 0; i < initialValidators.length; i++) {
           (await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialValidators[i])).should.be.bignumber.equal(new BN(0));
@@ -1302,7 +1302,7 @@ contract('StakingAuRa', async accounts => {
           distributedTokensAmount = distributedTokensAmount.add(epochPoolTokenReward);
           distributedCoinsAmount = distributedCoinsAmount.add(epochPoolNativeReward);
         }
-        const blockRewardTokensBalanceAfter = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+        const blockRewardTokensBalanceAfter = await erc677Token.balanceOf.call(blockRewardAuRa.address);
         const blockRewardCoinsBalanceAfter = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
         blockRewardTokensBalanceAfter.should.be.bignumber.equal(blockRewardTokensBalanceBefore.add(distributedTokensAmount));
         blockRewardCoinsBalanceAfter.should.be.bignumber.equal(blockRewardCoinsBalanceBefore.add(distributedCoinsAmount));
@@ -1312,19 +1312,19 @@ contract('StakingAuRa', async accounts => {
       let initialGasConsumption = new BN(0);
       let startGasConsumption = new BN(0);
       let endGasConsumption = new BN(0);
-      let blockRewardTokensBalanceTotalBefore = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+      let blockRewardTokensBalanceTotalBefore = await erc677Token.balanceOf.call(blockRewardAuRa.address);
       let blockRewardCoinsBalanceTotalBefore = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
 
       let tokensDelegatorGotForAllEpochs = new BN(0);
       let coinsDelegatorGotForAllEpochs = new BN(0);
       for (let stakingEpoch = 1; stakingEpoch <= maxStakingEpoch; stakingEpoch++) {
-        const delegatorTokensBalanceBefore = await erc20Token.balanceOf.call(delegator);
+        const delegatorTokensBalanceBefore = await erc677Token.balanceOf.call(delegator);
         const delegatorCoinsBalanceBefore = new BN(await web3.eth.getBalance(delegator));
 
-        const blockRewardTokensBalanceBefore = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+        const blockRewardTokensBalanceBefore = await erc677Token.balanceOf.call(blockRewardAuRa.address);
         const blockRewardCoinsBalanceBefore = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
 
-        const expectedClaimRewardAmounts = (await stakingAuRa.getRewardAmounts.call([stakingEpoch], initialStakingAddresses[0], delegator));
+        const expectedClaimRewardAmounts = (await stakingAuRa.getRewardAmount.call([stakingEpoch], initialStakingAddresses[0], delegator));
 
         let result = await stakingAuRa.claimReward([stakingEpoch], initialStakingAddresses[0], {from: delegator}).should.be.fulfilled;
         result.logs[0].event.should.be.equal("ClaimedReward");
@@ -1349,10 +1349,10 @@ contract('StakingAuRa', async accounts => {
           endGasConsumption = new BN(result.receipt.gasUsed);
         }
 
-        const delegatorTokensBalanceAfter = await erc20Token.balanceOf.call(delegator);
+        const delegatorTokensBalanceAfter = await erc677Token.balanceOf.call(delegator);
         const delegatorCoinsBalanceAfter = new BN(await web3.eth.getBalance(delegator));
 
-        const blockRewardTokensBalanceAfter = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+        const blockRewardTokensBalanceAfter = await erc677Token.balanceOf.call(blockRewardAuRa.address);
         const blockRewardCoinsBalanceAfter = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
 
         delegatorTokensBalanceAfter.should.be.bignumber.equal(delegatorTokensBalanceBefore.add(claimedTokensAmount));
@@ -1375,7 +1375,7 @@ contract('StakingAuRa', async accounts => {
       const maxGasConsumption = initialGasConsumption.sub(perEpochGasConsumption).add(perEpochGasConsumption.mul(new BN(2600)));
       maxGasConsumption.should.be.bignumber.below(new BN(1700000));
 
-      let blockRewardTokensBalanceTotalAfter = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+      let blockRewardTokensBalanceTotalAfter = await erc677Token.balanceOf.call(blockRewardAuRa.address);
       let blockRewardCoinsBalanceTotalAfter = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
 
       blockRewardTokensBalanceTotalAfter.should.be.bignumber.equal(blockRewardTokensBalanceTotalBefore.sub(tokensDelegatorGotForAllEpochs));
@@ -1387,13 +1387,13 @@ contract('StakingAuRa', async accounts => {
       for (let v = 0; v < initialStakingAddresses.length; v++) {
         for (let stakingEpoch = 1; stakingEpoch <= maxStakingEpoch; stakingEpoch++) {
           const validator = initialStakingAddresses[v];
-          const validatorTokensBalanceBefore = await erc20Token.balanceOf.call(validator);
+          const validatorTokensBalanceBefore = await erc677Token.balanceOf.call(validator);
           const validatorCoinsBalanceBefore = new BN(await web3.eth.getBalance(validator));
 
-          const blockRewardTokensBalanceBefore = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+          const blockRewardTokensBalanceBefore = await erc677Token.balanceOf.call(blockRewardAuRa.address);
           const blockRewardCoinsBalanceBefore = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
 
-          const expectedClaimRewardAmounts = (await stakingAuRa.getRewardAmounts.call([stakingEpoch], validator, validator));
+          const expectedClaimRewardAmounts = (await stakingAuRa.getRewardAmount.call([stakingEpoch], validator, validator));
 
           let result = await stakingAuRa.claimReward([stakingEpoch], validator, {from: validator}).should.be.fulfilled;
           result.logs[0].event.should.be.equal("ClaimedReward");
@@ -1410,10 +1410,10 @@ contract('StakingAuRa', async accounts => {
           const tx = await web3.eth.getTransaction(result.tx);
           const weiSpent = (new BN(result.receipt.gasUsed)).mul(new BN(tx.gasPrice));
 
-          const validatorTokensBalanceAfter = await erc20Token.balanceOf.call(validator);
+          const validatorTokensBalanceAfter = await erc677Token.balanceOf.call(validator);
           const validatorCoinsBalanceAfter = new BN(await web3.eth.getBalance(validator));
 
-          const blockRewardTokensBalanceAfter = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+          const blockRewardTokensBalanceAfter = await erc677Token.balanceOf.call(blockRewardAuRa.address);
           const blockRewardCoinsBalanceAfter = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
 
           validatorTokensBalanceAfter.should.be.bignumber.equal(validatorTokensBalanceBefore.add(claimedTokensAmount));
@@ -1427,7 +1427,7 @@ contract('StakingAuRa', async accounts => {
         }
       }
 
-      blockRewardTokensBalanceTotalAfter = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+      blockRewardTokensBalanceTotalAfter = await erc677Token.balanceOf.call(blockRewardAuRa.address);
       blockRewardCoinsBalanceTotalAfter = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
 
       blockRewardTokensBalanceTotalAfter.should.be.bignumber.equal(blockRewardTokensBalanceTotalBefore.sub(tokensDelegatorGotForAllEpochs).sub(tokensValidatorsGotForAllEpochs));
@@ -1473,7 +1473,7 @@ contract('StakingAuRa', async accounts => {
           await randomAuRa.setSentReveal(initialValidators[i]).should.be.fulfilled;
         }
 
-        const blockRewardTokensBalanceBefore = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+        const blockRewardTokensBalanceBefore = await erc677Token.balanceOf.call(blockRewardAuRa.address);
         const blockRewardCoinsBalanceBefore = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
         for (let i = 0; i < initialValidators.length; i++) {
           (await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialValidators[i])).should.be.bignumber.equal(new BN(0));
@@ -1490,22 +1490,22 @@ contract('StakingAuRa', async accounts => {
           distributedTokensAmount = distributedTokensAmount.add(epochPoolTokenReward);
           distributedCoinsAmount = distributedCoinsAmount.add(epochPoolNativeReward);
         }
-        const blockRewardTokensBalanceAfter = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+        const blockRewardTokensBalanceAfter = await erc677Token.balanceOf.call(blockRewardAuRa.address);
         const blockRewardCoinsBalanceAfter = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
         blockRewardTokensBalanceAfter.should.be.bignumber.equal(blockRewardTokensBalanceBefore.add(distributedTokensAmount));
         blockRewardCoinsBalanceAfter.should.be.bignumber.equal(blockRewardCoinsBalanceBefore.add(distributedCoinsAmount));
       }
 
       // The delegator claims their rewards
-      const delegatorTokensBalanceBefore = await erc20Token.balanceOf.call(delegator);
+      const delegatorTokensBalanceBefore = await erc677Token.balanceOf.call(delegator);
       const delegatorCoinsBalanceBefore = new BN(await web3.eth.getBalance(delegator));
 
-      const blockRewardTokensBalanceBefore = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+      const blockRewardTokensBalanceBefore = await erc677Token.balanceOf.call(blockRewardAuRa.address);
       const blockRewardCoinsBalanceBefore = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
       const blockRewardTokensBalanceTotalBefore = blockRewardTokensBalanceBefore;
       const blockRewardCoinsBalanceTotalBefore = blockRewardCoinsBalanceBefore;
 
-      const expectedClaimRewardAmounts = (await stakingAuRa.getRewardAmounts.call([], initialStakingAddresses[0], delegator));
+      const expectedClaimRewardAmounts = (await stakingAuRa.getRewardAmount.call([], initialStakingAddresses[0], delegator));
 
       const result = await stakingAuRa.claimReward([], initialStakingAddresses[0], {from: delegator}).should.be.fulfilled;
 
@@ -1529,10 +1529,10 @@ contract('StakingAuRa', async accounts => {
       // console.log(`gasUsed = ${result.receipt.gasUsed}, cumulativeGasUsed = ${result.receipt.cumulativeGasUsed}`);
       result.receipt.gasUsed.should.be.below(1710000);
 
-      const delegatorTokensBalanceAfter = await erc20Token.balanceOf.call(delegator);
+      const delegatorTokensBalanceAfter = await erc677Token.balanceOf.call(delegator);
       const delegatorCoinsBalanceAfter = new BN(await web3.eth.getBalance(delegator));
 
-      const blockRewardTokensBalanceAfter = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+      const blockRewardTokensBalanceAfter = await erc677Token.balanceOf.call(blockRewardAuRa.address);
       const blockRewardCoinsBalanceAfter = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
 
       tokensDelegatorGotForAllEpochs.should.be.bignumber.gte(new BN(0));
@@ -1549,13 +1549,13 @@ contract('StakingAuRa', async accounts => {
       let coinsValidatorsGotForAllEpochs = new BN(0);
       for (let v = 0; v < initialStakingAddresses.length; v++) {
         const validator = initialStakingAddresses[v];
-        const validatorTokensBalanceBefore = await erc20Token.balanceOf.call(validator);
+        const validatorTokensBalanceBefore = await erc677Token.balanceOf.call(validator);
         const validatorCoinsBalanceBefore = new BN(await web3.eth.getBalance(validator));
 
-        const blockRewardTokensBalanceBefore = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+        const blockRewardTokensBalanceBefore = await erc677Token.balanceOf.call(blockRewardAuRa.address);
         const blockRewardCoinsBalanceBefore = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
 
-        const expectedClaimRewardAmounts = (await stakingAuRa.getRewardAmounts.call([], validator, validator));
+        const expectedClaimRewardAmounts = (await stakingAuRa.getRewardAmount.call([], validator, validator));
 
         const result = await stakingAuRa.claimReward([], validator, {from: validator}).should.be.fulfilled;
 
@@ -1576,10 +1576,10 @@ contract('StakingAuRa', async accounts => {
         const tx = await web3.eth.getTransaction(result.tx);
         const weiSpent = (new BN(result.receipt.gasUsed)).mul(new BN(tx.gasPrice));
 
-        const validatorTokensBalanceAfter = await erc20Token.balanceOf.call(validator);
+        const validatorTokensBalanceAfter = await erc677Token.balanceOf.call(validator);
         const validatorCoinsBalanceAfter = new BN(await web3.eth.getBalance(validator));
 
-        const blockRewardTokensBalanceAfter = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+        const blockRewardTokensBalanceAfter = await erc677Token.balanceOf.call(blockRewardAuRa.address);
         const blockRewardCoinsBalanceAfter = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
 
         claimedTokensAmount.should.be.bignumber.gte(new BN(0));
@@ -1595,7 +1595,7 @@ contract('StakingAuRa', async accounts => {
         coinsValidatorsGotForAllEpochs = coinsValidatorsGotForAllEpochs.add(claimedCoinsAmount);
       }
 
-      const blockRewardTokensBalanceTotalAfter = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+      const blockRewardTokensBalanceTotalAfter = await erc677Token.balanceOf.call(blockRewardAuRa.address);
       const blockRewardCoinsBalanceTotalAfter = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
 
       blockRewardTokensBalanceTotalAfter.should.be.bignumber.equal(blockRewardTokensBalanceTotalBefore.sub(tokensDelegatorGotForAllEpochs).sub(tokensValidatorsGotForAllEpochs));
@@ -1642,7 +1642,7 @@ contract('StakingAuRa', async accounts => {
           await randomAuRa.setSentReveal(initialValidators[i]).should.be.fulfilled;
         }
 
-        const blockRewardTokensBalanceBefore = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+        const blockRewardTokensBalanceBefore = await erc677Token.balanceOf.call(blockRewardAuRa.address);
         const blockRewardCoinsBalanceBefore = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
         for (let i = 0; i < initialValidators.length; i++) {
           (await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialValidators[i])).should.be.bignumber.equal(new BN(0));
@@ -1659,7 +1659,7 @@ contract('StakingAuRa', async accounts => {
           distributedTokensAmount = distributedTokensAmount.add(epochPoolTokenReward);
           distributedCoinsAmount = distributedCoinsAmount.add(epochPoolNativeReward);
         }
-        const blockRewardTokensBalanceAfter = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+        const blockRewardTokensBalanceAfter = await erc677Token.balanceOf.call(blockRewardAuRa.address);
         const blockRewardCoinsBalanceAfter = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
         blockRewardTokensBalanceAfter.should.be.bignumber.equal(blockRewardTokensBalanceBefore.add(distributedTokensAmount));
         blockRewardCoinsBalanceAfter.should.be.bignumber.equal(blockRewardCoinsBalanceBefore.add(distributedCoinsAmount));
@@ -1677,15 +1677,15 @@ contract('StakingAuRa', async accounts => {
       const epochsPoolGotRewardFor = await blockRewardAuRa.epochsPoolGotRewardFor.call(initialValidators[0]);
 
       // The delegator claims their rewards
-      const delegatorTokensBalanceBefore = await erc20Token.balanceOf.call(delegator);
+      const delegatorTokensBalanceBefore = await erc677Token.balanceOf.call(delegator);
       const delegatorCoinsBalanceBefore = new BN(await web3.eth.getBalance(delegator));
 
-      const blockRewardTokensBalanceBefore = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+      const blockRewardTokensBalanceBefore = await erc677Token.balanceOf.call(blockRewardAuRa.address);
       const blockRewardCoinsBalanceBefore = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
       const blockRewardTokensBalanceTotalBefore = blockRewardTokensBalanceBefore;
       const blockRewardCoinsBalanceTotalBefore = blockRewardCoinsBalanceBefore;
 
-      const expectedClaimRewardAmounts = (await stakingAuRa.getRewardAmounts.call([], initialStakingAddresses[0], delegator));
+      const expectedClaimRewardAmounts = (await stakingAuRa.getRewardAmount.call([], initialStakingAddresses[0], delegator));
 
       const result = await stakingAuRa.claimReward([], initialStakingAddresses[0], {from: delegator}).should.be.fulfilled;
 
@@ -1709,10 +1709,10 @@ contract('StakingAuRa', async accounts => {
       // console.log(`gasUsed = ${result.receipt.gasUsed}, cumulativeGasUsed = ${result.receipt.cumulativeGasUsed}`);
       result.receipt.gasUsed.should.be.below(2000000);
 
-      const delegatorTokensBalanceAfter = await erc20Token.balanceOf.call(delegator);
+      const delegatorTokensBalanceAfter = await erc677Token.balanceOf.call(delegator);
       const delegatorCoinsBalanceAfter = new BN(await web3.eth.getBalance(delegator));
 
-      const blockRewardTokensBalanceAfter = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+      const blockRewardTokensBalanceAfter = await erc677Token.balanceOf.call(blockRewardAuRa.address);
       const blockRewardCoinsBalanceAfter = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
 
       tokensDelegatorGotForAllEpochs.should.be.bignumber.gte(new BN(0));
@@ -1729,13 +1729,13 @@ contract('StakingAuRa', async accounts => {
       let coinsValidatorsGotForAllEpochs = new BN(0);
       for (let v = 0; v < initialStakingAddresses.length; v++) {
         const validator = initialStakingAddresses[v];
-        const validatorTokensBalanceBefore = await erc20Token.balanceOf.call(validator);
+        const validatorTokensBalanceBefore = await erc677Token.balanceOf.call(validator);
         const validatorCoinsBalanceBefore = new BN(await web3.eth.getBalance(validator));
 
-        const blockRewardTokensBalanceBefore = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+        const blockRewardTokensBalanceBefore = await erc677Token.balanceOf.call(blockRewardAuRa.address);
         const blockRewardCoinsBalanceBefore = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
 
-        const expectedClaimRewardAmounts = (await stakingAuRa.getRewardAmounts.call([], validator, validator));
+        const expectedClaimRewardAmounts = (await stakingAuRa.getRewardAmount.call([], validator, validator));
 
         const result = await stakingAuRa.claimReward([], validator, {from: validator}).should.be.fulfilled;
 
@@ -1756,10 +1756,10 @@ contract('StakingAuRa', async accounts => {
         const tx = await web3.eth.getTransaction(result.tx);
         const weiSpent = (new BN(result.receipt.gasUsed)).mul(new BN(tx.gasPrice));
 
-        const validatorTokensBalanceAfter = await erc20Token.balanceOf.call(validator);
+        const validatorTokensBalanceAfter = await erc677Token.balanceOf.call(validator);
         const validatorCoinsBalanceAfter = new BN(await web3.eth.getBalance(validator));
 
-        const blockRewardTokensBalanceAfter = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+        const blockRewardTokensBalanceAfter = await erc677Token.balanceOf.call(blockRewardAuRa.address);
         const blockRewardCoinsBalanceAfter = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
 
         claimedTokensAmount.should.be.bignumber.gte(new BN(0));
@@ -1775,7 +1775,7 @@ contract('StakingAuRa', async accounts => {
         coinsValidatorsGotForAllEpochs = coinsValidatorsGotForAllEpochs.add(claimedCoinsAmount);
       }
 
-      const blockRewardTokensBalanceTotalAfter = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+      const blockRewardTokensBalanceTotalAfter = await erc677Token.balanceOf.call(blockRewardAuRa.address);
       const blockRewardCoinsBalanceTotalAfter = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
 
       blockRewardTokensBalanceTotalAfter.should.be.bignumber.equal(blockRewardTokensBalanceTotalBefore.sub(tokensDelegatorGotForAllEpochs).sub(tokensValidatorsGotForAllEpochs));
@@ -1816,22 +1816,22 @@ contract('StakingAuRa', async accounts => {
     });
 
     it('should add validator pool to the poolsToBeElected list', async () => {
-      // Deploy ERC20 contract
-      const erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
+      // Deploy ERC677 contract
+      const erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, {from: owner});
 
       // Mint some balance for the non-removable validator (imagine that the validator got 2 STAKE_UNITs from a bridge)
       const stakeUnit = new BN(web3.utils.toWei('1', 'ether'));
       const mintAmount = stakeUnit.mul(new BN(2));
-      await erc20Token.mint(initialStakingAddresses[0], mintAmount, {from: owner}).should.be.fulfilled;
-      mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(initialStakingAddresses[0]));
+      await erc677Token.mint(initialStakingAddresses[0], mintAmount, {from: owner}).should.be.fulfilled;
+      mintAmount.should.be.bignumber.equal(await erc677Token.balanceOf.call(initialStakingAddresses[0]));
 
-      // Pass Staking contract address to ERC20 contract
-      await erc20Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
-      stakingAuRa.address.should.be.equal(await erc20Token.stakingContract.call());
+      // Pass Staking contract address to ERC677 contract
+      await erc677Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
+      stakingAuRa.address.should.be.equal(await erc677Token.stakingContract.call());
 
-      // Pass ERC20 contract address to Staking contract
-      await stakingAuRa.setErc20TokenContract(erc20Token.address, {from: owner}).should.be.fulfilled;
-      erc20Token.address.should.be.equal(await stakingAuRa.erc20TokenContract.call());
+      // Pass ERC677 contract address to Staking contract
+      await stakingAuRa.setErc677TokenContract(erc677Token.address, {from: owner}).should.be.fulfilled;
+      erc677Token.address.should.be.equal(await stakingAuRa.erc677TokenContract.call());
 
       // Emulate block number
       await stakingAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
@@ -1922,7 +1922,7 @@ contract('StakingAuRa', async accounts => {
         await stakingAuRa.validatorSetContract.call()
       );
       '0x0000000000000000000000000000000000000000'.should.be.equal(
-        await stakingAuRa.erc20TokenContract.call()
+        await stakingAuRa.erc677TokenContract.call()
       );
       for (let i = 0; i < initialStakingAddresses.length; i++) {
         new BN(i).should.be.bignumber.equal(
@@ -2054,7 +2054,7 @@ contract('StakingAuRa', async accounts => {
 
   describe('moveStake()', async () => {
     let delegatorAddress;
-    let erc20Token;
+    let erc677Token;
     let mintAmount;
     let stakeUnit;
 
@@ -2072,29 +2072,29 @@ contract('StakingAuRa', async accounts => {
         4320 // _stakeWithdrawDisallowPeriod
       ).should.be.fulfilled;
 
-      // Deploy ERC20 contract
-      erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
+      // Deploy ERC677 contract
+      erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, {from: owner});
 
       // Mint some balance for delegator and candidates (imagine that they got some STAKE_UNITs from a bridge)
       stakeUnit = new BN(web3.utils.toWei('1', 'ether'));
       mintAmount = stakeUnit.mul(new BN(2));
-      await erc20Token.mint(initialStakingAddresses[0], mintAmount, {from: owner}).should.be.fulfilled;
-      await erc20Token.mint(initialStakingAddresses[1], mintAmount, {from: owner}).should.be.fulfilled;
-      await erc20Token.mint(delegatorAddress, mintAmount, {from: owner}).should.be.fulfilled;
-      mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(initialStakingAddresses[0]));
-      mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(initialStakingAddresses[1]));
-      mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(delegatorAddress));
+      await erc677Token.mint(initialStakingAddresses[0], mintAmount, {from: owner}).should.be.fulfilled;
+      await erc677Token.mint(initialStakingAddresses[1], mintAmount, {from: owner}).should.be.fulfilled;
+      await erc677Token.mint(delegatorAddress, mintAmount, {from: owner}).should.be.fulfilled;
+      mintAmount.should.be.bignumber.equal(await erc677Token.balanceOf.call(initialStakingAddresses[0]));
+      mintAmount.should.be.bignumber.equal(await erc677Token.balanceOf.call(initialStakingAddresses[1]));
+      mintAmount.should.be.bignumber.equal(await erc677Token.balanceOf.call(delegatorAddress));
 
-      // Pass Staking contract address to ERC20 contract
-      await erc20Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
-      stakingAuRa.address.should.be.equal(await erc20Token.stakingContract.call());
+      // Pass Staking contract address to ERC677 contract
+      await erc677Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
+      stakingAuRa.address.should.be.equal(await erc677Token.stakingContract.call());
 
-      // Pass ERC20 contract address to Staking contract
+      // Pass ERC677 contract address to Staking contract
       '0x0000000000000000000000000000000000000000'.should.be.equal(
-        await stakingAuRa.erc20TokenContract.call()
+        await stakingAuRa.erc677TokenContract.call()
       );
-      await stakingAuRa.setErc20TokenContract(erc20Token.address, {from: owner}).should.be.fulfilled;
-      erc20Token.address.should.be.equal(await stakingAuRa.erc20TokenContract.call());
+      await stakingAuRa.setErc677TokenContract(erc677Token.address, {from: owner}).should.be.fulfilled;
+      erc677Token.address.should.be.equal(await stakingAuRa.erc677TokenContract.call());
 
       // Place stakes
       await stakingAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
@@ -2119,7 +2119,7 @@ contract('StakingAuRa', async accounts => {
       (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(stakeUnit);
     });
     it('should move part of the stake', async () => {
-      await erc20Token.mint(delegatorAddress, mintAmount, {from: owner}).should.be.fulfilled;
+      await erc677Token.mint(delegatorAddress, mintAmount, {from: owner}).should.be.fulfilled;
       await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
 
       const sourcePool = initialStakingAddresses[0];
@@ -2151,7 +2151,7 @@ contract('StakingAuRa', async accounts => {
 
   describe('stake() [tokens]', async () => {
     let delegatorAddress;
-    let erc20Token;
+    let erc677Token;
     let mintAmount;
     let candidateMinStake;
     let delegatorMinStake;
@@ -2173,27 +2173,27 @@ contract('StakingAuRa', async accounts => {
       candidateMinStake = await stakingAuRa.candidateMinStake.call();
       delegatorMinStake = await stakingAuRa.delegatorMinStake.call();
 
-      // Deploy ERC20 contract
-      erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
+      // Deploy ERC677 contract
+      erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, {from: owner});
 
       // Mint some balance for delegator and candidates (imagine that they got some STAKE_UNITs from a bridge)
       const stakeUnit = new BN(web3.utils.toWei('1', 'ether'));
       mintAmount = stakeUnit.mul(new BN(2));
-      await erc20Token.mint(initialStakingAddresses[1], mintAmount, {from: owner}).should.be.fulfilled;
-      await erc20Token.mint(delegatorAddress, mintAmount, {from: owner}).should.be.fulfilled;
-      mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(initialStakingAddresses[1]));
-      mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(delegatorAddress));
+      await erc677Token.mint(initialStakingAddresses[1], mintAmount, {from: owner}).should.be.fulfilled;
+      await erc677Token.mint(delegatorAddress, mintAmount, {from: owner}).should.be.fulfilled;
+      mintAmount.should.be.bignumber.equal(await erc677Token.balanceOf.call(initialStakingAddresses[1]));
+      mintAmount.should.be.bignumber.equal(await erc677Token.balanceOf.call(delegatorAddress));
 
-      // Pass Staking contract address to ERC20 contract
-      await erc20Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
-      stakingAuRa.address.should.be.equal(await erc20Token.stakingContract.call());
+      // Pass Staking contract address to ERC677 contract
+      await erc677Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
+      stakingAuRa.address.should.be.equal(await erc677Token.stakingContract.call());
 
-      // Pass ERC20 contract address to Staking contract
+      // Pass ERC677 contract address to Staking contract
       '0x0000000000000000000000000000000000000000'.should.be.equal(
-        await stakingAuRa.erc20TokenContract.call()
+        await stakingAuRa.erc677TokenContract.call()
       );
-      await stakingAuRa.setErc20TokenContract(erc20Token.address, {from: owner}).should.be.fulfilled;
-      erc20Token.address.should.be.equal(await stakingAuRa.erc20TokenContract.call());
+      await stakingAuRa.setErc677TokenContract(erc677Token.address, {from: owner}).should.be.fulfilled;
+      erc677Token.address.should.be.equal(await stakingAuRa.erc677TokenContract.call());
 
       await stakingAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
       await validatorSetAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
@@ -2217,13 +2217,13 @@ contract('StakingAuRa', async accounts => {
       await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1], gasPrice: 0}).should.be.rejectedWith(ERROR_MSG);
       await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
     });
-    it('should fail if erc20TokenContract address is not defined', async () => {
-      await stakingAuRa.setErc20TokenContractMock('0x0000000000000000000000000000000000000000').should.be.fulfilled;
+    it('should fail if erc677TokenContract address is not defined', async () => {
+      await stakingAuRa.setErc677TokenContractMock('0x0000000000000000000000000000000000000000').should.be.fulfilled;
       await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.rejectedWith(ERROR_MSG);
-      await stakingAuRa.setErc20TokenContract(erc20Token.address, {from: owner}).should.be.fulfilled;
+      await stakingAuRa.setErc677TokenContract(erc677Token.address, {from: owner}).should.be.fulfilled;
       await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
     });
-    it('should fail if erc20TokenContract address is defined but msg.value is not zero', async () => {
+    it('should fail if erc677TokenContract address is defined but msg.value is not zero', async () => {
       await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1], value: 1}).should.be.rejectedWith(ERROR_MSG);
       await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
     });
@@ -2318,10 +2318,10 @@ contract('StakingAuRa', async accounts => {
       await stakingAuRa.stake(initialStakingAddresses[1], candidateMinStake, {from: initialStakingAddresses[1]}).should.be.fulfilled;
     });
     it('should decrease the balance of the staker and increase the balance of the Staking contract', async () => {
-      (await erc20Token.balanceOf.call(stakingAuRa.address)).should.be.bignumber.equal(new BN(0));
+      (await erc677Token.balanceOf.call(stakingAuRa.address)).should.be.bignumber.equal(new BN(0));
       await stakingAuRa.stake(initialStakingAddresses[1], candidateMinStake, {from: initialStakingAddresses[1]}).should.be.fulfilled;
-      (await erc20Token.balanceOf.call(initialStakingAddresses[1])).should.be.bignumber.equal(mintAmount.sub(candidateMinStake));
-      (await erc20Token.balanceOf.call(stakingAuRa.address)).should.be.bignumber.equal(candidateMinStake);
+      (await erc677Token.balanceOf.call(initialStakingAddresses[1])).should.be.bignumber.equal(mintAmount.sub(candidateMinStake));
+      (await erc677Token.balanceOf.call(stakingAuRa.address)).should.be.bignumber.equal(candidateMinStake);
     });
   });
 
@@ -2513,25 +2513,25 @@ contract('StakingAuRa', async accounts => {
       (await stakingAuRa.poolIndex.call(initialStakingAddresses[1])).should.be.bignumber.equal(new BN(0));
     });
     it('should add/remove a pool to/from the utility lists', async () => {
-      // Deploy ERC20 contract
-      const erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
+      // Deploy ERC677 contract
+      const erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, {from: owner});
 
       // Mint some balance for candidate (imagine that the candidate got 2 STAKE_UNITs from a bridge)
       const stakeUnit = new BN(web3.utils.toWei('1', 'ether'));
       const mintAmount = stakeUnit.mul(new BN(2));
-      await erc20Token.mint(initialStakingAddresses[0], mintAmount, {from: owner}).should.be.fulfilled;
-      mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(initialStakingAddresses[0]));
+      await erc677Token.mint(initialStakingAddresses[0], mintAmount, {from: owner}).should.be.fulfilled;
+      mintAmount.should.be.bignumber.equal(await erc677Token.balanceOf.call(initialStakingAddresses[0]));
 
-      // Pass Staking contract address to ERC20 contract
-      await erc20Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
-      stakingAuRa.address.should.be.equal(await erc20Token.stakingContract.call());
+      // Pass Staking contract address to ERC677 contract
+      await erc677Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
+      stakingAuRa.address.should.be.equal(await erc677Token.stakingContract.call());
 
-      // Pass ERC20 contract address to Staking contract
+      // Pass ERC677 contract address to Staking contract
       '0x0000000000000000000000000000000000000000'.should.be.equal(
-        await stakingAuRa.erc20TokenContract.call()
+        await stakingAuRa.erc677TokenContract.call()
       );
-      await stakingAuRa.setErc20TokenContract(erc20Token.address, {from: owner}).should.be.fulfilled;
-      erc20Token.address.should.be.equal(await stakingAuRa.erc20TokenContract.call());
+      await stakingAuRa.setErc677TokenContract(erc677Token.address, {from: owner}).should.be.fulfilled;
+      erc677Token.address.should.be.equal(await stakingAuRa.erc677TokenContract.call());
 
       // The first validator places stake for themselves
       (await stakingAuRa.getPoolsToBeElected.call()).length.should.be.deep.equal(0);
@@ -2653,7 +2653,7 @@ contract('StakingAuRa', async accounts => {
 
   describe('withdraw()', async () => {
     let delegatorAddress;
-    let erc20Token;
+    let erc677Token;
     let mintAmount;
     let candidateMinStake;
     let delegatorMinStake;
@@ -2675,29 +2675,29 @@ contract('StakingAuRa', async accounts => {
       candidateMinStake = await stakingAuRa.candidateMinStake.call();
       delegatorMinStake = await stakingAuRa.delegatorMinStake.call();
 
-      // Deploy ERC20 contract
-      erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
+      // Deploy ERC677 contract
+      erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, {from: owner});
 
       // Mint some balance for delegator and candidates (imagine that they got some STAKE_UNITs from a bridge)
       const stakeUnit = new BN(web3.utils.toWei('1', 'ether'));
       mintAmount = stakeUnit.mul(new BN(2));
-      await erc20Token.mint(initialStakingAddresses[0], mintAmount, {from: owner}).should.be.fulfilled;
-      await erc20Token.mint(initialStakingAddresses[1], mintAmount, {from: owner}).should.be.fulfilled;
-      await erc20Token.mint(initialStakingAddresses[2], mintAmount, {from: owner}).should.be.fulfilled;
-      await erc20Token.mint(delegatorAddress, mintAmount, {from: owner}).should.be.fulfilled;
-      mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(initialStakingAddresses[1]));
-      mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(delegatorAddress));
+      await erc677Token.mint(initialStakingAddresses[0], mintAmount, {from: owner}).should.be.fulfilled;
+      await erc677Token.mint(initialStakingAddresses[1], mintAmount, {from: owner}).should.be.fulfilled;
+      await erc677Token.mint(initialStakingAddresses[2], mintAmount, {from: owner}).should.be.fulfilled;
+      await erc677Token.mint(delegatorAddress, mintAmount, {from: owner}).should.be.fulfilled;
+      mintAmount.should.be.bignumber.equal(await erc677Token.balanceOf.call(initialStakingAddresses[1]));
+      mintAmount.should.be.bignumber.equal(await erc677Token.balanceOf.call(delegatorAddress));
 
-      // Pass Staking contract address to ERC20 contract
-      await erc20Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
-      stakingAuRa.address.should.be.equal(await erc20Token.stakingContract.call());
+      // Pass Staking contract address to ERC677 contract
+      await erc677Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
+      stakingAuRa.address.should.be.equal(await erc677Token.stakingContract.call());
 
-      // Pass ERC20 contract address to Staking contract
+      // Pass ERC677 contract address to Staking contract
       '0x0000000000000000000000000000000000000000'.should.be.equal(
-        await stakingAuRa.erc20TokenContract.call()
+        await stakingAuRa.erc677TokenContract.call()
       );
-      await stakingAuRa.setErc20TokenContract(erc20Token.address, {from: owner}).should.be.fulfilled;
-      erc20Token.address.should.be.equal(await stakingAuRa.erc20TokenContract.call());
+      await stakingAuRa.setErc677TokenContract(erc677Token.address, {from: owner}).should.be.fulfilled;
+      erc677Token.address.should.be.equal(await stakingAuRa.erc677TokenContract.call());
 
       await stakingAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
       await validatorSetAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
@@ -2711,13 +2711,13 @@ contract('StakingAuRa', async accounts => {
       await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
       (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], initialStakingAddresses[1])).should.be.bignumber.equal(mintAmount);
       (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialStakingAddresses[1], initialStakingAddresses[1])).should.be.bignumber.equal(mintAmount);
-      (await erc20Token.balanceOf.call(initialStakingAddresses[1])).should.be.bignumber.equal(new BN(0));
+      (await erc677Token.balanceOf.call(initialStakingAddresses[1])).should.be.bignumber.equal(new BN(0));
 
       await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
       (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(mintAmount);
       (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(mintAmount);
       (await stakingAuRa.stakeAmountTotal.call(initialStakingAddresses[1])).should.be.bignumber.equal(mintAmount.mul(new BN(2)));
-      (await erc20Token.balanceOf.call(delegatorAddress)).should.be.bignumber.equal(new BN(0));
+      (await erc677Token.balanceOf.call(delegatorAddress)).should.be.bignumber.equal(new BN(0));
 
       const result = await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
       result.logs[0].event.should.be.equal("WithdrewStake");
@@ -2728,7 +2728,7 @@ contract('StakingAuRa', async accounts => {
       (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
       (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
       (await stakingAuRa.stakeAmountTotal.call(initialStakingAddresses[1])).should.be.bignumber.equal(mintAmount);
-      (await erc20Token.balanceOf.call(delegatorAddress)).should.be.bignumber.equal(mintAmount);
+      (await erc677Token.balanceOf.call(delegatorAddress)).should.be.bignumber.equal(mintAmount);
     });
     it('should fail for zero gas price', async () => {
       await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;

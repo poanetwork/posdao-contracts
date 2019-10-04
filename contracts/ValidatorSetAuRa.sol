@@ -8,7 +8,7 @@ import "./upgradeability/UpgradeabilityAdmin.sol";
 import "./libs/SafeMath.sol";
 
 
-/// @dev stores the current validator set and contains the logic for choosing new validators
+/// @dev Stores the current validator set and contains the logic for choosing new validators
 /// before each staking epoch. The logic uses a random seed generated and stored by the `RandomAuRa` contract.
 contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     using SafeMath for uint256;
@@ -200,7 +200,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
             // Apply the changed validator set after malicious validator is removed
             _finalizeNewValidators(false);
         } else {
-            // This is the very first call of the `finalizeChange` (block #1)
+            // This is the very first call of the `finalizeChange` (block #1 when starting from genesis)
             validatorSetApplyBlock = _getCurrentBlockNumber();
         }
         delete _finalizeValidators; // since this moment the `emitInitiateChange` is allowed
@@ -290,7 +290,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         }
 
         // From this moment the `getPendingValidators()` returns the new validator set.
-        // Let the `emitInitiateChange` function know that validator set is changed and needs
+        // Let the `emitInitiateChange` function know that the validator set is changed and needs
         // to be passed to the `InitiateChange` event.
         _setPendingValidatorsChanged(true);
 
@@ -561,7 +561,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         return (_finalizeValidators.list, _finalizeValidators.forNewEpoch);
     }
 
-    // =============================================== Private ========================================================
+    // ============================================== Internal ========================================================
 
     /// @dev Updates the total reporting counter (see the `reportingCounterTotal` public mapping) for the current
     /// staking epoch after the specified validator is removed as malicious. The `reportMaliciousCallable` getter

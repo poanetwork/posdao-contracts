@@ -248,7 +248,7 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
         return false;
     }
 
-    // =============================================== Private ========================================================
+    // ============================================== Internal ========================================================
 
     // Allowed transaction types mask
     uint32 internal constant NONE = 0;

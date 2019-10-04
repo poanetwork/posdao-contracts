@@ -274,11 +274,11 @@ contract RandomAuRa is UpgradeabilityAdmin, IRandomAuRa {
         return true;
     }
 
-    // =============================================== Private ========================================================
+    // ============================================== Internal ========================================================
 
     /// @dev Removes the ciphers of all committed validators for the specified collection round.
     /// @param _collectRound The serial number of the collection round.
-    function _clearOldCiphers(uint256 _collectRound) private {
+    function _clearOldCiphers(uint256 _collectRound) internal {
         if (_collectRound == 0) {
             return;
         }

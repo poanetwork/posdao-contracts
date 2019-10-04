@@ -1,4 +1,4 @@
-const BlockRewardAuRa = artifacts.require('BlockRewardAuRaMock');
+const BlockRewardAuRa = artifacts.require('BlockRewardAuRaTokensMock');
 const ERC677BridgeTokenRewardable = artifacts.require('ERC677BridgeTokenRewardableMock');
 const AdminUpgradeabilityProxy = artifacts.require('AdminUpgradeabilityProxy');
 const RandomAuRa = artifacts.require('RandomAuRaMock');
@@ -19,7 +19,7 @@ contract('BlockRewardAuRa', async accounts => {
   let randomAuRa;
   let stakingAuRa;
   let validatorSetAuRa;
-  let erc20Token;
+  let erc677Token;
   let candidateMinStake;
   let delegatorMinStake;
   let tokenRewardUndistributed = new BN(0);
@@ -96,11 +96,11 @@ contract('BlockRewardAuRa', async accounts => {
       await callFinalizeChange();
       (await validatorSetAuRa.validatorSetApplyBlock.call()).should.be.bignumber.equal(new BN(STAKING_EPOCH_START_BLOCK));
 
-      // Deploy ERC20 contract
-      erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
-      await stakingAuRa.setErc20TokenContract(erc20Token.address, {from: owner}).should.be.fulfilled;
-      await erc20Token.setBlockRewardContract(blockRewardAuRa.address).should.be.fulfilled;
-      await erc20Token.setStakingContract(stakingAuRa.address).should.be.fulfilled;
+      // Deploy ERC677 contract
+      erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, {from: owner});
+      await stakingAuRa.setErc677TokenContract(erc677Token.address, {from: owner}).should.be.fulfilled;
+      await erc677Token.setBlockRewardContract(blockRewardAuRa.address).should.be.fulfilled;
+      await erc677Token.setStakingContract(stakingAuRa.address).should.be.fulfilled;
     });
 
     it('staking epoch #0 finished', async () => {
@@ -152,8 +152,8 @@ contract('BlockRewardAuRa', async accounts => {
       for (let i = 0; i < validators.length; i++) {
         // Mint some balance for each validator (imagine that each validator got the tokens from a bridge)
         const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(validators[i]);
-        await erc20Token.mint(stakingAddress, candidateMinStake, {from: owner}).should.be.fulfilled;
-        candidateMinStake.should.be.bignumber.equal(await erc20Token.balanceOf.call(stakingAddress));
+        await erc677Token.mint(stakingAddress, candidateMinStake, {from: owner}).should.be.fulfilled;
+        candidateMinStake.should.be.bignumber.equal(await erc677Token.balanceOf.call(stakingAddress));
 
         // Validator places stake on themselves
         await stakingAuRa.stake(stakingAddress, candidateMinStake, {from: stakingAddress}).should.be.fulfilled;
@@ -162,8 +162,8 @@ contract('BlockRewardAuRa', async accounts => {
         const delegators = accounts.slice(11 + i*delegatorsLength, 11 + i*delegatorsLength + delegatorsLength);
         for (let j = 0; j < delegators.length; j++) {
           // Mint some balance for each delegator (imagine that each delegator got the tokens from a bridge)
-          await erc20Token.mint(delegators[j], delegatorMinStake, {from: owner}).should.be.fulfilled;
-          delegatorMinStake.should.be.bignumber.equal(await erc20Token.balanceOf.call(delegators[j]));
+          await erc677Token.mint(delegators[j], delegatorMinStake, {from: owner}).should.be.fulfilled;
+          delegatorMinStake.should.be.bignumber.equal(await erc677Token.balanceOf.call(delegators[j]));
 
           // Delegator places stake on the validator
           await stakingAuRa.stake(stakingAddress, delegatorMinStake, {from: delegators[j]}).should.be.fulfilled;
@@ -197,7 +197,7 @@ contract('BlockRewardAuRa', async accounts => {
       (await stakingAuRa.stakingEpoch.call()).should.be.bignumber.equal(nextStakingEpoch);
       (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(true);
 
-      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(new BN(0));
+      (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(new BN(0));
       (await blockRewardAuRa.bridgeTokenFee.call()).should.be.bignumber.equal(new BN(0));
       (await blockRewardAuRa.bridgeNativeFee.call()).should.be.bignumber.equal(new BN(0));
       (await blockRewardAuRa.tokenRewardUndistributed.call()).should.be.bignumber.equal(tokenRewardUndistributed);
@@ -292,7 +292,7 @@ contract('BlockRewardAuRa', async accounts => {
       tokenRewardUndistributed = tokenRewardUndistributed.sub(rewardDistributed);
       tokenRewardUndistributed.should.be.bignumber.equal(await blockRewardAuRa.tokenRewardUndistributed.call());
 
-      (await erc20Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(rewardDistributed);
+      (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(rewardDistributed);
       (await blockRewardAuRa.bridgeTokenFee.call()).should.be.bignumber.equal(new BN(0));
       (await blockRewardAuRa.bridgeNativeFee.call()).should.be.bignumber.equal(new BN(0));
 
@@ -354,8 +354,8 @@ contract('BlockRewardAuRa', async accounts => {
         // Mint some balance for each candidate (imagine that each candidate got the tokens from a bridge)
         const miningAddress = candidatesMiningAddresses[i];
         const stakingAddress = candidatesStakingAddresses[i];
-        await erc20Token.mint(stakingAddress, candidateMinStake, {from: owner}).should.be.fulfilled;
-        candidateMinStake.should.be.bignumber.equal(await erc20Token.balanceOf.call(stakingAddress));
+        await erc677Token.mint(stakingAddress, candidateMinStake, {from: owner}).should.be.fulfilled;
+        candidateMinStake.should.be.bignumber.equal(await erc677Token.balanceOf.call(stakingAddress));
 
         // Candidate places stake on themselves
         await stakingAuRa.addPool(candidateMinStake, miningAddress, {from: stakingAddress}).should.be.fulfilled;
@@ -364,8 +364,8 @@ contract('BlockRewardAuRa', async accounts => {
         const delegators = accounts.slice(41 + i*delegatorsLength, 41 + i*delegatorsLength + delegatorsLength);
         for (let j = 0; j < delegators.length; j++) {
           // Mint some balance for each delegator (imagine that each delegator got the tokens from a bridge)
-          await erc20Token.mint(delegators[j], delegatorMinStake, {from: owner}).should.be.fulfilled;
-          delegatorMinStake.should.be.bignumber.equal(await erc20Token.balanceOf.call(delegators[j]));
+          await erc677Token.mint(delegators[j], delegatorMinStake, {from: owner}).should.be.fulfilled;
+          delegatorMinStake.should.be.bignumber.equal(await erc677Token.balanceOf.call(delegators[j]));
 
           // Delegator places stake on the candidate
           await stakingAuRa.stake(stakingAddress, delegatorMinStake, {from: delegators[j]}).should.be.fulfilled;
@@ -395,7 +395,7 @@ contract('BlockRewardAuRa', async accounts => {
         }
       }
 
-      const blockRewardBalanceBeforeReward = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+      const blockRewardBalanceBeforeReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(false);
       (await validatorSetAuRa.isValidatorBanned.call(validators[2])).should.be.equal(false);
@@ -428,7 +428,7 @@ contract('BlockRewardAuRa', async accounts => {
       tokenRewardUndistributed = tokenRewardUndistributed.sub(rewardDistributed);
       tokenRewardUndistributed.should.be.bignumber.equal(await blockRewardAuRa.tokenRewardUndistributed.call());
 
-      const blockRewardBalanceAfterReward = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+      const blockRewardBalanceAfterReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       blockRewardBalanceAfterReward.should.be.bignumber.equal(blockRewardBalanceBeforeReward.add(rewardDistributed));
       (await blockRewardAuRa.bridgeTokenFee.call()).should.be.bignumber.equal(new BN(0));
@@ -508,8 +508,8 @@ contract('BlockRewardAuRa', async accounts => {
         // Mint some balance for each candidate (imagine that each candidate got the tokens from a bridge)
         const miningAddress = candidatesMiningAddresses[i];
         const stakingAddress = candidatesStakingAddresses[i];
-        await erc20Token.mint(stakingAddress, candidateMinStake, {from: owner}).should.be.fulfilled;
-        candidateMinStake.should.be.bignumber.equal(await erc20Token.balanceOf.call(stakingAddress));
+        await erc677Token.mint(stakingAddress, candidateMinStake, {from: owner}).should.be.fulfilled;
+        candidateMinStake.should.be.bignumber.equal(await erc677Token.balanceOf.call(stakingAddress));
 
         // Candidate places stake on themselves
         await stakingAuRa.addPool(candidateMinStake, miningAddress, {from: stakingAddress}).should.be.fulfilled;
@@ -518,8 +518,8 @@ contract('BlockRewardAuRa', async accounts => {
         const delegators = accounts.slice(71 + i*delegatorsLength, 71 + i*delegatorsLength + delegatorsLength);
         for (let j = 0; j < delegators.length; j++) {
           // Mint some balance for each delegator (imagine that each delegator got the tokens from a bridge)
-          await erc20Token.mint(delegators[j], delegatorMinStake, {from: owner}).should.be.fulfilled;
-          delegatorMinStake.should.be.bignumber.equal(await erc20Token.balanceOf.call(delegators[j]));
+          await erc677Token.mint(delegators[j], delegatorMinStake, {from: owner}).should.be.fulfilled;
+          delegatorMinStake.should.be.bignumber.equal(await erc677Token.balanceOf.call(delegators[j]));
 
           // Delegator places stake on the candidate
           await stakingAuRa.stake(stakingAddress, delegatorMinStake, {from: delegators[j]}).should.be.fulfilled;
@@ -550,7 +550,7 @@ contract('BlockRewardAuRa', async accounts => {
         await randomAuRa.setSentReveal(validators[i]).should.be.fulfilled;
       }
 
-      const blockRewardBalanceBeforeReward = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+      const blockRewardBalanceBeforeReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(false);
       await callReward();
@@ -579,7 +579,7 @@ contract('BlockRewardAuRa', async accounts => {
       tokenRewardUndistributed = tokenRewardUndistributed.sub(rewardDistributed);
       tokenRewardUndistributed.should.be.bignumber.equal(await blockRewardAuRa.tokenRewardUndistributed.call());
 
-      const blockRewardBalanceAfterReward = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+      const blockRewardBalanceAfterReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       blockRewardBalanceAfterReward.should.be.bignumber.equal(blockRewardBalanceBeforeReward.add(rewardDistributed));
       (await blockRewardAuRa.bridgeTokenFee.call()).should.be.bignumber.equal(new BN(0));
@@ -656,8 +656,8 @@ contract('BlockRewardAuRa', async accounts => {
         // Mint some balance for each candidate (imagine that each candidate got the tokens from a bridge)
         const miningAddress = candidatesMiningAddresses[i];
         const stakingAddress = candidatesStakingAddresses[i];
-        await erc20Token.mint(stakingAddress, candidateMinStake, {from: owner}).should.be.fulfilled;
-        candidateMinStake.should.be.bignumber.equal(await erc20Token.balanceOf.call(stakingAddress));
+        await erc677Token.mint(stakingAddress, candidateMinStake, {from: owner}).should.be.fulfilled;
+        candidateMinStake.should.be.bignumber.equal(await erc677Token.balanceOf.call(stakingAddress));
 
         // Candidate places stake on themselves
         await stakingAuRa.addPool(candidateMinStake, miningAddress, {from: stakingAddress}).should.be.fulfilled;
@@ -685,7 +685,7 @@ contract('BlockRewardAuRa', async accounts => {
         }
       }
 
-      const blockRewardBalanceBeforeReward = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+      const blockRewardBalanceBeforeReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(false);
       (await validatorSetAuRa.isValidatorBanned.call(accounts[32])).should.be.equal(false);
@@ -702,7 +702,7 @@ contract('BlockRewardAuRa', async accounts => {
         epochPoolTokenReward.should.be.bignumber.equal(new BN(0));
       }
 
-      const blockRewardBalanceAfterReward = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+      const blockRewardBalanceAfterReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       blockRewardBalanceAfterReward.should.be.bignumber.equal(blockRewardBalanceBeforeReward);
       (await blockRewardAuRa.bridgeTokenFee.call()).should.be.bignumber.equal(new BN(0));
@@ -801,8 +801,8 @@ contract('BlockRewardAuRa', async accounts => {
         // Mint some balance for each candidate (imagine that each candidate got the tokens from a bridge)
         const miningAddress = candidatesMiningAddresses[i];
         const stakingAddress = candidatesStakingAddresses[i];
-        await erc20Token.mint(stakingAddress, candidateMinStake, {from: owner}).should.be.fulfilled;
-        candidateMinStake.should.be.bignumber.equal(await erc20Token.balanceOf.call(stakingAddress));
+        await erc677Token.mint(stakingAddress, candidateMinStake, {from: owner}).should.be.fulfilled;
+        candidateMinStake.should.be.bignumber.equal(await erc677Token.balanceOf.call(stakingAddress));
 
         // Candidate places stake on themselves
         await stakingAuRa.addPool(candidateMinStake, miningAddress, {from: stakingAddress}).should.be.fulfilled;
@@ -832,7 +832,7 @@ contract('BlockRewardAuRa', async accounts => {
         }
       }
 
-      const blockRewardBalanceBeforeReward = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+      const blockRewardBalanceBeforeReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(false);
       (await validatorSetAuRa.isValidatorBanned.call(accounts[62])).should.be.equal(false);
@@ -860,7 +860,7 @@ contract('BlockRewardAuRa', async accounts => {
       tokenRewardUndistributed = tokenRewardUndistributed.sub(rewardDistributed);
       tokenRewardUndistributed.should.be.bignumber.equal(await blockRewardAuRa.tokenRewardUndistributed.call());
 
-      const blockRewardBalanceAfterReward = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+      const blockRewardBalanceAfterReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       blockRewardBalanceAfterReward.should.be.bignumber.equal(blockRewardBalanceBeforeReward.add(rewardDistributed));
       (await blockRewardAuRa.bridgeTokenFee.call()).should.be.bignumber.equal(new BN(0));
@@ -954,8 +954,8 @@ contract('BlockRewardAuRa', async accounts => {
         // Mint some balance for each candidate (imagine that each candidate got the tokens from a bridge)
         const miningAddress = candidatesMiningAddresses[i];
         const stakingAddress = candidatesStakingAddresses[i];
-        await erc20Token.mint(stakingAddress, candidateMinStake, {from: owner}).should.be.fulfilled;
-        candidateMinStake.should.be.bignumber.equal(await erc20Token.balanceOf.call(stakingAddress));
+        await erc677Token.mint(stakingAddress, candidateMinStake, {from: owner}).should.be.fulfilled;
+        candidateMinStake.should.be.bignumber.equal(await erc677Token.balanceOf.call(stakingAddress));
 
         // Candidate places stake on themselves
         await stakingAuRa.addPool(candidateMinStake, miningAddress, {from: stakingAddress}).should.be.fulfilled;
@@ -984,7 +984,7 @@ contract('BlockRewardAuRa', async accounts => {
         }
       }
 
-      const blockRewardBalanceBeforeReward = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+      const blockRewardBalanceBeforeReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       const bannedUntil62 = await validatorSetAuRa.bannedUntil.call(accounts[62]);
       const bannedUntil63 = await validatorSetAuRa.bannedUntil.call(accounts[63]);
@@ -1011,7 +1011,7 @@ contract('BlockRewardAuRa', async accounts => {
       }
       tokenRewardUndistributed.should.be.bignumber.equal(await blockRewardAuRa.tokenRewardUndistributed.call());
 
-      const blockRewardBalanceAfterReward = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+      const blockRewardBalanceAfterReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       blockRewardBalanceAfterReward.should.be.bignumber.equal(blockRewardBalanceBeforeReward);
       (await blockRewardAuRa.bridgeTokenFee.call()).should.be.bignumber.equal(new BN(0));
@@ -1105,8 +1105,8 @@ contract('BlockRewardAuRa', async accounts => {
         // Mint some balance for each candidate (imagine that each candidate got the tokens from a bridge)
         const miningAddress = candidatesMiningAddresses[i];
         const stakingAddress = candidatesStakingAddresses[i];
-        await erc20Token.mint(stakingAddress, candidateMinStake, {from: owner}).should.be.fulfilled;
-        candidateMinStake.should.be.bignumber.equal(await erc20Token.balanceOf.call(stakingAddress));
+        await erc677Token.mint(stakingAddress, candidateMinStake, {from: owner}).should.be.fulfilled;
+        candidateMinStake.should.be.bignumber.equal(await erc677Token.balanceOf.call(stakingAddress));
 
         // Candidate places stake on themselves
         await stakingAuRa.addPool(candidateMinStake, miningAddress, {from: stakingAddress}).should.be.fulfilled;
@@ -1135,7 +1135,7 @@ contract('BlockRewardAuRa', async accounts => {
         }
       }
 
-      const blockRewardBalanceBeforeReward = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+      const blockRewardBalanceBeforeReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       const bannedUntil62 = await validatorSetAuRa.bannedUntil.call(accounts[62]);
       const bannedUntil63 = await validatorSetAuRa.bannedUntil.call(accounts[63]);
@@ -1162,7 +1162,7 @@ contract('BlockRewardAuRa', async accounts => {
       }
       tokenRewardUndistributed.should.be.bignumber.equal(await blockRewardAuRa.tokenRewardUndistributed.call());
 
-      const blockRewardBalanceAfterReward = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+      const blockRewardBalanceAfterReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       blockRewardBalanceAfterReward.should.be.bignumber.equal(blockRewardBalanceBeforeReward);
       (await blockRewardAuRa.bridgeTokenFee.call()).should.be.bignumber.equal(new BN(0));
@@ -1278,8 +1278,8 @@ contract('BlockRewardAuRa', async accounts => {
         // Mint some balance for each candidate (imagine that each candidate got the tokens from a bridge)
         const miningAddress = candidatesMiningAddresses[i];
         const stakingAddress = candidatesStakingAddresses[i];
-        await erc20Token.mint(stakingAddress, candidateMinStake, {from: owner}).should.be.fulfilled;
-        candidateMinStake.should.be.bignumber.equal(await erc20Token.balanceOf.call(stakingAddress));
+        await erc677Token.mint(stakingAddress, candidateMinStake, {from: owner}).should.be.fulfilled;
+        candidateMinStake.should.be.bignumber.equal(await erc677Token.balanceOf.call(stakingAddress));
 
         // Candidate places stake on themselves
         await stakingAuRa.addPool(candidateMinStake, miningAddress, {from: stakingAddress}).should.be.fulfilled;
@@ -1307,7 +1307,7 @@ contract('BlockRewardAuRa', async accounts => {
         await randomAuRa.setSentReveal(validators[i]).should.be.fulfilled;
       }
 
-      const blockRewardBalanceBeforeReward = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+      const blockRewardBalanceBeforeReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(false);
       await callReward();
@@ -1325,7 +1325,7 @@ contract('BlockRewardAuRa', async accounts => {
       tokenRewardUndistributed = tokenRewardUndistributed.sub(rewardDistributed);
       tokenRewardUndistributed.should.be.bignumber.equal(await blockRewardAuRa.tokenRewardUndistributed.call());
 
-      const blockRewardBalanceAfterReward = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+      const blockRewardBalanceAfterReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       blockRewardBalanceAfterReward.should.be.bignumber.equal(blockRewardBalanceBeforeReward.add(rewardDistributed));
       (await blockRewardAuRa.bridgeTokenFee.call()).should.be.bignumber.equal(new BN(0));
@@ -1415,8 +1415,8 @@ contract('BlockRewardAuRa', async accounts => {
         // Mint some balance for each candidate (imagine that each candidate got the tokens from a bridge)
         const miningAddress = candidatesMiningAddresses[i];
         const stakingAddress = candidatesStakingAddresses[i];
-        await erc20Token.mint(stakingAddress, candidateMinStake, {from: owner}).should.be.fulfilled;
-        candidateMinStake.should.be.bignumber.equal(await erc20Token.balanceOf.call(stakingAddress));
+        await erc677Token.mint(stakingAddress, candidateMinStake, {from: owner}).should.be.fulfilled;
+        candidateMinStake.should.be.bignumber.equal(await erc677Token.balanceOf.call(stakingAddress));
 
         // Candidate places stake on themselves
         await stakingAuRa.addPool(candidateMinStake, miningAddress, {from: stakingAddress}).should.be.fulfilled;
@@ -1469,7 +1469,7 @@ contract('BlockRewardAuRa', async accounts => {
         await randomAuRa.setSentReveal(validators[i]).should.be.fulfilled;
       }
 
-      const blockRewardBalanceBeforeReward = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+      const blockRewardBalanceBeforeReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(false);
       await callReward();
@@ -1491,7 +1491,7 @@ contract('BlockRewardAuRa', async accounts => {
       tokenRewardUndistributed = tokenRewardUndistributed.sub(rewardDistributed);
       tokenRewardUndistributed.should.be.bignumber.equal(await blockRewardAuRa.tokenRewardUndistributed.call());
 
-      const blockRewardBalanceAfterReward = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+      const blockRewardBalanceAfterReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       blockRewardBalanceAfterReward.should.be.bignumber.equal(blockRewardBalanceBeforeReward.add(rewardDistributed));
       (await blockRewardAuRa.bridgeTokenFee.call()).should.be.bignumber.equal(new BN(0));
@@ -1584,8 +1584,8 @@ contract('BlockRewardAuRa', async accounts => {
         // Mint some balance for each candidate (imagine that each candidate got the tokens from a bridge)
         const miningAddress = candidatesMiningAddresses[i];
         const stakingAddress = candidatesStakingAddresses[i];
-        await erc20Token.mint(stakingAddress, candidateMinStake, {from: owner}).should.be.fulfilled;
-        candidateMinStake.should.be.bignumber.equal(await erc20Token.balanceOf.call(stakingAddress));
+        await erc677Token.mint(stakingAddress, candidateMinStake, {from: owner}).should.be.fulfilled;
+        candidateMinStake.should.be.bignumber.equal(await erc677Token.balanceOf.call(stakingAddress));
 
         // Candidate places stake on themselves
         await stakingAuRa.addPool(candidateMinStake, miningAddress, {from: stakingAddress}).should.be.fulfilled;
@@ -1611,7 +1611,7 @@ contract('BlockRewardAuRa', async accounts => {
       }
       (await validatorSetAuRa.validatorSetApplyBlock.call()).should.be.bignumber.equal(new BN(0));
 
-      const blockRewardBalanceBeforeReward = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+      const blockRewardBalanceBeforeReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(false);
       await callReward();
@@ -1625,7 +1625,7 @@ contract('BlockRewardAuRa', async accounts => {
       }
       tokenRewardUndistributed.should.be.bignumber.equal(await blockRewardAuRa.tokenRewardUndistributed.call());
 
-      const blockRewardBalanceAfterReward = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+      const blockRewardBalanceAfterReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       blockRewardBalanceAfterReward.should.be.bignumber.equal(blockRewardBalanceBeforeReward);
       (await blockRewardAuRa.bridgeTokenFee.call()).should.be.bignumber.equal(new BN(0));
@@ -1738,7 +1738,7 @@ contract('BlockRewardAuRa', async accounts => {
         await randomAuRa.setSentReveal(validators[i]).should.be.fulfilled;
       }
 
-      const blockRewardBalanceBeforeReward = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+      const blockRewardBalanceBeforeReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(false);
       await callReward();
@@ -1756,7 +1756,7 @@ contract('BlockRewardAuRa', async accounts => {
       tokenRewardUndistributed = tokenRewardUndistributed.sub(rewardDistributed);
       tokenRewardUndistributed.should.be.bignumber.equal(await blockRewardAuRa.tokenRewardUndistributed.call());
 
-      const blockRewardBalanceAfterReward = await erc20Token.balanceOf.call(blockRewardAuRa.address);
+      const blockRewardBalanceAfterReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       blockRewardBalanceAfterReward.should.be.bignumber.equal(blockRewardBalanceBeforeReward.add(rewardDistributed));
       (await blockRewardAuRa.bridgeTokenFee.call()).should.be.bignumber.equal(new BN(0));

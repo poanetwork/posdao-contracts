@@ -1,6 +1,7 @@
 pragma solidity 0.5.9;
 
 import "./StakingAuRaBase.sol";
+import "../interfaces/IBlockRewardAuRaCoins.sol";
 
 
 contract Sacrifice {
@@ -13,13 +14,148 @@ contract Sacrifice {
 /// @dev Implements staking and withdrawal logic.
 contract StakingAuRaCoins is StakingAuRaBase {
 
-    // =============================================== Getters ========================================================
+    // ================================================ Events ========================================================
 
-    function erc20TokenContract() public view returns(address) {
-        return address(0);
-    }
+    /// @dev Emitted by the `claimReward` function to signal the staker withdrew the specified
+    /// amount of native coins from the specified pool for the specified staking epoch.
+    /// @param fromPoolStakingAddress The pool from which the `staker` withdrew the amount.
+    /// @param staker The address of the staker that withdrew the amount.
+    /// @param stakingEpoch The serial number of the staking epoch for which the claim was made.
+    /// @param nativeCoinsAmount The withdrawal amount of native coins.
+    event ClaimedReward(
+        address indexed fromPoolStakingAddress,
+        address indexed staker,
+        uint256 indexed stakingEpoch,
+        uint256 nativeCoinsAmount
+    );
 
     // =============================================== Setters ========================================================
+
+    /// @dev Withdraws a reward from the specified pool for the specified staking epochs
+    /// to the staker address (msg.sender).
+    /// @param _stakingEpochs The list of staking epochs in ascending order.
+    /// If the list is empty, it is taken with `BlockRewardAuRa.epochsPoolGotRewardFor` getter.
+    /// @param _poolStakingAddress The staking address of the pool from which the reward needs to be withdrawn.
+    function claimReward(
+        uint256[] memory _stakingEpochs,
+        address _poolStakingAddress
+    ) public gasPriceIsValid onlyInitialized {
+        address payable staker = msg.sender;
+        uint256 firstEpoch;
+        uint256 lastEpoch;
+
+        if (_poolStakingAddress != staker) { // this is a delegator
+            firstEpoch = _stakeFirstEpoch[_poolStakingAddress][staker];
+            require(firstEpoch != 0);
+            lastEpoch = _stakeLastEpoch[_poolStakingAddress][staker];
+        }
+
+        IBlockRewardAuRaCoins blockRewardContract = IBlockRewardAuRaCoins(validatorSetContract.blockRewardContract());
+        address miningAddress = validatorSetContract.miningByStakingAddress(_poolStakingAddress);
+        uint256 rewardSum = 0;
+        uint256 delegatorStake = 0;
+
+        if (_stakingEpochs.length == 0) {
+            _stakingEpochs = IBlockRewardAuRa(address(blockRewardContract)).epochsPoolGotRewardFor(miningAddress);
+        }
+
+        for (uint256 i = 0; i < _stakingEpochs.length; i++) {
+            uint256 epoch = _stakingEpochs[i];
+
+            require(i == 0 || epoch > _stakingEpochs[i - 1]);
+            require(epoch < stakingEpoch);
+
+            if (rewardWasTaken[_poolStakingAddress][staker][epoch]) continue;
+            
+            uint256 reward;
+
+            if (_poolStakingAddress != staker) { // this is a delegator
+                if (epoch < firstEpoch) {
+                    // If the delegator staked for the first time before
+                    // the `epoch`, skip this staking epoch
+                    continue;
+                }
+
+                if (lastEpoch <= epoch && lastEpoch != 0) {
+                    // If the delegator withdrew all their stake before the `epoch`,
+                    // don't check this and following epochs since it makes no sense
+                    break;
+                }
+
+                delegatorStake = _getDelegatorStake(epoch, firstEpoch, delegatorStake, _poolStakingAddress, staker);
+                firstEpoch = epoch + 1;
+
+                reward = blockRewardContract.getDelegatorReward(delegatorStake, epoch, miningAddress);
+            } else { // this is a validator
+                reward = blockRewardContract.getValidatorReward(epoch, miningAddress);
+            }
+
+            rewardSum = rewardSum.add(reward);
+
+            rewardWasTaken[_poolStakingAddress][staker][epoch] = true;
+
+            emit ClaimedReward(_poolStakingAddress, staker, epoch, reward);
+        }
+
+        blockRewardContract.transferReward(rewardSum, staker);
+    }
+
+    // =============================================== Getters ========================================================
+
+    /// @dev Returns reward amount in native coins for the specified pool, the specified staking epochs,
+    /// and the specified staker address (delegator or validator).
+    /// @param _stakingEpochs The list of staking epochs in ascending order.
+    /// If the list is empty, it is taken with `BlockRewardAuRa.epochsPoolGotRewardFor` getter.
+    /// @param _poolStakingAddress The staking address of the pool for which the amounts need to be returned.
+    /// @param _staker The staker address (validator's staking address or delegator's address).
+    function getRewardAmount(
+        uint256[] memory _stakingEpochs,
+        address _poolStakingAddress,
+        address _staker
+    ) public view returns(uint256 rewardSum) {
+        uint256 firstEpoch;
+        uint256 lastEpoch;
+
+        if (_poolStakingAddress != _staker) { // this is a delegator
+            firstEpoch = _stakeFirstEpoch[_poolStakingAddress][_staker];
+            require(firstEpoch != 0);
+            lastEpoch = _stakeLastEpoch[_poolStakingAddress][_staker];
+        }
+
+        IBlockRewardAuRaCoins blockRewardContract = IBlockRewardAuRaCoins(validatorSetContract.blockRewardContract());
+        address miningAddress = validatorSetContract.miningByStakingAddress(_poolStakingAddress);
+        uint256 delegatorStake = 0;
+        rewardSum = 0;
+
+        if (_stakingEpochs.length == 0) {
+            _stakingEpochs = IBlockRewardAuRa(address(blockRewardContract)).epochsPoolGotRewardFor(miningAddress);
+        }
+
+        for (uint256 i = 0; i < _stakingEpochs.length; i++) {
+            uint256 epoch = _stakingEpochs[i];
+
+            require(i == 0 || epoch > _stakingEpochs[i - 1]);
+            require(epoch < stakingEpoch);
+
+            uint256 reward;
+
+            if (_poolStakingAddress != _staker) { // this is a delegator
+                if (epoch < firstEpoch) continue;
+                if (lastEpoch <= epoch && lastEpoch != 0) break;
+
+                delegatorStake = _getDelegatorStake(epoch, firstEpoch, delegatorStake, _poolStakingAddress, _staker);
+                firstEpoch = epoch + 1;
+
+                reward = blockRewardContract.getDelegatorReward(delegatorStake, epoch, miningAddress);
+            } else { // this is a validator
+                reward = blockRewardContract.getValidatorReward(epoch, miningAddress);
+            }
+
+            rewardSum += reward;
+        }
+    }
+
+    // ============================================== Internal ========================================================
 
     /// @dev Sends coins from this contract to the specified address.
     /// @param _to The target address to send amount to.

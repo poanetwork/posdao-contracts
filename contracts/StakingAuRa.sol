@@ -5,3 +5,7 @@ import "./base/StakingAuRaTokens.sol";
 
 
 contract StakingAuRa is StakingAuRaTokens {}
+
+// Uncomment this line and comment out the above one
+// if staking in native coins is needed instead of staking in tokens:
+// contract StakingAuRa is StakingAuRaCoins {}

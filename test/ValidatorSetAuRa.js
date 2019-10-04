@@ -1,4 +1,4 @@
-const BlockRewardAuRa = artifacts.require('BlockRewardAuRa');
+const BlockRewardAuRa = artifacts.require('BlockRewardAuRaTokensMock');
 const ERC677BridgeTokenRewardable = artifacts.require('ERC677BridgeTokenRewardableMock');
 const AdminUpgradeabilityProxy = artifacts.require('AdminUpgradeabilityProxy');
 const RandomAuRa = artifacts.require('RandomAuRaMock');
@@ -82,22 +82,22 @@ contract('ValidatorSetAuRa', async accounts => {
         4320 // _stakeWithdrawDisallowPeriod
       ).should.be.fulfilled;
 
-      // Deploy ERC20 contract
-      const erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
+      // Deploy ERC677 contract
+      const erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, {from: owner});
 
       // Mint some balance for the non-removable validator (imagine that the validator got 2 STAKE_UNITs from a bridge)
       const stakeUnit = new BN(web3.utils.toWei('1', 'ether'));
       const mintAmount = stakeUnit.mul(new BN(2));
-      await erc20Token.mint(initialStakingAddresses[0], mintAmount, {from: owner}).should.be.fulfilled;
-      mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(initialStakingAddresses[0]));
+      await erc677Token.mint(initialStakingAddresses[0], mintAmount, {from: owner}).should.be.fulfilled;
+      mintAmount.should.be.bignumber.equal(await erc677Token.balanceOf.call(initialStakingAddresses[0]));
 
-      // Pass Staking contract address to ERC20 contract
-      await erc20Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
-      stakingAuRa.address.should.be.equal(await erc20Token.stakingContract.call());
+      // Pass Staking contract address to ERC677 contract
+      await erc677Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
+      stakingAuRa.address.should.be.equal(await erc677Token.stakingContract.call());
 
-      // Pass ERC20 contract address to Staking contract
-      await stakingAuRa.setErc20TokenContract(erc20Token.address, {from: owner}).should.be.fulfilled;
-      erc20Token.address.should.be.equal(await stakingAuRa.erc20TokenContract.call());
+      // Pass ERC677 contract address to Staking contract
+      await stakingAuRa.setErc677TokenContract(erc677Token.address, {from: owner}).should.be.fulfilled;
+      erc677Token.address.should.be.equal(await stakingAuRa.erc677TokenContract.call());
 
       // Emulate block number
       await stakingAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
@@ -495,17 +495,17 @@ contract('ValidatorSetAuRa', async accounts => {
       await validatorSetAuRa.setCurrentBlockNumber(10).should.be.fulfilled;
 
       // Deploy token contract and mint some tokens for the first initial validator
-      const erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
-      await erc20Token.mint(initialStakingAddresses[0], mintAmount, {from: owner}).should.be.fulfilled;
-      mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(initialStakingAddresses[0]));
+      const erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, {from: owner});
+      await erc677Token.mint(initialStakingAddresses[0], mintAmount, {from: owner}).should.be.fulfilled;
+      mintAmount.should.be.bignumber.equal(await erc677Token.balanceOf.call(initialStakingAddresses[0]));
 
-      // Pass Staking contract address to ERC20 contract
-      await erc20Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
-      stakingAuRa.address.should.be.equal(await erc20Token.stakingContract.call());
+      // Pass Staking contract address to ERC677 contract
+      await erc677Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
+      stakingAuRa.address.should.be.equal(await erc677Token.stakingContract.call());
 
-      // Pass ERC20 contract address to Staking contract
-      await stakingAuRa.setErc20TokenContract(erc20Token.address, {from: owner}).should.be.fulfilled;
-      erc20Token.address.should.be.equal(await stakingAuRa.erc20TokenContract.call());
+      // Pass ERC677 contract address to Staking contract
+      await stakingAuRa.setErc677TokenContract(erc677Token.address, {from: owner}).should.be.fulfilled;
+      erc677Token.address.should.be.equal(await stakingAuRa.erc677TokenContract.call());
 
       // Emulate staking by the first validator into their own pool
       const stakeAmount = stakeUnit.mul(new BN(1));
@@ -562,17 +562,17 @@ contract('ValidatorSetAuRa', async accounts => {
       await validatorSetAuRa.setCurrentBlockNumber(10).should.be.fulfilled;
 
       // Deploy token contract and mint some tokens for the second initial validator
-      const erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
-      await erc20Token.mint(initialStakingAddresses[1], mintAmount, {from: owner}).should.be.fulfilled;
-      mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(initialStakingAddresses[1]));
+      const erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, {from: owner});
+      await erc677Token.mint(initialStakingAddresses[1], mintAmount, {from: owner}).should.be.fulfilled;
+      mintAmount.should.be.bignumber.equal(await erc677Token.balanceOf.call(initialStakingAddresses[1]));
 
-      // Pass Staking contract address to ERC20 contract
-      await erc20Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
-      stakingAuRa.address.should.be.equal(await erc20Token.stakingContract.call());
+      // Pass Staking contract address to ERC677 contract
+      await erc677Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
+      stakingAuRa.address.should.be.equal(await erc677Token.stakingContract.call());
 
-      // Pass ERC20 contract address to Staking contract
-      await stakingAuRa.setErc20TokenContract(erc20Token.address, {from: owner}).should.be.fulfilled;
-      erc20Token.address.should.be.equal(await stakingAuRa.erc20TokenContract.call());
+      // Pass ERC677 contract address to Staking contract
+      await stakingAuRa.setErc677TokenContract(erc677Token.address, {from: owner}).should.be.fulfilled;
+      erc677Token.address.should.be.equal(await stakingAuRa.erc677TokenContract.call());
 
       // Emulate staking by the second validator into their own pool
       const stakeAmount = stakeUnit.mul(new BN(1));
@@ -626,19 +626,19 @@ contract('ValidatorSetAuRa', async accounts => {
       await validatorSetAuRa.setCurrentBlockNumber(20).should.be.fulfilled;
 
       // Deploy token contract and mint tokens for the candidates
-      const erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
+      const erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, {from: owner});
       for (let i = 0; i < stakingAddresses.length; i++) {
-        await erc20Token.mint(stakingAddresses[i], mintAmount, {from: owner}).should.be.fulfilled;
-        mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(stakingAddresses[i]));
+        await erc677Token.mint(stakingAddresses[i], mintAmount, {from: owner}).should.be.fulfilled;
+        mintAmount.should.be.bignumber.equal(await erc677Token.balanceOf.call(stakingAddresses[i]));
       }
 
-      // Pass Staking contract address to ERC20 contract
-      await erc20Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
-      stakingAuRa.address.should.be.equal(await erc20Token.stakingContract.call());
+      // Pass Staking contract address to ERC677 contract
+      await erc677Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
+      stakingAuRa.address.should.be.equal(await erc677Token.stakingContract.call());
 
-      // Pass ERC20 contract address to Staking contract
-      await stakingAuRa.setErc20TokenContract(erc20Token.address, {from: owner}).should.be.fulfilled;
-      erc20Token.address.should.be.equal(await stakingAuRa.erc20TokenContract.call());
+      // Pass ERC677 contract address to Staking contract
+      await stakingAuRa.setErc677TokenContract(erc677Token.address, {from: owner}).should.be.fulfilled;
+      erc677Token.address.should.be.equal(await stakingAuRa.erc677TokenContract.call());
 
       // Emulate staking by the candidates into their own pool
       await stakingAuRa.setCurrentBlockNumber(30).should.be.fulfilled;
@@ -753,19 +753,19 @@ contract('ValidatorSetAuRa', async accounts => {
       await stakingAuRa.setCurrentBlockNumber(20).should.be.fulfilled;
 
       // Deploy token contract and mint tokens for the candidates
-      const erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
+      const erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, {from: owner});
       for (let i = 0; i < stakingAddresses.length; i++) {
-        await erc20Token.mint(stakingAddresses[i], mintAmount, {from: owner}).should.be.fulfilled;
-        mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(stakingAddresses[i]));
+        await erc677Token.mint(stakingAddresses[i], mintAmount, {from: owner}).should.be.fulfilled;
+        mintAmount.should.be.bignumber.equal(await erc677Token.balanceOf.call(stakingAddresses[i]));
       }
 
-      // Pass Staking contract address to ERC20 contract
-      await erc20Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
-      stakingAuRa.address.should.be.equal(await erc20Token.stakingContract.call());
+      // Pass Staking contract address to ERC677 contract
+      await erc677Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
+      stakingAuRa.address.should.be.equal(await erc677Token.stakingContract.call());
 
-      // Pass ERC20 contract address to Staking contract
-      await stakingAuRa.setErc20TokenContract(erc20Token.address, {from: owner}).should.be.fulfilled;
-      erc20Token.address.should.be.equal(await stakingAuRa.erc20TokenContract.call());
+      // Pass ERC677 contract address to Staking contract
+      await stakingAuRa.setErc677TokenContract(erc677Token.address, {from: owner}).should.be.fulfilled;
+      erc677Token.address.should.be.equal(await stakingAuRa.erc677TokenContract.call());
 
       // Emulate staking by the candidates into their own pool
       (await stakingAuRa.getPoolsToBeElected.call()).length.should.be.equal(0);
