@@ -202,8 +202,8 @@ async function main() {
     initialValidators, // _miningAddresses
     stakingAddresses, // _stakingAddresses
     firstValidatorIsUnremovable, // _firstValidatorIsUnremovable
-    1, // _delegatorMinStake
-    1, // _candidateMinStake
+    web3.utils.toWei('1', 'ether'), // _delegatorMinStake
+    web3.utils.toWei('1', 'ether'), // _candidateMinStake
     stakingEpochDuration, // _stakingEpochDuration
     0, // _stakingEpochStartBlock
     stakeWithdrawDisallowPeriod, // _stakeWithdrawDisallowPeriod
