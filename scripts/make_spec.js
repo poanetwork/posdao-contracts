@@ -41,6 +41,7 @@ async function main() {
     'StakingAuRa',
     'TxPermission',
     'ValidatorSetAuRa',
+    'KeyGenHistory'
   ];
 
   let spec = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'templates', 'spec.json'), 'UTF-8'));
@@ -186,6 +187,18 @@ async function main() {
     constructor: await deploy.encodeABI()
   };
   spec.params.registrar = '0x6000000000000000000000000000000000000000';
+
+  // Build KeyGenHistory contract
+  contract = new web3.eth.Contract(contractsCompiled['KeyGenHistory'].abi);
+  deploy = await contract.deploy({data: '0x' + contractsCompiled['KeyGenHistory'].bytecode, arguments: [
+    [],
+    [],
+    []
+  ]});
+  spec.accounts['0x7000000000000000000000000000000000000000'] = {
+    balance: '0',
+    constructor: await deploy.encodeABI()
+  };
 
   // Build InitializerAuRa contract
   contract = new web3.eth.Contract(contractsCompiled['InitializerAuRa'].abi);
