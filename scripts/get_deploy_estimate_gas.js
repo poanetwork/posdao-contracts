@@ -48,18 +48,20 @@ async function main() {
     const contractName = contracts[i];
 
     const compiled = await compile(dir, contractName);
-    const gas = await estimateGas(compiled, []) / 1000000;
+    let {gas, size} = await estimateGas(compiled, []);
+    gas /= 1000000;
+    size = Math.round(size * 100 / 1024) / 100;
     const dotsCount = maxContractNameLength - contractName.length;
     const dots = '.'.repeat(dotsCount);
     
-    console.log(contractName + ' ' + dots + ' ' + gas + ' Mgas');
+    console.log(contractName + ' ' + dots + ' ' + gas + ' Mgas; ' + size + ' Kb');
   }
 }
 
 async function estimateGas(compiled, arguments) {
   const contract = new web3.eth.Contract(compiled.abi);
   const deploy = await contract.deploy({data: '0x' + compiled.bytecode, arguments: arguments});
-  return await deploy.estimateGas();
+  return {gas: await deploy.estimateGas(), size: compiled.bytecode.length / 2};
 }
 
 async function compile(dir, contractName) {
