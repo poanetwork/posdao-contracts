@@ -19,7 +19,7 @@ contract BlockRewardAuRaTokensMock is BlockRewardAuRaTokens, BlockRewardAuRaBase
         IERC677Minting token = IERC677Minting(
             IStakingAuRaTokens(validatorSetContract.stakingContract()).erc677TokenContract()
         );
-        token.mintReward(address(this), _tokenReward);
+        token.mintReward(_tokenReward);
         epochPoolTokenReward[_stakingEpoch][_poolMiningAddress] = _tokenReward;
         epochPoolNativeReward[_stakingEpoch][_poolMiningAddress] = msg.value;
         _epochsPoolGotRewardFor[_poolMiningAddress].push(_stakingEpoch);

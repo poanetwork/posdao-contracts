@@ -230,7 +230,7 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
                     }
                 }
 
-                erc677TokenContract.mintReward(address(this), distributedAmount);
+                erc677TokenContract.mintReward(distributedAmount);
             }
         }
 

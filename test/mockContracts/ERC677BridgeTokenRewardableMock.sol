@@ -596,13 +596,14 @@ contract ERC677BridgeTokenRewardable is ERC677BridgeToken {
     stakingContract = _stakingContract;
   }
 
-  function mintReward(address _to, uint256 _amount) external onlyBlockRewardContract {
+  function mintReward(uint256 _amount) external onlyBlockRewardContract {
     if (_amount == 0) return;
-    // Mint `_amount` for `_to`
+    // Mint `_amount` for the BlockRewardAuRa contract
+    address to = blockRewardContract;
     totalSupply_ = totalSupply_.add(_amount);
-    balances[_to] = balances[_to].add(_amount);
-    emit Mint(_to, _amount);
-    emit Transfer(address(0), _to, _amount);
+    balances[to] = balances[to].add(_amount);
+    emit Mint(to, _amount);
+    emit Transfer(address(0), to, _amount);
   }
 
   function stake(address _staker, uint256 _amount) external onlyStakingContract {
