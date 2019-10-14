@@ -137,6 +137,8 @@ contract StakingAuRaCoins is StakingAuRaBase {
             require(i == 0 || epoch > _stakingEpochs[i - 1]);
             require(epoch < stakingEpoch);
 
+            if (rewardWasTaken[_poolStakingAddress][_staker][epoch]) continue;
+
             uint256 reward;
 
             if (_poolStakingAddress != _staker) { // this is a delegator

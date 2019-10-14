@@ -163,6 +163,8 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
             require(i == 0 || epoch > _stakingEpochs[i - 1]);
             require(epoch < stakingEpoch);
 
+            if (rewardWasTaken[_poolStakingAddress][_staker][epoch]) continue;
+
             if (_poolStakingAddress != _staker) { // this is a delegator
                 if (epoch < firstEpoch) continue;
                 if (lastEpoch <= epoch && lastEpoch != 0) break;
