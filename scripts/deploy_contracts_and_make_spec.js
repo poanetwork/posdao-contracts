@@ -124,6 +124,7 @@ async function main() {
       gas: GAS_LIMIT
     });
 
+    contracts[name].implementationInstance = deployed;
     contracts[name].implementationAddress = deployed.options.address;
 
     if (contracts[name].withProxy) {
@@ -144,6 +145,8 @@ async function main() {
         gas: GAS_LIMIT
       });
 
+      contracts[name].proxyInstance = deployed;
+      contracts[name].proxiedImplementationInstance = new web3.eth.Contract(contracts[name].compiled.abi, deployed.options.address);
       contracts[name].proxyAddress = deployed.options.address;
     }
   }
@@ -157,7 +160,53 @@ async function main() {
   spec.params.transactionPermissionContract = contracts['TxPermission'].proxyAddress;
   spec.params.registrar = contracts['Registry'].proxyAddress;
 
+  console.log('Saving spec.json file ...');
+  fs.writeFileSync(path.join(__dirname, '..', 'spec.json'), JSON.stringify(spec, null, '  '), 'UTF-8');
+
+  // initialize the contracts...
+  // This replicates the actions of the InitializerAuRa contract
+  const sendOpts = { from: deployerAddr, gasPrice: GAS_PRICE, gas: GAS_LIMIT };
+  console.log('initializing deployed contracts...');
+  contracts.ValidatorSetAuRa.initReceipt = await contracts.ValidatorSetAuRa.proxiedImplementationInstance.methods.initialize(
+    contracts.BlockRewardAuRa.proxyAddress,
+    contracts.RandomAuRa.proxyAddress,
+    contracts.StakingAuRa.proxyAddress,
+    initialValidators,
+    stakingAddresses,
+    firstValidatorIsUnremovable
+  ).send(sendOpts);
+
+  contracts.StakingAuRa.initReceipt = await contracts.StakingAuRa.proxiedImplementationInstance.methods.initialize(
+    contracts.ValidatorSetAuRa.proxyAddress,
+    stakingAddresses,
+    web3.utils.toWei('1', 'ether'), // _delegatorMinStake
+    web3.utils.toWei('1', 'ether'), // _candidateMinStake
+    stakingEpochDuration,
+    forkBlock, // _stakingEpochStartBlock
+    stakeWithdrawDisallowPeriod
+  );
+
+  contracts.BlockRewardAuRa.initReceipt = await contracts.BlockRewardAuRa.proxiedImplementationInstance.methods.initialize(
+    contracts.ValidatorSetAuRa.proxyAddress
+  ).send(sendOpts);
+
+  contracts.RandomAuRa.initReceipt = await contracts.RandomAuRa.proxiedImplementationInstance.methods.initialize(
+    collectRoundLength,
+    contracts.ValidatorSetAuRa.proxyAddress
+  ).send(sendOpts);
+
+  contracts.TxPermission.initReceipt = await contracts.TxPermission.proxiedImplementationInstance.methods.initialize(
+    [owner],
+    contracts.ValidatorSetAuRa.proxyAddress
+  ).send(sendOpts);
+
+  contracts.Certifier.initReceipt = await contracts.Certifier.proxiedImplementationInstance.methods.initialize(
+    [owner],
+    contracts.ValidatorSetAuRa.proxyAddress
+  ).send(sendOpts);
+
   // Build InitializerAuRa contract
+  /*
   const initContract = new web3.eth.Contract(contracts['InitializerAuRa'].compiled.abi);
   const initDeploy = await initContract.deploy({data: '0x' + contracts['InitializerAuRa'].compiled.bytecode, arguments: [
       [ // _contracts
@@ -175,7 +224,7 @@ async function main() {
       web3.utils.toWei('1', 'ether'), // _delegatorMinStake
       web3.utils.toWei('1', 'ether'), // _candidateMinStake
       stakingEpochDuration, // _stakingEpochDuration
-      0, // _stakingEpochStartBlock
+      forkBlock, // _stakingEpochStartBlock
       stakeWithdrawDisallowPeriod, // _stakeWithdrawDisallowPeriod
       collectRoundLength // _collectRoundLength
     ]});
@@ -187,10 +236,9 @@ async function main() {
     gasPrice: GAS_PRICE,
     gas: GAS_LIMIT
   });
+  */
 
-  console.log('Saving spec.json file ...');
-  fs.writeFileSync(path.join(__dirname, '..', 'spec.json'), JSON.stringify(spec, null, '  '), 'UTF-8');
-  console.log('Done');
+
 }
 
 async function compile(dir, contractName) {
