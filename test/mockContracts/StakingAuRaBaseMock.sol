@@ -34,11 +34,11 @@ contract StakingAuRaBaseMock is StakingAuRaBase {
     }
 
     function setStakeFirstEpoch(address _poolStakingAddress, address _delegator, uint256 _value) public {
-        _stakeFirstEpoch[_poolStakingAddress][_delegator] = _value;
+        stakeFirstEpoch[_poolStakingAddress][_delegator] = _value;
     }
 
     function setStakeLastEpoch(address _poolStakingAddress, address _delegator, uint256 _value) public {
-        _stakeLastEpoch[_poolStakingAddress][_delegator] = _value;
+        stakeLastEpoch[_poolStakingAddress][_delegator] = _value;
     }
 
     function setStakingEpoch(uint256 _stakingEpoch) public {
@@ -47,16 +47,6 @@ contract StakingAuRaBaseMock is StakingAuRaBase {
 
     function setValidatorSetAddress(IValidatorSetAuRa _validatorSetAddress) public {
         validatorSetContract = _validatorSetAddress;
-    }
-
-    // =============================================== Getters ========================================================
-
-    function stakeFirstEpoch(address _poolStakingAddress, address _delegator) public view returns(uint256) {
-        return _stakeFirstEpoch[_poolStakingAddress][_delegator];
-    }
-
-    function stakeLastEpoch(address _poolStakingAddress, address _delegator) public view returns(uint256) {
-        return _stakeLastEpoch[_poolStakingAddress][_delegator];
     }
 
     // =============================================== Private ========================================================

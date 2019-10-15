@@ -26,8 +26,6 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
     mapping(address => address[]) internal _poolDelegators;
     mapping(address => address[]) internal _poolDelegatorsInactive;
     mapping(address => mapping(address => mapping(uint256 => uint256))) internal _stakeAmountByEpoch;
-    mapping(address => mapping(address => uint256)) internal _stakeFirstEpoch;
-    mapping(address => mapping(address => uint256)) internal _stakeLastEpoch;
 
     /// @dev The limit of the minimum candidate stake (CANDIDATE_MIN_STAKE).
     uint256 public candidateMinStake;
@@ -104,6 +102,18 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
     /// staker. Doesn't include the amount ordered for withdrawal.
     /// The first parameter is the pool staking address, the second one is the staker address.
     mapping(address => mapping(address => uint256)) public stakeAmount;
+
+    /// @dev The number of staking epoch before which the specified delegator placed their first
+    /// stake into the specified pool. If this is equal to zero, it means the delegator never
+    /// staked into the specified pool. The first parameter is the pool staking address,
+    /// the second one is delegator's address.
+    mapping(address => mapping(address => uint256)) public stakeFirstEpoch;
+
+    /// @dev The number of staking epoch before which the specified delegator withdrew their stake
+    /// from the specified pool. If this is equal to zero and `stakeFirstEpoch` is not zero, that means
+    /// the delegator still has some stake in the specified pool. The first parameter is the pool
+    /// staking address, the second one is delegator's address.
+    mapping(address => mapping(address => uint256)) public stakeLastEpoch;
 
     /// @dev The duration period (in blocks) at the end of staking epoch during which
     /// participants are not allowed to stake/withdraw/order/claim their staking tokens/coins.
@@ -947,10 +957,10 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
         delegatorStakeSnapshot[_poolStakingAddress][_delegator][nextStakingEpoch] =
             (newAmount != 0) ? newAmount : uint256(-1);
 
-        if (_stakeFirstEpoch[_poolStakingAddress][_delegator] == 0) {
-            _stakeFirstEpoch[_poolStakingAddress][_delegator] = nextStakingEpoch;
+        if (stakeFirstEpoch[_poolStakingAddress][_delegator] == 0) {
+            stakeFirstEpoch[_poolStakingAddress][_delegator] = nextStakingEpoch;
         }
-        _stakeLastEpoch[_poolStakingAddress][_delegator] = (newAmount == 0) ? nextStakingEpoch : 0;
+        stakeLastEpoch[_poolStakingAddress][_delegator] = (newAmount == 0) ? nextStakingEpoch : 0;
     }
 
     function _stake(address _toPoolStakingAddress, uint256 _amount) internal;
