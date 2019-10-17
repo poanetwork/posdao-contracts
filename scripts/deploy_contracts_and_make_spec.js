@@ -184,7 +184,7 @@ async function main() {
     stakingEpochDuration,
     forkBlock, // _stakingEpochStartBlock
     stakeWithdrawDisallowPeriod
-  );
+  ).send(sendOpts);
 
   contracts.BlockRewardAuRa.initReceipt = await contracts.BlockRewardAuRa.proxiedImplementationInstance.methods.initialize(
     contracts.ValidatorSetAuRa.proxyAddress
