@@ -155,9 +155,14 @@ async function main() {
   spec.engine.authorityRound.params.validators.multi[forkBlock] = {
     "contract": contracts['ValidatorSetAuRa'].proxyAddress
   };
+  spec.engine.authorityRound.params.posdaoTransition = forkBlock;
   spec.engine.authorityRound.params.blockRewardContractTransitions[forkBlock] = contracts['BlockRewardAuRa'].proxyAddress;
+  spec.engine.authorityRound.params.blockGasLimitContractTransitions = {}; // assumes it doesn't exist yet
+  // this is included in the TxPermission contract
+  spec.engine.authorityRound.params.blockGasLimitContractTransitions[forkBlock] = contracts['TxPermission'].proxyAddress;
   spec.engine.authorityRound.params.randomnessContractAddress = contracts['RandomAuRa'].proxyAddress;
   spec.params.transactionPermissionContract = contracts['TxPermission'].proxyAddress;
+  spec.params.transactionPermissionContractTransition = forkBlock;
   spec.params.registrar = contracts['Registry'].proxyAddress;
 
   console.log('Saving spec.json file ...');
