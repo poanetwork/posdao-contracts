@@ -199,6 +199,10 @@ async function main() {
     contracts.ValidatorSetAuRa.proxyAddress
   ).send(sendOpts);
 
+  // would probably be better to render as JSON, but there's circular dependencies in that object
+  const util = require('util');
+  console.log('Logging final state to state.log ...');
+  fs.writeFileSync(path.join(__dirname, '..', 'state.log'), util.inspect(contracts), 'UTF-8');
 }
 
 async function compile(dir, contractName) {
