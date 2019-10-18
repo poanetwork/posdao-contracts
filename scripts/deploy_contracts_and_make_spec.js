@@ -74,6 +74,8 @@ async function main() {
   // didn't find a more reasonable way to test this :-(
   await web3.eth.sign('testmsg', deployerAddr);
 
+  const sendOpts = { from: deployerAddr, gasPrice: GAS_PRICE, gas: GAS_LIMIT };
+
   let spec = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'templates', templateSpecFile), 'UTF-8'));
 
   spec.name = networkName;
@@ -105,49 +107,37 @@ async function main() {
 
   // deploy contracts...
   for (let i = 0; i < Object.keys(contracts).length; i++) {
-    const name = Object.keys(contracts)[i];
+    const cname = Object.keys(contracts)[i];
+    const c = contracts[cname];
 
-    if (contracts[name].skipDeploy) {
+    if (c.skipDeploy) {
       continue;
     }
 
-    console.log(`Deploying ${name}...`);
-    const compiled = contracts[name].compiled;
-    const contract = new web3.eth.Contract(compiled.abi);
+    console.log(`Deploying ${cname}...`);
+    const contract = new web3.eth.Contract(c.compiled.abi);
     const deploy = await contract.deploy({
-      data: '0x' + compiled.bytecode,
-      arguments: contracts[name].getDeployArgs ? contracts[name].getDeployArgs() : []
+      data: '0x' + c.compiled.bytecode,
+      arguments: c.getDeployArgs ? c.getDeployArgs() : []
     });
-    const deployed = await deploy.send({
-      from: deployerAddr,
-      gasPrice: GAS_PRICE,
-      gas: GAS_LIMIT
-    });
+    c.implementationInstance = await deploy.send(sendOpts);
+    c.implementationAddress = c.implementationInstance.options.address;
 
-    contracts[name].implementationInstance = deployed;
-    contracts[name].implementationAddress = deployed.options.address;
-
-    if (contracts[name].withProxy) {
-      console.log(`Deploying Storage Proxy for ${name}...`);
-      const compiled = contracts.AdminUpgradeabilityProxy.compiled;
-      const contract = new web3.eth.Contract(compiled.abi);
+    if (c.withProxy) {
+      console.log(`Deploying Storage Proxy for ${cname}...`);
+      const contract = new web3.eth.Contract(contracts.AdminUpgradeabilityProxy.compiled.abi);
       const deploy = await contract.deploy({
-        data: '0x' + compiled.bytecode,
+        data: '0x' + contracts.AdminUpgradeabilityProxy.compiled.bytecode,
         arguments: [
-          contracts[name].implementationAddress, // logic address
+          c.implementationAddress, // logic address
           owner, // admin
           [] // no data
         ]
       });
-      const deployed = await deploy.send({
-        from: deployerAddr,
-        gasPrice: GAS_PRICE,
-        gas: GAS_LIMIT
-      });
-
-      contracts[name].proxyInstance = deployed;
-      contracts[name].proxiedImplementationInstance = new web3.eth.Contract(contracts[name].compiled.abi, deployed.options.address);
-      contracts[name].proxyAddress = deployed.options.address;
+      c.proxyInstance = await deploy.send(sendOpts);
+      c.proxyAddress = c.proxyInstance.options.address;
+      // this will come in handy when initializing the proxied contract
+      c.proxiedImplementationInstance = new web3.eth.Contract(c.compiled.abi, c.proxyAddress);
     }
   }
 
@@ -170,7 +160,6 @@ async function main() {
 
   // initialize the contracts...
   // This replicates the actions of the InitializerAuRa contract
-  const sendOpts = { from: deployerAddr, gasPrice: GAS_PRICE, gas: GAS_LIMIT };
   console.log('initializing deployed contracts...');
   contracts.ValidatorSetAuRa.initReceipt = await contracts.ValidatorSetAuRa.proxiedImplementationInstance.methods.initialize(
     contracts.BlockRewardAuRa.proxyAddress,
@@ -210,40 +199,6 @@ async function main() {
     contracts.ValidatorSetAuRa.proxyAddress
   ).send(sendOpts);
 
-  // Build InitializerAuRa contract
-  /*
-  const initContract = new web3.eth.Contract(contracts['InitializerAuRa'].compiled.abi);
-  const initDeploy = await initContract.deploy({data: '0x' + contracts['InitializerAuRa'].compiled.bytecode, arguments: [
-      [ // _contracts
-        contracts.ValidatorSetAuRa.proxyAddress,
-        contracts.BlockRewardAuRa.proxyAddress,
-        contracts.RandomAuRa.proxyAddress,
-        contracts.StakingAuRa.proxyAddress,
-        contracts.TxPermission.proxyAddress,
-        contracts.Certifier.proxyAddress
-      ],
-      owner, // _owner
-      initialValidators, // _miningAddresses
-      stakingAddresses, // _stakingAddresses
-      firstValidatorIsUnremovable, // _firstValidatorIsUnremovable
-      web3.utils.toWei('1', 'ether'), // _delegatorMinStake
-      web3.utils.toWei('1', 'ether'), // _candidateMinStake
-      stakingEpochDuration, // _stakingEpochDuration
-      forkBlock, // _stakingEpochStartBlock
-      stakeWithdrawDisallowPeriod, // _stakeWithdrawDisallowPeriod
-      collectRoundLength // _collectRoundLength
-    ]});
-
-  console.log(`init deploy code: ${initDeploy.encodeABI()}`);
-
-  initDeploy.send({
-    from: deployerAddr,
-    gasPrice: GAS_PRICE,
-    gas: GAS_LIMIT
-  });
-  */
-
-
 }
 
 async function compile(dir, contractName) {
@@ -251,5 +206,6 @@ async function compile(dir, contractName) {
   return {abi: compiled.abi, bytecode: compiled.evm.bytecode.object};
 }
 
-// source tau1.env
-// FORK_BLOCK=$((`tau1_current_block.sh`+100)) node scripts/deploy_contracts_and_make_spec.js
+// in order to deploy posdao on a chain represented by localhost:8545 - with the fork block 100 blocks in the future:
+// source .env
+// FORK_BLOCK=$((`scripts/current_block.sh`+100)) node scripts/deploy_contracts_and_make_spec.js
