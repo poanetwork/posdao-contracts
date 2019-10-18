@@ -341,7 +341,7 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
     /// @dev Returns an identifier for the bridge contract so that the latter could
     /// ensure it works with the BlockReward contract.
     function blockRewardContractId() public pure returns(bytes4) {
-        return bytes4(keccak256("blockReward"));
+        return 0x0d35a7ca; // bytes4(keccak256("blockReward"))
     }
 
     /// @dev Returns an array of epoch numbers for which the specified pool (mining address)
@@ -369,6 +369,60 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
     /// by the `ERC677BridgeTokenRewardable.transferAndCall` function.
     function onTokenTransfer(address, uint256, bytes memory) public pure returns(bool) {
         revert();
+    }
+
+    /// @dev Returns an array of epoch numbers for which the specified staker
+    /// can claim a reward from the specified pool by the `StakingAuRa.claimReward` function.
+    /// @param _poolStakingAddress The pool staking address.
+    /// @param _staker The staker's address (delegator or candidate/validator).
+    function epochsToClaimRewardFrom(
+        address _poolStakingAddress,
+        address _staker
+    ) public view returns(uint256[] memory epochsToClaimFrom) {
+        address miningAddress = validatorSetContract.miningByStakingAddress(_poolStakingAddress);
+        IStakingAuRa stakingContract = IStakingAuRa(validatorSetContract.stakingContract());
+        bool isDelegator = _poolStakingAddress != _staker;
+        uint256 firstEpoch;
+        uint256 lastEpoch;
+
+        if (isDelegator) {
+            firstEpoch = stakingContract.stakeFirstEpoch(_poolStakingAddress, _staker);
+            if (firstEpoch == 0) {
+                return (new uint256[](0));
+            }
+            lastEpoch = stakingContract.stakeLastEpoch(_poolStakingAddress, _staker);
+        }
+
+        uint256[] storage epochs = _epochsPoolGotRewardFor[miningAddress];
+        uint256 length = epochs.length;
+
+        uint256[] memory tmp = new uint256[](length);
+        uint256 tmpLength = 0;
+        uint256 i;
+
+        for (i = 0; i < length; i++) {
+            uint256 epoch = epochs[i];
+            if (isDelegator) {
+                if (epoch < firstEpoch) {
+                    // If the delegator staked for the first time before
+                    // the `epoch`, skip this staking epoch
+                    continue;
+                }
+                if (lastEpoch <= epoch && lastEpoch != 0) {
+                    // If the delegator withdrew all their stake before the `epoch`,
+                    // don't check this and following epochs since it makes no sense
+                    break;
+                }
+            }
+            if (!stakingContract.rewardWasTaken(_poolStakingAddress, _staker, epoch)) {
+                tmp[tmpLength++] = epoch;
+            }
+        }
+
+        epochsToClaimFrom = new uint256[](tmpLength);
+        for (i = 0; i < tmpLength; i++) {
+            epochsToClaimFrom[i] = tmp[i];
+        }
     }
 
     /// @dev Returns the reward coefficient for the specified validator. The given value should be divided by 10000

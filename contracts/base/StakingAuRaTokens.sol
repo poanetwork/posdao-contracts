@@ -57,9 +57,9 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
         uint256 lastEpoch;
 
         if (_poolStakingAddress != staker) { // this is a delegator
-            firstEpoch = _stakeFirstEpoch[_poolStakingAddress][staker];
+            firstEpoch = stakeFirstEpoch[_poolStakingAddress][staker];
             require(firstEpoch != 0);
-            lastEpoch = _stakeLastEpoch[_poolStakingAddress][staker];
+            lastEpoch = stakeLastEpoch[_poolStakingAddress][staker];
         }
 
         IBlockRewardAuRaTokens blockRewardContract = IBlockRewardAuRaTokens(validatorSetContract.blockRewardContract());
@@ -142,9 +142,9 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
         uint256 lastEpoch;
 
         if (_poolStakingAddress != _staker) { // this is a delegator
-            firstEpoch = _stakeFirstEpoch[_poolStakingAddress][_staker];
+            firstEpoch = stakeFirstEpoch[_poolStakingAddress][_staker];
             require(firstEpoch != 0);
-            lastEpoch = _stakeLastEpoch[_poolStakingAddress][_staker];
+            lastEpoch = stakeLastEpoch[_poolStakingAddress][_staker];
         }
 
         IBlockRewardAuRaTokens blockRewardContract = IBlockRewardAuRaTokens(validatorSetContract.blockRewardContract());
@@ -162,6 +162,8 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
 
             require(i == 0 || epoch > _stakingEpochs[i - 1]);
             require(epoch < stakingEpoch);
+
+            if (rewardWasTaken[_poolStakingAddress][_staker][epoch]) continue;
 
             if (_poolStakingAddress != _staker) { // this is a delegator
                 if (epoch < firstEpoch) continue;
