@@ -98,7 +98,7 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
 
     /// @dev Returns the contract's version number needed for the Parity engine.
     function contractVersion() public pure returns(uint256) {
-        return 0xfffffffffffffffe;
+        return 3;
     }
 
     /// @dev Returns the list of addresses allowed to initiate transactions of any type.
