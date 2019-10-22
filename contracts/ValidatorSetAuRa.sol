@@ -32,6 +32,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         address[] list;
     }
     mapping(int256 => PendingValidatorsQueue) internal _queuePV;
+    mapping(address => mapping(uint256 => address[])) internal _maliceReportedForBlock;
 
     /// @dev How many times a given mining address was banned.
     mapping(address => uint256) public banCounter;
@@ -67,10 +68,6 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// @dev A boolean flag indicating whether the specified mining address was a validator at the end of
     /// the previous staking epoch. See the `getPreviousValidators` getter.
     mapping(address => bool) public isValidatorOnPreviousEpoch;
-
-    /// @dev An array of the validators (their mining addresses) which reported that the specified malicious
-    /// validator (mining address) misbehaved at the specified block.
-    mapping(address => mapping(uint256 => address[])) public maliceReportedForBlock;
 
     /// @dev A mining address bound to a specified staking address.
     /// See the `_setStakingAddress` function.
@@ -344,7 +341,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
             return;
         }
 
-        address[] storage reportedValidators = maliceReportedForBlock[_maliciousMiningAddress][_blockNumber];
+        address[] storage reportedValidators = _maliceReportedForBlock[_maliciousMiningAddress][_blockNumber];
 
         reportedValidators.push(reportingMiningAddress);
 
@@ -461,6 +458,14 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         return _getCurrentBlockNumber() <= bannedUntil[_miningAddress];
     }
 
+    /// @dev Returns an array of the validators (their mining addresses) which reported that the specified malicious
+    /// validator misbehaved at the specified block.
+    /// @param _miningAddress The mining address of malicious validator.
+    /// @param _blockNumber The block number.
+    function maliceReportedForBlock(address _miningAddress, uint256 _blockNumber) public view returns(address[] memory) {
+        return _maliceReportedForBlock[_miningAddress][_blockNumber];
+    }
+
     /// @dev Returns whether the `reportMalicious` function can be called by the specified validator with the
     /// given parameters. Used by the `reportMalicious` function and `TxPermission` contract. Also, returns
     /// a boolean flag indicating whether the reporting validator should be removed as malicious due to
@@ -508,7 +513,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
             return (false, false); // avoid reporting about ancient blocks
         }
 
-        address[] storage reportedValidators = maliceReportedForBlock[_maliciousMiningAddress][_blockNumber];
+        address[] storage reportedValidators = _maliceReportedForBlock[_maliciousMiningAddress][_blockNumber];
 
         // Don't allow reporting validator to report about the same misbehavior more than once
         for (uint256 m = 0; m < reportedValidators.length; m++) {
