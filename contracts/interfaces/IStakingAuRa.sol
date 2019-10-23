@@ -19,7 +19,9 @@ interface IStakingAuRa {
     function getPoolsLikelihood() external view returns(uint256[] memory, uint256);
     function getPoolsToBeElected() external view returns(address[] memory);
     function getPoolsToBeRemoved() external view returns(address[] memory);
+    function isPoolActive(address) external view returns(bool);
     function MAX_CANDIDATES() external pure returns(uint256); // solhint-disable-line func-name-mixedcase
+    function orderedWithdrawAmount(address, address) external view returns(uint256);
     function poolDelegators(address) external view returns(address[] memory);
     function rewardWasTaken(address, address, uint256) external view returns(bool);
     function stakeAmount(address, address) external view returns(uint256);
