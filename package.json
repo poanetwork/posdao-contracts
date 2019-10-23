@@ -11,7 +11,7 @@
     "flat": "bash scripts/make_flat.sh",
     "solhint": "node_modules/.bin/solhint \"contracts/**/*.sol\"",
     "solidity-docgen": "rm -rf docs/docs/api* && npm i && solidity-docgen --exclude interfaces,libs,Migrations.sol . contracts docs && node docs/website/sidebars-fix.js",
-    "test": "node scripts/check_for_clashing.js && bash scripts/test.sh"
+    "test": "rm -rf build && node scripts/check_for_clashing.js && bash scripts/test.sh"
   },
   "repository": {
     "type": "git",
@@ -33,7 +33,7 @@
     "eth-gas-reporter": "^0.1.12",
     "ganache-cli": "^6.6.0",
     "mochawesome": "^3.1.1",
-    "solc": "0.5.9",
+    "solc": "0.5.12",
     "solhint": "^2.0.0",
     "truffle": "^5.0.34",
     "web3": "^1.2.1"

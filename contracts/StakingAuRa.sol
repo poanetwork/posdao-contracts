@@ -1,4 +1,4 @@
-pragma solidity 0.5.9;
+pragma solidity 0.5.12;
 
 import "./base/StakingAuRaTokens.sol";
 //import "./base/StakingAuRaCoins.sol";

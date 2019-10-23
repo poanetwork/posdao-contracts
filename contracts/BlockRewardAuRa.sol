@@ -1,4 +1,4 @@
-pragma solidity 0.5.9;
+pragma solidity 0.5.12;
 
 import "./base/BlockRewardAuRaTokens.sol";
 //import "./base/BlockRewardAuRaCoins.sol";
