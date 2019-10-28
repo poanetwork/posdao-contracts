@@ -2,7 +2,7 @@ pragma solidity 0.5.9;
 
 import "./upgradeability/UpgradeabilityAdmin.sol";
 
-/// @dev first mock implementation
+/// @dev first stripped down implementation
 contract ValidatorSetHbbft is UpgradeabilityAdmin {
     /* using SafeMath for uint256; */
 
