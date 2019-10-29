@@ -14,7 +14,7 @@ async function compile(dir, contractName) {
         enabled: true,
         runs: 200
       },
-      evmVersion: "constantinople",
+      evmVersion: "istanbul",
       outputSelection: {
         '*': {
           '*': [ 'abi', 'evm.bytecode.object', 'evm.methodIdentifiers' ]

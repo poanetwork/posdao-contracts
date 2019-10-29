@@ -495,7 +495,10 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// validator misbehaved at the specified block.
     /// @param _miningAddress The mining address of malicious validator.
     /// @param _blockNumber The block number.
-    function maliceReportedForBlock(address _miningAddress, uint256 _blockNumber) public view returns(address[] memory) {
+    function maliceReportedForBlock(
+        address _miningAddress,
+        uint256 _blockNumber
+    ) public view returns(address[] memory) {
         return _maliceReportedForBlock[_miningAddress][_blockNumber];
     }
 
@@ -781,8 +784,27 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
                 _pendingValidators.push(unremovableMiningAddress);
             }
 
-            for (uint256 i = 0; i < _stakingAddresses.length; i++) {
-                _pendingValidators.push(miningByStakingAddress[_stakingAddresses[i]]);
+            if (stakingContract.stakingEpoch() == 3) {
+                // here _stakingAddresses.length == 4, _pendingValidators.length == 0
+
+                // This reverts for some reason:
+                for (uint256 i = 0; i < _stakingAddresses.length; i++) {
+                    _pendingValidators.push(_stakingAddresses[0]);
+                }
+
+                // This also reverts on the second push:
+                // _pendingValidators.push(_stakingAddresses[0]);
+                // _pendingValidators.push(_stakingAddresses[0]);
+
+                // But this works fine (if comment out the above two lines and `for` cycle):
+                // _pendingValidators.push(_stakingAddresses[0]);
+            } else {
+                // These lines work fine if
+                // https://github.com/poanetwork/posdao-contracts/blob/8baed415071bea8c3509f7ab5fbffdf31307ea30/contracts/ValidatorSetAuRa.sol#L689-L696
+                // are not executed before:
+                for (uint256 i = 0; i < _stakingAddresses.length; i++) {
+                    _pendingValidators.push(miningByStakingAddress[_stakingAddresses[i]]);
+                }
             }
         }
     }

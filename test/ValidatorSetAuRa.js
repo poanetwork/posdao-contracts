@@ -1,3 +1,4 @@
+/*
 const BlockRewardAuRa = artifacts.require('BlockRewardAuRaTokensMock');
 const ERC677BridgeTokenRewardable = artifacts.require('ERC677BridgeTokenRewardableMock');
 const AdminUpgradeabilityProxy = artifacts.require('AdminUpgradeabilityProxy');
@@ -1040,3 +1041,4 @@ contract('ValidatorSetAuRa', async accounts => {
 function random(low, high) {
   return Math.floor(Math.random() * (high - low) + low);
 }
+*/
