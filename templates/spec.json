@@ -17,7 +17,7 @@
         "blockRewardContractAddress": "0x2000000000000000000000000000000000000001",
         "blockRewardContractTransition": 0,
         "randomnessContractAddress": "0x3000000000000000000000000000000000000001",
-        "quorum23Transition": 1000000,
+        "twoThirdsMajorityTransition": 1000000,
         "posdaoTransition": 0,
         "blockGasLimitContractTransitions": {
           "0": "0x4000000000000000000000000000000000000001"
