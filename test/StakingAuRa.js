@@ -1235,6 +1235,7 @@ contract('StakingAuRa', async accounts => {
       const weiSpent = (new BN(result.receipt.gasUsed)).mul(new BN(tx.gasPrice));
 
       result.receipt.gasUsed.should.be.below(1700000);
+      // result.receipt.gasUsed.should.be.below(3020000); // for Istanbul
 
       const delegatorTokensBalanceAfter = await erc677Token.balanceOf.call(delegator);
       const delegatorCoinsBalanceAfter = new BN(await web3.eth.getBalance(delegator));
@@ -1371,11 +1372,13 @@ contract('StakingAuRa', async accounts => {
 
       const perEpochGasConsumption = endGasConsumption.sub(startGasConsumption).div(new BN(maxStakingEpoch - 2));
       perEpochGasConsumption.should.be.bignumber.equal(new BN(509));
+      // perEpochGasConsumption.should.be.bignumber.equal(new BN(1109)); // for Istanbul
 
       // Check gas consumption for the case when the delegator didn't touch their
       // stake for 50 years (2600 staking epochs)
       const maxGasConsumption = initialGasConsumption.sub(perEpochGasConsumption).add(perEpochGasConsumption.mul(new BN(2600)));
       maxGasConsumption.should.be.bignumber.below(new BN(1700000));
+      // maxGasConsumption.should.be.bignumber.below(new BN(3020000)); // for Istanbul
 
       let blockRewardTokensBalanceTotalAfter = await erc677Token.balanceOf.call(blockRewardAuRa.address);
       let blockRewardCoinsBalanceTotalAfter = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
@@ -1530,6 +1533,7 @@ contract('StakingAuRa', async accounts => {
 
       // console.log(`gasUsed = ${result.receipt.gasUsed}, cumulativeGasUsed = ${result.receipt.cumulativeGasUsed}`);
       result.receipt.gasUsed.should.be.below(1710000);
+      // result.receipt.gasUsed.should.be.below(2100000); // for Istanbul
 
       const delegatorTokensBalanceAfter = await erc677Token.balanceOf.call(delegator);
       const delegatorCoinsBalanceAfter = new BN(await web3.eth.getBalance(delegator));
@@ -1710,6 +1714,7 @@ contract('StakingAuRa', async accounts => {
 
       // console.log(`gasUsed = ${result.receipt.gasUsed}, cumulativeGasUsed = ${result.receipt.cumulativeGasUsed}`);
       result.receipt.gasUsed.should.be.below(2000000);
+      // result.receipt.gasUsed.should.be.below(2610000); // for Istanbul
 
       const delegatorTokensBalanceAfter = await erc677Token.balanceOf.call(delegator);
       const delegatorCoinsBalanceAfter = new BN(await web3.eth.getBalance(delegator));
