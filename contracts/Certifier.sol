@@ -1,4 +1,4 @@
-pragma solidity 0.5.12;
+pragma solidity 0.5.10;
 
 import "./interfaces/ICertifier.sol";
 import "./interfaces/IValidatorSetAuRa.sol";

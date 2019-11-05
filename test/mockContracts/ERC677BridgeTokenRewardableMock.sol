@@ -1,10 +1,10 @@
-pragma solidity 0.5.12;
+pragma solidity 0.5.10;
 
 // Since the source `ERC677BridgeTokenRewardable` requires solc v0.4.24 but truffle
 // doesn't allow using different versions of compiler at the same time, this flat
 // source file for `ERC677BridgeTokenRewardable` was taken from
 // https://github.com/poanetwork/poa-bridge-contracts/tree/8a7cf85bfbf47f0e2ab6c5b2149873a7e48dc206
-// and adapted for solc v0.5.12.
+// and adapted for solc v0.5.10.
 
 // File: contracts/ERC677Receiver.sol
 
