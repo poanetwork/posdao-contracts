@@ -1,5 +1,7 @@
 pragma solidity 0.5.9;
 
+import "./interfaces/IRandomHbbft.sol";
+import "./interfaces/IStakingHbbft.sol";
 import "./upgradeability/UpgradeabilityAdmin.sol";
 
 /// @dev first stripped down implementation
@@ -20,9 +22,16 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin {
     }
     ValidatorsList internal _finalizeValidators;
 
+    bool internal _pendingValidatorsChanged;
+    bool internal _pendingValidatorsChangedForNewEpoch;
+
     /// @dev The address of the `BlockRewardHbbft` contract.
     address public blockRewardContract;
 
+    /// @dev The serial number of a validator set change request. The counter is incremented
+    /// every time a validator set needs to be changed.
+    uint256 public changeRequestCount;
+    
     /// @dev A boolean flag indicating whether the specified mining address is in the current validator set.
     /// See the `getValidators` getter.
     mapping(address => bool) public isValidator;
@@ -34,6 +43,12 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin {
     /// @dev A mining address bound to a specified staking address.
     /// See the `_setStakingAddress` internal function.
     mapping(address => address) public miningByStakingAddress;
+
+    /// @dev The `RandomHbbft` contract address.
+    address public randomContract;
+
+    /// @dev The `StakingHbbft` contract address.
+    IStakingHbbft public stakingContract;
 
     /// @dev The staking address of the non-removable validator.
     /// Returns zero if a non-removable validator is not defined.
@@ -64,6 +79,12 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin {
         _;
     }
 
+    /// @dev Ensures the caller is the BlockRewardHbbft contract address.
+    modifier onlyBlockRewardContract() {
+        require(msg.sender == blockRewardContract);
+        _;
+    }
+
     /// @dev Ensures the caller is the SYSTEM_ADDRESS. See https://wiki.parity.io/Validator-Set.html
     modifier onlySystem() {
         require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
@@ -87,7 +108,7 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin {
             // Apply a new validator set formed by the `newValidatorSet` function
             _savePreviousValidators();
             _finalizeNewValidators(true);
-            //IBlockRewardAuRa(blockRewardContract).clearBlocksCreated();
+            //IBlockRewardHbbft(blockRewardContract).clearBlocksCreated();
             validatorSetApplyBlock = _getCurrentBlockNumber();
         } else if (_finalizeValidators.list.length != 0) {
             // Apply the changed validator set after malicious validator is removed
@@ -102,6 +123,8 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin {
     /// @dev Initializes the network parameters. Used by the
     /// constructor of the contract.
     /// @param _blockRewardContract The address of the `BlockRewardHbbft` contract.
+    /// @param _randomContract The address of the `RandomHbbft` contract.
+    /// @param _stakingContract The address of the `StakingHbbft` contract.
     /// @param _initialMiningAddresses The array of initial validators' mining addresses.
     /// @param _initialStakingAddresses The array of initial validators' staking addresses.
     /// @param _firstValidatorIsUnremovable The boolean flag defining whether the first validator in the
@@ -109,6 +132,8 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin {
     /// Should be `false` for a production network.
     function initialize(
         address _blockRewardContract,
+        address _randomContract,
+        address _stakingContract,
         address[] calldata _initialMiningAddresses,
         address[] calldata _initialStakingAddresses,
         bool _firstValidatorIsUnremovable
@@ -116,10 +141,14 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin {
         require(_getCurrentBlockNumber() == 0 || msg.sender == _admin());
         require(!isInitialized()); // initialization can only be done once
         require(_blockRewardContract != address(0));
+        require(_randomContract != address(0));
+        require(_stakingContract != address(0));
         require(_initialMiningAddresses.length > 0);
         require(_initialMiningAddresses.length == _initialStakingAddresses.length);
 
         blockRewardContract = _blockRewardContract;
+        randomContract = _randomContract;
+        stakingContract = IStakingHbbft(_stakingContract);
 
         // Add initial validators to the `_currentValidators` array
         for (uint256 i = 0; i < _initialMiningAddresses.length; i++) {
@@ -134,6 +163,57 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin {
         if (_firstValidatorIsUnremovable) {
             unremovableValidator = _initialStakingAddresses[0];
         }
+    }
+
+    /// @dev Implements the logic which forms a new validator set. If the number of active pools
+    /// is greater than MAX_VALIDATORS, the logic chooses the validators randomly using a random seed generated and
+    /// stored by the `RandomHbbft` contract.
+    function newValidatorSet() external onlyBlockRewardContract {
+        address[] memory poolsToBeElected = stakingContract.getPoolsToBeElected();
+
+        // Choose new validators
+        if (
+            poolsToBeElected.length >= MAX_VALIDATORS &&
+            (poolsToBeElected.length != MAX_VALIDATORS || unremovableValidator != address(0))
+        ) {
+            uint256 randomNumber = IRandomHbbft(randomContract).currentSeed();
+
+            (uint256[] memory likelihood, uint256 likelihoodSum) = stakingContract.getPoolsLikelihood();
+
+            if (likelihood.length > 0 && likelihoodSum > 0) {
+                address[] memory newValidators = new address[](
+                    unremovableValidator == address(0) ? MAX_VALIDATORS : MAX_VALIDATORS - 1
+                );
+
+                uint256 poolsToBeElectedLength = poolsToBeElected.length;
+                for (uint256 i = 0; i < newValidators.length; i++) {
+                    randomNumber = uint256(keccak256(abi.encode(randomNumber)));
+                    uint256 randomPoolIndex = _getRandomIndex(likelihood, likelihoodSum, randomNumber);
+                    newValidators[i] = poolsToBeElected[randomPoolIndex];
+                    likelihoodSum -= likelihood[randomPoolIndex];
+                    poolsToBeElectedLength--;
+                    poolsToBeElected[randomPoolIndex] = poolsToBeElected[poolsToBeElectedLength];
+                    likelihood[randomPoolIndex] = likelihood[poolsToBeElectedLength];
+                }
+
+                _setPendingValidators(newValidators);
+            }
+        } else {
+            _setPendingValidators(poolsToBeElected);
+        }
+
+        // From this moment the `getPendingValidators()` returns the new validator set.
+        // Let the `emitInitiateChange` function know that the validator set is changed and needs
+        // to be passed to the `InitiateChange` event.
+        _setPendingValidatorsChanged(true);
+
+        if (poolsToBeElected.length != 0) {
+            // Remove pools marked as `to be removed`
+            stakingContract.removePools();
+        }
+        stakingContract.incrementStakingEpoch();
+        stakingContract.setStakingEpochStartBlock(_getCurrentBlockNumber() + 1);
+        validatorSetApplyBlock = 0;
     }
 
     // =============================================== Getters ========================================================
@@ -201,6 +281,17 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin {
         }
     }
 
+    /// @dev Marks the pending validator set as changed to be used later by the `emitInitiateChange` function.
+    /// @param _newStakingEpoch A boolean flag defining whether the pending validator set was formed by the
+    /// `newValidatorSet` function. The `finalizeChange` function logic depends on this flag.
+    function _setPendingValidatorsChanged(bool _newStakingEpoch) internal {
+        _pendingValidatorsChanged = true;
+        if (_newStakingEpoch && _pendingValidators.length != 0) {
+            _pendingValidatorsChangedForNewEpoch = true;
+        }
+        changeRequestCount++;
+    }
+
     /// @dev Stores previous validators. Used by the `finalizeChange` function.
     function _savePreviousValidators() internal {
         uint256 length;
@@ -240,6 +331,28 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin {
     /// @dev Returns the current block number. Needed mostly for unit tests.
     function _getCurrentBlockNumber() internal view returns(uint256) {
         return block.number;
+    }
+
+    /// @dev Returns an index of a pool in the `poolsToBeElected` array
+    /// (see the `StakingHbbft.getPoolsToBeElected` public getter)
+    /// by a random number and the corresponding probability coefficients.
+    /// Used by the `newValidatorSet` function.
+    /// @param _likelihood An array of probability coefficients.
+    /// @param _likelihoodSum A sum of probability coefficients.
+    /// @param _randomNumber A random number.
+    function _getRandomIndex(uint256[] memory _likelihood, uint256 _likelihoodSum, uint256 _randomNumber)
+        internal
+        pure
+        returns(uint256)
+    {
+        uint256 random = _randomNumber % _likelihoodSum;
+        uint256 sum = 0;
+        uint256 index = 0;
+        while (sum <= random) {
+            sum += _likelihood[index];
+            index++;
+        }
+        return index - 1;
     }
 
 }
