@@ -1,4 +1,4 @@
-pragma solidity 0.5.10;
+pragma solidity 0.5.11;
 
 import './StakingAuRaBaseMock.sol';
 import '../../contracts/base/StakingAuRaTokens.sol';
