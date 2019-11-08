@@ -1,3 +1,6 @@
+// for now this is mostly a copy of make_spec.js (which builds for AuRa).
+// It's supposed to gradually transition to hbbft only, as the contracts and Parity integration are completed
+
 const fs = require('fs');
 const path = require('path');
 const Web3 = require('web3');
@@ -40,10 +43,11 @@ async function main() {
     'Registry',
     'StakingAuRa',
     'TxPermission',
-    'ValidatorSetAuRa'
+    'ValidatorSetAuRa',
+    'KeyGenHistory'
   ];
 
-  let spec = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'templates', 'spec.json'), 'UTF-8'));
+  let spec = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'templates', 'hbbft_dev.json'), 'UTF-8'));
 
   spec.name = networkName;
   spec.params.networkID = networkID;
@@ -78,11 +82,11 @@ async function main() {
 
   // Build ValidatorSetAuRa contract
   deploy = await contract.deploy({data: '0x' + storageProxyCompiled.bytecode, arguments: [
-    '0x1000000000000000000000000000000000000000', // implementation address
-    owner,
-    []
-  ]});
-  spec.engine.authorityRound.params.validators.multi = {
+      '0x1000000000000000000000000000000000000000', // implementation address
+      owner,
+      []
+    ]});
+  spec.engine.hbbft.params.validators.multi = {
     "0": {
       "contract": VALIDATOR_SET_CONTRACT
     }
@@ -98,10 +102,10 @@ async function main() {
 
   // Build StakingAuRa contract
   deploy = await contract.deploy({data: '0x' + storageProxyCompiled.bytecode, arguments: [
-    '0x1100000000000000000000000000000000000000', // implementation address
-    owner,
-    []
-  ]});
+      '0x1100000000000000000000000000000000000000', // implementation address
+      owner,
+      []
+    ]});
   spec.accounts[STAKING_CONTRACT] = {
     balance: '0',
     constructor: await deploy.encodeABI()
@@ -113,16 +117,16 @@ async function main() {
 
   // Build BlockRewardAuRa contract
   deploy = await contract.deploy({data: '0x' + storageProxyCompiled.bytecode, arguments: [
-    '0x2000000000000000000000000000000000000000', // implementation address
-    owner,
-    []
-  ]});
+      '0x2000000000000000000000000000000000000000', // implementation address
+      owner,
+      []
+    ]});
   spec.accounts[BLOCK_REWARD_CONTRACT] = {
     balance: '0',
     constructor: await deploy.encodeABI()
   };
-  spec.engine.authorityRound.params.blockRewardContractAddress = BLOCK_REWARD_CONTRACT;
-  spec.engine.authorityRound.params.blockRewardContractTransition = 0;
+  spec.engine.hbbft.params.blockRewardContractAddress = BLOCK_REWARD_CONTRACT;
+  spec.engine.hbbft.params.blockRewardContractTransition = 0;
   spec.accounts['0x2000000000000000000000000000000000000000'] = {
     balance: '0',
     constructor: '0x' + contractsCompiled['BlockRewardAuRa'].bytecode
@@ -130,10 +134,10 @@ async function main() {
 
   // Build RandomAuRa contract
   deploy = await contract.deploy({data: '0x' + storageProxyCompiled.bytecode, arguments: [
-    '0x3000000000000000000000000000000000000000', // implementation address
-    owner,
-    []
-  ]});
+      '0x3000000000000000000000000000000000000000', // implementation address
+      owner,
+      []
+    ]});
   spec.accounts[RANDOM_CONTRACT] = {
     balance: '0',
     constructor: await deploy.encodeABI()
@@ -142,14 +146,14 @@ async function main() {
     balance: '0',
     constructor: '0x' + contractsCompiled['RandomAuRa'].bytecode
   };
-  spec.engine.authorityRound.params.randomnessContractAddress = RANDOM_CONTRACT;
+  spec.engine.hbbft.params.randomnessContractAddress = RANDOM_CONTRACT;
 
   // Build TxPermission contract
   deploy = await contract.deploy({data: '0x' + storageProxyCompiled.bytecode, arguments: [
-    '0x4000000000000000000000000000000000000000', // implementation address
-    owner,
-    []
-  ]});
+      '0x4000000000000000000000000000000000000000', // implementation address
+      owner,
+      []
+    ]});
   spec.accounts[PERMISSION_CONTRACT] = {
     balance: '0',
     constructor: await deploy.encodeABI()
@@ -162,10 +166,10 @@ async function main() {
 
   // Build Certifier contract
   deploy = await contract.deploy({data: '0x' + storageProxyCompiled.bytecode, arguments: [
-    '0x5000000000000000000000000000000000000000', // implementation address
-    owner,
-    []
-  ]});
+      '0x5000000000000000000000000000000000000000', // implementation address
+      owner,
+      []
+    ]});
   spec.accounts[CERTIFIER_CONTRACT] = {
     balance: '0',
     constructor: await deploy.encodeABI()
@@ -178,49 +182,64 @@ async function main() {
   // Build Registry contract
   contract = new web3.eth.Contract(contractsCompiled['Registry'].abi);
   deploy = await contract.deploy({data: '0x' + contractsCompiled['Registry'].bytecode, arguments: [
-    CERTIFIER_CONTRACT,
-    owner
-  ]});
+      CERTIFIER_CONTRACT,
+      owner
+    ]});
   spec.accounts['0x6000000000000000000000000000000000000000'] = {
     balance: '0',
     constructor: await deploy.encodeABI()
   };
   spec.params.registrar = '0x6000000000000000000000000000000000000000';
 
-  // Build InitializerAuRa contract
-  contract = new web3.eth.Contract(contractsCompiled['InitializerAuRa'].abi);
-  deploy = await contract.deploy({data: '0x' + contractsCompiled['InitializerAuRa'].bytecode, arguments: [
-    [ // _contracts
-      VALIDATOR_SET_CONTRACT,
-      BLOCK_REWARD_CONTRACT,
-      RANDOM_CONTRACT,
-      STAKING_CONTRACT,
-      PERMISSION_CONTRACT,
-      CERTIFIER_CONTRACT
-    ],
-    owner, // _owner
-    initialValidators, // _miningAddresses
-    stakingAddresses, // _stakingAddresses
-    firstValidatorIsUnremovable, // _firstValidatorIsUnremovable
-    web3.utils.toWei('1', 'ether'), // _delegatorMinStake
-    web3.utils.toWei('1', 'ether'), // _candidateMinStake
-    stakingEpochDuration, // _stakingEpochDuration
-    0, // _stakingEpochStartBlock
-    stakeWithdrawDisallowPeriod, // _stakeWithdrawDisallowPeriod
-    collectRoundLength // _collectRoundLength
-  ]});
+  // Build KeyGenHistory contract
+  contract = new web3.eth.Contract(contractsCompiled['KeyGenHistory'].abi);
+  deploy = await contract.deploy({data: '0x' + contractsCompiled['KeyGenHistory'].bytecode, arguments: [
+      [],
+      [],
+      []
+    ]});
   spec.accounts['0x7000000000000000000000000000000000000000'] = {
     balance: '0',
     constructor: await deploy.encodeABI()
   };
 
-  console.log('Saving spec.json file ...');
-  fs.writeFileSync(path.join(__dirname, '..', 'spec.json'), JSON.stringify(spec, null, '  '), 'UTF-8');
+  // Build InitializerAuRa contract
+  contract = new web3.eth.Contract(contractsCompiled['InitializerAuRa'].abi);
+  deploy = await contract.deploy({data: '0x' + contractsCompiled['InitializerAuRa'].bytecode, arguments: [
+      [ // _contracts
+        VALIDATOR_SET_CONTRACT,
+        BLOCK_REWARD_CONTRACT,
+        RANDOM_CONTRACT,
+        STAKING_CONTRACT,
+        PERMISSION_CONTRACT,
+        CERTIFIER_CONTRACT
+      ],
+      owner, // _owner
+      initialValidators, // _miningAddresses
+      stakingAddresses, // _stakingAddresses
+      firstValidatorIsUnremovable, // _firstValidatorIsUnremovable
+      web3.utils.toWei('1', 'ether'), // _delegatorMinStake
+      web3.utils.toWei('1', 'ether'), // _candidateMinStake
+      stakingEpochDuration, // _stakingEpochDuration
+      0, // _stakingEpochStartBlock
+      stakeWithdrawDisallowPeriod, // _stakeWithdrawDisallowPeriod
+      collectRoundLength // _collectRoundLength
+    ]});
+  spec.accounts['0x7000000000000000000000000000000000000000'] = {
+    balance: '0',
+    constructor: await deploy.encodeABI()
+  };
+
+  console.log('Saving hbbft_spec.json file ...');
+  fs.writeFileSync(path.join(__dirname, '..', 'hbbft_spec.json'), JSON.stringify(spec, null, '  '), 'UTF-8');
   console.log('Done');
 }
 
 async function compile(dir, contractName) {
   const compiled = await utils.compile(dir, contractName);
+  const abiFile = `abis/${contractName}.json`;
+  console.log(`saving abi to ${abiFile}`);
+  fs.writeFileSync(abiFile, JSON.stringify(compiled.abi, null, 2), 'UTF-8');
   return {abi: compiled.abi, bytecode: compiled.evm.bytecode.object};
 }
 
