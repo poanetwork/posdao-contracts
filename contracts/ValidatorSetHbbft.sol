@@ -1,12 +1,17 @@
 pragma solidity 0.5.10;
 
+import "./interfaces/IBlockRewardHbbft.sol";
 import "./interfaces/IRandomHbbft.sol";
 import "./interfaces/IStakingHbbft.sol";
+import "./interfaces/IValidatorSetHbbft.sol";
 import "./upgradeability/UpgradeabilityAdmin.sol";
+import "./libs/SafeMath.sol";
 
-/// @dev first stripped down implementation
-contract ValidatorSetHbbft is UpgradeabilityAdmin {
-    /* using SafeMath for uint256; */
+
+/// @dev Stores the current validator set and contains the logic for choosing new validators
+/// before each staking epoch. The logic uses a random seed stored by the `RandomHbbft` contract.
+contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
+    using SafeMath for uint256;
 
     // =============================================== Storage ========================================================
 
@@ -50,6 +55,10 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin {
     /// @dev The `StakingHbbft` contract address.
     IStakingHbbft public stakingContract;
 
+    /// @dev A staking address bound to a specified mining address.
+    /// See the `_setStakingAddress` internal function.
+    mapping(address => address) public stakingByMiningAddress;
+
     /// @dev The staking address of the non-removable validator.
     /// Returns zero if a non-removable validator is not defined.
     address public unremovableValidator;
@@ -70,6 +79,11 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin {
 
     // ================================================ Events ========================================================
 
+    /// @dev Emitted by the `emitInitiateChange` function when a new validator set
+    /// needs to be applied by validator nodes. See https://wiki.parity.io/Validator-Set.html
+    /// @param parentHash Should be the parent block hash, otherwise the signal won't be recognized.
+    /// @param newSet An array of new validators (their mining addresses).
+    event InitiateChange(bytes32 indexed parentHash, address[] newSet);
 
     // ============================================== Modifiers =======================================================
 
@@ -85,6 +99,18 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin {
         _;
     }
 
+    /// @dev Ensures the caller is the RandomHbbft contract address.
+    modifier onlyRandomContract() {
+        require(msg.sender == randomContract);
+        _;
+    }
+
+    /// @dev Ensures the caller is the StakingHbbft contract address.
+    modifier onlyStakingContract() {
+        require(msg.sender == address(stakingContract));
+        _;
+    }
+
     /// @dev Ensures the caller is the SYSTEM_ADDRESS. See https://wiki.parity.io/Validator-Set.html
     modifier onlySystem() {
         require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
@@ -92,6 +118,31 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin {
     }
 
     // =============================================== Setters ========================================================
+
+    /// @dev Makes the non-removable validator removable. Can only be called by the staking address of the
+    /// non-removable validator or by the `owner`.
+    function clearUnremovableValidator() external onlyInitialized {
+        address unremovableStakingAddress = unremovableValidator;
+        require(msg.sender == unremovableStakingAddress || msg.sender == _admin());
+        unremovableValidator = address(0);
+        stakingContract.clearUnremovableValidator(unremovableStakingAddress);
+    }
+
+    /// @dev Emits the `InitiateChange` event to pass a new validator set to the validator nodes.
+    /// Called automatically by one of the current validator's nodes when the `emitInitiateChangeCallable` getter
+    /// returns `true` (when some validator needs to be removed as malicious or the validator set needs to be
+    /// updated at the beginning of a new staking epoch). The new validator set is passed to the validator nodes
+    /// through the `InitiateChange` event and saved for later use by the `finalizeChange` function.
+    /// See https://wiki.parity.io/Validator-Set.html for more info about the `InitiateChange` event.
+    function emitInitiateChange() external onlyInitialized {
+        require(emitInitiateChangeCallable());
+        bool forNewEpoch = _unsetPendingValidatorsChanged();
+        if (_pendingValidators.length > 0) {
+            emit InitiateChange(blockhash(_getCurrentBlockNumber() - 1), _pendingValidators);
+            _finalizeValidators.list = _pendingValidators;
+            _finalizeValidators.forNewEpoch = forNewEpoch;
+        }
+    }
 
     /// @dev Called by the system when an initiated validator set change reaches finality and is activated.
     /// This function is called at the beginning of a block (before all the block transactions).
@@ -108,7 +159,7 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin {
             // Apply a new validator set formed by the `newValidatorSet` function
             _savePreviousValidators();
             _finalizeNewValidators(true);
-            //IBlockRewardHbbft(blockRewardContract).clearBlocksCreated();
+            IBlockRewardHbbft(blockRewardContract).clearBlocksCreated();
             validatorSetApplyBlock = _getCurrentBlockNumber();
         } else if (_finalizeValidators.list.length != 0) {
             // Apply the changed validator set after malicious validator is removed
@@ -121,7 +172,7 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin {
     }
 
     /// @dev Initializes the network parameters. Used by the
-    /// constructor of the contract.
+    /// constructor of the `InitializerHbbft` contract.
     /// @param _blockRewardContract The address of the `BlockRewardHbbft` contract.
     /// @param _randomContract The address of the `RandomHbbft` contract.
     /// @param _stakingContract The address of the `StakingHbbft` contract.
@@ -157,7 +208,7 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin {
             _pendingValidators.push(miningAddress);
             isValidator[miningAddress] = true;
             validatorCounter[miningAddress]++;
-            //_setStakingAddress(miningAddress, _initialStakingAddresses[i]);
+            _setStakingAddress(miningAddress, _initialStakingAddresses[i]);
         }
 
         if (_firstValidatorIsUnremovable) {
@@ -216,7 +267,24 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin {
         validatorSetApplyBlock = 0;
     }
 
+    /// @dev Binds a mining address to the specified staking address. Called by the `StakingHbbft.addPool` function
+    /// when a user wants to become a candidate and creates a pool.
+    /// See also the `miningByStakingAddress` and `stakingByMiningAddress` public mappings.
+    /// @param _miningAddress The mining address of the newly created pool. Cannot be equal to the `_stakingAddress`
+    /// and should never be used as a pool before.
+    /// @param _stakingAddress The staking address of the newly created pool. Cannot be equal to the `_miningAddress`
+    /// and should never be used as a pool before.
+    function setStakingAddress(address _miningAddress, address _stakingAddress) external onlyStakingContract {
+        _setStakingAddress(_miningAddress, _stakingAddress);
+    }
+
     // =============================================== Getters ========================================================
+
+    /// @dev Returns a boolean flag indicating whether the `emitInitiateChange` function can be called
+    /// at the moment. Used by a validator's node and `TxPermission` contract (to deny dummy calling).
+    function emitInitiateChangeCallable() public view returns(bool) {
+        return initiateChangeAllowed() && _pendingValidatorsChanged;
+    }
 
     /// @dev Returns the previous validator set (validators' mining addresses array).
     /// The array is stored by the `finalizeChange` function
@@ -241,9 +309,49 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin {
         return _currentValidators;
     }
 
+    /// @dev A boolean flag indicating whether the `emitInitiateChange` can be called at the moment.
+    /// Used by the `emitInitiateChangeCallable` getter. This flag is set to `false` by the `emitInitiateChange`
+    /// and set to `true` by the `finalizeChange` function. When the `InitiateChange` event is emitted by
+    /// `emitInitiateChange`, the next `emitInitiateChange` call is not possible until the validator set from
+    /// the previous call is finalized by the `finalizeChange` function.
+    function initiateChangeAllowed() public view returns(bool) {
+        return _finalizeValidators.list.length == 0;
+    }
+
     /// @dev Returns a boolean flag indicating if the `initialize` function has been called.
     function isInitialized() public view returns(bool) {
         return blockRewardContract != address(0);
+    }
+
+    /// @dev Returns a boolean flag indicating whether the specified mining address is a validator
+    /// or is in the `_pendingValidators` or `_finalizeValidators` array.
+    /// Used by the `StakingHbbft.maxWithdrawAllowed` and `StakingHbbft.maxWithdrawOrderAllowed` getters.
+    /// @param _miningAddress The mining address.
+    function isValidatorOrPending(address _miningAddress) public view returns(bool) {
+        if (isValidator[_miningAddress]) {
+            return true;
+        }
+
+        uint256 i;
+        uint256 length;
+
+        length = _finalizeValidators.list.length;
+        for (i = 0; i < length; i++) {
+            if (_miningAddress == _finalizeValidators.list[i]) {
+                // This validator waits to be finalized,
+                // so we treat them as `pending`
+                return true;
+            }
+        }
+
+        length = _pendingValidators.length;
+        for (i = 0; i < length; i++) {
+            if (_miningAddress == _pendingValidators[i]) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// @dev Returns a validator set about to be finalized by the `finalizeChange` function.
@@ -292,6 +400,15 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin {
         changeRequestCount++;
     }
 
+    /// @dev Marks the pending validator set as unchanged before passing it to the `InitiateChange` event
+    /// (and then to the `finalizeChange` function). Called by the `emitInitiateChange` function.
+    function _unsetPendingValidatorsChanged() internal returns(bool) {
+        bool forNewEpoch = _pendingValidatorsChangedForNewEpoch;
+        _pendingValidatorsChanged = false;
+        _pendingValidatorsChangedForNewEpoch = false;
+        return forNewEpoch;
+    }
+
     /// @dev Stores previous validators. Used by the `finalizeChange` function.
     function _savePreviousValidators() internal {
         uint256 length;
@@ -326,6 +443,24 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin {
         for (uint256 i = 0; i < _stakingAddresses.length; i++) {
             _pendingValidators.push(miningByStakingAddress[_stakingAddresses[i]]);
         }
+    }
+
+    /// @dev Binds a mining address to the specified staking address. Used by the `setStakingAddress` function.
+    /// See also the `miningByStakingAddress` and `stakingByMiningAddress` public mappings.
+    /// @param _miningAddress The mining address of the newly created pool. Cannot be equal to the `_stakingAddress`
+    /// and should never be used as a pool before.
+    /// @param _stakingAddress The staking address of the newly created pool. Cannot be equal to the `_miningAddress`
+    /// and should never be used as a pool before.
+    function _setStakingAddress(address _miningAddress, address _stakingAddress) internal {
+        require(_miningAddress != address(0));
+        require(_stakingAddress != address(0));
+        require(_miningAddress != _stakingAddress);
+        require(miningByStakingAddress[_stakingAddress] == address(0));
+        require(miningByStakingAddress[_miningAddress] == address(0));
+        require(stakingByMiningAddress[_stakingAddress] == address(0));
+        require(stakingByMiningAddress[_miningAddress] == address(0));
+        miningByStakingAddress[_stakingAddress] = _miningAddress;
+        stakingByMiningAddress[_miningAddress] = _stakingAddress;
     }
 
     /// @dev Returns the current block number. Needed mostly for unit tests.
