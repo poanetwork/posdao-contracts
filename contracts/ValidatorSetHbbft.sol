@@ -1,4 +1,4 @@
-pragma solidity 0.5.9;
+pragma solidity 0.5.10;
 
 import "./interfaces/IRandomHbbft.sol";
 import "./interfaces/IStakingHbbft.sol";
@@ -31,7 +31,7 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin {
     /// @dev The serial number of a validator set change request. The counter is incremented
     /// every time a validator set needs to be changed.
     uint256 public changeRequestCount;
-    
+
     /// @dev A boolean flag indicating whether the specified mining address is in the current validator set.
     /// See the `getValidators` getter.
     mapping(address => bool) public isValidator;
