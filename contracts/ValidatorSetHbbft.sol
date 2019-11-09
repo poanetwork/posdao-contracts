@@ -30,6 +30,9 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
     bool internal _pendingValidatorsChanged;
     bool internal _pendingValidatorsChangedForNewEpoch;
 
+    /// @dev Returns the block number when the ban will be lifted for the specified mining address.
+    mapping(address => uint256) public bannedUntil;
+    
     /// @dev The address of the `BlockRewardHbbft` contract.
     address public blockRewardContract;
 
@@ -321,6 +324,13 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
     /// @dev Returns a boolean flag indicating if the `initialize` function has been called.
     function isInitialized() public view returns(bool) {
         return blockRewardContract != address(0);
+    }
+
+    /// @dev Returns a boolean flag indicating whether the specified mining address is currently banned.
+    /// A validator can be banned when they misbehave (see the `_removeMaliciousValidator` internal function).
+    /// @param _miningAddress The mining address.
+    function isValidatorBanned(address _miningAddress) public view returns(bool) {
+        return _getCurrentBlockNumber() <= bannedUntil[_miningAddress];
     }
 
     /// @dev Returns a boolean flag indicating whether the specified mining address is a validator

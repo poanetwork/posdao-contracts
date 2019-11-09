@@ -2,9 +2,8 @@ pragma solidity 0.5.10;
 
 import '../../contracts/ValidatorSetHbbft.sol';
 
-/// @dev mock contract
-contract ValidatorSetHbbftMock is ValidatorSetHbbft {
 
+contract ValidatorSetHbbftMock is ValidatorSetHbbft {
 
     uint256 internal _currentBlockNumber;
     address internal _systemAddress;
@@ -61,13 +60,13 @@ contract ValidatorSetHbbftMock is ValidatorSetHbbft {
         );
     }
 
-    function getValidators() public view returns(address[] memory) {
+    /* function getValidators() public view returns(address[] memory) {
         return _currentValidators;
-    }
+    } */
 
-    function getPendingValidators() public view returns(address[] memory) {
+    /* function getPendingValidators() public view returns(address[] memory) {
         return _pendingValidators;
-    }
+    } */
 
     // =============================================== Private ========================================================
 
@@ -82,8 +81,8 @@ contract ValidatorSetHbbftMock is ValidatorSetHbbft {
 
     // =============================================== Internal ========================================================
 
-    function _setPendingValidators(address[] memory _stakingAddresses) internal {
+    /* function _setPendingValidators(address[] memory _stakingAddresses) internal {
         _pendingValidators = _stakingAddresses;
-    }
+    } */
 
 }

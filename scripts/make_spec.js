@@ -207,7 +207,6 @@ async function main() {
     stakingEpochDuration, // _stakingEpochDuration
     0, // _stakingEpochStartBlock
     stakeWithdrawDisallowPeriod, // _stakeWithdrawDisallowPeriod
-    // collectRoundLength // _collectRoundLength
   ]});
   spec.accounts['0x7000000000000000000000000000000000000000'] = {
     balance: '0',
