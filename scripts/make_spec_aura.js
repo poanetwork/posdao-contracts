@@ -28,19 +28,19 @@ async function main() {
   const firstValidatorIsUnremovable = process.env.FIRST_VALIDATOR_IS_UNREMOVABLE === 'true';
   const stakingEpochDuration = process.env.STAKING_EPOCH_DURATION;
   const stakeWithdrawDisallowPeriod = process.env.STAKE_WITHDRAW_DISALLOW_PERIOD;
-  // const collectRoundLength = process.env.COLLECT_ROUND_LENGTH;
+  const collectRoundLength = process.env.COLLECT_ROUND_LENGTH;
   const erc20Restricted = process.env.ERC20_RESTRICTED === 'true';
 
   const contracts = [
     'AdminUpgradeabilityProxy',
     'BlockRewardAuRa',
     'Certifier',
-    'InitializerHbbft',
-    'RandomHbbft',
+    'InitializerAuRa',
+    'RandomAuRa',
     'Registry',
     'StakingAuRa',
     'TxPermission',
-    'ValidatorSetHbbft'
+    'ValidatorSetAuRa'
   ];
 
   let spec = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'templates', 'spec.json'), 'UTF-8'));
@@ -76,7 +76,7 @@ async function main() {
   let contract = new web3.eth.Contract(storageProxyCompiled.abi);
   let deploy;
 
-  // Build ValidatorSetHbbft contract
+  // Build ValidatorSetAuRa contract
   deploy = await contract.deploy({data: '0x' + storageProxyCompiled.bytecode, arguments: [
     '0x1000000000000000000000000000000000000000', // implementation address
     owner,
@@ -93,7 +93,7 @@ async function main() {
   };
   spec.accounts['0x1000000000000000000000000000000000000000'] = {
     balance: '0',
-    constructor: '0x' + contractsCompiled['ValidatorSetHbbft'].bytecode
+    constructor: '0x' + contractsCompiled['ValidatorSetAuRa'].bytecode
   };
 
   // Build StakingAuRa contract
@@ -128,7 +128,7 @@ async function main() {
     constructor: '0x' + contractsCompiled['BlockRewardAuRa'].bytecode
   };
 
-  // Build RandomHbbft contract
+  // Build RandomAuRa contract
   deploy = await contract.deploy({data: '0x' + storageProxyCompiled.bytecode, arguments: [
     '0x3000000000000000000000000000000000000000', // implementation address
     owner,
@@ -140,9 +140,9 @@ async function main() {
   };
   spec.accounts['0x3000000000000000000000000000000000000000'] = {
     balance: '0',
-    constructor: '0x' + contractsCompiled['RandomHbbft'].bytecode
+    constructor: '0x' + contractsCompiled['RandomAuRa'].bytecode
   };
-  spec.engine.authorityRound.params.randomnessContractAddress[0] = RANDOM_CONTRACT;
+  spec.engine.authorityRound.params.randomnessContractAddress = RANDOM_CONTRACT;
 
   // Build TxPermission contract
   deploy = await contract.deploy({data: '0x' + storageProxyCompiled.bytecode, arguments: [
@@ -187,9 +187,9 @@ async function main() {
   };
   spec.params.registrar = '0x6000000000000000000000000000000000000000';
 
-  // Build InitializerHbbft contract
-  contract = new web3.eth.Contract(contractsCompiled['InitializerHbbft'].abi);
-  deploy = await contract.deploy({data: '0x' + contractsCompiled['InitializerHbbft'].bytecode, arguments: [
+  // Build InitializerAuRa contract
+  contract = new web3.eth.Contract(contractsCompiled['InitializerAuRa'].abi);
+  deploy = await contract.deploy({data: '0x' + contractsCompiled['InitializerAuRa'].bytecode, arguments: [
     [ // _contracts
       VALIDATOR_SET_CONTRACT,
       BLOCK_REWARD_CONTRACT,
@@ -207,7 +207,7 @@ async function main() {
     stakingEpochDuration, // _stakingEpochDuration
     0, // _stakingEpochStartBlock
     stakeWithdrawDisallowPeriod, // _stakeWithdrawDisallowPeriod
-    // collectRoundLength // _collectRoundLength
+    collectRoundLength // _collectRoundLength
   ]});
   spec.accounts['0x7000000000000000000000000000000000000000'] = {
     balance: '0',
