@@ -1,7 +1,7 @@
 pragma solidity 0.5.10;
 
 import "./interfaces/ICertifier.sol";
-import "./interfaces/IValidatorSetHbbft.sol";
+import "./interfaces/IValidatorSetAuRa.sol";
 import "./upgradeability/UpgradeableOwned.sol";
 
 
@@ -16,8 +16,8 @@ contract Certifier is UpgradeableOwned, ICertifier {
 
     mapping(address => bool) internal _certified;
 
-    /// @dev The address of the `ValidatorSetHbbft` contract.
-    IValidatorSetHbbft public validatorSetContract;
+    /// @dev The address of the `ValidatorSetAuRa` contract.
+    IValidatorSetAuRa public validatorSetContract;
 
     // ================================================ Events ========================================================
 
@@ -42,9 +42,9 @@ contract Certifier is UpgradeableOwned, ICertifier {
     // =============================================== Setters ========================================================
 
     /// @dev Initializes the contract at network startup.
-    /// Can only be called by the constructor of the `InitializerHbbft` contract or owner.
+    /// Can only be called by the constructor of the `InitializerAuRa` contract or owner.
     /// @param _certifiedAddresses The addresses for which a zero gas price must be allowed.
-    /// @param _validatorSet The address of the `ValidatorSetHbbft` contract.
+    /// @param _validatorSet The address of the `ValidatorSetAuRa` contract.
     function initialize(
         address[] calldata _certifiedAddresses,
         address _validatorSet
@@ -55,7 +55,7 @@ contract Certifier is UpgradeableOwned, ICertifier {
         for (uint256 i = 0; i < _certifiedAddresses.length; i++) {
             _certify(_certifiedAddresses[i]);
         }
-        validatorSetContract = IValidatorSetHbbft(_validatorSet);
+        validatorSetContract = IValidatorSetAuRa(_validatorSet);
     }
 
     /// @dev Allows the specified address to use a zero gas price for its transactions.
@@ -80,16 +80,16 @@ contract Certifier is UpgradeableOwned, ICertifier {
     /// transactions. Returns `true` if either the address is certified using the `_certify` function or if
     /// `ValidatorSetAuRa.isReportValidatorValid` returns `true` for the specified address.
     /// @param _who The address for which the boolean flag must be determined.
-    /* function certified(address _who) external view returns(bool) {
+    function certified(address _who) external view returns(bool) {
         if (_certified[_who]) {
             return true;
         }
         return validatorSetContract.isReportValidatorValid(_who);
-    } */
+    }
 
     /// @dev Returns a boolean flag indicating if the `initialize` function has been called.
     function isInitialized() public view returns(bool) {
-        return validatorSetContract != IValidatorSetHbbft(0);
+        return validatorSetContract != IValidatorSetAuRa(0);
     }
 
     // ============================================== Internal ========================================================
