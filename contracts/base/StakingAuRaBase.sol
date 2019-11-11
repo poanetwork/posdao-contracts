@@ -143,6 +143,11 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
 
     // ================================================ Events ========================================================
 
+    /// @dev Emitted by `_addPoolActive` internal function to signal that
+    /// the specified staking address created a new pool.
+    /// @param poolStakingAddress The staking address of newly added pool.
+    event AddedPool(address indexed poolStakingAddress);
+
     /// @dev Emitted by the `claimOrderedWithdraw` function to signal the staker withdrew the specified
     /// amount of requested tokens/coins from the specified pool during the specified staking epoch.
     /// @param fromPoolStakingAddress The pool from which the `staker` withdrew the `amount`.
@@ -197,6 +202,11 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
         uint256 indexed stakingEpoch,
         uint256 amount
     );
+
+    /// @dev Emitted by `_removePool` internal function to signal that
+    /// a pool with the specified staking address was removed.
+    /// @param poolStakingAddress The staking address of removed pool.
+    event RemovedPool(address indexed poolStakingAddress);
 
     /// @dev Emitted by the `withdraw` function to signal the staker withdrew the specified
     /// amount of a stake from the specified pool during the specified staking epoch.
@@ -701,6 +711,7 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
             poolIndex[_stakingAddress] = _pools.length;
             _pools.push(_stakingAddress);
             require(_pools.length <= _getMaxCandidates());
+            emit AddedPool(_stakingAddress);
         }
         _removePoolInactive(_stakingAddress);
         if (_toBeElected) {
@@ -797,6 +808,7 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
             poolIndex[lastPool] = indexToRemove;
             poolIndex[_stakingAddress] = 0;
             _pools.length--;
+            emit RemovedPool(_stakingAddress);
         }
         if (_isPoolEmpty(_stakingAddress)) {
             _removePoolInactive(_stakingAddress);
