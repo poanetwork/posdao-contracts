@@ -15,7 +15,12 @@ contract StakingHbbft is StakingAuRaTokens {
         bytes16 internetAddress;
     }
 
-    mapping ( address => PoolInfo ) public poolInfo;
+    mapping (address => PoolInfo) public poolInfo;
+
+    function setPoolInfo(address _poolAddress, bytes calldata _publicKey, bytes16 _ip) external onlyValidatorSetContract{
+        poolInfo[_poolAddress].publicKey = _publicKey;
+        poolInfo[_poolAddress].internetAddress = _ip;
+    }
 
     function getPoolPublicKey(address _poolAddress) public view returns (bytes memory){
         return poolInfo[_poolAddress].publicKey;
