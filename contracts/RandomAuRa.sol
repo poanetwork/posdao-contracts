@@ -205,6 +205,17 @@ contract RandomAuRa is UpgradeabilityAdmin, IRandomAuRa {
         return _commits[_collectRound][_miningAddress];
     }
 
+    /// @dev Returns the Keccak-256 hash and cipher of the validator's secret for the specified collection round
+    /// and the specified validator stored by the validator through the `commitHash` function.
+    /// @param _collectRound The serial number of the collection round for which hash and cipher should be retrieved.
+    /// @param _miningAddress The mining address of validator.
+    function getCommitAndCipher(
+        uint256 _collectRound,
+        address _miningAddress
+    ) public view returns(bytes32, bytes memory) {
+        return (_commits[_collectRound][_miningAddress], _ciphers[_collectRound][_miningAddress]);
+    }
+
     /// @dev Returns a boolean flag indicating whether the specified validator has committed their secret's hash for the
     /// specified collection round.
     /// @param _collectRound The serial number of the collection round for which the checkup should be done.
