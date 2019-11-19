@@ -1,9 +1,9 @@
-Hbbftpragma solidity 0.5.10;
+pragma solidity 0.5.10;
 
-import "./interfaces/IRandomHbbft.sol";
-import "./interfaces/IStakingHbbft.sol";
+import "./interfaces/IRandomAuRa.sol";
+import "./interfaces/IStakingAuRa.sol";
 import "./interfaces/ITxPermission.sol";
-import "./interfaces/IValidatorSetHbbft.sol";
+import "./interfaces/IValidatorSetAuRa.sol";
 import "./upgradeability/UpgradeableOwned.sol";
 
 
@@ -19,8 +19,8 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
 
     address[] internal _allowedSenders;
 
-    /// @dev The address of the `ValidatorSet` contract.
-    IValidatorSetHbbft public validatorSetContract;
+    /// @dev The address of the `ValidatorSetAuRa` contract.
+    IValidatorSetAuRa public validatorSetContract;
 
     // ============================================== Constants =======================================================
 
@@ -43,10 +43,10 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
     // =============================================== Setters ========================================================
 
     /// @dev Initializes the contract at network startup.
-    /// Can only be called by the constructor of the `Initializer` contract or owner.
+    /// Can only be called by the constructor of the `InitializerAuRa` contract or owner.
     /// @param _allowed The addresses for which transactions of any type must be allowed.
     /// See the `allowedTxTypes` getter.
-    /// @param _validatorSet The address of the `ValidatorSet` contract.
+    /// @param _validatorSet The address of the `ValidatorSetAuRa` contract.
     function initialize(
         address[] calldata _allowed,
         address _validatorSet
@@ -57,7 +57,7 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
         for (uint256 i = 0; i < _allowed.length; i++) {
             _addAllowedSender(_allowed[i]);
         }
-        validatorSetContract = IValidatorSetHbbft(_validatorSet);
+        validatorSetContract = IValidatorSetAuRa(_validatorSet);
     }
 
     /// @dev Adds the address for which transactions of any type must be allowed.
@@ -157,17 +157,17 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
 
             if (signature == COMMIT_HASH_SIGNATURE) {
                 (bytes32 secretHash) = abi.decode(abiParams, (bytes32));
-                return (IRandomHbbft(randomContract).commitHashCallable(_sender, secretHash) ? CALL : NONE, false);
+                return (IRandomAuRa(randomContract).commitHashCallable(_sender, secretHash) ? CALL : NONE, false);
             } else if (signature == REVEAL_SECRET_SIGNATURE) {
                 (uint256 secret) = abi.decode(abiParams, (uint256));
-                return (IRandomHbbft(randomContract).revealSecretCallable(_sender, secret) ? CALL : NONE, false);
+                return (IRandomAuRa(randomContract).revealSecretCallable(_sender, secret) ? CALL : NONE, false);
             } else {
                 return (NONE, false);
             }
         }
 
         if (_to == address(validatorSetContract)) {
-            // The rules for the ValidatorSet contract
+            // The rules for the ValidatorSetAuRa contract
             if (signature == EMIT_INITIATE_CHANGE_SIGNATURE) {
                 // The `emitInitiateChange()` can be called by anyone
                 // if `emitInitiateChangeCallable()` returns `true`
@@ -195,7 +195,7 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
 
                 return (callable ? CALL : NONE, false);
             } else if (_gasPrice > 0) {
-                // The other functions of ValidatorSet contract can be called
+                // The other functions of ValidatorSetAuRa contract can be called
                 // by anyone except validators' mining addresses if gasPrice is not zero
                 return (validatorSetContract.isValidator(_sender) ? NONE : CALL, false);
             }
@@ -220,7 +220,7 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
     /// staking epoch: the block gas limit is temporarily reduced for the latest block of the epoch.
     function blockGasLimit() public view returns(uint256) {
         address stakingContract = validatorSetContract.stakingContract();
-        uint256 stakingEpochEndBlock = IStakingHbbft(stakingContract).stakingEpochEndBlock();
+        uint256 stakingEpochEndBlock = IStakingAuRa(stakingContract).stakingEpochEndBlock();
         if (block.number == stakingEpochEndBlock - 1 || block.number == stakingEpochEndBlock) {
             return BLOCK_GAS_LIMIT_REDUCED;
         }
@@ -261,7 +261,7 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
     // Function signatures
 
     // bytes4(keccak256("commitHash(bytes32,bytes)"))
-    bytes4 internal constant COMMIT_HASH_SIGNATURE = 0x0b61ba85;
+    bytes4 internal constant COMMIT_HASH_SIGNATURE = 0x0b61ba85; 
 
     // bytes4(keccak256("emitInitiateChange()"))
     bytes4 internal constant EMIT_INITIATE_CHANGE_SIGNATURE = 0x93b4e25e;
