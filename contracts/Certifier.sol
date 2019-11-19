@@ -80,12 +80,12 @@ contract Certifier is UpgradeableOwned, ICertifier {
     /// transactions. Returns `true` if either the address is certified using the `_certify` function or if
     /// `ValidatorSetAuRa.isReportValidatorValid` returns `true` for the specified address.
     /// @param _who The address for which the boolean flag must be determined.
-    /* function certified(address _who) external view returns(bool) {
+    function certified(address _who) external view returns(bool) {
         if (_certified[_who]) {
             return true;
         }
         return validatorSetContract.isReportValidatorValid(_who);
-    } */
+    }
 
     /// @dev Returns a boolean flag indicating whether the specified address is allowed to use zero gas price
     /// transactions. Returns `true` if the address is certified using the `_certify` function.
