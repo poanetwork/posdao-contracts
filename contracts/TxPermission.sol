@@ -1,4 +1,4 @@
-Hbbftpragma solidity 0.5.10;
+pragma solidity 0.5.10;
 
 import "./interfaces/IRandomHbbft.sol";
 import "./interfaces/IStakingHbbft.sol";
@@ -147,24 +147,6 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
             signature |= bytes4(_data[i]) >> i*8;
         }
 
-        if (_to == validatorSetContract.randomContract()) {
-            address randomContract = validatorSetContract.randomContract();
-            abiParams = new bytes(_data.length - 4 > 32 ? 32 : _data.length - 4);
-
-            for (i = 0; i < abiParams.length; i++) {
-                abiParams[i] = _data[i + 4];
-            }
-
-            if (signature == COMMIT_HASH_SIGNATURE) {
-                (bytes32 secretHash) = abi.decode(abiParams, (bytes32));
-                return (IRandomHbbft(randomContract).commitHashCallable(_sender, secretHash) ? CALL : NONE, false);
-            } else if (signature == REVEAL_SECRET_SIGNATURE) {
-                (uint256 secret) = abi.decode(abiParams, (uint256));
-                return (IRandomHbbft(randomContract).revealSecretCallable(_sender, secret) ? CALL : NONE, false);
-            } else {
-                return (NONE, false);
-            }
-        }
 
         if (_to == address(validatorSetContract)) {
             // The rules for the ValidatorSet contract
@@ -229,7 +211,7 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
 
     /// @dev Returns a boolean flag indicating if the `initialize` function has been called.
     function isInitialized() public view returns(bool) {
-        return validatorSetContract != IValidatorSetAuRa(0);
+        return validatorSetContract != IValidatorSetHbbft(0);
     }
 
     /// @dev Returns a boolean flag indicating whether the specified address is allowed
@@ -260,17 +242,11 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
 
     // Function signatures
 
-    // bytes4(keccak256("commitHash(bytes32,bytes)"))
-    bytes4 internal constant COMMIT_HASH_SIGNATURE = 0x0b61ba85;
-
     // bytes4(keccak256("emitInitiateChange()"))
     bytes4 internal constant EMIT_INITIATE_CHANGE_SIGNATURE = 0x93b4e25e;
 
     // bytes4(keccak256("reportMalicious(address,uint256,bytes)"))
     bytes4 internal constant REPORT_MALICIOUS_SIGNATURE = 0xc476dd40;
-
-    // bytes4(keccak256("revealSecret(uint256)"))
-    bytes4 internal constant REVEAL_SECRET_SIGNATURE = 0x98df67c6;
 
     /// @dev An internal function used by the `addAllowedSender` and `initialize` functions.
     /// @param _sender The address for which transactions of any type must be allowed.
