@@ -1,4 +1,4 @@
-Hbbftpragma solidity 0.5.10;
+pragma solidity 0.5.10;
 
 import "./interfaces/ICertifier.sol";
 import "./interfaces/IRandomAuRa.sol";
@@ -252,7 +252,7 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
 
     /// @dev Returns a boolean flag indicating if the `initialize` function has been called.
     function isInitialized() public view returns(bool) {
-        return validatorSetContract != IValidatorSetAuRa(0);
+        return validatorSetContract != IValidatorSetHbbft(0);
     }
 
     // ============================================== Internal ========================================================
@@ -267,9 +267,6 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
 
     // Function signatures
 
-    // bytes4(keccak256("commitHash(bytes32,bytes)"))
-    bytes4 internal constant COMMIT_HASH_SIGNATURE = 0x0b61ba85;
-
     // bytes4(keccak256("emitInitiateChange()"))
     bytes4 internal constant EMIT_INITIATE_CHANGE_SIGNATURE = 0x93b4e25e;
 
@@ -281,6 +278,7 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
 
     // bytes4(keccak256("revealNumber(uint256)"))
     bytes4 internal constant REVEAL_NUMBER_SIGNATURE = 0xfe7d567d;
+
 
     /// @dev An internal function used by the `addAllowedSender` and `initialize` functions.
     /// @param _sender The address for which transactions of any type must be allowed.
