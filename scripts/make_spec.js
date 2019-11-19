@@ -33,12 +33,12 @@ async function main() {
 
   const contracts = [
     'AdminUpgradeabilityProxy',
-    'BlockRewardAuRa',
+    'BlockRewardHbbft',
     'Certifier',
     'InitializerHbbft',
     'RandomHbbft',
     'Registry',
-    'StakingAuRa',
+    'StakingHbbft',
     'TxPermission',
     'ValidatorSetHbbft'
   ];
@@ -56,11 +56,11 @@ async function main() {
 
     if (contractName == 'AdminUpgradeabilityProxy') {
       dir = 'contracts/upgradeability/';
-    } else if (contractName == 'StakingAuRa' && erc20Restricted) {
-      realContractName = 'StakingAuRaCoins';
+    } else if (contractName == 'StakingHbbft' && erc20Restricted) {
+      realContractName = 'StakingHbbftCoins';
       dir = 'contracts/base/';
-    } else if (contractName == 'BlockRewardAuRa' && erc20Restricted) {
-      realContractName = 'BlockRewardAuRaCoins';
+    } else if (contractName == 'BlockRewardHbbft' && erc20Restricted) {
+      realContractName = 'BlockRewardHbbftCoins';
       dir = 'contracts/base/';
     }
 
@@ -96,7 +96,7 @@ async function main() {
     constructor: '0x' + contractsCompiled['ValidatorSetHbbft'].bytecode
   };
 
-  // Build StakingAuRa contract
+  // Build StakingHbbft contract
   deploy = await contract.deploy({data: '0x' + storageProxyCompiled.bytecode, arguments: [
     '0x1100000000000000000000000000000000000000', // implementation address
     owner,
@@ -108,10 +108,10 @@ async function main() {
   };
   spec.accounts['0x1100000000000000000000000000000000000000'] = {
     balance: '0',
-    constructor: '0x' + contractsCompiled['StakingAuRa'].bytecode
+    constructor: '0x' + contractsCompiled['StakingHbbft'].bytecode
   };
 
-  // Build BlockRewardAuRa contract
+  // Build BlockRewardHbbft contract
   deploy = await contract.deploy({data: '0x' + storageProxyCompiled.bytecode, arguments: [
     '0x2000000000000000000000000000000000000000', // implementation address
     owner,
@@ -125,7 +125,7 @@ async function main() {
   spec.engine.authorityRound.params.blockRewardContractTransition = 0;
   spec.accounts['0x2000000000000000000000000000000000000000'] = {
     balance: '0',
-    constructor: '0x' + contractsCompiled['BlockRewardAuRa'].bytecode
+    constructor: '0x' + contractsCompiled['BlockRewardHbbft'].bytecode
   };
 
   // Build RandomHbbft contract

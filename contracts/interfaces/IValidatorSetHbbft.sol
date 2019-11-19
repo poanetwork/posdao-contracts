@@ -12,6 +12,7 @@ interface IValidatorSetHbbft {
     ) external;
     function newValidatorSet() external;
     function setStakingAddress(address, address) external;
+    function areDelegatorsBanned(address) external view returns(bool);
     function blockRewardContract() external view returns(address);
     function changeRequestCount() external view returns(uint256);
     function emitInitiateChangeCallable() external view returns(bool);

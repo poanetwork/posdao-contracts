@@ -32,7 +32,11 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
 
     /// @dev Returns the block number when the ban will be lifted for the specified mining address.
     mapping(address => uint256) public bannedUntil;
-    
+
+    /// @dev Returns the block number when the ban will be lifted for delegators
+    /// of the specified pool (mining address).
+    mapping(address => uint256) public bannedDelegatorsUntil;
+
     /// @dev The address of the `BlockRewardHbbft` contract.
     address public blockRewardContract;
 
@@ -282,6 +286,13 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
     }
 
     // =============================================== Getters ========================================================
+
+    /// @dev Returns a boolean flag indicating whether delegators of the specified pool are currently banned.
+    /// A validator pool can be banned when they misbehave (see the `_removeMaliciousValidator` function).
+    /// @param _miningAddress The mining address of the pool.
+    function areDelegatorsBanned(address _miningAddress) public view returns(bool) {
+        return _getCurrentBlockNumber() <= bannedDelegatorsUntil[_miningAddress];
+    }
 
     /// @dev Returns a boolean flag indicating whether the `emitInitiateChange` function can be called
     /// at the moment. Used by a validator's node and `TxPermission` contract (to deny dummy calling).
