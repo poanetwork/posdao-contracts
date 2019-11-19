@@ -1,10 +1,9 @@
-Hbbftpragma solidity 0.5.10;
+pragma solidity 0.5.10;
 
-import "./interfaces/ICertifier.sol";
 import "./interfaces/IRandomAuRa.sol";
 import "./interfaces/IStakingAuRa.sol";
 import "./interfaces/ITxPermission.sol";
-import "./interfaces/IValidatorSetHbbft.sol";
+import "./interfaces/IValidatorSetAuRa.sol";
 import "./upgradeability/UpgradeableOwned.sol";
 
 
@@ -16,18 +15,9 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
     // =============================================== Storage ========================================================
 
     // WARNING: since this contract is upgradeable, do not remove
-    // existing storage variables, do not change their order,
-    // and do not change their types!
+    // existing storage variables and do not change their types!
 
     address[] internal _allowedSenders;
-
-    /// @dev The address of the `Certifier` contract.
-    ICertifier public certifierContract;
-
-    /// @dev A boolean flag indicating whether the specified address is allowed
-    /// to initiate transactions of any type. Used by the `allowedTxTypes` getter.
-    /// See also the `addAllowedSender` and `removeAllowedSender` functions.
-    mapping(address => bool) public isSenderAllowed;
 
     /// @dev The address of the `ValidatorSetAuRa` contract.
     IValidatorSetAuRa public validatorSetContract;
@@ -53,25 +43,20 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
     // =============================================== Setters ========================================================
 
     /// @dev Initializes the contract at network startup.
-    /// Can only be called by the constructor of the `Initializer` contract or owner.
+    /// Can only be called by the constructor of the `InitializerAuRa` contract or owner.
     /// @param _allowed The addresses for which transactions of any type must be allowed.
     /// See the `allowedTxTypes` getter.
-    /// @param _certifier The address of the `Certifier` contract. It is used by `allowedTxTypes` function to know
-    /// whether some address is explicitly allowed to use zero gas price.
     /// @param _validatorSet The address of the `ValidatorSetAuRa` contract.
     function initialize(
         address[] calldata _allowed,
-        address _certifier,
         address _validatorSet
     ) external {
         require(block.number == 0 || msg.sender == _admin());
         require(!isInitialized());
-        require(_certifier != address(0));
         require(_validatorSet != address(0));
         for (uint256 i = 0; i < _allowed.length; i++) {
             _addAllowedSender(_allowed[i]);
         }
-        certifierContract = ICertifier(_certifier);
         validatorSetContract = IValidatorSetAuRa(_validatorSet);
     }
 
@@ -87,19 +72,15 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
     /// See also the `addAllowedSender` function and `allowedSenders` getter.
     /// @param _sender The removed address.
     function removeAllowedSender(address _sender) public onlyOwner onlyInitialized {
-        require(isSenderAllowed[_sender]);
-
         uint256 allowedSendersLength = _allowedSenders.length;
 
         for (uint256 i = 0; i < allowedSendersLength; i++) {
             if (_sender == _allowedSenders[i]) {
                 _allowedSenders[i] = _allowedSenders[allowedSendersLength - 1];
                 _allowedSenders.length--;
-                break;
+                return;
             }
         }
-
-        isSenderAllowed[_sender] = false;
     }
 
     // =============================================== Getters ========================================================
@@ -153,7 +134,7 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
         view
         returns(uint32 typesMask, bool cache)
     {
-        if (isSenderAllowed[_sender]) {
+        if (isSenderAllowed(_sender)) {
             // Let the `_sender` initiate any transaction if the `_sender` is in the `allowedSenders` list
             return (ALL, false);
         }
@@ -175,18 +156,18 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
             }
 
             if (signature == COMMIT_HASH_SIGNATURE) {
-                (bytes32 numberHash) = abi.decode(abiParams, (bytes32));
-                return (IRandomAuRa(randomContract).commitHashCallable(_sender, numberHash) ? CALL : NONE, false);
-            } else if (signature == REVEAL_NUMBER_SIGNATURE || signature == REVEAL_SECRET_SIGNATURE) {
-                (uint256 number) = abi.decode(abiParams, (uint256));
-                return (IRandomAuRa(randomContract).revealNumberCallable(_sender, number) ? CALL : NONE, false);
+                (bytes32 secretHash) = abi.decode(abiParams, (bytes32));
+                return (IRandomAuRa(randomContract).commitHashCallable(_sender, secretHash) ? CALL : NONE, false);
+            } else if (signature == REVEAL_SECRET_SIGNATURE) {
+                (uint256 secret) = abi.decode(abiParams, (uint256));
+                return (IRandomAuRa(randomContract).revealSecretCallable(_sender, secret) ? CALL : NONE, false);
             } else {
                 return (NONE, false);
             }
         }
 
         if (_to == address(validatorSetContract)) {
-            // The rules for the ValidatorSet contract
+            // The rules for the ValidatorSetAuRa contract
             if (signature == EMIT_INITIATE_CHANGE_SIGNATURE) {
                 // The `emitInitiateChange()` can be called by anyone
                 // if `emitInitiateChangeCallable()` returns `true`
@@ -214,7 +195,7 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
 
                 return (callable ? CALL : NONE, false);
             } else if (_gasPrice > 0) {
-                // The other functions of ValidatorSet contract can be called
+                // The other functions of ValidatorSetAuRa contract can be called
                 // by anyone except validators' mining addresses if gasPrice is not zero
                 return (validatorSetContract.isValidator(_sender) ? NONE : CALL, false);
             }
@@ -230,20 +211,16 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
             return (NONE, false);
         }
 
-        // Don't let the `_sender` use a zero gas price, if it is not explicitly allowed by the `Certifier` contract
-        if (_gasPrice == 0) {
-            return (certifierContract.certifiedExplicitly(_sender) ? ALL : NONE, false);
-        }
-
-        // In other cases let the `_sender` create any transaction with non-zero gas price
-        return (ALL, false);
+        // In other cases let the `_sender` create any transaction with non-zero gas price,
+        // don't let them use a zero gas price
+        return (_gasPrice > 0 ? ALL : NONE, false);
     }
 
     /// @dev Returns the current block gas limit which depends on the stage of the current
     /// staking epoch: the block gas limit is temporarily reduced for the latest block of the epoch.
     function blockGasLimit() public view returns(uint256) {
         address stakingContract = validatorSetContract.stakingContract();
-        uint256 stakingEpochEndBlock = IStakingHbbft(stakingContract).stakingEpochEndBlock();
+        uint256 stakingEpochEndBlock = IStakingAuRa(stakingContract).stakingEpochEndBlock();
         if (block.number == stakingEpochEndBlock - 1 || block.number == stakingEpochEndBlock) {
             return BLOCK_GAS_LIMIT_REDUCED;
         }
@@ -253,6 +230,22 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
     /// @dev Returns a boolean flag indicating if the `initialize` function has been called.
     function isInitialized() public view returns(bool) {
         return validatorSetContract != IValidatorSetAuRa(0);
+    }
+
+    /// @dev Returns a boolean flag indicating whether the specified address is allowed
+    /// to initiate transactions of any type. Used by the `allowedTxTypes` getter.
+    /// See also the `addAllowedSender` and `removeAllowedSender` functions.
+    /// @param _sender The specified address to check.
+    function isSenderAllowed(address _sender) public view returns(bool) {
+        uint256 allowedSendersLength = _allowedSenders.length;
+
+        for (uint256 i = 0; i < allowedSendersLength; i++) {
+            if (_sender == _allowedSenders[i]) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // ============================================== Internal ========================================================
@@ -268,7 +261,7 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
     // Function signatures
 
     // bytes4(keccak256("commitHash(bytes32,bytes)"))
-    bytes4 internal constant COMMIT_HASH_SIGNATURE = 0x0b61ba85;
+    bytes4 internal constant COMMIT_HASH_SIGNATURE = 0x0b61ba85; 
 
     // bytes4(keccak256("emitInitiateChange()"))
     bytes4 internal constant EMIT_INITIATE_CHANGE_SIGNATURE = 0x93b4e25e;
@@ -279,15 +272,11 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
     // bytes4(keccak256("revealSecret(uint256)"))
     bytes4 internal constant REVEAL_SECRET_SIGNATURE = 0x98df67c6;
 
-    // bytes4(keccak256("revealNumber(uint256)"))
-    bytes4 internal constant REVEAL_NUMBER_SIGNATURE = 0xfe7d567d;
-
     /// @dev An internal function used by the `addAllowedSender` and `initialize` functions.
     /// @param _sender The address for which transactions of any type must be allowed.
     function _addAllowedSender(address _sender) internal {
-        require(!isSenderAllowed[_sender]);
+        require(!isSenderAllowed(_sender));
         require(_sender != address(0));
         _allowedSenders.push(_sender);
-        isSenderAllowed[_sender] = true;
     }
 }
