@@ -1,8 +1,8 @@
-const BlockRewardHbbft = artifacts.require('BlockRewardAuRaTokensMock');
+const BlockRewardHbbft = artifacts.require('BlockRewardHbbftTokensMock');
 const ERC677BridgeTokenRewardable = artifacts.require('ERC677BridgeTokenRewardableMock');
 const AdminUpgradeabilityProxy = artifacts.require('AdminUpgradeabilityProxy');
 const RandomHbbft = artifacts.require('RandomHbbftMock');
-const StakingHbbft = artifacts.require('StakingAuRaTokensMock');
+const StakingHbbft = artifacts.require('StakingHbbftTokensMock');
 const ValidatorSetHbbft = artifacts.require('ValidatorSetHbbftMock');
 
 const ERROR_MSG = 'VM Exception while processing transaction: revert';

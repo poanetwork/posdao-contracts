@@ -1,9 +1,9 @@
 pragma solidity 0.5.10;
 
-import "./interfaces/IBlockRewardAuRa.sol";
+import "./interfaces/IBlockRewardHbbft.sol";
 import "./interfaces/ICertifier.sol";
 import "./interfaces/IRandomHbbft.sol";
-import "./interfaces/IStakingAuRa.sol";
+import "./interfaces/IStakingHbbft.sol";
 import "./interfaces/ITxPermission.sol";
 import "./interfaces/IValidatorSetHbbft.sol";
 
@@ -27,16 +27,14 @@ contract InitializerHbbft {
     /// `_miningAddresses/_stakingAddresses` array is non-removable.
     /// Should be `false` for production network.
     /// @param _delegatorMinStake The minimum allowed amount of delegator stake in Wei
-    /// (see the `StakingAuRa` contract).
+    /// (see the `StakingHbbft` contract).
     /// @param _candidateMinStake The minimum allowed amount of candidate stake in Wei
-    /// (see the `StakingAuRa` contract).
+    /// (see the `StakingHbbft` contract).
     /// @param _stakingEpochDuration The duration of a staking epoch in blocks
-    /// (e.g., 120954 = 1 week for 5-seconds blocks in AuRa).
     /// @param _stakingEpochStartBlock The number of the first block of initial staking epoch
     /// (must be zero if the network is starting from genesis block).
     /// @param _stakeWithdrawDisallowPeriod The duration period (in blocks) at the end of a staking epoch
     /// during which participants cannot stake or withdraw their staking tokens
-    /// (e.g., 4320 = 6 hours for 5-seconds blocks in AuRa).
     constructor(
         address[] memory _contracts,
         address _owner,
@@ -57,7 +55,7 @@ contract InitializerHbbft {
             _stakingAddresses,
             _firstValidatorIsUnremovable
         );
-        IStakingAuRa(_contracts[3]).initialize(
+        IStakingHbbft(_contracts[3]).initialize(
             _contracts[0], // _validatorSetContract
             _stakingAddresses,
             _delegatorMinStake,
@@ -66,7 +64,7 @@ contract InitializerHbbft {
             _stakingEpochStartBlock,
             _stakeWithdrawDisallowPeriod
         );
-        IBlockRewardAuRa(_contracts[1]).initialize(_contracts[0]);
+        IBlockRewardHbbft(_contracts[1]).initialize(_contracts[0]);
         IRandomHbbft(_contracts[2]).initialize(_contracts[0]);
         address[] memory permittedAddresses = new address[](1);
         permittedAddresses[0] = _owner;
