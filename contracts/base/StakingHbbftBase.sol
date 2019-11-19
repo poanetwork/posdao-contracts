@@ -136,6 +136,13 @@ contract StakingHbbftBase is UpgradeableOwned, IStakingHbbft {
     /// @dev The address of the `ValidatorSetHbbft` contract.
     IValidatorSetHbbft public validatorSetContract;
 
+    struct PoolInfo {
+        bytes32 publicKey;
+        bytes16 internetAddress;
+    }
+
+    mapping (address => PoolInfo) public poolInfo;
+
     // ============================================== Constants =======================================================
 
     /// @dev The max number of candidates (including validators). This limit was determined through stress testing.
@@ -252,10 +259,17 @@ contract StakingHbbftBase is UpgradeableOwned, IStakingHbbft {
     /// because `msg.value` is used in that case.
     /// @param _miningAddress The mining address of the candidate. The mining address is bound to the staking address
     /// (msg.sender). This address cannot be equal to `msg.sender`.
-    function addPool(uint256 _amount, address _miningAddress) external payable {
+    function addPool(uint256 _amount, address _miningAddress, bytes32 _publicKey, bytes16 _ip) external payable {
         address stakingAddress = msg.sender;
         validatorSetContract.setStakingAddress(_miningAddress, stakingAddress);
         _stake(stakingAddress, _amount);
+        poolInfo[stakingAddress].publicKey = _publicKey;
+        poolInfo[stakingAddress].internetAddress = _ip;
+    }
+
+    function setPoolInfo(bytes32 _publicKey, bytes16 _ip) external {
+        poolInfo[msg.sender].publicKey = _publicKey;
+        poolInfo[msg.sender].internetAddress = _ip;
     }
 
     /// @dev Adds the `unremovable validator` to either the `poolsToBeElected` or the `poolsToBeRemoved` array
@@ -297,7 +311,9 @@ contract StakingHbbftBase is UpgradeableOwned, IStakingHbbft {
         uint256 _candidateMinStake,
         uint256 _stakingEpochDuration,
         uint256 _stakingEpochStartBlock,
-        uint256 _stakeWithdrawDisallowPeriod
+        uint256 _stakeWithdrawDisallowPeriod,
+        bytes32[] calldata _publicKeys,
+        bytes16[] calldata _internetAddresses
     ) external {
         require(_stakingEpochDuration != 0);
         require(_stakingEpochDuration > _stakeWithdrawDisallowPeriod);
@@ -306,7 +322,9 @@ contract StakingHbbftBase is UpgradeableOwned, IStakingHbbft {
             _validatorSetContract,
             _initialStakingAddresses,
             _delegatorMinStake,
-            _candidateMinStake
+            _candidateMinStake,
+            _publicKeys,
+            _internetAddresses
         );
         stakingEpochDuration = _stakingEpochDuration;
         stakeWithdrawDisallowPeriod = _stakeWithdrawDisallowPeriod;
@@ -529,6 +547,14 @@ contract StakingHbbftBase is UpgradeableOwned, IStakingHbbft {
     /// if its address has at least the minimum stake and this stake is not ordered to be withdrawn.
     function getPools() external view returns(address[] memory) {
         return _pools;
+    }
+
+    function getPoolPublicKey(address _poolAddress) external view returns (bytes32){
+        return poolInfo[_poolAddress].publicKey;
+    }
+
+    function getPoolInternetAddress(address _poolAddress) external view returns (bytes16){
+        return poolInfo[_poolAddress].internetAddress;
     }
 
     /// @dev Returns an array of the current inactive pools (the staking addresses of former candidates).
@@ -829,12 +855,16 @@ contract StakingHbbftBase is UpgradeableOwned, IStakingHbbft {
         address _validatorSetContract,
         address[] memory _initialStakingAddresses,
         uint256 _delegatorMinStake,
-        uint256 _candidateMinStake
+        uint256 _candidateMinStake,
+        bytes32[] memory _publicKeys,
+        bytes16[] memory _internetAddresses
     ) internal {
         require(_getCurrentBlockNumber() == 0 || msg.sender == _admin());
         require(!isInitialized()); // initialization can only be done once
         require(_validatorSetContract != address(0));
         require(_initialStakingAddresses.length > 0);
+        require(_initialStakingAddresses.length == _publicKeys.length);
+        require(_publicKeys.length == _internetAddresses.length);
         require(_delegatorMinStake != 0);
         require(_candidateMinStake != 0);
 
@@ -848,6 +878,8 @@ contract StakingHbbftBase is UpgradeableOwned, IStakingHbbft {
             if (_initialStakingAddresses[i] != unremovableStakingAddress) {
                 _addPoolToBeRemoved(_initialStakingAddresses[i]);
             }
+            poolInfo[_initialStakingAddresses[i]].publicKey = _publicKeys[i];
+            poolInfo[_initialStakingAddresses[i]].internetAddress = _internetAddresses[i];
         }
 
         delegatorMinStake = _delegatorMinStake;
