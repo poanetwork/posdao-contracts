@@ -1,6 +1,5 @@
 pragma solidity 0.5.10;
 
-
 interface IStakingHbbft {
     function clearUnremovableValidator(address) external;
     function incrementStakingEpoch() external;
@@ -11,7 +10,9 @@ interface IStakingHbbft {
         uint256,
         uint256,
         uint256,
-        uint256
+        uint256,
+        bytes32[] calldata,
+        bytes16[] calldata
     ) external;
     function removePool(address) external;
     function removePools() external;

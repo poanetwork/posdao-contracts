@@ -137,7 +137,7 @@ contract StakingHbbftBase is UpgradeableOwned, IStakingHbbft {
     IValidatorSetHbbft public validatorSetContract;
 
     struct PoolInfo {
-        bytes32 publicKey;
+        bytes publicKey;
         bytes16 internetAddress;
     }
 
@@ -259,7 +259,7 @@ contract StakingHbbftBase is UpgradeableOwned, IStakingHbbft {
     /// because `msg.value` is used in that case.
     /// @param _miningAddress The mining address of the candidate. The mining address is bound to the staking address
     /// (msg.sender). This address cannot be equal to `msg.sender`.
-    function addPool(uint256 _amount, address _miningAddress, bytes32 _publicKey, bytes16 _ip) external payable {
+    function addPool(uint256 _amount, address _miningAddress, bytes calldata _publicKey, bytes16 _ip) external payable {
         address stakingAddress = msg.sender;
         validatorSetContract.setStakingAddress(_miningAddress, stakingAddress);
         _stake(stakingAddress, _amount);
@@ -267,7 +267,7 @@ contract StakingHbbftBase is UpgradeableOwned, IStakingHbbft {
         poolInfo[stakingAddress].internetAddress = _ip;
     }
 
-    function setPoolInfo(bytes32 _publicKey, bytes16 _ip) external {
+    function setPoolInfo(bytes calldata _publicKey, bytes16 _ip) external {
         poolInfo[msg.sender].publicKey = _publicKey;
         poolInfo[msg.sender].internetAddress = _ip;
     }
@@ -549,7 +549,7 @@ contract StakingHbbftBase is UpgradeableOwned, IStakingHbbft {
         return _pools;
     }
 
-    function getPoolPublicKey(address _poolAddress) external view returns (bytes32){
+    function getPoolPublicKey(address _poolAddress) external view returns (bytes memory){
         return poolInfo[_poolAddress].publicKey;
     }
 
@@ -865,6 +865,8 @@ contract StakingHbbftBase is UpgradeableOwned, IStakingHbbft {
         require(_initialStakingAddresses.length > 0);
         require(_initialStakingAddresses.length == _publicKeys.length);
         require(_publicKeys.length == _internetAddresses.length);
+        require(_initialStakingAddresses.length == _publicKeys.length.mul(2));
+        require(_initialStakingAddresses.length == _internetAddresses.length);
         require(_delegatorMinStake != 0);
         require(_candidateMinStake != 0);
 
@@ -878,7 +880,7 @@ contract StakingHbbftBase is UpgradeableOwned, IStakingHbbft {
             if (_initialStakingAddresses[i] != unremovableStakingAddress) {
                 _addPoolToBeRemoved(_initialStakingAddresses[i]);
             }
-            poolInfo[_initialStakingAddresses[i]].publicKey = _publicKeys[i];
+            poolInfo[_initialStakingAddresses[i]].publicKey = abi.encode(_publicKeys[i*2],_publicKeys[i*2+1]);
             poolInfo[_initialStakingAddresses[i]].internetAddress = _internetAddresses[i];
         }
 

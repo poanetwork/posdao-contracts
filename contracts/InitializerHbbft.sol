@@ -26,14 +26,15 @@ contract InitializerHbbft {
     /// @param _firstValidatorIsUnremovable The boolean flag defining whether the first validator in the
     /// `_miningAddresses/_stakingAddresses` array is non-removable.
     /// Should be `false` for production network.
-    /// @param _delegatorMinStake The minimum allowed amount of delegator stake in Wei
+    /// @param _stakingParams list of staking related parameters, done to avoid "stack too deep" error
+    /// _stakingParams[0]: _delegatorMinStake The minimum allowed amount of delegator stake in Wei
     /// (see the `StakingHbbft` contract).
-    /// @param _candidateMinStake The minimum allowed amount of candidate stake in Wei
+    /// _stakingParams[1]: _candidateMinStake The minimum allowed amount of candidate stake in Wei
     /// (see the `StakingHbbft` contract).
-    /// @param _stakingEpochDuration The duration of a staking epoch in blocks
-    /// @param _stakingEpochStartBlock The number of the first block of initial staking epoch
+    /// _stakingParams[2]: _stakingEpochDuration The duration of a staking epoch in blocks
+    /// _stakingParams[3]: _stakingEpochStartBlock The number of the first block of initial staking epoch
     /// (must be zero if the network is starting from genesis block).
-    /// @param _stakeWithdrawDisallowPeriod The duration period (in blocks) at the end of a staking epoch
+    /// _stakingParams[4]: _stakeWithdrawDisallowPeriod The duration period (in blocks) at the end of a staking epoch
     /// during which participants cannot stake or withdraw their staking tokens
     constructor(
         address[] memory _contracts,
@@ -41,11 +42,9 @@ contract InitializerHbbft {
         address[] memory _miningAddresses,
         address[] memory _stakingAddresses,
         bool _firstValidatorIsUnremovable,
-        uint256 _delegatorMinStake,
-        uint256 _candidateMinStake,
-        uint256 _stakingEpochDuration,
-        uint256 _stakingEpochStartBlock,
-        uint256 _stakeWithdrawDisallowPeriod
+        uint256[5] memory _stakingParams,
+        bytes32[] memory _publicKeys,
+        bytes16[] memory _internetAddresses
     ) public {
         IValidatorSetHbbft(_contracts[0]).initialize(
             _contracts[1], // _blockRewardContract
@@ -58,11 +57,13 @@ contract InitializerHbbft {
         IStakingHbbft(_contracts[3]).initialize(
             _contracts[0], // _validatorSetContract
             _stakingAddresses,
-            _delegatorMinStake,
-            _candidateMinStake,
-            _stakingEpochDuration,
-            _stakingEpochStartBlock,
-            _stakeWithdrawDisallowPeriod
+            _stakingParams[0],
+            _stakingParams[1],
+            _stakingParams[2],
+            _stakingParams[3],
+            _stakingParams[4],
+            _publicKeys,
+            _internetAddresses
         );
         IBlockRewardHbbft(_contracts[1]).initialize(_contracts[0]);
         IRandomHbbft(_contracts[2]).initialize(_contracts[0]);
