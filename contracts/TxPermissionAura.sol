@@ -10,7 +10,7 @@ import "./upgradeability/UpgradeableOwned.sol";
 /// @dev Controls the use of zero gas price by validators in service transactions,
 /// protecting the network against "transaction spamming" by malicious validators.
 /// The protection logic is declared in the `allowedTxTypes` function.
-contract TxPermission is UpgradeableOwned, ITxPermission {
+contract TxPermissionAuRa is UpgradeableOwned, ITxPermission {
 
     // =============================================== Storage ========================================================
 
@@ -261,7 +261,7 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
     // Function signatures
 
     // bytes4(keccak256("commitHash(bytes32,bytes)"))
-    bytes4 internal constant COMMIT_HASH_SIGNATURE = 0x0b61ba85; 
+    bytes4 internal constant COMMIT_HASH_SIGNATURE = 0x0b61ba85;
 
     // bytes4(keccak256("emitInitiateChange()"))
     bytes4 internal constant EMIT_INITIATE_CHANGE_SIGNATURE = 0x93b4e25e;

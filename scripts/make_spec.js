@@ -28,8 +28,22 @@ async function main() {
   const firstValidatorIsUnremovable = process.env.FIRST_VALIDATOR_IS_UNREMOVABLE === 'true';
   const stakingEpochDuration = process.env.STAKING_EPOCH_DURATION;
   const stakeWithdrawDisallowPeriod = process.env.STAKE_WITHDRAW_DISALLOW_PERIOD;
-  // const collectRoundLength = process.env.COLLECT_ROUND_LENGTH;
+
+  const ethToWei = web3.utils.toWei('1', 'ether');
+  //stakingParams = [_delegatorMinStake, _candidateMinStake, _stakingEpochDuration, _stakingEpochStartBlock, _stakeWithdrawDisallowPeriod
+  let stakingParams = [ethToWei, ethToWei, stakingEpochDuration, 0, stakeWithdrawDisallowPeriod];
+
   const erc20Restricted = process.env.ERC20_RESTRICTED === 'true';
+
+  let publicKeys = process.env.PUBLIC_KEYS.split(',');
+  for (let i = 0; i < publicKeys.length; i++) {
+    publicKeys[i] = publicKeys[i].trim();
+  }
+
+  let internetAddresses = process.env.IP_ADDRESSES.split(',');;
+  for (let i = 0; i < internetAddresses.length; i++) {
+    internetAddresses[i] = internetAddresses[i].trim();
+  }
 
   const contracts = [
     'AdminUpgradeabilityProxy',
@@ -202,11 +216,9 @@ async function main() {
     initialValidators, // _miningAddresses
     stakingAddresses, // _stakingAddresses
     firstValidatorIsUnremovable, // _firstValidatorIsUnremovable
-    web3.utils.toWei('1', 'ether'), // _delegatorMinStake
-    web3.utils.toWei('1', 'ether'), // _candidateMinStake
-    stakingEpochDuration, // _stakingEpochDuration
-    0, // _stakingEpochStartBlock
-    stakeWithdrawDisallowPeriod, // _stakeWithdrawDisallowPeriod
+    stakingParams,
+    publicKeys,
+    internetAddresses,
   ]});
   spec.accounts['0x7000000000000000000000000000000000000000'] = {
     balance: '0',
@@ -223,4 +235,4 @@ async function compile(dir, contractName) {
   return {abi: compiled.abi, bytecode: compiled.evm.bytecode.object};
 }
 
-// NETWORK_NAME=DPoSChain NETWORK_ID=101 OWNER=0x1092a1E3A3F2FB2024830Dd12064a4B33fF8EbAe INITIAL_VALIDATORS=0xeE385a1df869A468883107B0C06fA8791b28A04f,0x71385ae87c4b93db96f02f952be1f7a63f6057a6,0x190ec582090ae24284989af812f6b2c93f768ecd STAKING_ADDRESSES=0xe5aa2949ac94896bb2c5c75d9d5a88eb9f7c6b59,0x63a9344ae66c1f26d400b3ea4750a709c3aa6cfa,0xa5f6858d6254329a67cddab2dc04d795c5257709 STAKING_EPOCH_DURATION=120954 STAKE_WITHDRAW_DISALLOW_PERIOD=4320 COLLECT_ROUND_LENGTH=114 FIRST_VALIDATOR_IS_UNREMOVABLE=true ERC20_RESTRICTED=false node scripts/make_spec.js
+// NETWORK_NAME=DPoSChain NETWORK_ID=101 OWNER=0x1092a1E3A3F2FB2024830Dd12064a4B33fF8EbAe INITIAL_VALIDATORS=0xeE385a1df869A468883107B0C06fA8791b28A04f,0x71385ae87c4b93db96f02f952be1f7a63f6057a6,0x190ec582090ae24284989af812f6b2c93f768ecd STAKING_ADDRESSES=0xe5aa2949ac94896bb2c5c75d9d5a88eb9f7c6b59,0x63a9344ae66c1f26d400b3ea4750a709c3aa6cfa,0xa5f6858d6254329a67cddab2dc04d795c5257709 STAKING_EPOCH_DURATION=120954 STAKE_WITHDRAW_DISALLOW_PERIOD=4320 COLLECT_ROUND_LENGTH=114 FIRST_VALIDATOR_IS_UNREMOVABLE=true ERC20_RESTRICTED=false PUBLIC_KEYS=0x1111111111111111111111111111111111111111111111111111111111111111,0x2222222222222222222222222222222222222222222222222222222222222222,0x3333333333333333333333333333333333333333333333333333333333333333 IP_ADDRESSES=0x11111111111111111111111111111111,0x22222222222222222222222222222222,0x33333333333333333333333333333333 node scripts/make_spec.js

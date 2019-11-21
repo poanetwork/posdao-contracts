@@ -74,6 +74,7 @@ async function main() {
 }
 
 async function getHashes(dir, contractName) {
+  console.log(`${contractName}`);
   const compiled = await utils.compile(dir, contractName);
   return compiled.evm.methodIdentifiers;
 }
