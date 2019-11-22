@@ -680,7 +680,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// @dev Removes the specified validator as malicious. Used by a child contract.
     /// @param _miningAddress The removed validator mining address.
     /// @param _reason A short string of the reason why the mining address is treated as malicious:
-    /// "unrevealed" - the validator didn't reveal their secret at the end of staking epoch or skipped
+    /// "unrevealed" - the validator didn't reveal their number at the end of staking epoch or skipped
     /// too many reveals during the staking epoch;
     /// "spam" - the validator made a lot of `reportMalicious` callings compared with other validators;
     /// "malicious" - the validator was reported as malicious by other validators with the `reportMalicious` function.

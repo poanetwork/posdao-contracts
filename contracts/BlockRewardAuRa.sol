@@ -218,7 +218,7 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
 
     /// @dev Called by the validator's node when producing and closing a block,
     /// see https://wiki.parity.io/Block-Reward-Contract.html.
-    /// This function performs all of the automatic operations needed for controlling secrets revealing by validators,
+    /// This function performs all of the automatic operations needed for controlling numbers revealing by validators,
     /// accumulating block producing statistics, starting a new staking epoch, snapshotting reward coefficients 
     /// at the beginning of a new staking epoch, rewards distributing at the end of a staking epoch, and minting
     /// native coins needed for the `erc-to-native` bridge.
@@ -240,7 +240,7 @@ contract BlockRewardAuRa is UpgradeableOwned, IBlockRewardAuRa {
         rewardsNative = new uint256[](0);
 
         // Check the current validators at the end of each collection round whether
-        // they revealed their secrets, and remove a validator as a malicious if needed
+        // they revealed their numbers, and remove a validator as a malicious if needed
         IRandomAuRa(validatorSetContract.randomContract()).onFinishCollectRound();
 
         // Initialize queues

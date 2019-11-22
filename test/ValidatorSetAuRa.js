@@ -680,22 +680,22 @@ contract('ValidatorSetAuRa', async accounts => {
       (await randomAuRa.currentSeed.call()).should.be.bignumber.equal(new BN(0));
       await randomAuRa.setCurrentBlockNumber(0).should.be.fulfilled;
       await randomAuRa.initialize(114, validatorSetAuRa.address).should.be.fulfilled;
-      let secrets = [];
+      let secretNumbers = [];
       let seed = 0;
       for (let i = 0; i < initialValidators.length; i++) {
-        const secret = random(1000000, 2000000);
+        const secretNumber = random(1000000, 2000000);
         await randomAuRa.setCurrentBlockNumber(40 + i).should.be.fulfilled;
         await randomAuRa.setCoinbase(initialValidators[i]).should.be.fulfilled;
-        const secretHash = web3.utils.soliditySha3(new BN(secret));
-        await randomAuRa.commitHash(secretHash, [1 + i, 2 + i, 3 + i], {from: initialValidators[i]}).should.be.fulfilled;
-        secrets.push(secret);
-        seed ^= secret;
+        const numberHash = web3.utils.soliditySha3(new BN(secretNumber));
+        await randomAuRa.commitHash(numberHash, [1 + i, 2 + i, 3 + i], {from: initialValidators[i]}).should.be.fulfilled;
+        secretNumbers.push(secretNumber);
+        seed ^= secretNumber;
       }
       for (let i = 0; i < initialValidators.length; i++) {
-        const secret = secrets[i];
+        const secretNumber = secretNumbers[i];
         await randomAuRa.setCurrentBlockNumber(60 + i).should.be.fulfilled;
         await randomAuRa.setCoinbase(initialValidators[i]).should.be.fulfilled;
-        await randomAuRa.revealSecret(new BN(secret), {from: initialValidators[i]}).should.be.fulfilled;
+        await randomAuRa.revealNumber(new BN(secretNumber), {from: initialValidators[i]}).should.be.fulfilled;
       }
       (await randomAuRa.currentSeed.call()).should.be.bignumber.equal(new BN(seed));
 
@@ -808,22 +808,22 @@ contract('ValidatorSetAuRa', async accounts => {
       (await randomAuRa.currentSeed.call()).should.be.bignumber.equal(new BN(0));
       await randomAuRa.setCurrentBlockNumber(0).should.be.fulfilled;
       await randomAuRa.initialize(114, validatorSetAuRa.address).should.be.fulfilled;
-      let secrets = [];
+      let secretNumbers = [];
       let seed = 0;
       for (let i = 0; i < initialValidators.length; i++) {
-        const secret = random(1000000, 2000000);
+        const secretNumber = random(1000000, 2000000);
         await randomAuRa.setCurrentBlockNumber(40 + i).should.be.fulfilled;
         await randomAuRa.setCoinbase(initialValidators[i]).should.be.fulfilled;
-        const secretHash = web3.utils.soliditySha3(new BN(secret));
-        await randomAuRa.commitHash(secretHash, [1 + i, 2 + i, 3 + i], {from: initialValidators[i]}).should.be.fulfilled;
-        secrets.push(secret);
-        seed ^= secret;
+        const numberHash = web3.utils.soliditySha3(new BN(secretNumber));
+        await randomAuRa.commitHash(numberHash, [1 + i, 2 + i, 3 + i], {from: initialValidators[i]}).should.be.fulfilled;
+        secretNumbers.push(secretNumber);
+        seed ^= secretNumber;
       }
       for (let i = 0; i < initialValidators.length; i++) {
-        const secret = secrets[i];
+        const secretNumber = secretNumbers[i];
         await randomAuRa.setCurrentBlockNumber(60 + i).should.be.fulfilled;
         await randomAuRa.setCoinbase(initialValidators[i]).should.be.fulfilled;
-        await randomAuRa.revealSecret(new BN(secret), {from: initialValidators[i]}).should.be.fulfilled;
+        await randomAuRa.revealNumber(new BN(secretNumber), {from: initialValidators[i]}).should.be.fulfilled;
       }
       (await randomAuRa.currentSeed.call()).should.be.bignumber.equal(new BN(seed));
 

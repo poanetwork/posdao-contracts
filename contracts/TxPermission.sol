@@ -157,11 +157,11 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
             }
 
             if (signature == bytes4(keccak256("commitHash(bytes32,bytes)"))) {
-                (bytes32 secretHash) = abi.decode(abiParams, (bytes32));
-                return (IRandomAuRa(randomContract).commitHashCallable(_sender, secretHash) ? CALL : NONE, false);
-            } else if (signature == bytes4(keccak256("revealSecret(uint256)"))) {
-                (uint256 secret) = abi.decode(abiParams, (uint256));
-                return (IRandomAuRa(randomContract).revealSecretCallable(_sender, secret) ? CALL : NONE, false);
+                (bytes32 numberHash) = abi.decode(abiParams, (bytes32));
+                return (IRandomAuRa(randomContract).commitHashCallable(_sender, numberHash) ? CALL : NONE, false);
+            } else if (signature == bytes4(keccak256("revealSecret(uint256)")) || signature == bytes4(keccak256("revealNumber(uint256)"))) {
+                (uint256 number) = abi.decode(abiParams, (uint256));
+                return (IRandomAuRa(randomContract).revealNumberCallable(_sender, number) ? CALL : NONE, false);
             } else {
                 return (NONE, false);
             }
