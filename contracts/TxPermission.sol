@@ -156,11 +156,11 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
             }
 
             if (signature == COMMIT_HASH_SIGNATURE) {
-                (bytes32 secretHash) = abi.decode(abiParams, (bytes32));
-                return (IRandomAuRa(randomContract).commitHashCallable(_sender, secretHash) ? CALL : NONE, false);
-            } else if (signature == REVEAL_SECRET_SIGNATURE) {
-                (uint256 secret) = abi.decode(abiParams, (uint256));
-                return (IRandomAuRa(randomContract).revealSecretCallable(_sender, secret) ? CALL : NONE, false);
+                (bytes32 numberHash) = abi.decode(abiParams, (bytes32));
+                return (IRandomAuRa(randomContract).commitHashCallable(_sender, numberHash) ? CALL : NONE, false);
+            } else if (signature == REVEAL_NUMBER_SIGNATURE || signature == REVEAL_SECRET_SIGNATURE) {
+                (uint256 number) = abi.decode(abiParams, (uint256));
+                return (IRandomAuRa(randomContract).revealNumberCallable(_sender, number) ? CALL : NONE, false);
             } else {
                 return (NONE, false);
             }
@@ -271,6 +271,9 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
 
     // bytes4(keccak256("revealSecret(uint256)"))
     bytes4 internal constant REVEAL_SECRET_SIGNATURE = 0x98df67c6;
+
+    // bytes4(keccak256("revealNumber(uint256)"))
+    bytes4 internal constant REVEAL_NUMBER_SIGNATURE = 0xfe7d567d;
 
     /// @dev An internal function used by the `addAllowedSender` and `initialize` functions.
     /// @param _sender The address for which transactions of any type must be allowed.

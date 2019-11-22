@@ -30,7 +30,7 @@ contract RandomAuRa is UpgradeabilityAdmin, IRandomAuRa {
     /// @dev The number of reveal skips made by the specified validator during the specified staking epoch.
     mapping(uint256 => mapping(address => uint256)) public revealSkips;
 
-    /// @dev A boolean flag of whether the specified validator has revealed their secret for the
+    /// @dev A boolean flag of whether the specified validator has revealed their number for the
     /// specified collection round.
     mapping(uint256 => mapping(address => bool)) public sentReveal;
 
@@ -53,37 +53,40 @@ contract RandomAuRa is UpgradeabilityAdmin, IRandomAuRa {
 
     // =============================================== Setters ========================================================
 
-    /// @dev Called by the validator's node to store a hash and a cipher of the validator's secret on each collection
+    /// @dev Called by the validator's node to store a hash and a cipher of the validator's number on each collection
     /// round. The validator's node must use its mining address to call this function.
     /// This function can only be called once per collection round (during the `commits phase`).
-    /// @param _secretHash The Keccak-256 hash of the validator's secret.
-    /// @param _cipher The cipher of the validator's secret. Can be used by the node to restore the lost secret after
+    /// @param _numberHash The Keccak-256 hash of the validator's number.
+    /// @param _cipher The cipher of the validator's number. Can be used by the node to restore the lost number after
     /// the node is restarted (see the `getCipher` getter).
-    function commitHash(bytes32 _secretHash, bytes calldata _cipher) external onlyInitialized {
+    function commitHash(bytes32 _numberHash, bytes calldata _cipher) external onlyInitialized {
         address miningAddress = msg.sender;
 
-        require(commitHashCallable(miningAddress, _secretHash));
+        require(commitHashCallable(miningAddress, _numberHash));
         require(_getCoinbase() == miningAddress); // make sure validator node is live
 
         uint256 collectRound = currentCollectRound();
 
-        _commits[collectRound][miningAddress] = _secretHash;
+        _commits[collectRound][miningAddress] = _numberHash;
         _ciphers[collectRound][miningAddress] = _cipher;
         _committedValidators[collectRound].push(miningAddress);
     }
 
-    /// @dev Called by the validator's node to XOR its secret with the current random seed.
+    /// @dev Called by the validator's node to XOR its number with the current random seed.
     /// The validator's node must use its mining address to call this function.
     /// This function can only be called once per collection round (during the `reveals phase`).
-    /// @param _secret The validator's secret.
-    function revealSecret(uint256 _secret) external onlyInitialized {
-        address miningAddress = msg.sender;
+    /// @param _number The validator's number.
+    function revealNumber(uint256 _number) external onlyInitialized {
+        _revealNumber(_number);
+    }
 
-        require(revealSecretCallable(miningAddress, _secret));
-        require(_getCoinbase() == miningAddress); // make sure validator node is live
-
-        currentSeed = currentSeed ^ _secret;
-        sentReveal[currentCollectRound()][miningAddress] = true;
+    /// @dev The same as the `revealNumber` function (see its description).
+    /// The `revealSecret` was renamed to `revealNumber`, so this function
+    /// is left for backward compatibility with the previous client
+    /// implementation and should be deleted in the future.
+    /// @param _number The validator's number.
+    function revealSecret(uint256 _number) external onlyInitialized {
+        _revealNumber(_number);
     }
 
     /// @dev Initializes the contract at network startup.
@@ -104,7 +107,7 @@ contract RandomAuRa is UpgradeabilityAdmin, IRandomAuRa {
         _initialize(_validatorSet);
     }
 
-    /// @dev Checks whether the current validators at the end of each collection round revealed their secrets,
+    /// @dev Checks whether the current validators at the end of each collection round revealed their numbers,
     /// and removes malicious validators if needed.
     /// This function does nothing if the current block is not the last block of the current collection round.
     /// Can only be called by the `BlockRewardAuRa` contract (by its `reward` function).
@@ -125,7 +128,7 @@ contract RandomAuRa is UpgradeabilityAdmin, IRandomAuRa {
         uint256 currentRound = currentCollectRound();
 
         if (_getCurrentBlockNumber() > startBlock + collectRoundLength * 3) {
-            // Check whether each validator didn't reveal their secret
+            // Check whether each validator didn't reveal their number
             // during the current collection round
             validators = validatorSetContract.getValidators();
             for (i = 0; i < validators.length; i++) {
@@ -146,7 +149,7 @@ contract RandomAuRa is UpgradeabilityAdmin, IRandomAuRa {
             }
 
             // Check each validator to see if they didn't reveal
-            // their secret during the last full `reveals phase`
+            // their number during the last full `reveals phase`
             // or if they missed the required number of reveals per staking epoch.
             validators = validatorSetContract.getValidators();
 
@@ -189,7 +192,7 @@ contract RandomAuRa is UpgradeabilityAdmin, IRandomAuRa {
         return (_getCurrentBlockNumber() - 1) / collectRoundLength;
     }
 
-    /// @dev Returns the cipher of the validator's secret for the specified collection round and the specified validator
+    /// @dev Returns the cipher of the validator's number for the specified collection round and the specified validator
     /// stored by the validator through the `commitHash` function.
     /// @param _collectRound The serial number of the collection round for which the cipher should be retrieved.
     /// @param _miningAddress The mining address of validator.
@@ -197,7 +200,7 @@ contract RandomAuRa is UpgradeabilityAdmin, IRandomAuRa {
         return _ciphers[_collectRound][_miningAddress];
     }
 
-    /// @dev Returns the Keccak-256 hash of the validator's secret for the specified collection round and the specified
+    /// @dev Returns the Keccak-256 hash of the validator's number for the specified collection round and the specified
     /// validator stored by the validator through the `commitHash` function.
     /// @param _collectRound The serial number of the collection round for which the hash should be retrieved.
     /// @param _miningAddress The mining address of validator.
@@ -205,7 +208,7 @@ contract RandomAuRa is UpgradeabilityAdmin, IRandomAuRa {
         return _commits[_collectRound][_miningAddress];
     }
 
-    /// @dev Returns the Keccak-256 hash and cipher of the validator's secret for the specified collection round
+    /// @dev Returns the Keccak-256 hash and cipher of the validator's number for the specified collection round
     /// and the specified validator stored by the validator through the `commitHash` function.
     /// @param _collectRound The serial number of the collection round for which hash and cipher should be retrieved.
     /// @param _miningAddress The mining address of validator.
@@ -216,7 +219,7 @@ contract RandomAuRa is UpgradeabilityAdmin, IRandomAuRa {
         return (_commits[_collectRound][_miningAddress], _ciphers[_collectRound][_miningAddress]);
     }
 
-    /// @dev Returns a boolean flag indicating whether the specified validator has committed their secret's hash for the
+    /// @dev Returns a boolean flag indicating whether the specified validator has committed their number's hash for the
     /// specified collection round.
     /// @param _collectRound The serial number of the collection round for which the checkup should be done.
     /// @param _miningAddress The mining address of the validator.
@@ -226,7 +229,7 @@ contract RandomAuRa is UpgradeabilityAdmin, IRandomAuRa {
 
     /// @dev Returns a boolean flag indicating whether the current phase of the current collection round
     /// is a `commits phase`. Used by the validator's node to determine if it should commit the hash of
-    /// the secret during the current collection round.
+    /// the number during the current collection round.
     function isCommitPhase() public view returns(bool) {
         return ((_getCurrentBlockNumber() - 1) % collectRoundLength) < commitPhaseLength();
     }
@@ -237,7 +240,7 @@ contract RandomAuRa is UpgradeabilityAdmin, IRandomAuRa {
     }
 
     /// @dev Returns a boolean flag indicating whether the current phase of the current collection round
-    /// is a `reveals phase`. Used by the validator's node to determine if it should reveal the secret during
+    /// is a `reveals phase`. Used by the validator's node to determine if it should reveal the number during
     /// the current collection round.
     function isRevealPhase() public view returns(bool) {
         return !isCommitPhase();
@@ -246,11 +249,11 @@ contract RandomAuRa is UpgradeabilityAdmin, IRandomAuRa {
     /// @dev Returns a boolean flag of whether the `commitHash` function can be called at the current block
     /// by the specified validator. Used by the `commitHash` function and the `TxPermission` contract.
     /// @param _miningAddress The mining address of the validator which tries to call the `commitHash` function.
-    /// @param _secretHash The Keccak-256 hash of validator's secret passed to the `commitHash` function.
-    function commitHashCallable(address _miningAddress, bytes32 _secretHash) public view returns(bool) {
+    /// @param _numberHash The Keccak-256 hash of validator's number passed to the `commitHash` function.
+    function commitHashCallable(address _miningAddress, bytes32 _numberHash) public view returns(bool) {
         if (!isCommitPhase()) return false; // must only be called in `commits phase`
 
-        if (_secretHash == bytes32(0)) return false;
+        if (_numberHash == bytes32(0)) return false;
 
         if (!validatorSetContract.isValidator(_miningAddress)) return false;
 
@@ -259,30 +262,22 @@ contract RandomAuRa is UpgradeabilityAdmin, IRandomAuRa {
         return true;
     }
 
-    /// @dev Returns a boolean flag of whether the `revealSecret` function can be called at the current block
-    /// by the specified validator. Used by the `revealSecret` function and the `TxPermission` contract.
+    /// @dev Returns a boolean flag of whether the `revealNumber` function can be called at the current block
+    /// by the specified validator. Used by the `revealNumber` function and the `TxPermission` contract.
+    /// @param _miningAddress The mining address of validator which tries to call the `revealNumber` function.
+    /// @param _number The validator's number passed to the `revealNumber` function.
+    function revealNumberCallable(address _miningAddress, uint256 _number) public view returns(bool) {
+        return _revealNumberCallable(_miningAddress, _number);
+    }
+
+    /// @dev The same as the `revealNumberCallable` getter (see its description).
+    /// The `revealSecretCallable` was renamed to `revealNumberCallable`, so this function
+    /// is left for backward compatibility with the previous client
+    /// implementation and should be deleted in the future.
     /// @param _miningAddress The mining address of validator which tries to call the `revealSecret` function.
-    /// @param _secret The validator's secret passed to the `revealSecret` function.
-    function revealSecretCallable(address _miningAddress, uint256 _secret) public view returns(bool) {
-        if (!isRevealPhase()) return false; // must only be called in `reveals phase`
-
-        bytes32 secretHash = keccak256(abi.encodePacked(_secret));
-
-        if (secretHash == bytes32(0)) return false;
-
-        if (!validatorSetContract.isValidator(_miningAddress)) return false;
-
-        uint256 collectRound = currentCollectRound();
-
-        if (sentReveal[collectRound][_miningAddress]) {
-            return false; // cannot reveal more than once during the same collectRound
-        }
-
-        if (secretHash != getCommit(collectRound, _miningAddress)) {
-            return false; // the hash must be commited
-        }
-
-        return true;
+    /// @param _number The validator's number passed to the `revealSecret` function.
+    function revealSecretCallable(address _miningAddress, uint256 _number) public view returns(bool) {
+        return _revealNumberCallable(_miningAddress, _number);
     }
 
     // ============================================== Internal ========================================================
@@ -312,6 +307,18 @@ contract RandomAuRa is UpgradeabilityAdmin, IRandomAuRa {
         validatorSetContract = IValidatorSetAuRa(_validatorSet);
     }
 
+    /// @dev Used by the `revealNumber` function.
+    /// @param _number The validator's number.
+    function _revealNumber(uint256 _number) internal {
+        address miningAddress = msg.sender;
+
+        require(revealNumberCallable(miningAddress, _number));
+        require(_getCoinbase() == miningAddress); // make sure validator node is live
+
+        currentSeed = currentSeed ^ _number;
+        sentReveal[currentCollectRound()][miningAddress] = true;
+    }
+
     /// @dev Returns the current `coinbase` address. Needed mostly for unit tests.
     function _getCoinbase() internal view returns(address) {
         return block.coinbase;
@@ -320,5 +327,30 @@ contract RandomAuRa is UpgradeabilityAdmin, IRandomAuRa {
     /// @dev Returns the current block number. Needed mostly for unit tests.
     function _getCurrentBlockNumber() internal view returns(uint256) {
         return block.number;
+    }
+
+    /// @dev Used by the `revealNumberCallable` public getter.
+    /// @param _miningAddress The mining address of validator which tries to call the `revealNumber` function.
+    /// @param _number The validator's number passed to the `revealNumber` function.
+    function _revealNumberCallable(address _miningAddress, uint256 _number) internal view returns(bool) {
+        if (!isRevealPhase()) return false; // must only be called in `reveals phase`
+
+        bytes32 numberHash = keccak256(abi.encodePacked(_number));
+
+        if (numberHash == bytes32(0)) return false;
+
+        if (!validatorSetContract.isValidator(_miningAddress)) return false;
+
+        uint256 collectRound = currentCollectRound();
+
+        if (sentReveal[collectRound][_miningAddress]) {
+            return false; // cannot reveal more than once during the same collectRound
+        }
+
+        if (numberHash != getCommit(collectRound, _miningAddress)) {
+            return false; // the hash must be commited
+        }
+
+        return true;
     }
 }
