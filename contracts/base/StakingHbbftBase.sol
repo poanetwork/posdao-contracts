@@ -863,10 +863,9 @@ contract StakingHbbftBase is UpgradeableOwned, IStakingHbbft {
         require(!isInitialized()); // initialization can only be done once
         require(_validatorSetContract != address(0));
         require(_initialStakingAddresses.length > 0);
-        require(_initialStakingAddresses.length == _publicKeys.length);
-        require(_publicKeys.length == _internetAddresses.length);
-        require(_initialStakingAddresses.length == _publicKeys.length.mul(2));
+        require(_initialStakingAddresses.length.mul(2) == _publicKeys.length);
         require(_initialStakingAddresses.length == _internetAddresses.length);
+        require(_publicKeys.length == _internetAddresses.length.mul(2));
         require(_delegatorMinStake != 0);
         require(_candidateMinStake != 0);
 

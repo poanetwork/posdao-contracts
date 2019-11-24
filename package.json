@@ -23,6 +23,7 @@
   },
   "homepage": "https://github.com/poanetwork/posdao-contracts#readme",
   "dependencies": {
+    "lodash": "^4.17.15",
     "solidity-docgen": "0.1.1",
     "solidity-flattener": "github:poanetwork/solidity-flattener#master"
   },
