@@ -35,10 +35,15 @@ contract RandomHbbft is UpgradeabilityAdmin {
         _;
     }
 
+    /// @dev Ensures the caller is the SYSTEM_ADDRESS. See https://wiki.parity.io/Validator-Set.html
+    modifier onlySystem() {
+        require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
+        _;
+    }
     // =============================================== Setters ========================================================
 
 
-    function setCurrentSeed(uint256 _currentSeed) external onlyInitialized {
+    function setCurrentSeed(uint256 _currentSeed) external onlyInitialized onlySystem {
         currentSeed = _currentSeed;
     }
 
