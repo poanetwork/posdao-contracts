@@ -216,7 +216,12 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
 
         uint256 distributedAmount = 0;
 
-        if (erc677TokenContract != IERC677Minting(0) && _blocksCreatedShareDenom != 0 && _totalRewardShareDenom != 0) {
+        if (
+            erc677TokenContract != IERC677Minting(0) &&
+            erc677TokenContract.blockRewardContract() == address(this) &&
+            _blocksCreatedShareDenom != 0 &&
+            _totalRewardShareDenom != 0
+        ) {
             uint256 rewardToDistribute = totalReward * _totalRewardShareNum / _totalRewardShareDenom;
 
             if (rewardToDistribute != 0) {
