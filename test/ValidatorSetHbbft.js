@@ -668,9 +668,9 @@ contract('ValidatorSetHbbft', async accounts => {
       await validatorSetHbbft.setCurrentBlockNumber(30).should.be.fulfilled;
       for (let i = 0; i < stakingAddresses.length; i++) {
         const stakeAmount = stakeUnit.mul(new BN(i + 1));
-        await stakingHbbft.addPool( 
-          stakeAmount, 
-          miningAddresses[i], 
+        await stakingHbbft.addPool(
+          stakeAmount,
+          miningAddresses[i],
           '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
           '0x00000000000000000000000000000000',
           {from: stakingAddresses[i]}
@@ -695,7 +695,9 @@ contract('ValidatorSetHbbft', async accounts => {
       await randomHbbft.initialize(validatorSetHbbft.address).should.be.fulfilled;
 
       const seed = random(1000000, 2000000);
-      await randomHbbft.setCurrentSeed(new BN(seed)).should.be.fulfilled;
+      await randomHbbft.setSystemAddress(owner).should.be.fulfilled;
+      await randomHbbft.setCurrentSeed(new BN(seed), {from: owner}).should.be.fulfilled;
+      await randomHbbft.setSystemAddress('0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE').should.be.fulfilled;
       (await randomHbbft.currentSeed.call()).should.be.bignumber.equal(new BN(seed));
 
       // Emulate calling `newValidatorSet()` at the last block of staking epoch
@@ -791,8 +793,8 @@ contract('ValidatorSetHbbft', async accounts => {
       for (let i = 0; i < stakingAddresses.length; i++) {
         const stakeAmount = stakeUnit.mul(new BN(i + 1));
         await stakingHbbft.addPool(
-          stakeAmount,           
-          miningAddresses[i], 
+          stakeAmount,
+          miningAddresses[i],
           '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
           '0x00000000000000000000000000000000',
           {from: stakingAddresses[i]}
@@ -817,7 +819,9 @@ contract('ValidatorSetHbbft', async accounts => {
       await randomHbbft.initialize(validatorSetHbbft.address).should.be.fulfilled;
 
       const seed = random(1000000, 2000000);
-      await randomHbbft.setCurrentSeed(new BN(seed)).should.be.fulfilled;
+      await randomHbbft.setSystemAddress(owner).should.be.fulfilled;
+      await randomHbbft.setCurrentSeed(new BN(seed), {from: owner}).should.be.fulfilled;
+      await randomHbbft.setSystemAddress('0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE').should.be.fulfilled;
       (await randomHbbft.currentSeed.call()).should.be.bignumber.equal(new BN(seed));
 
       // Emulate calling `newValidatorSet()` at the last block of staking epoch

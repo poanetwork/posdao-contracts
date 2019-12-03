@@ -1,11 +1,12 @@
 pragma solidity 0.5.10;
 
-import "./upgradeability/UpgradeabilityAdmin.sol";
+import "./interfaces/IRandomHbbft.sol";
 import "./interfaces/IValidatorSetHbbft.sol";
+import "./upgradeability/UpgradeabilityAdmin.sol";
 
 /// @dev Stores and uppdates a random seed that is used to form a new validator set by the
 /// `ValidatorSetHbbft.newValidatorSet` function.
-contract RandomHbbft is UpgradeabilityAdmin {
+contract RandomHbbft is UpgradeabilityAdmin, IRandomHbbft {
 
     // =============================================== Storage ========================================================
 
