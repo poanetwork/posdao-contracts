@@ -1,7 +1,7 @@
 pragma solidity 0.5.10;
 
-import "./StakingAuRaBase.sol";
-import "../interfaces/IBlockRewardAuRaCoins.sol";
+import "./StakingHbbftBase.sol";
+import "../interfaces/IBlockRewardHbbftCoins.sol";
 
 
 contract Sacrifice {
@@ -12,7 +12,7 @@ contract Sacrifice {
 
 
 /// @dev Implements staking and withdrawal logic.
-contract StakingAuRaCoins is StakingAuRaBase {
+contract StakingHbbftCoins is StakingHbbftBase {
 
     // ================================================ Events ========================================================
 
@@ -34,7 +34,7 @@ contract StakingAuRaCoins is StakingAuRaBase {
     /// @dev Withdraws a reward from the specified pool for the specified staking epochs
     /// to the staker address (msg.sender).
     /// @param _stakingEpochs The list of staking epochs in ascending order.
-    /// If the list is empty, it is taken with `BlockRewardAuRa.epochsPoolGotRewardFor` getter.
+    /// If the list is empty, it is taken with `BlockRewardHbbft.epochsPoolGotRewardFor` getter.
     /// @param _poolStakingAddress The staking address of the pool from which the reward needs to be withdrawn.
     function claimReward(
         uint256[] memory _stakingEpochs,
@@ -50,13 +50,13 @@ contract StakingAuRaCoins is StakingAuRaBase {
             lastEpoch = stakeLastEpoch[_poolStakingAddress][staker];
         }
 
-        IBlockRewardAuRaCoins blockRewardContract = IBlockRewardAuRaCoins(validatorSetContract.blockRewardContract());
+        IBlockRewardHbbftCoins blockRewardContract = IBlockRewardHbbftCoins(validatorSetContract.blockRewardContract());
         address miningAddress = validatorSetContract.miningByStakingAddress(_poolStakingAddress);
         uint256 rewardSum = 0;
         uint256 delegatorStake = 0;
 
         if (_stakingEpochs.length == 0) {
-            _stakingEpochs = IBlockRewardAuRa(address(blockRewardContract)).epochsPoolGotRewardFor(miningAddress);
+            _stakingEpochs = IBlockRewardHbbft(address(blockRewardContract)).epochsPoolGotRewardFor(miningAddress);
         }
 
         for (uint256 i = 0; i < _stakingEpochs.length; i++) {
@@ -105,7 +105,7 @@ contract StakingAuRaCoins is StakingAuRaBase {
     /// @dev Returns reward amount in native coins for the specified pool, the specified staking epochs,
     /// and the specified staker address (delegator or validator).
     /// @param _stakingEpochs The list of staking epochs in ascending order.
-    /// If the list is empty, it is taken with `BlockRewardAuRa.epochsPoolGotRewardFor` getter.
+    /// If the list is empty, it is taken with `BlockRewardHbbft.epochsPoolGotRewardFor` getter.
     /// @param _poolStakingAddress The staking address of the pool for which the amounts need to be returned.
     /// @param _staker The staker address (validator's staking address or delegator's address).
     function getRewardAmount(
@@ -122,13 +122,13 @@ contract StakingAuRaCoins is StakingAuRaBase {
             lastEpoch = stakeLastEpoch[_poolStakingAddress][_staker];
         }
 
-        IBlockRewardAuRaCoins blockRewardContract = IBlockRewardAuRaCoins(validatorSetContract.blockRewardContract());
+        IBlockRewardHbbftCoins blockRewardContract = IBlockRewardHbbftCoins(validatorSetContract.blockRewardContract());
         address miningAddress = validatorSetContract.miningByStakingAddress(_poolStakingAddress);
         uint256 delegatorStake = 0;
         rewardSum = 0;
 
         if (_stakingEpochs.length == 0) {
-            _stakingEpochs = IBlockRewardAuRa(address(blockRewardContract)).epochsPoolGotRewardFor(miningAddress);
+            _stakingEpochs = IBlockRewardHbbft(address(blockRewardContract)).epochsPoolGotRewardFor(miningAddress);
         }
 
         for (uint256 i = 0; i < _stakingEpochs.length; i++) {
