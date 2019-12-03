@@ -7,6 +7,14 @@ contract RandomHbbftMock is RandomHbbft {
 
     address internal _coinbase;
     uint256 internal _currentBlockNumber;
+    address internal _systemAddress;
+
+    // ============================================== Modifiers =======================================================
+
+    modifier onlySystem() {
+        require(msg.sender == _getSystemAddress());
+        _;
+    }
 
     // =============================================== Setters ========================================================
 
@@ -18,6 +26,10 @@ contract RandomHbbftMock is RandomHbbft {
         _currentBlockNumber = _blockNumber;
     }
 
+    function setSystemAddress(address _address) public {
+        _systemAddress = _address;
+    }
+
     // =============================================== Private ========================================================
 
     function _getCoinbase() internal view returns(address) {
@@ -26,6 +38,10 @@ contract RandomHbbftMock is RandomHbbft {
 
     function _getCurrentBlockNumber() internal view returns(uint256) {
         return _currentBlockNumber;
+    }
+
+    function _getSystemAddress() internal view returns(address) {
+        return _systemAddress;
     }
 
 }
