@@ -2,16 +2,10 @@ pragma solidity 0.5.10;
 pragma experimental ABIEncoderV2;
 
 
-contract KeyGenHistory {
+contract KeyGenHistoryAuRa {
 
     mapping(address => bytes) public parts;
     mapping(address => bytes) public acks;
-
-    /// @dev Ensures the caller is the SYSTEM_ADDRESS. See https://wiki.parity.io/Validator-Set.html
-    modifier onlySystem() {
-        require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
-        _;
-    }
 
     constructor(address[] memory _validators, bytes[] memory _parts, bytes[] memory _acks) public {
         require(_validators.length == _parts.length);
@@ -23,7 +17,7 @@ contract KeyGenHistory {
         }
     }
 
-    function writePart(bytes memory _part) public onlySystem {
+    function writePart(bytes memory _part) public {
         // TODO: can only be called by a new validator which is elected but not yet finalized
         // or by a validator which is already in the validator set (ValidatorSet.isPendingValidator(msg.sender)
         // must return `true`).
@@ -35,7 +29,7 @@ contract KeyGenHistory {
         parts[msg.sender] = _part;
     }
 
-    function writeAck(bytes memory _ack) public onlySystem {
+    function writeAck(bytes memory _ack) public {
         // TODO: can only be called by a new validator which is elected but not yet finalized
         // or by a validator which is already in the validator set (ValidatorSet.isPendingValidator(msg.sender)
         // must return `true`).
