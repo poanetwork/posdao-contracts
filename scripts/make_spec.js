@@ -142,7 +142,7 @@ async function main() {
     balance: '0',
     constructor: '0x' + contractsCompiled['RandomAuRa'].bytecode
   };
-  spec.engine.authorityRound.params.randomnessContractAddress = RANDOM_CONTRACT;
+  spec.engine.authorityRound.params.randomnessContractAddress[0] = RANDOM_CONTRACT;
 
   // Build TxPermission contract
   deploy = await contract.deploy({data: '0x' + storageProxyCompiled.bytecode, arguments: [
