@@ -34,16 +34,16 @@ async function main() {
   const contracts = [
     'AdminUpgradeabilityProxy',
     'BlockRewardAuRa',
-    'Certifier',
+    'CertifierAuRa',
     'InitializerAuRa',
     'RandomAuRa',
     'Registry',
     'StakingAuRa',
-    'TxPermission',
+    'TxPermissionAuRa',
     'ValidatorSetAuRa'
   ];
 
-  let spec = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'templates', 'spec.json'), 'UTF-8'));
+  let spec = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'templates', 'spec_aura.json'), 'UTF-8'));
 
   spec.name = networkName;
   spec.params.networkID = networkID;
@@ -157,7 +157,7 @@ async function main() {
   spec.params.transactionPermissionContract = PERMISSION_CONTRACT;
   spec.accounts['0x4000000000000000000000000000000000000000'] = {
     balance: '0',
-    constructor: '0x' + contractsCompiled['TxPermission'].bytecode
+    constructor: '0x' + contractsCompiled['TxPermissionAuRa'].bytecode
   };
 
   // Build Certifier contract
@@ -172,7 +172,7 @@ async function main() {
   };
   spec.accounts['0x5000000000000000000000000000000000000000'] = {
     balance: '0',
-    constructor: '0x' + contractsCompiled['Certifier'].bytecode
+    constructor: '0x' + contractsCompiled['CertifierAuRa'].bytecode
   };
 
   // Build Registry contract
@@ -214,8 +214,8 @@ async function main() {
     constructor: await deploy.encodeABI()
   };
 
-  console.log('Saving spec.json file ...');
-  fs.writeFileSync(path.join(__dirname, '..', 'spec.json'), JSON.stringify(spec, null, '  '), 'UTF-8');
+  console.log('Saving spec_aura.json file ...');
+  fs.writeFileSync(path.join(__dirname, '..', 'spec_aura.json'), JSON.stringify(spec, null, '  '), 'UTF-8');
   console.log('Done');
 }
 
@@ -224,4 +224,4 @@ async function compile(dir, contractName) {
   return {abi: compiled.abi, bytecode: compiled.evm.bytecode.object};
 }
 
-// NETWORK_NAME=DPoSChain NETWORK_ID=101 OWNER=0x1092a1E3A3F2FB2024830Dd12064a4B33fF8EbAe INITIAL_VALIDATORS=0xeE385a1df869A468883107B0C06fA8791b28A04f,0x71385ae87c4b93db96f02f952be1f7a63f6057a6,0x190ec582090ae24284989af812f6b2c93f768ecd STAKING_ADDRESSES=0xe5aa2949ac94896bb2c5c75d9d5a88eb9f7c6b59,0x63a9344ae66c1f26d400b3ea4750a709c3aa6cfa,0xa5f6858d6254329a67cddab2dc04d795c5257709 STAKING_EPOCH_DURATION=120954 STAKE_WITHDRAW_DISALLOW_PERIOD=4320 COLLECT_ROUND_LENGTH=114 FIRST_VALIDATOR_IS_UNREMOVABLE=true ERC20_RESTRICTED=false node scripts/make_spec.js
+// NETWORK_NAME=DPoSChain NETWORK_ID=101 OWNER=0x1092a1E3A3F2FB2024830Dd12064a4B33fF8EbAe INITIAL_VALIDATORS=0xeE385a1df869A468883107B0C06fA8791b28A04f,0x71385ae87c4b93db96f02f952be1f7a63f6057a6,0x190ec582090ae24284989af812f6b2c93f768ecd STAKING_ADDRESSES=0xe5aa2949ac94896bb2c5c75d9d5a88eb9f7c6b59,0x63a9344ae66c1f26d400b3ea4750a709c3aa6cfa,0xa5f6858d6254329a67cddab2dc04d795c5257709 STAKING_EPOCH_DURATION=120954 STAKE_WITHDRAW_DISALLOW_PERIOD=4320 COLLECT_ROUND_LENGTH=114 FIRST_VALIDATOR_IS_UNREMOVABLE=true ERC20_RESTRICTED=false node scripts/make_spec_aura.js

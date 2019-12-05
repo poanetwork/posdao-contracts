@@ -11,7 +11,7 @@ import "./upgradeability/UpgradeableOwned.sol";
 /// @dev Controls the use of zero gas price by validators in service transactions,
 /// protecting the network against "transaction spamming" by malicious validators.
 /// The protection logic is declared in the `allowedTxTypes` function.
-contract TxPermission is UpgradeableOwned, ITxPermission {
+contract TxPermissionHbbft is UpgradeableOwned, ITxPermission {
 
     // =============================================== Storage ========================================================
 

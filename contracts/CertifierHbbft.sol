@@ -7,7 +7,7 @@ import "./upgradeability/UpgradeableOwned.sol";
 
 /// @dev Allows validators to use a zero gas price for their service transactions
 /// (see https://wiki.parity.io/Permissioning.html#gas-price for more info).
-contract Certifier is UpgradeableOwned, ICertifier {
+contract CertifierHbbft is UpgradeableOwned, ICertifier {
 
     // =============================================== Storage ========================================================
 
