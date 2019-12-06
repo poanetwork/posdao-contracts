@@ -5,7 +5,7 @@ pragma experimental ABIEncoderV2;
 contract KeyGenHistory {
 
     mapping(address => bytes) public parts;
-    mapping(address => bytes) public acks;
+    mapping(address => bytes[]) public acks;
 
     /// @dev Ensures the caller is the SYSTEM_ADDRESS. See https://wiki.parity.io/Validator-Set.html
     modifier onlySystem() {
@@ -13,7 +13,7 @@ contract KeyGenHistory {
         _;
     }
 
-    constructor(address[] memory _validators, bytes[] memory _parts, bytes[] memory _acks) public {
+    constructor(address[] memory _validators, bytes[] memory _parts, bytes[][] memory _acks) public {
         require(_validators.length == _parts.length);
         require(_validators.length == _acks.length);
 
@@ -21,6 +21,10 @@ contract KeyGenHistory {
             parts[_validators[i]] = _parts[i];
             acks[_validators[i]] = _acks[i];
         }
+    }
+
+    function getAcksLength(address val) public view returns(uint256) {
+        return acks[val].length;
     }
 
     function writePart(bytes memory _part) public onlySystem {
@@ -44,7 +48,7 @@ contract KeyGenHistory {
         // (it means that the `InitiateChange` event was emitted, but the `finalizeChange`
         // function wasn't yet called).
 
-        acks[msg.sender] = _ack;
+        acks[msg.sender].push(_ack);
     }
 
 }
