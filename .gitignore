@@ -7,7 +7,8 @@ node_modules
 /coverage.json
 /flat
 /build
-/spec.json
+/spec_aura.json
+/spec_hbbft.json
 
 # Emacs backups
 \#*#
