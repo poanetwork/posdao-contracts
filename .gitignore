@@ -9,8 +9,15 @@ node_modules
 /coverage.json
 /flat
 /build
+<<<<<<< HEAD
 /contracts.json
 /spec.json
+||||||| constructed merge base
+/spec.json
+=======
+/spec_aura.json
+/spec_hbbft.json
+>>>>>>> Fixed naming inconsistencies and removed redundant files
 
 # Emacs backups
 \#*#
