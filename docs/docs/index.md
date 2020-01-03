@@ -5,8 +5,9 @@ title: POSDAO Smart Contracts Docs
 
 ## Navigation
 
-POSDAO smart contracts are located in the contracts directory, which contains the root contracts as well as upgradeability subdirectory. View the documentation by selecting a contract from the menu. To return to the repo, go to https://github.com/poanetwork/posdao-contracts
+POSDAO smart contracts are located in the contracts directory, which contains the root contracts as well as base and upgradeability subdirectories. View the documentation by selecting a contract from the menu. To return to the repo, go to https://github.com/poanetwork/posdao-contracts
 
+- **base:** base contracts from which the root contracts inherit.
 - **upgradeability:** upgradeability and contract storage management.
 - **root:** POSDAO functional contracts.
 
