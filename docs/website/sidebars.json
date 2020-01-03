@@ -1,5 +1,13 @@
 {
   "docs-api": {
+    "base": [
+      "base_BlockRewardAuRaBase",
+      "base_BlockRewardAuRaCoins",
+      "base_BlockRewardAuRaTokens",
+      "base_StakingAuRaBase",
+      "base_StakingAuRaCoins",
+      "base_StakingAuRaTokens"
+    ],
     "upgradeability": [
       "upgradeability_AdminUpgradeabilityProxy",
       "upgradeability_BaseAdminUpgradeabilityProxy",
