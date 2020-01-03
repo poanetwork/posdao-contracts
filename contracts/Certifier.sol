@@ -1,4 +1,4 @@
-pragma solidity 0.5.9;
+pragma solidity 0.5.10;
 
 import "./interfaces/ICertifier.sol";
 import "./interfaces/IValidatorSetAuRa.sol";
@@ -16,7 +16,7 @@ contract Certifier is UpgradeableOwned, ICertifier {
 
     mapping(address => bool) internal _certified;
 
-    /// @dev The address of the `ValidatorSet` contract.
+    /// @dev The address of the `ValidatorSetAuRa` contract.
     IValidatorSetAuRa public validatorSetContract;
 
     // ================================================ Events ========================================================
@@ -42,9 +42,9 @@ contract Certifier is UpgradeableOwned, ICertifier {
     // =============================================== Setters ========================================================
 
     /// @dev Initializes the contract at network startup.
-    /// Can only be called by the constructor of the `Initializer` contract or owner.
+    /// Can only be called by the constructor of the `InitializerAuRa` contract or owner.
     /// @param _certifiedAddresses The addresses for which a zero gas price must be allowed.
-    /// @param _validatorSet The address of the `ValidatorSet` contract.
+    /// @param _validatorSet The address of the `ValidatorSetAuRa` contract.
     function initialize(
         address[] calldata _certifiedAddresses,
         address _validatorSet
@@ -78,7 +78,7 @@ contract Certifier is UpgradeableOwned, ICertifier {
 
     /// @dev Returns a boolean flag indicating whether the specified address is allowed to use zero gas price
     /// transactions. Returns `true` if either the address is certified using the `_certify` function or if 
-    /// `ValidatorSet.isReportValidatorValid` returns `true` for the specified address.
+    /// `ValidatorSetAuRa.isReportValidatorValid` returns `true` for the specified address.
     /// @param _who The address for which the boolean flag must be determined.
     function certified(address _who) external view returns(bool) {
         if (_certified[_who]) {
@@ -92,7 +92,7 @@ contract Certifier is UpgradeableOwned, ICertifier {
         return validatorSetContract != IValidatorSetAuRa(0);
     }
 
-    // =============================================== Private ========================================================
+    // ============================================== Internal ========================================================
 
     /// @dev An internal function for the `certify` and `initialize` functions.
     /// @param _who The address for which transactions with a zero gas price must be allowed.

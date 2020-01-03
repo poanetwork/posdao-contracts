@@ -1,4 +1,4 @@
-pragma solidity 0.5.9;
+pragma solidity 0.5.10;
 
 import '../../contracts/ValidatorSetAuRa.sol';
 
@@ -19,10 +19,7 @@ contract ValidatorSetAuRaMock is ValidatorSetAuRa {
 
     function clearPendingValidators() public {
         delete _pendingValidators;
-    }
-
-    function enqueuePendingValidators() public {
-        _enqueuePendingValidators(true);
+        _setPendingValidatorsChanged(true);
     }
 
     function setBannedUntil(address _miningAddress, uint256 _bannedUntil) public {
@@ -40,6 +37,10 @@ contract ValidatorSetAuRaMock is ValidatorSetAuRa {
 
     function setRandomContract(address _address) public {
         randomContract = _address;
+    }
+
+    function setStakingContract(address _address) public {
+        stakingContract = IStakingAuRa(_address);
     }
 
     function setSystemAddress(address _address) public {

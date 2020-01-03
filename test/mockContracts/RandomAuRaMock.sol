@@ -1,4 +1,4 @@
-pragma solidity 0.5.9;
+pragma solidity 0.5.10;
 
 import '../../contracts/RandomAuRa.sol';
 
@@ -16,6 +16,10 @@ contract RandomAuRaMock is RandomAuRa {
 
     function setCurrentBlockNumber(uint256 _blockNumber) public {
         _currentBlockNumber = _blockNumber;
+    }
+
+    function setSentReveal(address _validator) public {
+        sentReveal[currentCollectRound()][_validator] = true;
     }
 
     // =============================================== Private ========================================================

@@ -1,4 +1,4 @@
-pragma solidity 0.5.9;
+pragma solidity 0.5.10;
 
 import "./interfaces/IRandomAuRa.sol";
 import "./interfaces/IStakingAuRa.sol";
@@ -123,11 +123,11 @@ contract RandomAuRa is UpgradeabilityAdmin, IRandomAuRa {
         address stakingContract = validatorSetContract.stakingContract();
 
         uint256 stakingEpoch = IStakingAuRa(stakingContract).stakingEpoch();
-        uint256 applyBlock = validatorSetContract.validatorSetApplyBlock();
+        uint256 startBlock = IStakingAuRa(stakingContract).stakingEpochStartBlock();
         uint256 endBlock = IStakingAuRa(stakingContract).stakingEpochEndBlock();
         uint256 currentRound = currentCollectRound();
 
-        if (applyBlock != 0 && _getCurrentBlockNumber() > applyBlock + collectRoundLength * 2) {
+        if (_getCurrentBlockNumber() > startBlock + collectRoundLength * 3) {
             // Check whether each validator didn't reveal their number
             // during the current collection round
             validators = validatorSetContract.getValidators();

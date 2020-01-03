@@ -51,10 +51,23 @@ async function main() {
   let contractsCompiled = {};
   for (let i = 0; i < contracts.length; i++) {
     const contractName = contracts[i];
+    let realContractName = contractName;
+    let dir = 'contracts/';
+
+    if (contractName == 'AdminUpgradeabilityProxy') {
+      dir = 'contracts/upgradeability/';
+    } else if (contractName == 'StakingAuRa' && erc20Restricted) {
+      realContractName = 'StakingAuRaCoins';
+      dir = 'contracts/base/';
+    } else if (contractName == 'BlockRewardAuRa' && erc20Restricted) {
+      realContractName = 'BlockRewardAuRaCoins';
+      dir = 'contracts/base/';
+    }
+
     console.log(`Compiling ${contractName}...`);
     const compiled = await compile(
-      path.join(__dirname, '..', contractName == 'AdminUpgradeabilityProxy' ? 'contracts/upgradeability/' : 'contracts/'),
-      contractName
+      path.join(__dirname, '..', dir),
+      realContractName
     );
     contractsCompiled[contractName] = compiled;
   }
@@ -189,13 +202,12 @@ async function main() {
     initialValidators, // _miningAddresses
     stakingAddresses, // _stakingAddresses
     firstValidatorIsUnremovable, // _firstValidatorIsUnremovable
-    1, // _delegatorMinStake
-    1, // _candidateMinStake
+    web3.utils.toWei('1', 'ether'), // _delegatorMinStake
+    web3.utils.toWei('1', 'ether'), // _candidateMinStake
     stakingEpochDuration, // _stakingEpochDuration
     0, // _stakingEpochStartBlock
     stakeWithdrawDisallowPeriod, // _stakeWithdrawDisallowPeriod
-    collectRoundLength, // _collectRoundLength
-    erc20Restricted // _erc20Restricted
+    collectRoundLength // _collectRoundLength
   ]});
   spec.accounts['0x7000000000000000000000000000000000000000'] = {
     balance: '0',

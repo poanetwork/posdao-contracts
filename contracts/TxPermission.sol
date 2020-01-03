@@ -1,6 +1,5 @@
-pragma solidity 0.5.9;
+pragma solidity 0.5.10;
 
-import "./interfaces/IBlockRewardAuRa.sol";
 import "./interfaces/IRandomAuRa.sol";
 import "./interfaces/IStakingAuRa.sol";
 import "./interfaces/ITxPermission.sol";
@@ -20,7 +19,7 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
 
     address[] internal _allowedSenders;
 
-    /// @dev The address of the `ValidatorSet` contract.
+    /// @dev The address of the `ValidatorSetAuRa` contract.
     IValidatorSetAuRa public validatorSetContract;
 
     // ============================================== Constants =======================================================
@@ -44,10 +43,10 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
     // =============================================== Setters ========================================================
 
     /// @dev Initializes the contract at network startup.
-    /// Can only be called by the constructor of the `Initializer` contract or owner.
+    /// Can only be called by the constructor of the `InitializerAuRa` contract or owner.
     /// @param _allowed The addresses for which transactions of any type must be allowed.
     /// See the `allowedTxTypes` getter.
-    /// @param _validatorSet The address of the `ValidatorSet` contract.
+    /// @param _validatorSet The address of the `ValidatorSetAuRa` contract.
     function initialize(
         address[] calldata _allowed,
         address _validatorSet
@@ -77,26 +76,26 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
 
         for (uint256 i = 0; i < allowedSendersLength; i++) {
             if (_sender == _allowedSenders[i]) {
-                _allowedSenders[i] = _allowedSenders[allowedSendersLength-1];
+                _allowedSenders[i] = _allowedSenders[allowedSendersLength - 1];
                 _allowedSenders.length--;
-                break;
+                return;
             }
         }
     }
 
     // =============================================== Getters ========================================================
 
-    /// @dev Returns the contract's name recognizable by the Parity engine.
+    /// @dev Returns the contract's name recognizable by node's engine.
     function contractName() public pure returns(string memory) {
         return "TX_PERMISSION_CONTRACT";
     }
 
-    /// @dev Returns the contract name hash needed for the Parity engine.
+    /// @dev Returns the contract name hash needed for node's engine.
     function contractNameHash() public pure returns(bytes32) {
         return keccak256(abi.encodePacked(contractName()));
     }
 
-    /// @dev Returns the contract's version number needed for the Parity engine.
+    /// @dev Returns the contract's version number needed for node's engine.
     function contractVersion() public pure returns(uint256) {
         return 3;
     }
@@ -109,7 +108,7 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
     }
 
     /// @dev Defines the allowed transaction types which may be initiated by the specified sender with
-    /// the specified gas price and data. Used by the Parity engine each time a transaction is about to be
+    /// the specified gas price and data. Used by node's engine each time a transaction is about to be
     /// included into a block. See https://wiki.parity.io/Permissioning.html#how-it-works-1
     /// @param _sender Transaction sender address.
     /// @param _to Transaction recipient address. If creating a contract, the `_to` address is zero.
@@ -156,10 +155,10 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
                 abiParams[i] = _data[i + 4];
             }
 
-            if (signature == bytes4(keccak256("commitHash(bytes32,bytes)"))) {
+            if (signature == COMMIT_HASH_SIGNATURE) {
                 (bytes32 numberHash) = abi.decode(abiParams, (bytes32));
                 return (IRandomAuRa(randomContract).commitHashCallable(_sender, numberHash) ? CALL : NONE, false);
-            } else if (signature == bytes4(keccak256("revealSecret(uint256)")) || signature == bytes4(keccak256("revealNumber(uint256)"))) {
+            } else if (signature == REVEAL_NUMBER_SIGNATURE || signature == REVEAL_SECRET_SIGNATURE) {
                 (uint256 number) = abi.decode(abiParams, (uint256));
                 return (IRandomAuRa(randomContract).revealNumberCallable(_sender, number) ? CALL : NONE, false);
             } else {
@@ -168,12 +167,12 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
         }
 
         if (_to == address(validatorSetContract)) {
-            // The rules for the ValidatorSet contract
-            if (signature == bytes4(keccak256("emitInitiateChange()"))) {
+            // The rules for the ValidatorSetAuRa contract
+            if (signature == EMIT_INITIATE_CHANGE_SIGNATURE) {
                 // The `emitInitiateChange()` can be called by anyone
                 // if `emitInitiateChangeCallable()` returns `true`
                 return (validatorSetContract.emitInitiateChangeCallable() ? CALL : NONE, false);
-            } else if (signature == bytes4(keccak256("reportMalicious(address,uint256,bytes)"))) {
+            } else if (signature == REPORT_MALICIOUS_SIGNATURE) {
                 abiParams = new bytes(_data.length - 4 > 64 ? 64 : _data.length - 4);
 
                 for (i = 0; i < abiParams.length; i++) {
@@ -196,7 +195,7 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
 
                 return (callable ? CALL : NONE, false);
             } else if (_gasPrice > 0) {
-                // The other functions of ValidatorSet contract can be called
+                // The other functions of ValidatorSetAuRa contract can be called
                 // by anyone except validators' mining addresses if gasPrice is not zero
                 return (validatorSetContract.isValidator(_sender) ? NONE : CALL, false);
             }
@@ -218,19 +217,11 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
     }
 
     /// @dev Returns the current block gas limit which depends on the stage of the current
-    /// staking epoch: if there is a rewarding/snapshotting process, the block gas limit
-    /// is temporarily reduced. See https://github.com/poanetwork/parity-ethereum/issues/119
+    /// staking epoch: the block gas limit is temporarily reduced for the latest block of the epoch.
     function blockGasLimit() public view returns(uint256) {
-        IBlockRewardAuRa blockRewardContract = IBlockRewardAuRa(validatorSetContract.blockRewardContract());
-        if (blockRewardContract.isRewarding()) {
-            return BLOCK_GAS_LIMIT_REDUCED;
-        }
         address stakingContract = validatorSetContract.stakingContract();
         uint256 stakingEpochEndBlock = IStakingAuRa(stakingContract).stakingEpochEndBlock();
         if (block.number == stakingEpochEndBlock - 1 || block.number == stakingEpochEndBlock) {
-            return BLOCK_GAS_LIMIT_REDUCED;
-        }
-        if (blockRewardContract.isSnapshotting()) {
             return BLOCK_GAS_LIMIT_REDUCED;
         }
         return BLOCK_GAS_LIMIT;
@@ -257,7 +248,7 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
         return false;
     }
 
-    // =============================================== Private ========================================================
+    // ============================================== Internal ========================================================
 
     // Allowed transaction types mask
     uint32 internal constant NONE = 0;
@@ -266,6 +257,23 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
     uint32 internal constant CALL = 0x02;
     uint32 internal constant CREATE = 0x04;
     uint32 internal constant PRIVATE = 0x08;
+
+    // Function signatures
+
+    // bytes4(keccak256("commitHash(bytes32,bytes)"))
+    bytes4 internal constant COMMIT_HASH_SIGNATURE = 0x0b61ba85; 
+
+    // bytes4(keccak256("emitInitiateChange()"))
+    bytes4 internal constant EMIT_INITIATE_CHANGE_SIGNATURE = 0x93b4e25e;
+
+    // bytes4(keccak256("reportMalicious(address,uint256,bytes)"))
+    bytes4 internal constant REPORT_MALICIOUS_SIGNATURE = 0xc476dd40;
+
+    // bytes4(keccak256("revealSecret(uint256)"))
+    bytes4 internal constant REVEAL_SECRET_SIGNATURE = 0x98df67c6;
+
+    // bytes4(keccak256("revealNumber(uint256)"))
+    bytes4 internal constant REVEAL_NUMBER_SIGNATURE = 0xfe7d567d;
 
     /// @dev An internal function used by the `addAllowedSender` and `initialize` functions.
     /// @param _sender The address for which transactions of any type must be allowed.

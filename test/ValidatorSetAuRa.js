@@ -1,8 +1,8 @@
-const BlockRewardAuRa = artifacts.require('BlockRewardAuRa');
+const BlockRewardAuRa = artifacts.require('BlockRewardAuRaTokensMock');
 const ERC677BridgeTokenRewardable = artifacts.require('ERC677BridgeTokenRewardableMock');
 const AdminUpgradeabilityProxy = artifacts.require('AdminUpgradeabilityProxy');
 const RandomAuRa = artifacts.require('RandomAuRaMock');
-const StakingAuRa = artifacts.require('StakingAuRaMock');
+const StakingAuRa = artifacts.require('StakingAuRaTokensMock');
 const ValidatorSetAuRa = artifacts.require('ValidatorSetAuRaMock');
 
 const ERROR_MSG = 'VM Exception while processing transaction: revert';
@@ -75,30 +75,29 @@ contract('ValidatorSetAuRa', async accounts => {
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
         initialStakingAddresses, // _initialStakingAddresses
-        1, // _delegatorMinStake
-        1, // _candidateMinStake
+        web3.utils.toWei('1', 'ether'), // _delegatorMinStake
+        web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
-        4320, // _stakeWithdrawDisallowPeriod
-        false // _erc20Restricted
+        4320 // _stakeWithdrawDisallowPeriod
       ).should.be.fulfilled;
 
-      // Deploy ERC20 contract
-      const erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
+      // Deploy ERC677 contract
+      const erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, {from: owner});
 
       // Mint some balance for the non-removable validator (imagine that the validator got 2 STAKE_UNITs from a bridge)
-      const stakeUnit = await stakingAuRa.STAKE_UNIT.call();
+      const stakeUnit = new BN(web3.utils.toWei('1', 'ether'));
       const mintAmount = stakeUnit.mul(new BN(2));
-      await erc20Token.mint(initialStakingAddresses[0], mintAmount, {from: owner}).should.be.fulfilled;
-      mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(initialStakingAddresses[0]));
+      await erc677Token.mint(initialStakingAddresses[0], mintAmount, {from: owner}).should.be.fulfilled;
+      mintAmount.should.be.bignumber.equal(await erc677Token.balanceOf.call(initialStakingAddresses[0]));
 
-      // Pass Staking contract address to ERC20 contract
-      await erc20Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
-      stakingAuRa.address.should.be.equal(await erc20Token.stakingContract.call());
+      // Pass Staking contract address to ERC677 contract
+      await erc677Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
+      stakingAuRa.address.should.be.equal(await erc677Token.stakingContract.call());
 
-      // Pass ERC20 contract address to Staking contract
-      await stakingAuRa.setErc20TokenContract(erc20Token.address, {from: owner}).should.be.fulfilled;
-      erc20Token.address.should.be.equal(await stakingAuRa.erc20TokenContract.call());
+      // Pass ERC677 contract address to Staking contract
+      await stakingAuRa.setErc677TokenContract(erc677Token.address, {from: owner}).should.be.fulfilled;
+      erc677Token.address.should.be.equal(await stakingAuRa.erc677TokenContract.call());
 
       // Emulate block number
       await stakingAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
@@ -119,12 +118,11 @@ contract('ValidatorSetAuRa', async accounts => {
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
         initialStakingAddresses, // _initialStakingAddresses
-        1, // _delegatorMinStake
-        1, // _candidateMinStake
+        web3.utils.toWei('1', 'ether'), // _delegatorMinStake
+        web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
-        4320, // _stakeWithdrawDisallowPeriod
-        false // _erc20Restricted
+        4320 // _stakeWithdrawDisallowPeriod
       ).should.be.fulfilled;
       (await stakingAuRa.getPoolsToBeRemoved.call()).should.be.deep.equal([
         initialStakingAddresses[1],
@@ -165,12 +163,11 @@ contract('ValidatorSetAuRa', async accounts => {
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
         initialStakingAddresses, // _initialStakingAddresses
-        1, // _delegatorMinStake
-        1, // _candidateMinStake
+        web3.utils.toWei('1', 'ether'), // _delegatorMinStake
+        web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
-        4320, // _stakeWithdrawDisallowPeriod
-        false // _erc20Restricted
+        4320 // _stakeWithdrawDisallowPeriod
       ).should.be.fulfilled;
 
       // Set `initiateChangeAllowed` boolean flag to `true`
@@ -183,13 +180,14 @@ contract('ValidatorSetAuRa', async accounts => {
       await validatorSetAuRa.setCurrentBlockNumber(120954).should.be.fulfilled;
       await validatorSetAuRa.setBlockRewardContract(accounts[4]).should.be.fulfilled;
       await validatorSetAuRa.newValidatorSet({from: accounts[4]}).should.be.fulfilled;
+      await validatorSetAuRa.setBlockRewardContract(blockRewardAuRa.address).should.be.fulfilled;
       await validatorSetAuRa.setCurrentBlockNumber(120970).should.be.fulfilled;
     });
 
     it('should emit InitiateChange event successfully', async () => {
-      let queueValidators = await validatorSetAuRa.getQueueValidators.call();
+      let queueValidators = await validatorSetAuRa.validatorsToBeFinalized.call();
       queueValidators.miningAddresses.length.should.be.equal(0);
-      queueValidators.newStakingEpoch.should.be.equal(false);
+      queueValidators.forNewEpoch.should.be.equal(false);
 
       (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(true);
       (await validatorSetAuRa.initiateChangeAllowed.call()).should.be.equal(true);
@@ -203,9 +201,9 @@ contract('ValidatorSetAuRa', async accounts => {
       result.logs[0].args.newSet.should.be.deep.equal(initialValidators);
       (await validatorSetAuRa.initiateChangeAllowed.call()).should.be.equal(false);
 
-      queueValidators = await validatorSetAuRa.getQueueValidators.call();
+      queueValidators = await validatorSetAuRa.validatorsToBeFinalized.call();
       queueValidators.miningAddresses.should.be.deep.equal(initialValidators);
-      queueValidators.newStakingEpoch.should.be.equal(true);
+      queueValidators.forNewEpoch.should.be.equal(true);
     });
     it('should fail if the `emitInitiateChangeCallable` returns `false`', async () => {
       (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(true);
@@ -216,17 +214,17 @@ contract('ValidatorSetAuRa', async accounts => {
       await validatorSetAuRa.emitInitiateChange().should.be.rejectedWith(ERROR_MSG);
     });
     it('shouldn\'t emit InitiateChange event if an empty pending validators array was queued', async () => {
+      await blockRewardAuRa.initialize(validatorSetAuRa.address).should.be.fulfilled;
       await validatorSetAuRa.emitInitiateChange().should.be.fulfilled;
       await validatorSetAuRa.setCurrentBlockNumber(120980).should.be.fulfilled;
       await validatorSetAuRa.finalizeChange({from: owner}).should.be.fulfilled;
 
       await validatorSetAuRa.setCurrentBlockNumber(121000).should.be.fulfilled;
       await validatorSetAuRa.clearPendingValidators().should.be.fulfilled;
-      await validatorSetAuRa.enqueuePendingValidators().should.be.fulfilled;
       (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(true);
 
-      const result = await validatorSetAuRa.emitInitiateChange().should.be.fulfilled;
-      result.logs.length.should.be.equal(0);
+      const {logs} = await validatorSetAuRa.emitInitiateChange().should.be.fulfilled;
+      logs.length.should.be.equal(0);
       (await validatorSetAuRa.initiateChangeAllowed.call()).should.be.equal(true);
       (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(false);
     });
@@ -266,9 +264,6 @@ contract('ValidatorSetAuRa', async accounts => {
       (await validatorSetAuRa.getValidators.call()).should.be.deep.equal(initialValidators);
       (await validatorSetAuRa.getPendingValidators.call()).should.be.deep.equal(initialValidators);
       for (let i = 0; i < initialValidators.length; i++) {
-        new BN(i).should.be.bignumber.equal(
-          await validatorSetAuRa.validatorIndex.call(initialValidators[i])
-        );
         true.should.be.equal(
           await validatorSetAuRa.isValidator.call(initialValidators[i])
         );
@@ -428,12 +423,11 @@ contract('ValidatorSetAuRa', async accounts => {
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
         initialStakingAddresses, // _initialStakingAddresses
-        1, // _delegatorMinStake
-        1, // _candidateMinStake
+        web3.utils.toWei('1', 'ether'), // _delegatorMinStake
+        web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
-        4320, // _stakeWithdrawDisallowPeriod
-        false // _erc20Restricted
+        4320 // _stakeWithdrawDisallowPeriod
       ).should.be.fulfilled;
       await stakingAuRa.setCurrentBlockNumber(120954).should.be.fulfilled;
       await validatorSetAuRa.setCurrentBlockNumber(120954).should.be.fulfilled;
@@ -442,18 +436,6 @@ contract('ValidatorSetAuRa', async accounts => {
       await validatorSetAuRa.newValidatorSet({from: owner}).should.be.rejectedWith(ERROR_MSG);
       await validatorSetAuRa.setBlockRewardContract(accounts[4]).should.be.fulfilled;
       await validatorSetAuRa.newValidatorSet({from: accounts[4]}).should.be.fulfilled;
-    });
-    it('should only work at the latest block of current staking epoch', async () => {
-      await stakingAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
-      await validatorSetAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
-      (await stakingAuRa.stakingEpochEndBlock.call()).should.be.bignumber.equal(new BN(120954));
-      await validatorSetAuRa.setBlockRewardContract(accounts[4]).should.be.fulfilled;
-      await validatorSetAuRa.newValidatorSet({from: accounts[4]}).should.be.fulfilled;
-      (await stakingAuRa.stakingEpochStartBlock.call()).should.be.bignumber.equal(new BN(0));
-      await stakingAuRa.setCurrentBlockNumber(120954).should.be.fulfilled;
-      await validatorSetAuRa.setCurrentBlockNumber(120954).should.be.fulfilled;
-      await validatorSetAuRa.newValidatorSet({from: accounts[4]}).should.be.fulfilled;
-      (await stakingAuRa.stakingEpochStartBlock.call()).should.be.bignumber.equal(new BN(120955));
     });
     it('should increment the number of staking epoch', async () => {
       (await stakingAuRa.stakingEpoch.call()).should.be.bignumber.equal(new BN(0));
@@ -477,7 +459,7 @@ contract('ValidatorSetAuRa', async accounts => {
     it('should enqueue initial validators', async () => {
       // Emulate calling `finalizeChange()` at network startup
       await validatorSetAuRa.setCurrentBlockNumber(1).should.be.fulfilled;
-      (await validatorSetAuRa.initiateChangeAllowed.call()).should.be.equal(false);
+      (await validatorSetAuRa.initiateChangeAllowed.call()).should.be.equal(true);
       await validatorSetAuRa.setSystemAddress(owner).should.be.fulfilled;
       await validatorSetAuRa.finalizeChange({from: owner}).should.be.fulfilled;
       (await validatorSetAuRa.initiateChangeAllowed.call()).should.be.equal(true);
@@ -499,30 +481,31 @@ contract('ValidatorSetAuRa', async accounts => {
       (await validatorSetAuRa.initiateChangeAllowed.call()).should.be.equal(false);
       (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(false);
 
-      // Check the returned value of `getQueueValidators()`
-      const queueResult = await validatorSetAuRa.getQueueValidators.call();
+      // Check the returned value of `validatorsToBeFinalized()`
+      const queueResult = await validatorSetAuRa.validatorsToBeFinalized.call();
       queueResult[0].should.be.deep.equal(initialValidators);
       queueResult[1].should.be.equal(true);
     });
     it('should enqueue only one validator which has non-empty pool', async () => {
-      const stakeUnit = await stakingAuRa.STAKE_UNIT.call();
+      const stakeUnit = new BN(web3.utils.toWei('1', 'ether'));
       const mintAmount = stakeUnit.mul(new BN(2));
 
+      await validatorSetAuRa.setValidatorSetApplyBlock(1).should.be.fulfilled;
       await stakingAuRa.setCurrentBlockNumber(10).should.be.fulfilled;
       await validatorSetAuRa.setCurrentBlockNumber(10).should.be.fulfilled;
 
       // Deploy token contract and mint some tokens for the first initial validator
-      const erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
-      await erc20Token.mint(initialStakingAddresses[0], mintAmount, {from: owner}).should.be.fulfilled;
-      mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(initialStakingAddresses[0]));
+      const erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, {from: owner});
+      await erc677Token.mint(initialStakingAddresses[0], mintAmount, {from: owner}).should.be.fulfilled;
+      mintAmount.should.be.bignumber.equal(await erc677Token.balanceOf.call(initialStakingAddresses[0]));
 
-      // Pass Staking contract address to ERC20 contract
-      await erc20Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
-      stakingAuRa.address.should.be.equal(await erc20Token.stakingContract.call());
+      // Pass Staking contract address to ERC677 contract
+      await erc677Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
+      stakingAuRa.address.should.be.equal(await erc677Token.stakingContract.call());
 
-      // Pass ERC20 contract address to Staking contract
-      await stakingAuRa.setErc20TokenContract(erc20Token.address, {from: owner}).should.be.fulfilled;
-      erc20Token.address.should.be.equal(await stakingAuRa.erc20TokenContract.call());
+      // Pass ERC677 contract address to Staking contract
+      await stakingAuRa.setErc677TokenContract(erc677Token.address, {from: owner}).should.be.fulfilled;
+      erc677Token.address.should.be.equal(await stakingAuRa.erc677TokenContract.call());
 
       // Emulate staking by the first validator into their own pool
       const stakeAmount = stakeUnit.mul(new BN(1));
@@ -563,33 +546,33 @@ contract('ValidatorSetAuRa', async accounts => {
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
         initialStakingAddresses, // _initialStakingAddresses
-        1, // _delegatorMinStake
-        1, // _candidateMinStake
+        web3.utils.toWei('1', 'ether'), // _delegatorMinStake
+        web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
-        4320, // _stakeWithdrawDisallowPeriod
-        false // _erc20Restricted
+        4320 // _stakeWithdrawDisallowPeriod
       ).should.be.fulfilled;
       await stakingAuRa.setValidatorSetAddress(validatorSetAuRa.address).should.be.fulfilled;
 
-      const stakeUnit = await stakingAuRa.STAKE_UNIT.call();
+      const stakeUnit = new BN(web3.utils.toWei('1', 'ether'));
       const mintAmount = stakeUnit.mul(new BN(2));
 
+      await validatorSetAuRa.setValidatorSetApplyBlock(1).should.be.fulfilled;
       await stakingAuRa.setCurrentBlockNumber(10).should.be.fulfilled;
       await validatorSetAuRa.setCurrentBlockNumber(10).should.be.fulfilled;
 
       // Deploy token contract and mint some tokens for the second initial validator
-      const erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
-      await erc20Token.mint(initialStakingAddresses[1], mintAmount, {from: owner}).should.be.fulfilled;
-      mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(initialStakingAddresses[1]));
+      const erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, {from: owner});
+      await erc677Token.mint(initialStakingAddresses[1], mintAmount, {from: owner}).should.be.fulfilled;
+      mintAmount.should.be.bignumber.equal(await erc677Token.balanceOf.call(initialStakingAddresses[1]));
 
-      // Pass Staking contract address to ERC20 contract
-      await erc20Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
-      stakingAuRa.address.should.be.equal(await erc20Token.stakingContract.call());
+      // Pass Staking contract address to ERC677 contract
+      await erc677Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
+      stakingAuRa.address.should.be.equal(await erc677Token.stakingContract.call());
 
-      // Pass ERC20 contract address to Staking contract
-      await stakingAuRa.setErc20TokenContract(erc20Token.address, {from: owner}).should.be.fulfilled;
-      erc20Token.address.should.be.equal(await stakingAuRa.erc20TokenContract.call());
+      // Pass ERC677 contract address to Staking contract
+      await stakingAuRa.setErc677TokenContract(erc677Token.address, {from: owner}).should.be.fulfilled;
+      erc677Token.address.should.be.equal(await stakingAuRa.erc677TokenContract.call());
 
       // Emulate staking by the second validator into their own pool
       const stakeAmount = stakeUnit.mul(new BN(1));
@@ -635,26 +618,27 @@ contract('ValidatorSetAuRa', async accounts => {
         miningAddresses.push(candidateMiningAddress.toLowerCase());
       }
 
-      const stakeUnit = await stakingAuRa.STAKE_UNIT.call();
+      const stakeUnit = new BN(web3.utils.toWei('1', 'ether'));
       const mintAmount = stakeUnit.mul(new BN(100));
 
+      await validatorSetAuRa.setValidatorSetApplyBlock(1).should.be.fulfilled;
       await stakingAuRa.setCurrentBlockNumber(20).should.be.fulfilled;
       await validatorSetAuRa.setCurrentBlockNumber(20).should.be.fulfilled;
 
       // Deploy token contract and mint tokens for the candidates
-      const erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
+      const erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, {from: owner});
       for (let i = 0; i < stakingAddresses.length; i++) {
-        await erc20Token.mint(stakingAddresses[i], mintAmount, {from: owner}).should.be.fulfilled;
-        mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(stakingAddresses[i]));
+        await erc677Token.mint(stakingAddresses[i], mintAmount, {from: owner}).should.be.fulfilled;
+        mintAmount.should.be.bignumber.equal(await erc677Token.balanceOf.call(stakingAddresses[i]));
       }
 
-      // Pass Staking contract address to ERC20 contract
-      await erc20Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
-      stakingAuRa.address.should.be.equal(await erc20Token.stakingContract.call());
+      // Pass Staking contract address to ERC677 contract
+      await erc677Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
+      stakingAuRa.address.should.be.equal(await erc677Token.stakingContract.call());
 
-      // Pass ERC20 contract address to Staking contract
-      await stakingAuRa.setErc20TokenContract(erc20Token.address, {from: owner}).should.be.fulfilled;
-      erc20Token.address.should.be.equal(await stakingAuRa.erc20TokenContract.call());
+      // Pass ERC677 contract address to Staking contract
+      await stakingAuRa.setErc677TokenContract(erc677Token.address, {from: owner}).should.be.fulfilled;
+      erc677Token.address.should.be.equal(await stakingAuRa.erc677TokenContract.call());
 
       // Emulate staking by the candidates into their own pool
       await stakingAuRa.setCurrentBlockNumber(30).should.be.fulfilled;
@@ -686,8 +670,8 @@ contract('ValidatorSetAuRa', async accounts => {
         const secretNumber = random(1000000, 2000000);
         await randomAuRa.setCurrentBlockNumber(40 + i).should.be.fulfilled;
         await randomAuRa.setCoinbase(initialValidators[i]).should.be.fulfilled;
-        const numberHash = web3.utils.soliditySha3(new BN(secretNumber));
-        await randomAuRa.commitHash(numberHash, [1 + i, 2 + i, 3 + i], {from: initialValidators[i]}).should.be.fulfilled;
+        const secretNumberHash = web3.utils.soliditySha3(new BN(secretNumber));
+        await randomAuRa.commitHash(secretNumberHash, [1 + i, 2 + i, 3 + i], {from: initialValidators[i]}).should.be.fulfilled;
         secretNumbers.push(secretNumber);
         seed ^= secretNumber;
       }
@@ -737,12 +721,11 @@ contract('ValidatorSetAuRa', async accounts => {
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
         initialStakingAddresses, // _initialStakingAddresses
-        1, // _delegatorMinStake
-        1, // _candidateMinStake
+        web3.utils.toWei('1', 'ether'), // _delegatorMinStake
+        web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
-        4320, // _stakeWithdrawDisallowPeriod
-        false // _erc20Restricted
+        4320 // _stakeWithdrawDisallowPeriod
       ).should.be.fulfilled;
       await stakingAuRa.setValidatorSetAddress(validatorSetAuRa.address).should.be.fulfilled;
 
@@ -762,26 +745,27 @@ contract('ValidatorSetAuRa', async accounts => {
         miningAddresses.push(candidateMiningAddress.toLowerCase());
       }
 
-      const stakeUnit = await stakingAuRa.STAKE_UNIT.call();
+      const stakeUnit = new BN(web3.utils.toWei('1', 'ether'));
       const mintAmount = stakeUnit.mul(new BN(100));
 
+      await validatorSetAuRa.setValidatorSetApplyBlock(1).should.be.fulfilled;
       await validatorSetAuRa.setCurrentBlockNumber(20).should.be.fulfilled;
       await stakingAuRa.setCurrentBlockNumber(20).should.be.fulfilled;
 
       // Deploy token contract and mint tokens for the candidates
-      const erc20Token = await ERC677BridgeTokenRewardable.new("POSDAO20", "POSDAO20", 18, {from: owner});
+      const erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, {from: owner});
       for (let i = 0; i < stakingAddresses.length; i++) {
-        await erc20Token.mint(stakingAddresses[i], mintAmount, {from: owner}).should.be.fulfilled;
-        mintAmount.should.be.bignumber.equal(await erc20Token.balanceOf.call(stakingAddresses[i]));
+        await erc677Token.mint(stakingAddresses[i], mintAmount, {from: owner}).should.be.fulfilled;
+        mintAmount.should.be.bignumber.equal(await erc677Token.balanceOf.call(stakingAddresses[i]));
       }
 
-      // Pass Staking contract address to ERC20 contract
-      await erc20Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
-      stakingAuRa.address.should.be.equal(await erc20Token.stakingContract.call());
+      // Pass Staking contract address to ERC677 contract
+      await erc677Token.setStakingContract(stakingAuRa.address, {from: owner}).should.be.fulfilled;
+      stakingAuRa.address.should.be.equal(await erc677Token.stakingContract.call());
 
-      // Pass ERC20 contract address to Staking contract
-      await stakingAuRa.setErc20TokenContract(erc20Token.address, {from: owner}).should.be.fulfilled;
-      erc20Token.address.should.be.equal(await stakingAuRa.erc20TokenContract.call());
+      // Pass ERC677 contract address to Staking contract
+      await stakingAuRa.setErc677TokenContract(erc677Token.address, {from: owner}).should.be.fulfilled;
+      erc677Token.address.should.be.equal(await stakingAuRa.erc677TokenContract.call());
 
       // Emulate staking by the candidates into their own pool
       (await stakingAuRa.getPoolsToBeElected.call()).length.should.be.equal(0);
@@ -814,8 +798,8 @@ contract('ValidatorSetAuRa', async accounts => {
         const secretNumber = random(1000000, 2000000);
         await randomAuRa.setCurrentBlockNumber(40 + i).should.be.fulfilled;
         await randomAuRa.setCoinbase(initialValidators[i]).should.be.fulfilled;
-        const numberHash = web3.utils.soliditySha3(new BN(secretNumber));
-        await randomAuRa.commitHash(numberHash, [1 + i, 2 + i, 3 + i], {from: initialValidators[i]}).should.be.fulfilled;
+        const secretNumberHash = web3.utils.soliditySha3(new BN(secretNumber));
+        await randomAuRa.commitHash(secretNumberHash, [1 + i, 2 + i, 3 + i], {from: initialValidators[i]}).should.be.fulfilled;
         secretNumbers.push(secretNumber);
         seed ^= secretNumber;
       }
