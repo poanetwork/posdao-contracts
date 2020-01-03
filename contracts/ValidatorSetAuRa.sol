@@ -495,7 +495,10 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// validator misbehaved at the specified block.
     /// @param _miningAddress The mining address of malicious validator.
     /// @param _blockNumber The block number.
-    function maliceReportedForBlock(address _miningAddress, uint256 _blockNumber) public view returns(address[] memory) {
+    function maliceReportedForBlock(
+        address _miningAddress,
+        uint256 _blockNumber
+    ) public view returns(address[] memory) {
         return _maliceReportedForBlock[_miningAddress][_blockNumber];
     }
 
