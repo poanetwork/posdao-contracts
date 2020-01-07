@@ -40,7 +40,7 @@ async function main() {
   for (let i = 0; i < publicKeys.length; i++) {
     publicKeys[i] = publicKeys[i].trim();
   }
-  let publicKeysSplit = fp.flatMap(x => [x.substring(0, 34), '0x' + x.substring(34, 66)])(publicKeys);
+  let publicKeysSplit = fp.flatMap(x => [x.substring(0, 66), '0x' + x.substring(66, 130)])(publicKeys);
 
   let internetAddresses = process.env.IP_ADDRESSES.split(',');;
   for (let i = 0; i < internetAddresses.length; i++) {
@@ -238,7 +238,7 @@ async function main() {
   spec.accounts['0x8000000000000000000000000000000000000000'] = {
     balance: '0',
     constructor: await deploy.encodeABI()
-  };  
+  };
 
   console.log('Saving spec_hbbft.json file ...');
   fs.writeFileSync(path.join(__dirname, '..', 'spec_hbbft.json'), JSON.stringify(spec, null, '  '), 'UTF-8');

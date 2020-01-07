@@ -865,7 +865,6 @@ contract StakingHbbftBase is UpgradeableOwned, IStakingHbbft {
         require(_initialStakingAddresses.length > 0);
         require(_initialStakingAddresses.length.mul(2) == _publicKeys.length);
         require(_initialStakingAddresses.length == _internetAddresses.length);
-        require(_publicKeys.length == _internetAddresses.length.mul(2));
         require(_delegatorMinStake != 0);
         require(_candidateMinStake != 0);
 
@@ -879,7 +878,7 @@ contract StakingHbbftBase is UpgradeableOwned, IStakingHbbft {
             if (_initialStakingAddresses[i] != unremovableStakingAddress) {
                 _addPoolToBeRemoved(_initialStakingAddresses[i]);
             }
-            poolInfo[_initialStakingAddresses[i]].publicKey = abi.encode(_publicKeys[i*2],_publicKeys[i*2+1]);
+            poolInfo[_initialStakingAddresses[i]].publicKey = abi.encodePacked(_publicKeys[i*2],_publicKeys[i*2+1]);
             poolInfo[_initialStakingAddresses[i]].internetAddress = _internetAddresses[i];
         }
 

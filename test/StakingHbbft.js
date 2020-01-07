@@ -24,6 +24,7 @@ contract('StakingHbbft', async accounts => {
   let stakingHbbft;
   let validatorSetHbbft;
   let initialValidatorsPubKeys;
+  let initialValidatorsPubKeysSplit;
   let initialValidatorsIpAddresses;
 
   beforeEach(async () => {
@@ -54,10 +55,11 @@ contract('StakingHbbft', async accounts => {
     // The following private keys belong to the accounts 1-3, fixed by using the "--mnemonic" option when starting ganache.
     // const initialValidatorsPrivKeys = ["0x272b8400a202c08e23641b53368d603e5fec5c13ea2f438bce291f7be63a02a7", "0xa8ea110ffc8fe68a069c8a460ad6b9698b09e21ad5503285f633b3ad79076cf7", "0x5da461ff1378256f69cb9a9d0a8b370c97c460acbe88f5d897cb17209f891ffc"];
     // Public keys corresponding to the three private keys above.
-    initialValidatorsPubKeys = fp.flatMap(x => [x.substring(0, 34), '0x' + x.substring(34, 66)])
-      (['0x52be8f332b0404dff35dd0b2ba44993a9d3dc8e770b9ce19a849dff948f1e14c57e7c8219d522c1a4cce775adbee5330f222520f0afdabfdb4a4501ceeb8dcee',
-        '0x99edf3f524a6f73e7f5d561d0030fc6bcc3e4bd33971715617de7791e12d9bdf6258fa65b74e7161bbbf7ab36161260f56f68336a6f65599dc37e7f2e397f845',
-        '0xa255fd7ad199f0ee814ee00cce44ef2b1fa1b52eead5d8013ed85eade03034ae4c246658946c2e1d7ded96394a1247fb4d093c32474317ae388e8d25692a0f56']);
+    initialValidatorsPubKeys = ['0x52be8f332b0404dff35dd0b2ba44993a9d3dc8e770b9ce19a849dff948f1e14c57e7c8219d522c1a4cce775adbee5330f222520f0afdabfdb4a4501ceeb8dcee',
+      '0x99edf3f524a6f73e7f5d561d0030fc6bcc3e4bd33971715617de7791e12d9bdf6258fa65b74e7161bbbf7ab36161260f56f68336a6f65599dc37e7f2e397f845',
+      '0xa255fd7ad199f0ee814ee00cce44ef2b1fa1b52eead5d8013ed85eade03034ae4c246658946c2e1d7ded96394a1247fb4d093c32474317ae388e8d25692a0f56'];
+    initialValidatorsPubKeysSplit = fp.flatMap(x => [x.substring(0, 66), '0x' + x.substring(66, 130)])
+      (initialValidatorsPubKeys);
     // The IP addresses are irrelevant for these unit test, just initialize them to 0.
     initialValidatorsIpAddresses = ['0x00000000000000000000000000000000', '0x00000000000000000000000000000000', '0x00000000000000000000000000000000'];
 
@@ -91,7 +93,7 @@ contract('StakingHbbft', async accounts => {
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
-        initialValidatorsPubKeys, // _publicKeys
+        initialValidatorsPubKeysSplit, // _publicKeys
         initialValidatorsIpAddresses // _internetAddresses
       ).should.be.fulfilled;
 
@@ -123,24 +125,33 @@ contract('StakingHbbft', async accounts => {
       await stakingHbbft.setCurrentBlockNumber(2).should.be.fulfilled;
       await validatorSetHbbft.setCurrentBlockNumber(2).should.be.fulfilled;
     });
-
-    it.only('should create a new pool', async () => {
+    it('should set the corresponding public keys', async () => {
+      for (let i = 0; i < initialStakingAddresses.length; i++) {
+          (await stakingHbbft.getPoolPublicKey.call(initialStakingAddresses[i])).should.be.deep.equal(initialValidatorsPubKeys[i]);
+      }
+    });
+    it('should set the corresponding IP addresses', async () => {
+      for (let i = 0; i < initialStakingAddresses.length; i++) {
+          (await stakingHbbft.getPoolInternetAddress.call(initialStakingAddresses[i])).should.be.deep.equal(initialValidatorsIpAddresses[i]);
+      }
+    });
+    it('should create a new pool', async () => {
       false.should.be.equal(await stakingHbbft.isPoolActive.call(candidateStakingAddress));
       await stakingHbbft.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
       '0x00000000000000000000000000000000', {from: candidateStakingAddress}).should.be.fulfilled;
       true.should.be.equal(await stakingHbbft.isPoolActive.call(candidateStakingAddress));
     });
-    it.only('should fail if mining address is 0', async () => {
+    it('should fail if mining address is 0', async () => {
       await stakingHbbft.addPool(stakeUnit.mul(new BN(1)), '0x0000000000000000000000000000000000000000', '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
       '0x00000000000000000000000000000000', {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
       await stakingHbbft.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
       '0x00000000000000000000000000000000', {from: candidateStakingAddress}).should.be.fulfilled;
     });
-    it.only('should fail if mining address is equal to staking', async () => {
+    it('should fail if mining address is equal to staking', async () => {
       await stakingHbbft.addPool(stakeUnit.mul(new BN(1)), candidateStakingAddress, '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
       '0x00000000000000000000000000000000', {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
     });
-    it.only('should fail if the pool with the same mining/staking address is already existed', async () => {
+    it('should fail if the pool with the same mining/staking address is already existed', async () => {
       const candidateMiningAddress2 = accounts[9];
       const candidateStakingAddress2 = accounts[10];
 
@@ -174,11 +185,11 @@ contract('StakingHbbft', async accounts => {
       await stakingHbbft.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress2, '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
       '0x00000000000000000000000000000000', {from: candidateStakingAddress2}).should.be.fulfilled;
     });
-    it.only('should fail if gasPrice is 0', async () => {
+    it('should fail if gasPrice is 0', async () => {
       await stakingHbbft.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
       '0x00000000000000000000000000000000', {from: candidateStakingAddress, gasPrice: 0}).should.be.rejectedWith(ERROR_MSG);
     });
-    it.only('should fail if ERC contract is not specified', async () => {
+    it('should fail if ERC contract is not specified', async () => {
       // Set ERC677 contract address to zero
       await stakingHbbft.setErc677TokenContractMock('0x0000000000000000000000000000000000000000').should.be.fulfilled;
 
@@ -195,11 +206,11 @@ contract('StakingHbbft', async accounts => {
       '0x00000000000000000000000000000000', {from: candidateStakingAddress}).should.be.fulfilled;
       true.should.be.equal(await stakingHbbft.isPoolActive.call(candidateStakingAddress));
     });
-    it.only('should fail if staking amount is 0', async () => {
+    it('should fail if staking amount is 0', async () => {
       await stakingHbbft.addPool(new BN(0), candidateMiningAddress, '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
       '0x00000000000000000000000000000000', {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
     });
-    it.only('should fail if block.number is inside disallowed range', async () => {
+    it('should fail if block.number is inside disallowed range', async () => {
       await stakingHbbft.setCurrentBlockNumber(119960).should.be.fulfilled;
       await validatorSetHbbft.setCurrentBlockNumber(119960).should.be.fulfilled;
       await stakingHbbft.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
@@ -209,19 +220,19 @@ contract('StakingHbbft', async accounts => {
       await stakingHbbft.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
       '0x00000000000000000000000000000000', {from: candidateStakingAddress}).should.be.fulfilled;
     });
-    it.only('should fail if staking amount is less than CANDIDATE_MIN_STAKE', async () => {
+    it('should fail if staking amount is less than CANDIDATE_MIN_STAKE', async () => {
       await stakingHbbft.addPool(stakeUnit.mul(new BN(1)).div(new BN(2)), candidateMiningAddress, '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
       '0x00000000000000000000000000000000', {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
       await stakingHbbft.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
       '0x00000000000000000000000000000000', {from: candidateStakingAddress}).should.be.fulfilled;
     });
-    it.only('should fail if candidate doesn\'t have enough funds', async () => {
+    it('should fail if candidate doesn\'t have enough funds', async () => {
       await stakingHbbft.addPool(stakeUnit.mul(new BN(3)), candidateMiningAddress, '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
       '0x00000000000000000000000000000000', {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
       await stakingHbbft.addPool(stakeUnit.mul(new BN(2)), candidateMiningAddress, '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
       '0x00000000000000000000000000000000', {from: candidateStakingAddress}).should.be.fulfilled;
     });
-    it.only('stake amount should be increased', async () => {
+    it('stake amount should be increased', async () => {
       const amount = stakeUnit.mul(new BN(2));
       await stakingHbbft.addPool(amount, candidateMiningAddress, '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
       '0x00000000000000000000000000000000', {from: candidateStakingAddress}).should.be.fulfilled;
@@ -229,7 +240,7 @@ contract('StakingHbbft', async accounts => {
       amount.should.be.bignumber.equal(await stakingHbbft.stakeAmountByCurrentEpoch.call(candidateStakingAddress, candidateStakingAddress));
       amount.should.be.bignumber.equal(await stakingHbbft.stakeAmountTotal.call(candidateStakingAddress));
     });
-    it.only('should be able to add more than one pool', async () => {
+    it('should be able to add more than one pool', async () => {
       const candidate1MiningAddress = candidateMiningAddress;
       const candidate1StakingAddress = candidateStakingAddress;
       const candidate2MiningAddress = accounts[9];
@@ -270,7 +281,7 @@ contract('StakingHbbft', async accounts => {
         candidate2StakingAddress
       ]);
     });
-    it.only('shouldn\'t allow adding more than MAX_CANDIDATES pools', async () => {
+    it('shouldn\'t allow adding more than MAX_CANDIDATES pools', async () => {
       for (let p = initialValidators.length; p < 100; p++) {
         // Generate new candidate staking address
         let candidateStakingAddress = '0x';
@@ -292,7 +303,7 @@ contract('StakingHbbft', async accounts => {
       '0x00000000000000000000000000000000', {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
       false.should.be.equal(await stakingHbbft.isPoolActive.call(candidateStakingAddress));
     });
-    it.only('should remove added pool from the list of inactive pools', async () => {
+    it('should remove added pool from the list of inactive pools', async () => {
       await stakingHbbft.addPoolInactiveMock(candidateStakingAddress).should.be.fulfilled;
       (await stakingHbbft.getPoolsInactive.call()).should.be.deep.equal([candidateStakingAddress]);
       await stakingHbbft.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
@@ -367,7 +378,7 @@ contract('StakingHbbft', async accounts => {
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
-        initialValidatorsPubKeys, // _publicKeys
+        initialValidatorsPubKeysSplit, // _publicKeys
         initialValidatorsIpAddresses // _internetAddresses
       ).should.be.fulfilled;
 
@@ -1868,7 +1879,7 @@ contract('StakingHbbft', async accounts => {
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
-        initialValidatorsPubKeys, // _publicKeys
+        initialValidatorsPubKeysSplit, // _publicKeys
         initialValidatorsIpAddresses // _internetAddresses
       ).should.be.fulfilled;
     });
@@ -1966,7 +1977,7 @@ contract('StakingHbbft', async accounts => {
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
-        initialValidatorsPubKeys, // _publicKeys
+        initialValidatorsPubKeysSplit, // _publicKeys
         initialValidatorsIpAddresses // _internetAddresses
       ).should.be.fulfilled;
       new BN(120954).should.be.bignumber.equal(
@@ -2012,7 +2023,7 @@ contract('StakingHbbft', async accounts => {
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
-        initialValidatorsPubKeys, // _publicKeys
+        initialValidatorsPubKeysSplit, // _publicKeys
         initialValidatorsIpAddresses // _internetAddresses
       ).should.be.rejectedWith(ERROR_MSG);
     });
@@ -2025,7 +2036,7 @@ contract('StakingHbbft', async accounts => {
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
-        initialValidatorsPubKeys, // _publicKeys
+        initialValidatorsPubKeysSplit, // _publicKeys
         initialValidatorsIpAddresses // _internetAddresses
       ).should.be.rejectedWith(ERROR_MSG);
     });
@@ -2038,7 +2049,7 @@ contract('StakingHbbft', async accounts => {
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
-        initialValidatorsPubKeys, // _publicKeys
+        initialValidatorsPubKeysSplit, // _publicKeys
         initialValidatorsIpAddresses // _internetAddresses
       ).should.be.rejectedWith(ERROR_MSG);
     });
@@ -2051,7 +2062,7 @@ contract('StakingHbbft', async accounts => {
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
-        initialValidatorsPubKeys, // _publicKeys
+        initialValidatorsPubKeysSplit, // _publicKeys
         initialValidatorsIpAddresses // _internetAddresses
       ).should.be.fulfilled;
       await stakingHbbft.initialize(
@@ -2062,7 +2073,7 @@ contract('StakingHbbft', async accounts => {
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
-        initialValidatorsPubKeys, // _publicKeys
+        initialValidatorsPubKeysSplit, // _publicKeys
         initialValidatorsIpAddresses // _internetAddresses
       ).should.be.rejectedWith(ERROR_MSG);
     });
@@ -2075,7 +2086,7 @@ contract('StakingHbbft', async accounts => {
         0, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
-        initialValidatorsPubKeys, // _publicKeys
+        initialValidatorsPubKeysSplit, // _publicKeys
         initialValidatorsIpAddresses // _internetAddresses
       ).should.be.rejectedWith(ERROR_MSG);
     });
@@ -2088,7 +2099,7 @@ contract('StakingHbbft', async accounts => {
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
         0, // _stakeWithdrawDisallowPeriod
-        initialValidatorsPubKeys, // _publicKeys
+        initialValidatorsPubKeysSplit, // _publicKeys
         initialValidatorsIpAddresses // _internetAddresses
       ).should.be.rejectedWith(ERROR_MSG);
     });
@@ -2101,7 +2112,7 @@ contract('StakingHbbft', async accounts => {
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
         120954, // _stakeWithdrawDisallowPeriod
-        initialValidatorsPubKeys, // _publicKeys
+        initialValidatorsPubKeysSplit, // _publicKeys
         initialValidatorsIpAddresses // _internetAddresses
       ).should.be.rejectedWith(ERROR_MSG);
       await stakingHbbft.initialize(
@@ -2112,7 +2123,7 @@ contract('StakingHbbft', async accounts => {
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
-        initialValidatorsPubKeys, // _publicKeys
+        initialValidatorsPubKeysSplit, // _publicKeys
         initialValidatorsIpAddresses // _internetAddresses
       ).should.be.fulfilled;
     });
@@ -2126,7 +2137,7 @@ contract('StakingHbbft', async accounts => {
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
-        initialValidatorsPubKeys, // _publicKeys
+        initialValidatorsPubKeysSplit, // _publicKeys
         initialValidatorsIpAddresses // _internetAddresses
       ).should.be.rejectedWith(ERROR_MSG);
     });
@@ -2150,7 +2161,7 @@ contract('StakingHbbft', async accounts => {
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
-        initialValidatorsPubKeys, // _publicKeys
+        initialValidatorsPubKeysSplit, // _publicKeys
         initialValidatorsIpAddresses // _internetAddresses
       ).should.be.fulfilled;
 
@@ -2250,7 +2261,7 @@ contract('StakingHbbft', async accounts => {
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
-        initialValidatorsPubKeys, // _publicKeys
+        initialValidatorsPubKeysSplit, // _publicKeys
         initialValidatorsIpAddresses // _internetAddresses
       ).should.be.fulfilled;
 
@@ -2432,7 +2443,7 @@ contract('StakingHbbft', async accounts => {
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
-        initialValidatorsPubKeys, // _publicKeys
+        initialValidatorsPubKeysSplit, // _publicKeys
         initialValidatorsIpAddresses // _internetAddresses
       ).should.be.fulfilled;
 
@@ -2566,7 +2577,7 @@ contract('StakingHbbft', async accounts => {
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
-        initialValidatorsPubKeys, // _publicKeys
+        initialValidatorsPubKeysSplit, // _publicKeys
         initialValidatorsIpAddresses // _internetAddresses
       ).should.be.fulfilled;
       await stakingHbbft.setCurrentBlockNumber(100).should.be.fulfilled;
@@ -2663,7 +2674,7 @@ contract('StakingHbbft', async accounts => {
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
-        initialValidatorsPubKeys, // _publicKeys
+        initialValidatorsPubKeysSplit, // _publicKeys
         initialValidatorsIpAddresses // _internetAddresses
       ).should.be.fulfilled;
       await stakingHbbft.setCurrentBlockNumber(100).should.be.fulfilled;
@@ -2724,7 +2735,7 @@ contract('StakingHbbft', async accounts => {
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
-        initialValidatorsPubKeys, // _publicKeys
+        initialValidatorsPubKeysSplit, // _publicKeys
         initialValidatorsIpAddresses // _internetAddresses
       ).should.be.fulfilled;
 
@@ -2762,7 +2773,7 @@ contract('StakingHbbft', async accounts => {
         120954, // _stakingEpochDuration
         0, // _stakingEpochStartBlock
         4320, // _stakeWithdrawDisallowPeriod
-        initialValidatorsPubKeys, // _publicKeys
+        initialValidatorsPubKeysSplit, // _publicKeys
         initialValidatorsIpAddresses // _internetAddresses
       ).should.be.fulfilled;
 
