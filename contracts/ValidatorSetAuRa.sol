@@ -31,6 +31,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     bool internal _pendingValidatorsChangedForNewEpoch;
 
     mapping(address => mapping(uint256 => address[])) internal _maliceReportedForBlock;
+    mapping(address => mapping(uint256 => mapping(address => bool))) internal _maliceReportedForBlockMapped;
 
     /// @dev How many times a given mining address was banned.
     mapping(address => uint256) public banCounter;
@@ -345,6 +346,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         address[] storage reportedValidators = _maliceReportedForBlock[_maliciousMiningAddress][_blockNumber];
 
         reportedValidators.push(reportingMiningAddress);
+        _maliceReportedForBlockMapped[_maliciousMiningAddress][_blockNumber][reportingMiningAddress] = true;
 
         emit ReportedMalicious(reportingMiningAddress, _maliciousMiningAddress, _blockNumber);
 
@@ -549,17 +551,38 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
             return (false, false); // avoid reporting about ancient blocks
         }
 
-        address[] storage reportedValidators = _maliceReportedForBlock[_maliciousMiningAddress][_blockNumber];
-
-        // Don't allow reporting validator to report about the same misbehavior more than once
-        uint256 length = reportedValidators.length;
-        for (uint256 m = 0; m < length; m++) {
-            if (reportedValidators[m] == _reportingMiningAddress) {
-                return (false, false);
-            }
+        if (_maliceReportedForBlockMapped[_maliciousMiningAddress][_blockNumber][_reportingMiningAddress]) {
+            // Don't allow reporting validator to report about the same misbehavior more than once
+            return (false, false);
         }
 
         return (true, false);
+    }
+
+    /// @dev Only used by Ethereum client (see https://github.com/paritytech/parity-ethereum/pull/11245).
+    /// Returns a boolean flag indicating whether the specified validator
+    /// should report about some validator's misbehaviour at the specified block.
+    /// @param _reportingMiningAddress The mining address of validator who reports.
+    /// @param _maliciousMiningAddress The mining address of malicious validator.
+    /// @param _blockNumber The block number at which the validator misbehaved.
+    function shouldValidatorReport(
+        address _reportingMiningAddress,
+        address _maliciousMiningAddress,
+        uint256 _blockNumber
+    ) public view returns(bool) {
+        uint256 currentBlock = _getCurrentBlockNumber();
+        if (_blockNumber > currentBlock) {
+            return false;
+        }
+        if (currentBlock > 100 && currentBlock - 100 > _blockNumber) {
+            return false;
+        }
+        if (isValidatorBanned(_maliciousMiningAddress)) {
+            // We shouldn't report of the malicious validator
+            // as it has already been reported
+            return false;
+        }
+        return !_maliceReportedForBlockMapped[_maliciousMiningAddress][_blockNumber][_reportingMiningAddress];
     }
 
     /// @dev Returns a validator set about to be finalized by the `finalizeChange` function.
