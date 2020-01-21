@@ -1,9 +1,14 @@
 pragma solidity 0.5.10;
 pragma experimental ABIEncoderV2;
 
+import "./interfaces/IValidatorSetHbbft.sol";
 
 contract KeyGenHistory {
 
+    /// @dev The address of the `ValidatorSetHbbft` contract.
+    IValidatorSetHbbft public validatorSetContract;
+    // the current validator addresses
+    address[] public validatorSet;
     mapping(address => bytes) public parts;
     mapping(address => bytes[]) public acks;
 
@@ -13,9 +18,20 @@ contract KeyGenHistory {
         _;
     }
 
-    constructor(address[] memory _validators, bytes[] memory _parts, bytes[][] memory _acks) public {
+    /// @dev Ensures the caller is ValidatorSet contract.
+    modifier onlyValidatorSet() {
+        require(msg.sender == address(validatorSetContract));
+        _;
+    }
+
+    constructor(address _validatorSetContract, address[] memory _validators, bytes[] memory _parts, bytes[][] memory _acks) public {
+        require(_validators.length != 0);
         require(_validators.length == _parts.length);
         require(_validators.length == _acks.length);
+        require(_validatorSetContract != address(0));
+
+        validatorSetContract = IValidatorSetHbbft(_validatorSetContract);
+        validatorSet = _validators;
 
         for (uint256 i = 0; i < _validators.length; i++) {
             parts[_validators[i]] = _parts[i];
@@ -27,7 +43,12 @@ contract KeyGenHistory {
         return acks[val].length;
     }
 
-    function writePart(bytes memory _part) public onlySystem {
+    function setNewValidators(address[] calldata _newValidators) external onlyValidatorSet {
+        // TODO: delete acks and parts
+        validatorSet = _newValidators;
+    }
+
+    function writePart(bytes calldata _part) external onlySystem {
         // TODO: can only be called by a new validator which is elected but not yet finalized
         // or by a validator which is already in the validator set (ValidatorSet.isPendingValidator(msg.sender)
         // must return `true`).
@@ -39,7 +60,7 @@ contract KeyGenHistory {
         parts[msg.sender] = _part;
     }
 
-    function writeAck(bytes memory _ack) public onlySystem {
+    function writeAck(bytes calldata _ack) external onlySystem {
         // TODO: can only be called by a new validator which is elected but not yet finalized
         // or by a validator which is already in the validator set (ValidatorSet.isPendingValidator(msg.sender)
         // must return `true`).
