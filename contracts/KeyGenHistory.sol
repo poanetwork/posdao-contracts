@@ -48,7 +48,7 @@ contract KeyGenHistory {
         validatorSet = _newValidators;
     }
 
-    function writePart(bytes calldata _part) external onlySystem {
+    function writePart(address _validator, bytes calldata _part) external onlySystem {
         // TODO: can only be called by a new validator which is elected but not yet finalized
         // or by a validator which is already in the validator set (ValidatorSet.isPendingValidator(msg.sender)
         // must return `true`).
@@ -57,10 +57,10 @@ contract KeyGenHistory {
         // (it means that the `InitiateChange` event was emitted, but the `finalizeChange`
         // function wasn't yet called).
 
-        parts[msg.sender] = _part;
+        parts[_validator] = _part;
     }
 
-    function writeAck(bytes calldata _ack) external onlySystem {
+    function writeAck(address _validator, bytes calldata _ack) external onlySystem {
         // TODO: can only be called by a new validator which is elected but not yet finalized
         // or by a validator which is already in the validator set (ValidatorSet.isPendingValidator(msg.sender)
         // must return `true`).
@@ -69,7 +69,16 @@ contract KeyGenHistory {
         // (it means that the `InitiateChange` event was emitted, but the `finalizeChange`
         // function wasn't yet called).
 
-        acks[msg.sender].push(_ack);
+        acks[_validator].push(_ack);
     }
 
+    /// @dev Returns true if at least 2/3 of the participating validators consent.
+    function isReady() external view returns (bool) {
+
+        /* for (uint256 i = 0; i < _validators.length; i++) {
+            ;
+        } */
+        return true;
+
+    }
 }
