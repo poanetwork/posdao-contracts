@@ -1,6 +1,7 @@
 pragma solidity 0.5.10;
 
 import "./interfaces/IBlockRewardHbbft.sol";
+import "./interfaces/IKeyGenHistory.sol";
 import "./interfaces/IRandomHbbft.sol";
 import "./interfaces/IStakingHbbft.sol";
 import "./interfaces/IValidatorSetHbbft.sol";
@@ -84,6 +85,9 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
 
     /// @dev The `StakingHbbft` contract address.
     IStakingHbbft public stakingContract;
+
+    /// @dev The `KeyGenHistory` contract address.
+    IKeyGenHistory public keyGenHistoryContract;
 
     /// @dev The staking address of the non-removable validator.
     /// Returns zero if a non-removable validator is not defined.
@@ -218,6 +222,7 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
         address _blockRewardContract,
         address _randomContract,
         address _stakingContract,
+        address _keyGenHistoryContract,
         address[] calldata _initialMiningAddresses,
         address[] calldata _initialStakingAddresses,
         bool _firstValidatorIsUnremovable
@@ -233,6 +238,7 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
         blockRewardContract = _blockRewardContract;
         randomContract = _randomContract;
         stakingContract = IStakingHbbft(_stakingContract);
+        keyGenHistoryContract = IKeyGenHistory(_keyGenHistoryContract);
 
         // Add initial validators to the `_currentValidators` array
         for (uint256 i = 0; i < _initialMiningAddresses.length; i++) {
@@ -611,6 +617,7 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
                 validatorCounter[miningAddress]++;
             }
         }
+        keyGenHistoryContract.setNewValidators(validators);
     }
 
     /// @dev Marks the pending validator set as changed to be used later by the `emitInitiateChange` function.

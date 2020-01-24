@@ -12,6 +12,8 @@ contract KeyGenHistory {
     mapping(address => bytes) public parts;
     mapping(address => bytes[]) public acks;
 
+    event NewValidatorsSet(address[] newValidatorSet);
+
     /// @dev Ensures the caller is the SYSTEM_ADDRESS. See https://wiki.parity.io/Validator-Set.html
     modifier onlySystem() {
         require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
@@ -43,9 +45,10 @@ contract KeyGenHistory {
         return acks[val].length;
     }
 
-    function setNewValidators(address[] calldata _newValidators) external onlyValidatorSet {
+    function setNewValidators(address[] calldata _newValidatorSet) external onlyValidatorSet {
         // TODO: delete acks and parts
-        validatorSet = _newValidators;
+        validatorSet = _newValidatorSet;
+        emit NewValidatorsSet(_newValidatorSet);
     }
 
     function writePart(address _validator, bytes calldata _part) external onlySystem {

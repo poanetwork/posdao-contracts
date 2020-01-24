@@ -50,6 +50,7 @@ contract InitializerHbbft {
             _contracts[1], // _blockRewardContract
             _contracts[2], // _randomContract
             _contracts[3], // _stakingContract
+            /* _contracts[6], // _keyGenHistoryContract */
             _miningAddresses,
             _stakingAddresses,
             _firstValidatorIsUnremovable
