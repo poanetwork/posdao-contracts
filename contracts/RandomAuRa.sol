@@ -14,7 +14,8 @@ contract RandomAuRa is UpgradeabilityAdmin, IRandomAuRa {
     // =============================================== Storage ========================================================
 
     // WARNING: since this contract is upgradeable, do not remove
-    // existing storage variables and do not change their types!
+    // existing storage variables, do not change their order,
+    // and do not change their types!
 
     mapping(uint256 => mapping(address => bytes)) internal _ciphers;
     mapping(uint256 => mapping(address => bytes32)) internal _commits;

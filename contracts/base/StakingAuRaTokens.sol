@@ -11,7 +11,8 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
     // =============================================== Storage ========================================================
 
     // WARNING: since this contract is upgradeable, do not remove
-    // existing storage variables and do not change their types!
+    // existing storage variables, do not change their order,
+    // and do not change their types!
 
     /// @dev The address of the ERC677 staking token contract.
     IERC677Minting public erc677TokenContract;

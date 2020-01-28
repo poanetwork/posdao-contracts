@@ -15,7 +15,8 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
     // =============================================== Storage ========================================================
 
     // WARNING: since this contract is upgradeable, do not remove
-    // existing storage variables and do not change their types!
+    // existing storage variables, do not change their order,
+    // and do not change their types!
 
     address[] internal _allowedSenders;
 

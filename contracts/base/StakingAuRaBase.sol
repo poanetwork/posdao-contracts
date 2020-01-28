@@ -15,7 +15,8 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
     // =============================================== Storage ========================================================
 
     // WARNING: since this contract is upgradeable, do not remove
-    // existing storage variables and do not change their types!
+    // existing storage variables, do not change their order,
+    // and do not change their types!
 
     address[] internal _pools;
     address[] internal _poolsInactive;
@@ -25,7 +26,12 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
     uint256 internal _poolsLikelihoodSum;
     mapping(address => address[]) internal _poolDelegators;
     mapping(address => address[]) internal _poolDelegatorsInactive;
+    mapping(address => address[]) internal _stakerPools;
+    mapping(address => mapping(address => uint256)) internal _stakerPoolsIndexes;
     mapping(address => mapping(address => mapping(uint256 => uint256))) internal _stakeAmountByEpoch;
+
+    // Reserved storage space to allow for layout changes in the future.
+    uint256[25] private ______gapForInternal;
 
     /// @dev The limit of the minimum candidate stake (CANDIDATE_MIN_STAKE).
     uint256 public candidateMinStake;
@@ -135,6 +141,9 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
 
     /// @dev The address of the `ValidatorSetAuRa` contract.
     IValidatorSetAuRa public validatorSetContract;
+
+    // Reserved storage space to allow for layout changes in the future.
+    uint256[25] private ______gapForPublic;
 
     // ============================================== Constants =======================================================
 
@@ -580,6 +589,32 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
         return _poolsToBeRemoved;
     }
 
+    /// @dev Returns the list of pools (staking addresses) into which the specified staker have ever staked.
+    /// @param _staker The staker address (it can be a delegator or a pool staking address itself).
+    /// @param _offset The index in the array at which the reading should start. Ignored if the `_length` is 0.
+    /// @param _length The max number of items to return.
+    function getStakerPools(
+        address _staker,
+        uint256 _offset,
+        uint256 _length
+    ) external view returns(address[] memory result) {
+        address[] storage stakerPools = _stakerPools[_staker];
+        if (_length == 0) {
+            return stakerPools;
+        }
+        uint256 maxLength = stakerPools.length.sub(_offset);
+        result = new address[](_length > maxLength ? maxLength : _length);
+        for (uint256 i = 0; i < result.length; i++) {
+            result[i] = stakerPools[_offset + i];
+        }
+    }
+
+    /// @dev Returns the length of the list of pools into which the specified staker have ever staked.
+    /// @param _staker The staker address (it can be a delegator or a pool staking address itself).
+    function getStakerPoolsLength(address _staker) external view returns(uint256) {
+        return _stakerPools[_staker].length;
+    }
+
     /// @dev Determines whether staking/withdrawal operations are allowed at the moment.
     /// Used by all staking/withdrawal functions.
     function areStakeAndWithdrawAllowed() public view returns(bool) {
@@ -1022,6 +1057,14 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
         }
 
         _setLikelihood(_poolStakingAddress);
+
+        // Remember that the `_staker` staked into `_poolStakingAddress`
+        address[] storage stakerPools = _stakerPools[_staker];
+        uint256 index = _stakerPoolsIndexes[_staker][_poolStakingAddress];
+        if (index >= stakerPools.length || stakerPools[index] != _poolStakingAddress) {
+            _stakerPoolsIndexes[_staker][_poolStakingAddress] = stakerPools.length;
+            stakerPools.push(_poolStakingAddress);
+        }
     }
 
     /// @dev The internal function used by the `withdraw` and `moveStake` functions.

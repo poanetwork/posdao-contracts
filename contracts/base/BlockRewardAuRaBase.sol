@@ -23,7 +23,8 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
     // =============================================== Storage ========================================================
 
     // WARNING: since this contract is upgradeable, do not remove
-    // existing storage variables and do not change their types!
+    // existing storage variables, do not change their order,
+    // and do not change their types!
 
     mapping(address => uint256[]) internal _epochsPoolGotRewardFor;
     mapping(address => bool) internal _ercToNativeBridgeAllowed;
@@ -37,6 +38,9 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
         address receiver;
     }
     mapping(uint256 => ExtraReceiverQueue) internal _queueER;
+
+    // Reserved storage space to allow for layout changes in the future.
+    uint256[25] private ______gapForInternal;
 
     /// @dev A number of blocks produced by the specified validator during the specified staking epoch
     /// (beginning from the block when the `finalizeChange` function is called until the latest block
@@ -93,6 +97,9 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
 
     /// @dev The address of the `ValidatorSet` contract.
     IValidatorSetAuRa public validatorSetContract;
+
+    // Reserved storage space to allow for layout changes in the future.
+    uint256[25] private ______gapForPublic;
 
     // ================================================ Events ========================================================
 

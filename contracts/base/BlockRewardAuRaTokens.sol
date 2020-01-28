@@ -10,7 +10,8 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
     // =============================================== Storage ========================================================
 
     // WARNING: since this contract is upgradeable, do not remove
-    // existing storage variables and do not change their types!
+    // existing storage variables, do not change their order,
+    // and do not change their types!
 
     mapping(address => bool) internal _ercToErcBridgeAllowed;
     mapping(address => bool) internal _nativeToErcBridgeAllowed;
