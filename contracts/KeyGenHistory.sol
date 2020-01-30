@@ -48,10 +48,11 @@ contract KeyGenHistory {
     function setNewValidators(address[] calldata _newValidatorSet) external onlyValidatorSet {
         // TODO: delete acks and parts
         validatorSet = _newValidatorSet;
+        //clear mapping
         emit NewValidatorsSet(_newValidatorSet);
     }
 
-    function writePart(address _validator, bytes calldata _part) external onlySystem {
+    function writePart(bytes calldata _part) external {
         // TODO: can only be called by a new validator which is elected but not yet finalized
         // or by a validator which is already in the validator set (ValidatorSet.isPendingValidator(msg.sender)
         // must return `true`).
@@ -60,10 +61,10 @@ contract KeyGenHistory {
         // (it means that the `InitiateChange` event was emitted, but the `finalizeChange`
         // function wasn't yet called).
 
-        parts[_validator] = _part;
+        parts[msg.sender] = _part;
     }
 
-    function writeAck(address _validator, bytes calldata _ack) external onlySystem {
+    function writeAck(bytes calldata _ack) external {
         // TODO: can only be called by a new validator which is elected but not yet finalized
         // or by a validator which is already in the validator set (ValidatorSet.isPendingValidator(msg.sender)
         // must return `true`).
@@ -72,7 +73,7 @@ contract KeyGenHistory {
         // (it means that the `InitiateChange` event was emitted, but the `finalizeChange`
         // function wasn't yet called).
 
-        acks[_validator].push(_ack);
+        acks[msg.sender].push(_ack);
     }
 
     /// @dev Returns true if at least 2/3 of the participating validators consent.
