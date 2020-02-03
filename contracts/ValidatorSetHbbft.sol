@@ -617,7 +617,6 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
                 validatorCounter[miningAddress]++;
             }
         }
-        keyGenHistoryContract.setNewValidators(validators);
     }
 
     /// @dev Marks the pending validator set as changed to be used later by the `emitInitiateChange` function.

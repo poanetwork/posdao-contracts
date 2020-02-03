@@ -21,6 +21,7 @@ interface IValidatorSetHbbft {
     function getPendingValidators() external view returns(address[] memory);
     function getPreviousValidators() external view returns(address[] memory);
     function getValidators() external view returns(address[] memory);
+    function initiateChangeAllowed() external view returns(bool);
     function isReportValidatorValid(address) external view returns(bool);
     function isValidator(address) external view returns(bool);
     function isValidatorBanned(address) external view returns(bool);

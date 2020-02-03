@@ -45,34 +45,24 @@ contract KeyGenHistory {
         return acks[val].length;
     }
 
-    function setNewValidators(address[] calldata _newValidatorSet) external onlyValidatorSet {
-        // TODO: delete acks and parts
-        validatorSet = _newValidatorSet;
-        //clear mapping
-        emit NewValidatorsSet(_newValidatorSet);
-    }
 
     function writePart(bytes calldata _part) external {
-        // TODO: can only be called by a new validator which is elected but not yet finalized
-        // or by a validator which is already in the validator set (ValidatorSet.isPendingValidator(msg.sender)
-        // must return `true`).
-
-        // TODO: ensure that the ValidatorSet.initiateChangeAllowed() returns `false`
-        // (it means that the `InitiateChange` event was emitted, but the `finalizeChange`
-        // function wasn't yet called).
-
+        // Ensure that initiateChange is not allowed i.e. `InitiateChange` was emitted, but `finalizeChange`
+        // function hasn't been called yet.
+        require(!validatorSetContract.initiateChangeAllowed(), "Initiate change should not be allowed");
+        // It can only be called by a new validator which is elected but not yet finalized...
+        // ...or by a validator which is already in the validator set.
+        require(validatorSetContract.isValidatorOrPending(msg.sender), "Sender is not a pending validator");
         parts[msg.sender] = _part;
     }
 
     function writeAck(bytes calldata _ack) external {
-        // TODO: can only be called by a new validator which is elected but not yet finalized
-        // or by a validator which is already in the validator set (ValidatorSet.isPendingValidator(msg.sender)
-        // must return `true`).
-
-        // TODO: ensure that the ValidatorSet.initiateChangeAllowed() returns `false`
-        // (it means that the `InitiateChange` event was emitted, but the `finalizeChange`
-        // function wasn't yet called).
-
+        // Ensure that initiateChange is not allowed i.e. `InitiateChange` was emitted, but `finalizeChange`
+        // function hasn't been called yet.
+        require(!validatorSetContract.initiateChangeAllowed(), "Initiate change should not be allowed");
+        // It can only be called by a new validator which is elected but not yet finalized...
+        // ...or by a validator which is already in the validator set.
+        require(validatorSetContract.isValidatorOrPending(msg.sender), "Sender is not a pending validator");
         acks[msg.sender].push(_ack);
     }
 
