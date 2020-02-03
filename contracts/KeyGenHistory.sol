@@ -41,10 +41,24 @@ contract KeyGenHistory {
         }
     }
 
-    function getAcksLength(address val) public view returns(uint256) {
-        return acks[val].length;
+    /// @dev Clears the state (acks and parts of previous validators.
+    /// @param _prevValidators The list of previous validators.
+    function clearPrevKeyGenState(address[] calldata _prevValidators) external onlyValidatorSet {
+
+        for (uint256 i = 0; i < _prevValidators.length; i++) {
+            delete parts[_prevValidators[i]];
+            delete acks[_prevValidators[i]];
+        }
     }
 
+    /// @dev Returns true if at least 2/3 of the participating validators consent.
+    function isReady() external view returns (bool) {
+
+        /* for (uint256 i = 0; i < _validators.length; i++) {
+            ;
+        } */
+        return true;
+    }
 
     function writePart(bytes calldata _part) external {
         // Ensure that initiateChange is not allowed i.e. `InitiateChange` was emitted, but `finalizeChange`
@@ -66,13 +80,7 @@ contract KeyGenHistory {
         acks[msg.sender].push(_ack);
     }
 
-    /// @dev Returns true if at least 2/3 of the participating validators consent.
-    function isReady() external view returns (bool) {
-
-        /* for (uint256 i = 0; i < _validators.length; i++) {
-            ;
-        } */
-        return true;
-
+    function getAcksLength(address val) public view returns(uint256) {
+        return acks[val].length;
     }
 }

@@ -607,6 +607,9 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
             isValidator[validators[i]] = false;
         }
 
+        // clear previousValidator KetGenHistory state
+        keyGenHistoryContract.clearPrevKeyGenState(validators);
+
         _currentValidators = _finalizeValidators.list;
 
         validators = _currentValidators;
