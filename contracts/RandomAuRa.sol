@@ -193,6 +193,11 @@ contract RandomAuRa is UpgradeabilityAdmin, IRandomAuRa {
         return (_getCurrentBlockNumber() - 1) / collectRoundLength;
     }
 
+    /// @dev Returns the number of the first block of the current collection round.
+    function currentCollectRoundStartBlock() public view returns(uint256) {
+        return currentCollectRound() * collectRoundLength + 1;
+    }
+
     /// @dev Returns the cipher of the validator's number for the specified collection round and the specified validator
     /// stored by the validator through the `commitHash` function.
     /// @param _collectRound The serial number of the collection round for which the cipher should be retrieved.
@@ -261,6 +266,27 @@ contract RandomAuRa is UpgradeabilityAdmin, IRandomAuRa {
         if (isCommitted(currentCollectRound(), _miningAddress)) return false; // cannot commit more than once
 
         return true;
+    }
+
+    /// @dev Returns the number of the first block of the next (future) collection round.
+    function nextCollectRoundStartBlock() public view returns(uint256) {
+        uint256 currentBlock = _getCurrentBlockNumber();
+        uint256 remainingBlocksToNextRound = collectRoundLength - (currentBlock - 1) % collectRoundLength;
+        return currentBlock + remainingBlocksToNextRound;
+    }
+
+    /// @dev Returns the number of the first block of the next (future) commit phase.
+    function nextCommitPhaseStartBlock() public view returns(uint256) {
+        return nextCollectRoundStartBlock();
+    }
+
+    /// @dev Returns the number of the first block of the next (future) reveal phase.
+    function nextRevealPhaseStartBlock() public view returns(uint256) {
+        if (isCommitPhase()) {
+            return currentCollectRoundStartBlock() + commitPhaseLength();
+        } else {
+            return nextCollectRoundStartBlock() + commitPhaseLength();
+        }
     }
 
     /// @dev Returns a boolean flag of whether the `revealNumber` function can be called at the current block
