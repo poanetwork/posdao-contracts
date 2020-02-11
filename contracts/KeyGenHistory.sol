@@ -51,15 +51,6 @@ contract KeyGenHistory {
         }
     }
 
-    /// @dev Returns true if at least 2/3 of the participating validators consent.
-    function isReady() external view returns (bool) {
-
-        /* for (uint256 i = 0; i < _validators.length; i++) {
-            ;
-        } */
-        return true;
-    }
-
     function writePart(bytes calldata _part) external {
         // Ensure that initiateChange is not allowed i.e. `InitiateChange` was emitted, but `finalizeChange`
         // function hasn't been called yet.
