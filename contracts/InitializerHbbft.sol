@@ -1,7 +1,9 @@
 pragma solidity 0.5.10;
+pragma experimental ABIEncoderV2;
 
 import "./interfaces/IBlockRewardHbbft.sol";
 import "./interfaces/ICertifier.sol";
+import "./interfaces/IKeyGenHistory.sol";
 import "./interfaces/IRandomHbbft.sol";
 import "./interfaces/IStakingHbbft.sol";
 import "./interfaces/ITxPermission.sol";
@@ -19,7 +21,8 @@ contract InitializerHbbft {
     ///   2 is RandomHbbft,
     ///   3 is StakingHbbft,
     ///   4 is TxPermission,
-    ///   5 is Certifier.
+    ///   5 is Certifier,
+    ///   6 is KeyGenHistory.
     /// @param _owner The contracts' owner.
     /// @param _miningAddresses The array of initial validators' mining addresses.
     /// @param _stakingAddresses The array of initial validators' staking addresses.
@@ -44,7 +47,9 @@ contract InitializerHbbft {
         bool _firstValidatorIsUnremovable,
         uint256[5] memory _stakingParams,
         bytes32[] memory _publicKeys,
-        bytes16[] memory _internetAddresses
+        bytes16[] memory _internetAddresses,
+        bytes[] memory _parts,
+        bytes[][] memory _acks
     ) public {
         IValidatorSetHbbft(_contracts[0]).initialize(
             _contracts[1], // _blockRewardContract
@@ -65,6 +70,12 @@ contract InitializerHbbft {
             _stakingParams[4],
             _publicKeys,
             _internetAddresses
+        );
+        IKeyGenHistory(_contracts[6]).initialize(
+            _contracts[0], // _validatorSetContract
+            _miningAddresses,
+            _parts,
+            _acks
         );
         IBlockRewardHbbft(_contracts[1]).initialize(_contracts[0]);
         IRandomHbbft(_contracts[2]).initialize(_contracts[0]);

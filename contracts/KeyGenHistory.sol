@@ -1,18 +1,32 @@
 pragma solidity 0.5.10;
 pragma experimental ABIEncoderV2;
 
+import "./interfaces/IKeyGenHistory.sol";
 import "./interfaces/IValidatorSetHbbft.sol";
+import "./upgradeability/UpgradeabilityAdmin.sol";
 
-contract KeyGenHistory {
+contract KeyGenHistory is UpgradeabilityAdmin, IKeyGenHistory {
 
-    /// @dev The address of the `ValidatorSetHbbft` contract.
-    IValidatorSetHbbft public validatorSetContract;
+    // =============================================== Storage ========================================================
+
+    // WARNING: since this contract is upgradeable, do not remove
+    // existing storage variables and do not change their types!
+
     // the current validator addresses
     address[] public validatorSet;
     mapping(address => bytes) public parts;
     mapping(address => bytes[]) public acks;
 
+    /// @dev The address of the `ValidatorSetHbbft` contract.
+    IValidatorSetHbbft public validatorSetContract;
+
     event NewValidatorsSet(address[] newValidatorSet);
+
+    /// @dev Ensures the `initialize` function was called before.
+    modifier onlyInitialized {
+        require(isInitialized());
+        _;
+    }
 
     /// @dev Ensures the caller is the SYSTEM_ADDRESS. See https://wiki.parity.io/Validator-Set.html
     modifier onlySystem() {
@@ -26,21 +40,6 @@ contract KeyGenHistory {
         _;
     }
 
-    constructor(address _validatorSetContract, address[] memory _validators, bytes[] memory _parts, bytes[][] memory _acks) public {
-        require(_validators.length != 0,"1");
-        require(_validators.length == _parts.length,"2");
-        require(_validators.length == _acks.length,"3");
-        require(_validatorSetContract != address(0),"4");
-
-        validatorSetContract = IValidatorSetHbbft(_validatorSetContract);
-        validatorSet = _validators;
-
-        for (uint256 i = 0; i < _validators.length; i++) {
-            parts[_validators[i]] = _parts[i];
-            acks[_validators[i]] = _acks[i];
-        }
-    }
-
     /// @dev Clears the state (acks and parts of previous validators.
     /// @param _prevValidators The list of previous validators.
     function clearPrevKeyGenState(address[] calldata _prevValidators) external onlyValidatorSet {
@@ -48,6 +47,28 @@ contract KeyGenHistory {
         for (uint256 i = 0; i < _prevValidators.length; i++) {
             delete parts[_prevValidators[i]];
             delete acks[_prevValidators[i]];
+        }
+    }
+
+    function initialize(
+        address _validatorSetContract,
+        address[] memory _validators,
+        bytes[] memory _parts,
+        bytes[][] memory _acks
+    ) public {
+        require(_getCurrentBlockNumber() == 0 || msg.sender == _admin());
+        require(!isInitialized()); // initialization can only be done once
+        require(_validators.length != 0, "Validators must be more than 0.");
+        require(_validators.length == _parts.length, "Wrong number of Parts!");
+        require(_validators.length == _acks.length, "Wrong number of Acks!");
+        require(_validatorSetContract != address(0), "Validator contract address cannot be 0.");
+
+        validatorSetContract = IValidatorSetHbbft(_validatorSetContract);
+        validatorSet = _validators;
+
+        for (uint256 i = 0; i < _validators.length; i++) {
+            parts[_validators[i]] = _parts[i];
+            acks[_validators[i]] = _acks[i];
         }
     }
 
@@ -67,5 +88,15 @@ contract KeyGenHistory {
 
     function getAcksLength(address val) public view returns(uint256) {
         return acks[val].length;
+    }
+
+    /// @dev Returns the current block number. Needed mostly for unit tests.
+    function _getCurrentBlockNumber() internal view returns(uint256) {
+        return block.number;
+    }
+
+    /// @dev Returns a boolean flag indicating if the `initialize` function has been called.
+    function isInitialized() public view returns(bool) {
+        return validatorSetContract != IValidatorSetHbbft(0);
     }
 }
