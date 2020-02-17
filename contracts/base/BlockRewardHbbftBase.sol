@@ -302,7 +302,7 @@ contract BlockRewardHbbftBase is UpgradeableOwned, IBlockRewardHbbft {
             // for them but not yet handled by validator nodes thus the `ValidatorSetHbbft.finalizeChange`
             // function is not called yet) for the possible case when these addresses finally
             // become validators on the upcoming staking epoch
-            (miningAddresses, ) = validatorSetContract.validatorsToBeFinalized();
+            miningAddresses = validatorSetContract.getPendingValidators();
             for (i = 0; i < miningAddresses.length; i++) {
                 _snapshotPoolStakeAmounts(stakingContract, nextStakingEpoch, miningAddresses[i]);
             }
@@ -471,7 +471,7 @@ contract BlockRewardHbbftBase is UpgradeableOwned, IBlockRewardHbbft {
                 }
             }
 
-            (miningAddresses, ) = validatorSetContract.validatorsToBeFinalized();
+            miningAddresses = validatorSetContract.getPendingValidators();
             for (i = 0; i < miningAddresses.length; i++) {
                 if (miningAddress == miningAddresses[i]) {
                     return validatorShare(

@@ -21,7 +21,6 @@ interface IValidatorSetHbbft {
     function getPendingValidators() external view returns(address[] memory);
     function getPreviousValidators() external view returns(address[] memory);
     function getValidators() external view returns(address[] memory);
-    function initiateChangeAllowed() external view returns(bool);
     function isReportValidatorValid(address) external view returns(bool);
     function isValidator(address) external view returns(bool);
     function isValidatorBanned(address) external view returns(bool);
@@ -34,5 +33,4 @@ interface IValidatorSetHbbft {
     function stakingContract() external view returns(address);
     function unremovableValidator() external view returns(address);
     function validatorSetApplyBlock() external view returns(uint256);
-    function validatorsToBeFinalized() external view returns(address[] memory, bool);
 }

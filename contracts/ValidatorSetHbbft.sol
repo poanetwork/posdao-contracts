@@ -22,12 +22,8 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
     address[] internal _currentValidators;
     address[] internal _pendingValidators;
     address[] internal _previousValidators;
-    struct ValidatorsList {
-        bool forNewEpoch;
-        address[] list;
-    }
-    ValidatorsList internal _finalizeValidators;
 
+    bool internal _forNewEpoch;
     bool internal _pendingValidatorsChanged;
     bool internal _pendingValidatorsChangedForNewEpoch;
 
@@ -172,12 +168,11 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
     /// through the `InitiateChange` event and saved for later use by the `finalizeChange` function.
     /// See https://wiki.parity.io/Validator-Set.html for more info about the `InitiateChange` event.
     function emitInitiateChange() external onlyInitialized {
-        require(emitInitiateChangeCallable());
+        require(emitInitiateChangeCallable(), "Emit Intiate Change Not callable");
         bool forNewEpoch = _unsetPendingValidatorsChanged();
         if (_pendingValidators.length > 0) {
             emit InitiateChange(blockhash(_getCurrentBlockNumber() - 1), _pendingValidators);
-            _finalizeValidators.list = _pendingValidators;
-            _finalizeValidators.forNewEpoch = forNewEpoch;
+            _forNewEpoch = forNewEpoch;
         }
     }
 
@@ -192,20 +187,21 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
     /// event is not emitted until the previous one is not yet finalized by the `finalizeChange`
     /// (see the code of `emitInitiateChangeCallable` getter).
     function finalizeChange() external onlySystem {
-        if (_finalizeValidators.forNewEpoch) {
+        if (_forNewEpoch) {
             // Apply a new validator set formed by the `newValidatorSet` function
             _savePreviousValidators();
             _finalizeNewValidators(true);
             IBlockRewardHbbft(blockRewardContract).clearBlocksCreated();
             validatorSetApplyBlock = _getCurrentBlockNumber();
-        } else if (_finalizeValidators.list.length != 0) {
+        } else if (_pendingValidators.length != 0) {
             // Apply the changed validator set after malicious validator is removed
             _finalizeNewValidators(false);
         } else {
             // This is the very first call of the `finalizeChange` (block #1 when starting from genesis)
             validatorSetApplyBlock = _getCurrentBlockNumber();
         }
-        delete _finalizeValidators; // since this moment the `emitInitiateChange` is allowed
+        delete _pendingValidators;
+        _forNewEpoch = false;
     }
 
     /// @dev Initializes the network parameters. Used by the
@@ -232,6 +228,7 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
         require(_blockRewardContract != address(0));
         require(_randomContract != address(0));
         require(_stakingContract != address(0));
+        require(_keyGenHistoryContract != address(0));
         require(_initialMiningAddresses.length > 0);
         require(_initialMiningAddresses.length == _initialStakingAddresses.length);
 
@@ -244,7 +241,7 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
         for (uint256 i = 0; i < _initialMiningAddresses.length; i++) {
             address miningAddress = _initialMiningAddresses[i];
             _currentValidators.push(miningAddress);
-            _pendingValidators.push(miningAddress);
+            /* _pendingValidators.push(miningAddress); */
             isValidator[miningAddress] = true;
             validatorCounter[miningAddress]++;
             _setStakingAddress(miningAddress, _initialStakingAddresses[i]);
@@ -302,9 +299,6 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
             // Remove pools marked as `to be removed`
             stakingContract.removePools();
         }
-        stakingContract.incrementStakingEpoch();
-        stakingContract.setStakingEpochStartBlock(_getCurrentBlockNumber() + 1);
-        validatorSetApplyBlock = 0;
     }
 
     /// @dev Removes malicious validators. Called by the `RandomHbbft.onFinishCollectRound` function.
@@ -397,7 +391,11 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
     /// @dev Returns a boolean flag indicating whether the `emitInitiateChange` function can be called
     /// at the moment. Used by a validator's node and `TxPermission` contract (to deny dummy calling).
     function emitInitiateChangeCallable() public view returns(bool) {
-        return initiateChangeAllowed() && _pendingValidatorsChanged;
+        return _pendingValidatorsChanged;
+    }
+
+    function isForNewEpoch() public view returns(bool) {
+        return _forNewEpoch;
     }
 
     /// @dev Returns the previous validator set (validators' mining addresses array).
@@ -421,15 +419,6 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
     /// which always matches the validator set kept in validator's node.
     function getValidators() public view returns(address[] memory) {
         return _currentValidators;
-    }
-
-    /// @dev A boolean flag indicating whether the `emitInitiateChange` can be called at the moment.
-    /// Used by the `emitInitiateChangeCallable` getter. This flag is set to `false` by the `emitInitiateChange`
-    /// and set to `true` by the `finalizeChange` function. When the `InitiateChange` event is emitted by
-    /// `emitInitiateChange`, the next `emitInitiateChange` call is not possible until the validator set from
-    /// the previous call is finalized by the `finalizeChange` function.
-    function initiateChangeAllowed() public view returns(bool) {
-        return _finalizeValidators.list.length == 0;
     }
 
     /// @dev Returns a boolean flag indicating if the `initialize` function has been called.
@@ -467,7 +456,7 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
     }
 
     /// @dev Returns a boolean flag indicating whether the specified mining address is a validator
-    /// or is in the `_pendingValidators` or `_finalizeValidators` array.
+    /// or is in the `_pendingValidators`.
     /// Used by the `StakingHbbft.maxWithdrawAllowed` and `StakingHbbft.maxWithdrawOrderAllowed` getters.
     /// @param _miningAddress The mining address.
     function isValidatorOrPending(address _miningAddress) public view returns(bool) {
@@ -477,15 +466,6 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
 
         uint256 i;
         uint256 length;
-
-        length = _finalizeValidators.list.length;
-        for (i = 0; i < length; i++) {
-            if (_miningAddress == _finalizeValidators.list[i]) {
-                // This validator waits to be finalized,
-                // so we treat them as `pending`
-                return true;
-            }
-        }
 
         length = _pendingValidators.length;
         for (i = 0; i < length; i++) {
@@ -565,14 +545,6 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
         return (true, false);
     }
 
-    /// @dev Returns a validator set about to be finalized by the `finalizeChange` function.
-    /// @param miningAddresses An array set by the `emitInitiateChange` function.
-    /// @param forNewEpoch A boolean flag indicating whether the `miningAddresses` array was formed by the
-    /// `newValidatorSet` function. The `finalizeChange` function logic depends on this flag.
-    function validatorsToBeFinalized() public view returns(address[] memory miningAddresses, bool forNewEpoch) {
-        return (_finalizeValidators.list, _finalizeValidators.forNewEpoch);
-    }
-
     // ============================================== Internal ========================================================
 
     /// @dev Updates the total reporting counter (see the `reportingCounterTotal` public mapping) for the current
@@ -594,7 +566,7 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
         }
     }
 
-    /// @dev Sets a new validator set stored in `_finalizeValidators.list` array.
+    /// @dev Sets a new validator set stored in `_pendingValidators` array.
     /// Called by the `finalizeChange` function.
     /// @param _newStakingEpoch A boolean flag defining whether the validator set was formed by the
     /// `newValidatorSet` function.
@@ -610,7 +582,7 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
         // clear previousValidator KetGenHistory state
         keyGenHistoryContract.clearPrevKeyGenState(validators);
 
-        _currentValidators = _finalizeValidators.list;
+        _currentValidators = _pendingValidators;
 
         validators = _currentValidators;
         for (i = 0; i < validators.length; i++) {
@@ -620,6 +592,9 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
                 validatorCounter[miningAddress]++;
             }
         }
+        stakingContract.incrementStakingEpoch();
+        stakingContract.setStakingEpochStartBlock(_getCurrentBlockNumber() + 1);
+        validatorSetApplyBlock = 0;
     }
 
     /// @dev Marks the pending validator set as changed to be used later by the `emitInitiateChange` function.

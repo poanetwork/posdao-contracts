@@ -27,10 +27,10 @@ contract KeyGenHistory {
     }
 
     constructor(address _validatorSetContract, address[] memory _validators, bytes[] memory _parts, bytes[][] memory _acks) public {
-        require(_validators.length != 0);
-        require(_validators.length == _parts.length);
-        require(_validators.length == _acks.length);
-        require(_validatorSetContract != address(0));
+        require(_validators.length != 0,"1");
+        require(_validators.length == _parts.length,"2");
+        require(_validators.length == _acks.length,"3");
+        require(_validatorSetContract != address(0),"4");
 
         validatorSetContract = IValidatorSetHbbft(_validatorSetContract);
         validatorSet = _validators;
@@ -52,9 +52,6 @@ contract KeyGenHistory {
     }
 
     function writePart(bytes calldata _part) external {
-        // Ensure that initiateChange is not allowed i.e. `InitiateChange` was emitted, but `finalizeChange`
-        // function hasn't been called yet.
-        require(!validatorSetContract.initiateChangeAllowed(), "Initiate change should not be allowed");
         // It can only be called by a new validator which is elected but not yet finalized...
         // ...or by a validator which is already in the validator set.
         require(validatorSetContract.isValidatorOrPending(msg.sender), "Sender is not a pending validator");
@@ -62,9 +59,6 @@ contract KeyGenHistory {
     }
 
     function writeAck(bytes calldata _ack) external {
-        // Ensure that initiateChange is not allowed i.e. `InitiateChange` was emitted, but `finalizeChange`
-        // function hasn't been called yet.
-        require(!validatorSetContract.initiateChangeAllowed(), "Initiate change should not be allowed");
         // It can only be called by a new validator which is elected but not yet finalized...
         // ...or by a validator which is already in the validator set.
         require(validatorSetContract.isValidatorOrPending(msg.sender), "Sender is not a pending validator");
