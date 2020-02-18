@@ -1,4 +1,4 @@
-pragma solidity 0.5.10;
+pragma solidity ^0.5.16;
 
 import './StakingHbbftBaseMock.sol';
 import '../../contracts/base/StakingHbbftTokens.sol';

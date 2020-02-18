@@ -1,4 +1,4 @@
-pragma solidity 0.5.10;
+pragma solidity ^0.5.10;
 
 import "./StakingAuRaBase.sol";
 import "../interfaces/IBlockRewardAuRaCoins.sol";
@@ -66,7 +66,7 @@ contract StakingAuRaCoins is StakingAuRaBase {
             require(epoch < stakingEpoch);
 
             if (rewardWasTaken[_poolStakingAddress][staker][epoch]) continue;
-            
+
             uint256 reward;
 
             if (_poolStakingAddress != staker) { // this is a delegator
@@ -186,5 +186,5 @@ contract StakingAuRaCoins is StakingAuRaBase {
     function _thisBalance() internal view returns(uint256) {
         return address(this).balance;
     }
-
+    
 }

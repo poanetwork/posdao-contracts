@@ -1,4 +1,4 @@
-pragma solidity 0.5.10;
+pragma solidity ^0.5.16;
 
 import "./base/BlockRewardHbbftTokens.sol";
 //import "./base/BlockRewardHbbftCoins.sol";

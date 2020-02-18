@@ -1,4 +1,4 @@
-pragma solidity 0.5.10;
+pragma solidity ^0.5.10;
 
 import "./StakingAuRaBase.sol";
 import "../interfaces/IBlockRewardAuRaTokens.sol";
@@ -79,7 +79,7 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
             require(epoch < stakingEpoch);
 
             if (rewardWasTaken[_poolStakingAddress][staker][epoch]) continue;
-            
+
             RewardAmounts memory reward;
 
             if (_poolStakingAddress != staker) { // this is a delegator

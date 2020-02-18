@@ -1,4 +1,4 @@
-pragma solidity 0.5.10;
+pragma solidity ^0.5.10;
 
 import "../interfaces/IBlockRewardAuRa.sol";
 import "../interfaces/IERC677Minting.sol";
@@ -1053,7 +1053,7 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
         }
 
         stakeAmount[_poolStakingAddress][_staker] = newStakeAmount;
-        _stakeAmountByEpoch[_poolStakingAddress][_staker][stakingEpoch] = 
+        _stakeAmountByEpoch[_poolStakingAddress][_staker][stakingEpoch] =
             stakeAmountByCurrentEpoch(_poolStakingAddress, _staker).add(_amount);
         stakeAmountTotal[_poolStakingAddress] = stakeAmountTotal[_poolStakingAddress].add(_amount);
 
@@ -1100,7 +1100,7 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
 
         stakeAmount[_poolStakingAddress][_staker] = newStakeAmount;
         uint256 amountByEpoch = stakeAmountByCurrentEpoch(_poolStakingAddress, _staker);
-        _stakeAmountByEpoch[_poolStakingAddress][_staker][stakingEpoch] = 
+        _stakeAmountByEpoch[_poolStakingAddress][_staker][stakingEpoch] =
             amountByEpoch >= _amount ? amountByEpoch - _amount : 0;
         stakeAmountTotal[_poolStakingAddress] = stakeAmountTotal[_poolStakingAddress].sub(_amount);
 

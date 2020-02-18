@@ -1,4 +1,4 @@
-pragma solidity 0.5.10;
+pragma solidity ^0.5.16;
 
 import "./interfaces/ICertifier.sol";
 import "./interfaces/IValidatorSetHbbft.sol";

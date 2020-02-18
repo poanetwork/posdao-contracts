@@ -1,4 +1,4 @@
-pragma solidity 0.5.10;
+pragma solidity ^0.5.16;
 
 import "./interfaces/IRandomHbbft.sol";
 import "./interfaces/IValidatorSetHbbft.sol";

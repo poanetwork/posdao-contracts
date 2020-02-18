@@ -1,11 +1,11 @@
-pragma solidity 0.5.10;
+pragma solidity ^0.5.0;
 
 import "./BaseAdminUpgradeabilityProxy.sol";
 
 
 /**
  * @title AdminUpgradeabilityProxy
- * @dev Extends from BaseAdminUpgradeabilityProxy with a constructor for 
+ * @dev Extends from BaseAdminUpgradeabilityProxy with a constructor for
  * initializing the implementation, admin, and init data.
  */
 contract AdminUpgradeabilityProxy is BaseAdminUpgradeabilityProxy, UpgradeabilityProxy {

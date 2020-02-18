@@ -1,4 +1,4 @@
-pragma solidity 0.5.10;
+pragma solidity ^0.5.16;
 
 import "./base/StakingHbbftTokens.sol";
 //import "./base/StakingHbbftCoins.sol";

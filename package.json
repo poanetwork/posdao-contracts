@@ -35,9 +35,9 @@
     "ganache-cli": "^6.6.0",
     "mochawesome": "^3.1.1",
     "node-fetch": "^2.6.0",
-    "solc": "0.5.10",
+    "solc": "^0.5.16",
     "solhint": "^2.0.0",
-    "solidity-coverage": "^0.6.7",
+    "solidity-coverage": "^0.7.2",
     "truffle": "^5.0.43",
     "web3": "^1.2.1"
   }

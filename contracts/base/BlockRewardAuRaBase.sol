@@ -1,4 +1,4 @@
-pragma solidity 0.5.10;
+pragma solidity ^0.5.10;
 
 import "../interfaces/IBlockRewardAuRa.sol";
 import "../interfaces/IERC677Minting.sol";
@@ -464,7 +464,7 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
 
             address[] memory miningAddresses;
             uint256 i;
-            
+
             miningAddresses = validatorSetContract.getPendingValidators();
             for (i = 0; i < miningAddresses.length; i++) {
                 if (miningAddress == miningAddresses[i]) {

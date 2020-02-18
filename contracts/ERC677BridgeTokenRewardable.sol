@@ -1,4 +1,4 @@
-pragma solidity 0.5.10;
+pragma solidity ^0.5.10;
 
 // This is a staking token ERC677 contract
 // (a copy of the token contract from https://github.com/poanetwork/tokenbridge-contracts repo).
