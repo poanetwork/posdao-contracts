@@ -19,7 +19,6 @@ contract ValidatorSetHbbftMock is ValidatorSetHbbft {
 
     function clearPendingValidators() public {
         delete _pendingValidators;
-        _setPendingValidatorsChanged(true);
     }
 
     function setBlockRewardContract(address _address) public {

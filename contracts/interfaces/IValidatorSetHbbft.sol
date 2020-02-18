@@ -17,7 +17,6 @@ interface IValidatorSetHbbft {
     function areDelegatorsBanned(address) external view returns(bool);
     function blockRewardContract() external view returns(address);
     function changeRequestCount() external view returns(uint256);
-    function emitInitiateChangeCallable() external view returns(bool);
     function getPendingValidators() external view returns(address[] memory);
     function getPreviousValidators() external view returns(address[] memory);
     function getValidators() external view returns(address[] memory);

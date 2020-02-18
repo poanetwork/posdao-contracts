@@ -187,11 +187,7 @@ contract TxPermissionHbbft is UpgradeableOwned, ITxPermission {
 
         if (_to == address(validatorSetContract)) {
             // The rules for the ValidatorSet contract
-            if (signature == EMIT_INITIATE_CHANGE_SIGNATURE) {
-                // The `emitInitiateChange()` can be called by anyone
-                // if `emitInitiateChangeCallable()` returns `true`
-                return (validatorSetContract.emitInitiateChangeCallable() ? CALL : NONE, false);
-            } else if (signature == REPORT_MALICIOUS_SIGNATURE) {
+            if (signature == REPORT_MALICIOUS_SIGNATURE) {
                 abiParams = new bytes(_data.length - 4 > 64 ? 64 : _data.length - 4);
 
                 for (i = 0; i < abiParams.length; i++) {
@@ -266,9 +262,6 @@ contract TxPermissionHbbft is UpgradeableOwned, ITxPermission {
     uint32 internal constant PRIVATE = 0x08;
 
     // Function signatures
-
-    // bytes4(keccak256("emitInitiateChange()"))
-    bytes4 internal constant EMIT_INITIATE_CHANGE_SIGNATURE = 0x93b4e25e;
 
     // bytes4(keccak256("reportMalicious(address,uint256,bytes)"))
     bytes4 internal constant REPORT_MALICIOUS_SIGNATURE = 0xc476dd40;

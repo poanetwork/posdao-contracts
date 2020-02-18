@@ -24,8 +24,6 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
     address[] internal _previousValidators;
 
     bool internal _forNewEpoch;
-    bool internal _pendingValidatorsChanged;
-    bool internal _pendingValidatorsChangedForNewEpoch;
 
     mapping(address => mapping(uint256 => address[])) internal _maliceReportedForBlock;
 
@@ -105,12 +103,6 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
 
     // ================================================ Events ========================================================
 
-    /// @dev Emitted by the `emitInitiateChange` function when a new validator set
-    /// needs to be applied by validator nodes. See https://wiki.parity.io/Validator-Set.html
-    /// @param parentHash Should be the parent block hash, otherwise the signal won't be recognized.
-    /// @param newSet An array of new validators (their mining addresses).
-    event InitiateChange(bytes32 indexed parentHash, address[] newSet);
-
     /// @dev Emitted by the `reportMalicious` function to signal that a specified validator reported
     /// misbehavior by a specified malicious validator at a specified block number.
     /// @param reportingValidator The mining address of the reporting validator.
@@ -161,31 +153,12 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
         stakingContract.clearUnremovableValidator(unremovableStakingAddress);
     }
 
-    /// @dev Emits the `InitiateChange` event to pass a new validator set to the validator nodes.
-    /// Called automatically by one of the current validator's nodes when the `emitInitiateChangeCallable` getter
-    /// returns `true` (when some validator needs to be removed as malicious or the validator set needs to be
-    /// updated at the beginning of a new staking epoch). The new validator set is passed to the validator nodes
-    /// through the `InitiateChange` event and saved for later use by the `finalizeChange` function.
-    /// See https://wiki.parity.io/Validator-Set.html for more info about the `InitiateChange` event.
-    function emitInitiateChange() external onlyInitialized {
-        require(emitInitiateChangeCallable(), "Emit Intiate Change Not callable");
-        bool forNewEpoch = _unsetPendingValidatorsChanged();
-        if (_pendingValidators.length > 0) {
-            emit InitiateChange(blockhash(_getCurrentBlockNumber() - 1), _pendingValidators);
-            _forNewEpoch = forNewEpoch;
-        }
-    }
-
-    /// @dev Called by the system when an initiated validator set change reaches finality and is activated.
+    /// @dev Called by the system when a pending validator set is ready to be activated.
     /// This function is called at the beginning of a block (before all the block transactions).
-    /// Only valid when msg.sender == SUPER_USER (EIP96, 2**160 - 2). Stores a new validator set saved
-    /// before by the `emitInitiateChange` function and passed through the `InitiateChange` event.
+    /// Only valid when msg.sender == SUPER_USER (EIP96, 2**160 - 2).
     /// After this function is called, the `getValidators` getter returns the new validator set.
     /// If this function finalizes a new validator set formed by the `newValidatorSet` function,
     /// an old validator set is also stored and can be read by the `getPreviousValidators` getter.
-    /// The `finalizeChange` is only called once for each `InitiateChange` event emitted. The next `InitiateChange`
-    /// event is not emitted until the previous one is not yet finalized by the `finalizeChange`
-    /// (see the code of `emitInitiateChangeCallable` getter).
     function finalizeChange() external onlySystem {
         if (_forNewEpoch) {
             // Apply a new validator set formed by the `newValidatorSet` function
@@ -291,9 +264,7 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
         }
 
         // From this moment the `getPendingValidators()` returns the new validator set.
-        // Let the `emitInitiateChange` function know that the validator set is changed and needs
-        // to be passed to the `InitiateChange` event.
-        _setPendingValidatorsChanged(true);
+         /* _setPendingValidatorsChanged(true);  //TO DO: decide how to handle it */
 
         if (poolsToBeElected.length != 0) {
             // Remove pools marked as `to be removed`
@@ -388,12 +359,7 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
         return _getCurrentBlockNumber() <= bannedDelegatorsUntil[_miningAddress];
     }
 
-    /// @dev Returns a boolean flag indicating whether the `emitInitiateChange` function can be called
-    /// at the moment. Used by a validator's node and `TxPermission` contract (to deny dummy calling).
-    function emitInitiateChangeCallable() public view returns(bool) {
-        return _pendingValidatorsChanged;
-    }
-
+    /// @dev Returns a boolean flag indicating the change is due to a new staking epoch
     function isForNewEpoch() public view returns(bool) {
         return _forNewEpoch;
     }
@@ -405,12 +371,9 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
         return _previousValidators;
     }
 
-    /// @dev Returns the current array of validators which should be passed to the `InitiateChange` event.
+    /// @dev Returns the current array of pending validators i.e. waiting to be activated in the new epoch
     /// The pending array is changed when a validator is removed as malicious
     /// or the validator set is updated by the `newValidatorSet` function.
-    /// Every time the pending array is changed, it is marked by the `_setPendingValidatorsChanged` and then
-    /// used by the `emitInitiateChange` function which emits the `InitiateChange` event to all
-    /// validator nodes.
     function getPendingValidators() public view returns(address[] memory) {
         return _pendingValidators;
     }
@@ -597,28 +560,6 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
         validatorSetApplyBlock = 0;
     }
 
-    /// @dev Marks the pending validator set as changed to be used later by the `emitInitiateChange` function.
-    /// Called when a validator is removed from the set as malicious or when a new validator set is formed by
-    /// the `newValidatorSet` function.
-    /// @param _newStakingEpoch A boolean flag defining whether the pending validator set was formed by the
-    /// `newValidatorSet` function. The `finalizeChange` function logic depends on this flag.
-    function _setPendingValidatorsChanged(bool _newStakingEpoch) internal {
-        _pendingValidatorsChanged = true;
-        if (_newStakingEpoch && _pendingValidators.length != 0) {
-            _pendingValidatorsChangedForNewEpoch = true;
-        }
-        changeRequestCount++;
-    }
-
-    /// @dev Marks the pending validator set as unchanged before passing it to the `InitiateChange` event
-    /// (and then to the `finalizeChange` function). Called by the `emitInitiateChange` function.
-    function _unsetPendingValidatorsChanged() internal returns(bool) {
-        bool forNewEpoch = _pendingValidatorsChangedForNewEpoch;
-        _pendingValidatorsChanged = false;
-        _pendingValidatorsChangedForNewEpoch = false;
-        return forNewEpoch;
-    }
-
     /// @dev Increments the reporting counter for the specified validator and the current staking epoch.
     /// See the `reportingCounter` and `reportingCounterTotal` public mappings. Called by the `reportMalicious`
     /// function when the validator reports a misbehavior.
@@ -682,8 +623,7 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
         return false;
     }
 
-    /// @dev Removes the specified validators as malicious from the pending validator set and marks the updated
-    /// pending validator set as `changed` to be used by the `emitInitiateChange` function. Does nothing if
+    /// @dev Removes the specified validators as malicious from the pending validator set. Does nothing if
     /// the specified validators are already banned, non-removable, or don't exist in the pending validator set.
     /// @param _miningAddresses The mining addresses of the malicious validators.
     /// @param _reason A short string of the reason why the mining addresses are treated as malicious,
@@ -699,9 +639,10 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
             }
         }
 
-        if (removed) {
+        // TODO: decide how to handle it
+        /* if (removed) {
             _setPendingValidatorsChanged(false);
-        }
+        } */
     }
 
     /// @dev Stores previous validators. Used by the `finalizeChange` function.
@@ -721,7 +662,7 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
         _previousValidators = _currentValidators;
     }
 
-    /// @dev Sets a new validator set as a pending (which is not yet passed to the `InitiateChange` event).
+    /// @dev Sets a new validator set as a pending.
     /// Called by the `newValidatorSet` function.
     /// @param _stakingAddresses The array of the new validators' staking addresses.
     function _setPendingValidators(
