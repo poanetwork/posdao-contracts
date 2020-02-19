@@ -6,6 +6,15 @@ import "../interfaces/IBlockRewardAuRaCoins.sol";
 
 contract BlockRewardAuRaCoins is BlockRewardAuRaBase, IBlockRewardAuRaCoins {
 
+    // ============================================== Constants =======================================================
+
+    /// @dev Inflation rate per staking epoch. Calculated as follows:
+    /// 2.5% annual rate * 52 weeks per year / 100 * 10^18
+    /// This assumes that 1 staking epoch = 1 week
+    /// i.e. Inflation Rate = 2.5/52/100 * 1 ether
+    /// Recalculate it for different annual rate and/or different staking epoch duration.
+    uint256 public constant NATIVE_COIN_INFLATION_RATE = 480769230769231;
+
     // =============================================== Setters ========================================================
 
     /// @dev Called by the `StakingAuRa.claimReward` function to transfer native coins
@@ -64,6 +73,18 @@ contract BlockRewardAuRaCoins is BlockRewardAuRaBase, IBlockRewardAuRaCoins {
     }
 
     // ============================================== Internal ========================================================
+
+    /// @dev Calculates and returns inflation amount based on the specified
+    /// staking epoch and validator set. Uses NATIVE_COIN_INFLATION_RATE constant.
+    /// Used by `_distributeNativeRewards` internal function.
+    /// @param _stakingEpoch The number of the current staking epoch.
+    /// @param _validators The array of the current validators (their mining addresses).
+    function _coinInflationAmount(
+        uint256 _stakingEpoch,
+        address[] memory _validators
+    ) internal view returns(uint256) {
+        return _inflationAmount(_stakingEpoch, _validators, NATIVE_COIN_INFLATION_RATE);
+    }
 
     function _distributeTokenRewards(
         address, uint256, uint256, uint256, address[] memory, uint256[] memory, uint256

@@ -564,6 +564,8 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
     uint256 internal constant VALIDATOR_MIN_REWARD_PERCENT = 30; // 30%
     uint256 internal constant REWARD_PERCENT_MULTIPLIER = 1000000;
 
+    function _coinInflationAmount(uint256, address[] memory) internal view returns(uint256);
+
     /// @dev Distributes rewards in native coins among pools at the latest block of a staking epoch.
     /// This function is called by the `_distributeRewards` function.
     /// @param _stakingEpoch The number of the current staking epoch.
@@ -582,6 +584,8 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
         uint256 _blocksCreatedShareDenom
     ) internal returns(uint256) {
         uint256 totalReward = bridgeNativeFee + nativeRewardUndistributed;
+
+        totalReward += _coinInflationAmount(_stakingEpoch, _validators);
 
         if (totalReward == 0) {
             return 0;
@@ -688,6 +692,25 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
     /// @dev Returns the current block number. Needed mostly for unit tests.
     function _getCurrentBlockNumber() internal view returns(uint256) {
         return block.number;
+    }
+
+    /// @dev Calculates and returns inflation amount based on the specified
+    /// staking epoch, validator set, and inflation rate.
+    /// Used by `_coinInflationAmount` and `_distributeTokenRewards` functions.
+    /// @param _stakingEpoch The number of the current staking epoch.
+    /// @param _validators The array of the current validators (their mining addresses).
+    /// @param _inflationRate Inflation rate.
+    function _inflationAmount(
+        uint256 _stakingEpoch,
+        address[] memory _validators,
+        uint256 _inflationRate
+    ) internal view returns(uint256) {
+        if (_inflationRate == 0) return 0;
+        uint256 snapshotTotalStakeAmount = 0;
+        for (uint256 i = 0; i < _validators.length; i++) {
+            snapshotTotalStakeAmount += snapshotPoolTotalStakeAmount[_stakingEpoch][_validators[i]];
+        }
+        return snapshotTotalStakeAmount * _inflationRate / 1 ether;
     }
 
     /// @dev Joins two native coin receiver elements into a single set and returns the result

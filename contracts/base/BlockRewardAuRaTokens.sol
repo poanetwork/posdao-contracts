@@ -29,6 +29,15 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
     /// @dev The total reward amount in staking tokens which is not yet distributed among pools.
     uint256 public tokenRewardUndistributed;
 
+    // ============================================== Constants =======================================================
+
+    /// @dev Inflation rate per staking epoch. Calculated as follows:
+    /// 15% annual rate * 52 weeks per year / 100 * 10^18
+    /// This assumes that 1 staking epoch = 1 week
+    /// i.e. Inflation Rate = 15/52/100 * 1 ether
+    /// Recalculate it for different annual rate and/or different staking epoch duration.
+    uint256 public constant STAKE_TOKEN_INFLATION_RATE = 2884615384615380;
+
     // ================================================ Events ========================================================
 
     /// @dev Emitted by the `addBridgeTokenFeeReceivers` function.
@@ -185,6 +194,12 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
 
     // ============================================== Internal ========================================================
 
+    /// @dev See the description of `BlockRewardAuRaCoins._coinInflationAmount` internal function.
+    /// In this case (when ERC tokens are used for staking) the inflation for native coins is zero.
+    function _coinInflationAmount(uint256, address[] memory) internal view returns(uint256) {
+        return 0;
+    }
+
     /// @dev Distributes rewards in tokens among pools at the latest block of a staking epoch.
     /// This function is called by the `_distributeRewards` function.
     /// @param _stakingContract The address of the StakingAuRa contract.
@@ -204,6 +219,8 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
         uint256 _blocksCreatedShareDenom
     ) internal {
         uint256 totalReward = bridgeTokenFee + tokenRewardUndistributed;
+
+        totalReward += _inflationAmount(_stakingEpoch, _validators, STAKE_TOKEN_INFLATION_RATE);
 
         if (totalReward == 0) {
             return;

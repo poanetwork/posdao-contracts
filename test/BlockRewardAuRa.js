@@ -23,6 +23,7 @@ contract('BlockRewardAuRa', async accounts => {
   let candidateMinStake;
   let delegatorMinStake;
   let tokenRewardUndistributed = new BN(0);
+  let stakeTokenInflationRate;
 
   const COLLECT_ROUND_LENGTH = 114;
   const STAKING_EPOCH_DURATION = 120954;
@@ -84,6 +85,8 @@ contract('BlockRewardAuRa', async accounts => {
       await blockRewardAuRa.initialize(
         validatorSetAuRa.address
       ).should.be.fulfilled;
+
+      stakeTokenInflationRate = await blockRewardAuRa.STAKE_TOKEN_INFLATION_RATE.call();
 
       // Initialize RandomAuRa
       await randomAuRa.initialize(
@@ -272,6 +275,10 @@ contract('BlockRewardAuRa', async accounts => {
         await randomAuRa.setSentReveal(validators[i]).should.be.fulfilled;
       }
 
+      tokenRewardUndistributed = tokenRewardUndistributed.add(
+        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validators, stakeTokenInflationRate)
+      );
+
       (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(false);
       await callReward();
       const nextStakingEpoch = stakingEpoch.add(new BN(1)); // 3
@@ -394,6 +401,10 @@ contract('BlockRewardAuRa', async accounts => {
           await randomAuRa.setSentReveal(validators[i]).should.be.fulfilled;
         }
       }
+
+      tokenRewardUndistributed = tokenRewardUndistributed.add(
+        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validators, stakeTokenInflationRate)
+      );
 
       const blockRewardBalanceBeforeReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
@@ -550,6 +561,10 @@ contract('BlockRewardAuRa', async accounts => {
         await randomAuRa.setSentReveal(validators[i]).should.be.fulfilled;
       }
 
+      tokenRewardUndistributed = tokenRewardUndistributed.add(
+        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validators, stakeTokenInflationRate)
+      );
+
       const blockRewardBalanceBeforeReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(false);
@@ -684,6 +699,10 @@ contract('BlockRewardAuRa', async accounts => {
           await randomAuRa.setSentReveal(validators[i]).should.be.fulfilled;
         }
       }
+
+      tokenRewardUndistributed = tokenRewardUndistributed.add(
+        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validators, stakeTokenInflationRate)
+      );
 
       const blockRewardBalanceBeforeReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
@@ -831,6 +850,10 @@ contract('BlockRewardAuRa', async accounts => {
           await randomAuRa.setSentReveal(validators[i]).should.be.fulfilled;
         }
       }
+
+      tokenRewardUndistributed = tokenRewardUndistributed.add(
+        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validators, stakeTokenInflationRate)
+      );
 
       const blockRewardBalanceBeforeReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
@@ -984,6 +1007,10 @@ contract('BlockRewardAuRa', async accounts => {
         }
       }
 
+      tokenRewardUndistributed = tokenRewardUndistributed.add(
+        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validators, stakeTokenInflationRate)
+      );
+
       const blockRewardBalanceBeforeReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       const bannedUntil62 = await validatorSetAuRa.bannedUntil.call(accounts[62]);
@@ -1134,6 +1161,10 @@ contract('BlockRewardAuRa', async accounts => {
           await randomAuRa.setSentReveal(validators[i]).should.be.fulfilled;
         }
       }
+
+      tokenRewardUndistributed = tokenRewardUndistributed.add(
+        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validators, stakeTokenInflationRate)
+      );
 
       const blockRewardBalanceBeforeReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
@@ -1307,6 +1338,10 @@ contract('BlockRewardAuRa', async accounts => {
         await randomAuRa.setSentReveal(validators[i]).should.be.fulfilled;
       }
 
+      tokenRewardUndistributed = tokenRewardUndistributed.add(
+        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validators, stakeTokenInflationRate)
+      );
+
       const blockRewardBalanceBeforeReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(false);
@@ -1321,7 +1356,7 @@ contract('BlockRewardAuRa', async accounts => {
         epochPoolTokenReward.should.be.bignumber.above(new BN(0));
         rewardDistributed = rewardDistributed.add(epochPoolTokenReward);
       }
-      rewardDistributed.toString().substring(0, 3).should.be.equal(tokenRewardUndistributed.div(new BN(2)).toString().substring(0, 3));
+      rewardDistributed.toString().substring(0, 2).should.be.equal(tokenRewardUndistributed.div(new BN(2)).toString().substring(0, 2));
       tokenRewardUndistributed = tokenRewardUndistributed.sub(rewardDistributed);
       tokenRewardUndistributed.should.be.bignumber.equal(await blockRewardAuRa.tokenRewardUndistributed.call());
 
@@ -1469,6 +1504,10 @@ contract('BlockRewardAuRa', async accounts => {
         await randomAuRa.setSentReveal(validators[i]).should.be.fulfilled;
       }
 
+      tokenRewardUndistributed = tokenRewardUndistributed.add(
+        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validators, stakeTokenInflationRate)
+      );
+
       const blockRewardBalanceBeforeReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(false);
@@ -1611,6 +1650,10 @@ contract('BlockRewardAuRa', async accounts => {
       }
       (await validatorSetAuRa.validatorSetApplyBlock.call()).should.be.bignumber.equal(new BN(0));
 
+      tokenRewardUndistributed = tokenRewardUndistributed.add(
+        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validators, stakeTokenInflationRate)
+      );
+
       const blockRewardBalanceBeforeReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(false);
@@ -1737,6 +1780,10 @@ contract('BlockRewardAuRa', async accounts => {
         await blockRewardAuRa.setBlocksCreated(stakingEpoch, validators[i], blocksCreated).should.be.fulfilled;
         await randomAuRa.setSentReveal(validators[i]).should.be.fulfilled;
       }
+
+      tokenRewardUndistributed = tokenRewardUndistributed.add(
+        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validators, stakeTokenInflationRate)
+      );
 
       const blockRewardBalanceBeforeReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
