@@ -2947,10 +2947,10 @@ contract('StakingAuRa', async accounts => {
     const fee = web3.utils.toWei('1');
     await blockRewardAuRa.setNativeToErcBridgesAllowed([owner], {from: owner}).should.be.fulfilled;
     await blockRewardAuRa.setErcToNativeBridgesAllowed([owner], {from: owner}).should.be.fulfilled;
-    await blockRewardAuRa.addBridgeTokenFeeReceivers(fee, {from: owner}).should.be.fulfilled;
-    await blockRewardAuRa.addBridgeNativeFeeReceivers(fee, {from: owner}).should.be.fulfilled;
-    (await blockRewardAuRa.bridgeTokenFee.call()).should.be.bignumber.equal(fee);
-    (await blockRewardAuRa.bridgeNativeFee.call()).should.be.bignumber.equal(fee);
+    await blockRewardAuRa.addBridgeTokenRewardReceivers(fee, {from: owner}).should.be.fulfilled;
+    await blockRewardAuRa.addBridgeNativeRewardReceivers(fee, {from: owner}).should.be.fulfilled;
+    (await blockRewardAuRa.bridgeTokenReward.call()).should.be.bignumber.equal(fee);
+    (await blockRewardAuRa.bridgeNativeReward.call()).should.be.bignumber.equal(fee);
     return new BN(fee);
   }
 

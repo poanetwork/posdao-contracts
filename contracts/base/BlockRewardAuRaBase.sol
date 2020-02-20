@@ -50,8 +50,8 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
     mapping(uint256 => mapping(address => uint256)) public blocksCreated;
 
     /// @dev The current bridge's total fee amount of native coins accumulated by
-    /// the `addBridgeNativeFeeReceivers` function.
-    uint256 public bridgeNativeFee;
+    /// the `addBridgeNativeRewardReceivers` function.
+    uint256 public bridgeNativeReward;
 
     /// @dev The reward amount to be distributed in native coins among participants (the validator and their
     /// delegators) of the specified pool (mining address) for the specified staking epoch.
@@ -110,13 +110,13 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
     /// @param bridge The bridge address which called the `addExtraReceiver` function.
     event AddedReceiver(uint256 amount, address indexed receiver, address indexed bridge);
 
-    /// @dev Emitted by the `addBridgeNativeFeeReceivers` function.
+    /// @dev Emitted by the `addBridgeNativeRewardReceivers` function.
     /// @param amount The fee amount in native coins passed to the
-    /// `addBridgeNativeFeeReceivers` function as a parameter.
-    /// @param cumulativeAmount The value of `bridgeNativeFee` state variable
+    /// `addBridgeNativeRewardReceivers` function as a parameter.
+    /// @param cumulativeAmount The value of `bridgeNativeReward` state variable
     /// after adding the `amount` to it.
-    /// @param bridge The bridge address which called the `addBridgeNativeFeeReceivers` function.
-    event BridgeNativeFeeAdded(uint256 amount, uint256 cumulativeAmount, address indexed bridge);
+    /// @param bridge The bridge address which called the `addBridgeNativeRewardReceivers` function.
+    event BridgeNativeRewardAdded(uint256 amount, uint256 cumulativeAmount, address indexed bridge);
 
     /// @dev Emitted by the `_mintNativeCoins` function which is called by the `reward` function.
     /// This event is only used by the unit tests because the `reward` function cannot emit events.
@@ -169,10 +169,10 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
     /// and distributed to participants (validators and their delegators) in native coins. The specified amount
     /// is used by the `_distributeRewards` function.
     /// @param _amount The fee amount distributed to participants.
-    function addBridgeNativeFeeReceivers(uint256 _amount) external onlyErcToNativeBridge {
+    function addBridgeNativeRewardReceivers(uint256 _amount) external onlyErcToNativeBridge {
         require(_amount != 0);
-        bridgeNativeFee = bridgeNativeFee.add(_amount);
-        emit BridgeNativeFeeAdded(_amount, bridgeNativeFee, msg.sender);
+        bridgeNativeReward = bridgeNativeReward.add(_amount);
+        emit BridgeNativeRewardAdded(_amount, bridgeNativeReward, msg.sender);
     }
 
     /// @dev Called by the `erc-to-native` bridge contract when the bridge needs to mint a specified amount of native
@@ -583,7 +583,7 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
         uint256[] memory _blocksCreatedShareNum,
         uint256 _blocksCreatedShareDenom
     ) internal returns(uint256) {
-        uint256 totalReward = bridgeNativeFee + nativeRewardUndistributed;
+        uint256 totalReward = bridgeNativeReward + nativeRewardUndistributed;
 
         totalReward += _coinInflationAmount(_stakingEpoch, _validators);
 
@@ -591,7 +591,7 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
             return 0;
         }
 
-        bridgeNativeFee = 0;
+        bridgeNativeReward = 0;
 
         uint256 rewardToDistribute = 0;
         uint256 distributedAmount = 0;

@@ -19,8 +19,8 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
     address[] internal _nativeToErcBridgesAllowed;
 
     /// @dev The current bridge's total fee amount of staking tokens accumulated by
-    /// the `addBridgeTokenFeeReceivers` function.
-    uint256 public bridgeTokenFee;
+    /// the `addBridgeTokenRewardReceivers` function.
+    uint256 public bridgeTokenReward;
 
     /// @dev The reward amount to be distributed in staking tokens among participants (the validator and their
     /// delegators) of the specified pool (mining address) for the specified staking epoch.
@@ -40,13 +40,13 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
 
     // ================================================ Events ========================================================
 
-    /// @dev Emitted by the `addBridgeTokenFeeReceivers` function.
+    /// @dev Emitted by the `addBridgeTokenRewardReceivers` function.
     /// @param amount The fee amount in tokens passed to the
-    /// `addBridgeTokenFeeReceivers` function as a parameter.
-    /// @param cumulativeAmount The value of `bridgeTokenFee` state variable
+    /// `addBridgeTokenRewardReceivers` function as a parameter.
+    /// @param cumulativeAmount The value of `bridgeTokenReward` state variable
     /// after adding the `amount` to it.
-    /// @param bridge The bridge address which called the `addBridgeTokenFeeReceivers` function.
-    event BridgeTokenFeeAdded(uint256 amount, uint256 cumulativeAmount, address indexed bridge);
+    /// @param bridge The bridge address which called the `addBridgeTokenRewardReceivers` function.
+    event BridgeTokenRewardAdded(uint256 amount, uint256 cumulativeAmount, address indexed bridge);
 
     // ============================================== Modifiers =======================================================
 
@@ -62,10 +62,10 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
     /// minted and distributed to participants in staking tokens. The specified amount is used by the
     /// `_distributeRewards` function.
     /// @param _amount The fee amount distributed to participants.
-    function addBridgeTokenFeeReceivers(uint256 _amount) external onlyXToErcBridge {
+    function addBridgeTokenRewardReceivers(uint256 _amount) external onlyXToErcBridge {
         require(_amount != 0);
-        bridgeTokenFee = bridgeTokenFee.add(_amount);
-        emit BridgeTokenFeeAdded(_amount, bridgeTokenFee, msg.sender);
+        bridgeTokenReward = bridgeTokenReward.add(_amount);
+        emit BridgeTokenRewardAdded(_amount, bridgeTokenReward, msg.sender);
     }
 
     /// @dev Sets the array of `erc-to-erc` bridge addresses which are allowed to call some of the functions with
@@ -218,7 +218,7 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
         uint256[] memory _blocksCreatedShareNum,
         uint256 _blocksCreatedShareDenom
     ) internal {
-        uint256 totalReward = bridgeTokenFee + tokenRewardUndistributed;
+        uint256 totalReward = bridgeTokenReward + tokenRewardUndistributed;
 
         totalReward += _inflationAmount(_stakingEpoch, _validators, STAKE_TOKEN_INFLATION_RATE);
 
@@ -226,7 +226,7 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
             return;
         }
 
-        bridgeTokenFee = 0;
+        bridgeTokenReward = 0;
 
         IERC677Minting erc677TokenContract = IERC677Minting(
             IStakingAuRaTokens(_stakingContract).erc677TokenContract()

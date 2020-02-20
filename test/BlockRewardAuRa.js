@@ -201,8 +201,8 @@ contract('BlockRewardAuRa', async accounts => {
       (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(true);
 
       (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(new BN(0));
-      (await blockRewardAuRa.bridgeTokenFee.call()).should.be.bignumber.equal(new BN(0));
-      (await blockRewardAuRa.bridgeNativeFee.call()).should.be.bignumber.equal(new BN(0));
+      (await blockRewardAuRa.bridgeTokenReward.call()).should.be.bignumber.equal(new BN(0));
+      (await blockRewardAuRa.bridgeNativeReward.call()).should.be.bignumber.equal(new BN(0));
       (await blockRewardAuRa.tokenRewardUndistributed.call()).should.be.bignumber.equal(tokenRewardUndistributed);
 
       const pendingValidators = await validatorSetAuRa.getPendingValidators.call();
@@ -300,8 +300,8 @@ contract('BlockRewardAuRa', async accounts => {
       tokenRewardUndistributed.should.be.bignumber.equal(await blockRewardAuRa.tokenRewardUndistributed.call());
 
       (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(rewardDistributed);
-      (await blockRewardAuRa.bridgeTokenFee.call()).should.be.bignumber.equal(new BN(0));
-      (await blockRewardAuRa.bridgeNativeFee.call()).should.be.bignumber.equal(new BN(0));
+      (await blockRewardAuRa.bridgeTokenReward.call()).should.be.bignumber.equal(new BN(0));
+      (await blockRewardAuRa.bridgeNativeReward.call()).should.be.bignumber.equal(new BN(0));
 
       const pendingValidators = await validatorSetAuRa.getPendingValidators.call();
       pendingValidators.sortedEqual([
@@ -442,8 +442,8 @@ contract('BlockRewardAuRa', async accounts => {
       const blockRewardBalanceAfterReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       blockRewardBalanceAfterReward.should.be.bignumber.equal(blockRewardBalanceBeforeReward.add(rewardDistributed));
-      (await blockRewardAuRa.bridgeTokenFee.call()).should.be.bignumber.equal(new BN(0));
-      (await blockRewardAuRa.bridgeNativeFee.call()).should.be.bignumber.equal(new BN(0));
+      (await blockRewardAuRa.bridgeTokenReward.call()).should.be.bignumber.equal(new BN(0));
+      (await blockRewardAuRa.bridgeNativeReward.call()).should.be.bignumber.equal(new BN(0));
 
       const pendingValidators = await validatorSetAuRa.getPendingValidators.call();
       pendingValidators.sortedEqual([
@@ -597,8 +597,8 @@ contract('BlockRewardAuRa', async accounts => {
       const blockRewardBalanceAfterReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       blockRewardBalanceAfterReward.should.be.bignumber.equal(blockRewardBalanceBeforeReward.add(rewardDistributed));
-      (await blockRewardAuRa.bridgeTokenFee.call()).should.be.bignumber.equal(new BN(0));
-      (await blockRewardAuRa.bridgeNativeFee.call()).should.be.bignumber.equal(new BN(0));
+      (await blockRewardAuRa.bridgeTokenReward.call()).should.be.bignumber.equal(new BN(0));
+      (await blockRewardAuRa.bridgeNativeReward.call()).should.be.bignumber.equal(new BN(0));
 
       const pendingValidators = await validatorSetAuRa.getPendingValidators.call();
       pendingValidators.sortedEqual([
@@ -724,8 +724,8 @@ contract('BlockRewardAuRa', async accounts => {
       const blockRewardBalanceAfterReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       blockRewardBalanceAfterReward.should.be.bignumber.equal(blockRewardBalanceBeforeReward);
-      (await blockRewardAuRa.bridgeTokenFee.call()).should.be.bignumber.equal(new BN(0));
-      (await blockRewardAuRa.bridgeNativeFee.call()).should.be.bignumber.equal(new BN(0));
+      (await blockRewardAuRa.bridgeTokenReward.call()).should.be.bignumber.equal(new BN(0));
+      (await blockRewardAuRa.bridgeNativeReward.call()).should.be.bignumber.equal(new BN(0));
 
       const pendingValidators = await validatorSetAuRa.getPendingValidators.call();
       pendingValidators.sortedEqual([
@@ -886,8 +886,8 @@ contract('BlockRewardAuRa', async accounts => {
       const blockRewardBalanceAfterReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       blockRewardBalanceAfterReward.should.be.bignumber.equal(blockRewardBalanceBeforeReward.add(rewardDistributed));
-      (await blockRewardAuRa.bridgeTokenFee.call()).should.be.bignumber.equal(new BN(0));
-      (await blockRewardAuRa.bridgeNativeFee.call()).should.be.bignumber.equal(new BN(0));
+      (await blockRewardAuRa.bridgeTokenReward.call()).should.be.bignumber.equal(new BN(0));
+      (await blockRewardAuRa.bridgeNativeReward.call()).should.be.bignumber.equal(new BN(0));
 
       const pendingValidators = await validatorSetAuRa.getPendingValidators.call();
       pendingValidators.sortedEqual([
@@ -1041,8 +1041,8 @@ contract('BlockRewardAuRa', async accounts => {
       const blockRewardBalanceAfterReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       blockRewardBalanceAfterReward.should.be.bignumber.equal(blockRewardBalanceBeforeReward);
-      (await blockRewardAuRa.bridgeTokenFee.call()).should.be.bignumber.equal(new BN(0));
-      (await blockRewardAuRa.bridgeNativeFee.call()).should.be.bignumber.equal(new BN(0));
+      (await blockRewardAuRa.bridgeTokenReward.call()).should.be.bignumber.equal(new BN(0));
+      (await blockRewardAuRa.bridgeNativeReward.call()).should.be.bignumber.equal(new BN(0));
 
       const pendingValidators = await validatorSetAuRa.getPendingValidators.call();
       pendingValidators.sortedEqual([
@@ -1196,8 +1196,8 @@ contract('BlockRewardAuRa', async accounts => {
       const blockRewardBalanceAfterReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       blockRewardBalanceAfterReward.should.be.bignumber.equal(blockRewardBalanceBeforeReward);
-      (await blockRewardAuRa.bridgeTokenFee.call()).should.be.bignumber.equal(new BN(0));
-      (await blockRewardAuRa.bridgeNativeFee.call()).should.be.bignumber.equal(new BN(0));
+      (await blockRewardAuRa.bridgeTokenReward.call()).should.be.bignumber.equal(new BN(0));
+      (await blockRewardAuRa.bridgeNativeReward.call()).should.be.bignumber.equal(new BN(0));
 
       const pendingValidators = await validatorSetAuRa.getPendingValidators.call();
       pendingValidators.sortedEqual([
@@ -1363,8 +1363,8 @@ contract('BlockRewardAuRa', async accounts => {
       const blockRewardBalanceAfterReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       blockRewardBalanceAfterReward.should.be.bignumber.equal(blockRewardBalanceBeforeReward.add(rewardDistributed));
-      (await blockRewardAuRa.bridgeTokenFee.call()).should.be.bignumber.equal(new BN(0));
-      (await blockRewardAuRa.bridgeNativeFee.call()).should.be.bignumber.equal(new BN(0));
+      (await blockRewardAuRa.bridgeTokenReward.call()).should.be.bignumber.equal(new BN(0));
+      (await blockRewardAuRa.bridgeNativeReward.call()).should.be.bignumber.equal(new BN(0));
 
       const pendingValidators = await validatorSetAuRa.getPendingValidators.call();
       pendingValidators.sortedEqual([
@@ -1533,8 +1533,8 @@ contract('BlockRewardAuRa', async accounts => {
       const blockRewardBalanceAfterReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       blockRewardBalanceAfterReward.should.be.bignumber.equal(blockRewardBalanceBeforeReward.add(rewardDistributed));
-      (await blockRewardAuRa.bridgeTokenFee.call()).should.be.bignumber.equal(new BN(0));
-      (await blockRewardAuRa.bridgeNativeFee.call()).should.be.bignumber.equal(new BN(0));
+      (await blockRewardAuRa.bridgeTokenReward.call()).should.be.bignumber.equal(new BN(0));
+      (await blockRewardAuRa.bridgeNativeReward.call()).should.be.bignumber.equal(new BN(0));
 
       const pendingValidators = await validatorSetAuRa.getPendingValidators.call();
       pendingValidators.sortedEqual([
@@ -1671,8 +1671,8 @@ contract('BlockRewardAuRa', async accounts => {
       const blockRewardBalanceAfterReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       blockRewardBalanceAfterReward.should.be.bignumber.equal(blockRewardBalanceBeforeReward);
-      (await blockRewardAuRa.bridgeTokenFee.call()).should.be.bignumber.equal(new BN(0));
-      (await blockRewardAuRa.bridgeNativeFee.call()).should.be.bignumber.equal(new BN(0));
+      (await blockRewardAuRa.bridgeTokenReward.call()).should.be.bignumber.equal(new BN(0));
+      (await blockRewardAuRa.bridgeNativeReward.call()).should.be.bignumber.equal(new BN(0));
 
       const pendingValidators = await validatorSetAuRa.getPendingValidators.call();
       pendingValidators.sortedEqual([
@@ -1806,8 +1806,8 @@ contract('BlockRewardAuRa', async accounts => {
       const blockRewardBalanceAfterReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
 
       blockRewardBalanceAfterReward.should.be.bignumber.equal(blockRewardBalanceBeforeReward.add(rewardDistributed));
-      (await blockRewardAuRa.bridgeTokenFee.call()).should.be.bignumber.equal(new BN(0));
-      (await blockRewardAuRa.bridgeNativeFee.call()).should.be.bignumber.equal(new BN(0));
+      (await blockRewardAuRa.bridgeTokenReward.call()).should.be.bignumber.equal(new BN(0));
+      (await blockRewardAuRa.bridgeNativeReward.call()).should.be.bignumber.equal(new BN(0));
 
       const pendingValidators = await validatorSetAuRa.getPendingValidators.call();
       pendingValidators.sortedEqual([
@@ -1852,10 +1852,10 @@ contract('BlockRewardAuRa', async accounts => {
     const fee = web3.utils.toWei('1');
     await blockRewardAuRa.setNativeToErcBridgesAllowed([owner], {from: owner}).should.be.fulfilled;
     await blockRewardAuRa.setErcToNativeBridgesAllowed([owner], {from: owner}).should.be.fulfilled;
-    await blockRewardAuRa.addBridgeTokenFeeReceivers(fee, {from: owner}).should.be.fulfilled;
-    await blockRewardAuRa.addBridgeNativeFeeReceivers(fee, {from: owner}).should.be.fulfilled;
-    (await blockRewardAuRa.bridgeTokenFee.call()).should.be.bignumber.equal(fee);
-    (await blockRewardAuRa.bridgeNativeFee.call()).should.be.bignumber.equal(fee);
+    await blockRewardAuRa.addBridgeTokenRewardReceivers(fee, {from: owner}).should.be.fulfilled;
+    await blockRewardAuRa.addBridgeNativeRewardReceivers(fee, {from: owner}).should.be.fulfilled;
+    (await blockRewardAuRa.bridgeTokenReward.call()).should.be.bignumber.equal(fee);
+    (await blockRewardAuRa.bridgeNativeReward.call()).should.be.bignumber.equal(fee);
     return new BN(fee);
   }
 
