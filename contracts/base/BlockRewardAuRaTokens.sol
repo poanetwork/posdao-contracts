@@ -18,7 +18,7 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
     address[] internal _ercToErcBridgesAllowed;
     address[] internal _nativeToErcBridgesAllowed;
 
-    /// @dev The current bridge's total fee amount of staking tokens accumulated by
+    /// @dev The current bridge's total fee/reward amount of staking tokens accumulated by
     /// the `addBridgeTokenRewardReceivers` function.
     uint256 public bridgeTokenReward;
 
@@ -41,7 +41,7 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
     // ================================================ Events ========================================================
 
     /// @dev Emitted by the `addBridgeTokenRewardReceivers` function.
-    /// @param amount The fee amount in tokens passed to the
+    /// @param amount The fee/reward amount in tokens passed to the
     /// `addBridgeTokenRewardReceivers` function as a parameter.
     /// @param cumulativeAmount The value of `bridgeTokenReward` state variable
     /// after adding the `amount` to it.
@@ -58,10 +58,10 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
 
     // =============================================== Setters ========================================================
 
-    /// @dev Called by the `erc-to-erc` or `native-to-erc` bridge contract when a portion of the bridge fee should be
-    /// minted and distributed to participants in staking tokens. The specified amount is used by the
+    /// @dev Called by the `erc-to-erc` or `native-to-erc` bridge contract when a portion of the bridge fee/reward
+    /// should be minted and distributed to participants in staking tokens. The specified amount is used by the
     /// `_distributeRewards` function.
-    /// @param _amount The fee amount distributed to participants.
+    /// @param _amount The fee/reward amount distributed to participants.
     function addBridgeTokenRewardReceivers(uint256 _amount) external onlyXToErcBridge {
         require(_amount != 0);
         bridgeTokenReward = bridgeTokenReward.add(_amount);

@@ -49,7 +49,7 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
     /// While the validator is banned, the block producing statistics is not accumulated for them.
     mapping(uint256 => mapping(address => uint256)) public blocksCreated;
 
-    /// @dev The current bridge's total fee amount of native coins accumulated by
+    /// @dev The current bridge's total fee/reward amount of native coins accumulated by
     /// the `addBridgeNativeRewardReceivers` function.
     uint256 public bridgeNativeReward;
 
@@ -111,7 +111,7 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
     event AddedReceiver(uint256 amount, address indexed receiver, address indexed bridge);
 
     /// @dev Emitted by the `addBridgeNativeRewardReceivers` function.
-    /// @param amount The fee amount in native coins passed to the
+    /// @param amount The fee/reward amount in native coins passed to the
     /// `addBridgeNativeRewardReceivers` function as a parameter.
     /// @param cumulativeAmount The value of `bridgeNativeReward` state variable
     /// after adding the `amount` to it.
@@ -165,10 +165,10 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
         revert();
     }
 
-    /// @dev Called by the `erc-to-native` bridge contract when a portion of the bridge fee should be minted
+    /// @dev Called by the `erc-to-native` bridge contract when a portion of the bridge fee/reward should be minted
     /// and distributed to participants (validators and their delegators) in native coins. The specified amount
     /// is used by the `_distributeRewards` function.
-    /// @param _amount The fee amount distributed to participants.
+    /// @param _amount The fee/reward amount distributed to participants.
     function addBridgeNativeRewardReceivers(uint256 _amount) external onlyErcToNativeBridge {
         require(_amount != 0);
         bridgeNativeReward = bridgeNativeReward.add(_amount);
