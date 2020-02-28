@@ -122,8 +122,8 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
     function setErc677TokenContract(IERC677Minting _erc677TokenContract) external onlyOwner onlyInitialized {
         require(_erc677TokenContract != IERC677Minting(0));
         require(erc677TokenContract == IERC677Minting(0));
-        require(_erc677TokenContract.balanceOf(address(this)) == 0);
         erc677TokenContract = _erc677TokenContract;
+        require(_thisBalance() == 0);
     }
 
     // =============================================== Getters ========================================================
@@ -207,5 +207,10 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
         require(erc677TokenContract != IERC677Minting(0));
         erc677TokenContract.stake(staker, _amount);
         emit PlacedStake(_toPoolStakingAddress, staker, stakingEpoch, _amount);
+    }
+
+    /// @dev Returns the balance of this contract in staking tokens.
+    function _thisBalance() internal view returns(uint256) {
+        return erc677TokenContract.balanceOf(address(this));
     }
 }

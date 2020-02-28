@@ -181,5 +181,10 @@ contract StakingAuRaCoins is StakingAuRaBase {
         _stake(_toPoolStakingAddress, staker, _amount);
         emit PlacedStake(_toPoolStakingAddress, staker, stakingEpoch, _amount);
     }
-    
+
+    /// @dev Returns the balance of this contract in staking coins.
+    function _thisBalance() internal view returns(uint256) {
+        return address(this).balance;
+    }
+
 }

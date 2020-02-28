@@ -460,6 +460,10 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// A validator can be banned when they misbehave (see the `_removeMaliciousValidator` internal function).
     /// @param _miningAddress The mining address.
     function isValidatorBanned(address _miningAddress) public view returns(bool) {
+        if (bannedUntil[_miningAddress] == 0) {
+            // Avoid returning `true` for the genesis block
+            return false;
+        }
         return _getCurrentBlockNumber() <= bannedUntil[_miningAddress];
     }
 

@@ -320,18 +320,64 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
         uint256 _stakingEpochStartBlock,
         uint256 _stakeWithdrawDisallowPeriod
     ) external {
+        require(_validatorSetContract != address(0));
+        require(_initialStakingAddresses.length > 0);
+        require(_delegatorMinStake != 0);
+        require(_candidateMinStake != 0);
         require(_stakingEpochDuration != 0);
         require(_stakingEpochDuration > _stakeWithdrawDisallowPeriod);
         require(_stakeWithdrawDisallowPeriod != 0);
-        _initialize(
-            _validatorSetContract,
-            _initialStakingAddresses,
-            _delegatorMinStake,
-            _candidateMinStake
-        );
+        require(_getCurrentBlockNumber() == 0 || msg.sender == _admin());
+        require(!isInitialized()); // initialization can only be done once
+
+        validatorSetContract = IValidatorSetAuRa(_validatorSetContract);
+
+        address unremovableStakingAddress = validatorSetContract.unremovableValidator();
+
+        for (uint256 i = 0; i < _initialStakingAddresses.length; i++) {
+            require(_initialStakingAddresses[i] != address(0));
+            _addPoolActive(_initialStakingAddresses[i], false);
+            if (_initialStakingAddresses[i] != unremovableStakingAddress) {
+                _addPoolToBeRemoved(_initialStakingAddresses[i]);
+            }
+        }
+
+        delegatorMinStake = _delegatorMinStake;
+        candidateMinStake = _candidateMinStake;
         stakingEpochDuration = _stakingEpochDuration;
-        stakeWithdrawDisallowPeriod = _stakeWithdrawDisallowPeriod;
         stakingEpochStartBlock = _stakingEpochStartBlock;
+        stakeWithdrawDisallowPeriod = _stakeWithdrawDisallowPeriod;
+    }
+
+    /// @dev Makes initial validator stakes. Can only be called by the owner
+    /// before the network starts (after `initialize` is called but before `stakingEpochStartBlock`).
+    /// Cannot be called more than once and cannot be called when starting from genesis.
+    /// Requires `StakingAuRa` contract balance to be equal to the `_totalAmount`.
+    /// @param _totalAmount The initial validator total stake amount (for all initial validators).
+    function initialValidatorStake(uint256 _totalAmount) external onlyOwner {
+        uint256 currentBlock = _getCurrentBlockNumber();
+
+        require(stakingEpoch == 0);
+        require(currentBlock < stakingEpochStartBlock);
+        require(_thisBalance() == _totalAmount);
+        require(_totalAmount % _pools.length == 0);
+
+        uint256 stakingAmount = _totalAmount.div(_pools.length);
+        uint256 stakingEpochStartBlock_ = stakingEpochStartBlock;
+
+        // Temporarily set `stakingEpochStartBlock` to the current block number
+        // to avoid revert in the `_stake` function
+        stakingEpochStartBlock = currentBlock;
+
+        for (uint256 i = 0; i < _pools.length; i++) {
+            address stakingAddress = _pools[i];
+            require(stakeAmount[stakingAddress][stakingAddress] == 0);
+            _stake(stakingAddress, stakingAddress, stakingAmount);
+            emit PlacedStake(stakingAddress, stakingAddress, stakingEpoch, stakingAmount);
+        }
+
+        // Restore `stakingEpochStartBlock` value
+        stakingEpochStartBlock = stakingEpochStartBlock_;
     }
 
     /// @dev Removes a specified pool from the `pools` array (a list of active pools which can be retrieved by the
@@ -869,40 +915,6 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
         }
     }
 
-    /// @dev Initializes the network parameters. Used by the `initialize` function.
-    /// @param _validatorSetContract The address of the `ValidatorSetAuRa` contract.
-    /// @param _initialStakingAddresses The array of initial validators' staking addresses.
-    /// @param _delegatorMinStake The minimum allowed amount of delegator stake in Wei.
-    /// @param _candidateMinStake The minimum allowed amount of candidate/validator stake in Wei.
-    function _initialize(
-        address _validatorSetContract,
-        address[] memory _initialStakingAddresses,
-        uint256 _delegatorMinStake,
-        uint256 _candidateMinStake
-    ) internal {
-        require(_getCurrentBlockNumber() == 0 || msg.sender == _admin());
-        require(!isInitialized()); // initialization can only be done once
-        require(_validatorSetContract != address(0));
-        require(_initialStakingAddresses.length > 0);
-        require(_delegatorMinStake != 0);
-        require(_candidateMinStake != 0);
-
-        validatorSetContract = IValidatorSetAuRa(_validatorSetContract);
-
-        address unremovableStakingAddress = validatorSetContract.unremovableValidator();
-
-        for (uint256 i = 0; i < _initialStakingAddresses.length; i++) {
-            require(_initialStakingAddresses[i] != address(0));
-            _addPoolActive(_initialStakingAddresses[i], false);
-            if (_initialStakingAddresses[i] != unremovableStakingAddress) {
-                _addPoolToBeRemoved(_initialStakingAddresses[i]);
-            }
-        }
-
-        delegatorMinStake = _delegatorMinStake;
-        candidateMinStake = _candidateMinStake;
-    }
-
     /// @dev Adds the specified address to the array of the current active delegators of the specified pool.
     /// Used by the `stake` and `orderWithdraw` functions. See the `poolDelegators` getter.
     /// @param _poolStakingAddress The pool staking address.
@@ -1206,4 +1218,8 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
 
         return true;
     }
+
+    /// @dev Returns the balance of this contract in staking tokens or coins
+    /// depending on implementation.
+    function _thisBalance() internal view returns(uint256);
 }
