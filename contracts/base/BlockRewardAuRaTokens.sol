@@ -58,11 +58,17 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
 
     // =============================================== Setters ========================================================
 
+    /// @dev An alias for `addBridgeTokenRewardReceivers`
+    /// (for backward compatibility with the previous bridge contract).
+    function addBridgeTokenFeeReceivers(uint256 _amount) external {
+        addBridgeTokenRewardReceivers(_amount);
+    }
+
     /// @dev Called by the `erc-to-erc` or `native-to-erc` bridge contract when a portion of the bridge fee/reward
     /// should be minted and distributed to participants in staking tokens. The specified amount is used by the
     /// `_distributeRewards` function.
     /// @param _amount The fee/reward amount distributed to participants.
-    function addBridgeTokenRewardReceivers(uint256 _amount) external onlyXToErcBridge {
+    function addBridgeTokenRewardReceivers(uint256 _amount) public onlyXToErcBridge {
         require(_amount != 0);
         bridgeTokenReward = bridgeTokenReward.add(_amount);
         emit BridgeTokenRewardAdded(_amount, bridgeTokenReward, msg.sender);

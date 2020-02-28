@@ -165,11 +165,17 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
         revert();
     }
 
+    /// @dev An alias for `addBridgeNativeRewardReceivers`
+    /// (for backward compatibility with the previous bridge contract).
+    function addBridgeNativeFeeReceivers(uint256 _amount) external {
+        addBridgeNativeRewardReceivers(_amount);
+    }
+
     /// @dev Called by the `erc-to-native` bridge contract when a portion of the bridge fee/reward should be minted
     /// and distributed to participants (validators and their delegators) in native coins. The specified amount
     /// is used by the `_distributeRewards` function.
     /// @param _amount The fee/reward amount distributed to participants.
-    function addBridgeNativeRewardReceivers(uint256 _amount) external onlyErcToNativeBridge {
+    function addBridgeNativeRewardReceivers(uint256 _amount) public onlyErcToNativeBridge {
         require(_amount != 0);
         bridgeNativeReward = bridgeNativeReward.add(_amount);
         emit BridgeNativeRewardAdded(_amount, bridgeNativeReward, msg.sender);
