@@ -75,14 +75,16 @@ contract KeyGenHistory is UpgradeabilityAdmin, IKeyGenHistory {
     function writePart(bytes calldata _part) external {
         // It can only be called by a new validator which is elected but not yet finalized...
         // ...or by a validator which is already in the validator set.
-        require(validatorSetContract.isValidatorOrPending(msg.sender), "Sender is not a pending validator");
+        require(validatorSetContract.isPendingValidator(msg.sender), "Sender is not a pending validator");
+        require(parts[msg.sender].length == 0, "Parts already submitted!");
         parts[msg.sender] = _part;
     }
 
     function writeAck(bytes calldata _ack) external {
         // It can only be called by a new validator which is elected but not yet finalized...
         // ...or by a validator which is already in the validator set.
-        require(validatorSetContract.isValidatorOrPending(msg.sender), "Sender is not a pending validator");
+        require(validatorSetContract.isPendingValidator(msg.sender), "Sender is not a pending validator");
+        require(acks[msg.sender].length == 0, "Acks already submitted");
         acks[msg.sender].push(_ack);
     }
 

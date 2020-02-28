@@ -231,6 +231,7 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
     /// Automatically called by the `BlockRewardHbbft.reward` function at the latest block of the staking epoch.
     function newValidatorSet() external onlyBlockRewardContract {
         address[] memory poolsToBeElected = stakingContract.getPoolsToBeElected();
+        require(poolsToBeElected.length != 0, "No active pools!");
 
         // Choose new validators
         if (
@@ -262,6 +263,9 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
         } else {
             _setPendingValidators(poolsToBeElected);
         }
+
+        // clear previousValidator KetGenHistory state
+        keyGenHistoryContract.clearPrevKeyGenState(_currentValidators);
 
         // From this moment the `getPendingValidators()` returns the new validator set.
          /* _setPendingValidatorsChanged(true);  //TO DO: decide how to handle it */
@@ -427,11 +431,18 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
             return true;
         }
 
+        return isPending(_miningAddress);
+    }
+
+    /// @dev Returns a boolean flag indicating whether the specified mining address is a pending validator.
+    /// Used by the `isValidatorOrPending` and `KeyGenHistory.writeAck/Part` functions.
+    /// @param _miningAddress The mining address.
+    function isPending(address _miningAddress) public view returns(bool) {
+
         uint256 i;
         uint256 length;
 
-        length = _pendingValidators.length;
-        for (i = 0; i < length; i++) {
+        for (i = 0; i < _pendingValidators.length; i++) {
             if (_miningAddress == _pendingValidators[i]) {
                 return true;
             }
@@ -541,9 +552,6 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
         for (i = 0; i < validators.length; i++) {
             isValidator[validators[i]] = false;
         }
-
-        // clear previousValidator KetGenHistory state
-        keyGenHistoryContract.clearPrevKeyGenState(validators);
 
         _currentValidators = _pendingValidators;
 

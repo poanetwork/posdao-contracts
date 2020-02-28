@@ -24,6 +24,7 @@ interface IValidatorSetHbbft {
     function isValidator(address) external view returns(bool);
     function isValidatorBanned(address) external view returns(bool);
     function isValidatorOrPending(address) external view returns(bool);
+    function isPendingValidator(address) external view returns(bool);
     function MAX_VALIDATORS() external view returns(uint256); // solhint-disable-line func-name-mixedcase
     function miningByStakingAddress(address) external view returns(address);
     function randomContract() external view returns(address);
