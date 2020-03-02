@@ -64,7 +64,6 @@ contract Certifier is UpgradeableOwned, ICertifier {
     /// @param _who The address for which zero gas price transactions must be allowed.
     function certify(address _who) external onlyOwner onlyInitialized {
         _certify(_who);
-        emit Confirmed(_who);
     }
 
     /// @dev Denies the specified address usage of a zero gas price for its transactions.
@@ -100,5 +99,6 @@ contract Certifier is UpgradeableOwned, ICertifier {
     function _certify(address _who) internal {
         require(_who != address(0));
         _certified[_who] = true;
+        emit Confirmed(_who);
     }
 }

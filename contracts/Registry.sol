@@ -82,13 +82,15 @@ contract Registry is Owned, IMetadataRegistry, IOwnerRegistry, IReverseRegistry 
     constructor(address _certifierContract, address _owner) public {
         require(_certifierContract != address(0));
         bytes32 serviceTransactionChecker = keccak256("service_transaction_checker");
-        entries[serviceTransactionChecker].data["A"] = bytes20(_certifierContract);
+        address entryOwner = msg.sender;
         if (_owner != address(0)) {
             owner = _owner;
-            entries[serviceTransactionChecker].owner = _owner;
-        } else {
-            entries[serviceTransactionChecker].owner = msg.sender;
+            entryOwner = _owner;
         }
+        entries[serviceTransactionChecker].owner = entryOwner;
+        entries[serviceTransactionChecker].data["A"] = bytes20(_certifierContract);
+        emit Reserved(serviceTransactionChecker, entryOwner);
+        emit DataChanged(serviceTransactionChecker, "A", "A");
     }
 
     // Reservation functions
