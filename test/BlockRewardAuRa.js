@@ -87,7 +87,8 @@ contract('BlockRewardAuRa', async accounts => {
 
       // Initialize BlockRewardAuRa
       await blockRewardAuRa.initialize(
-        validatorSetAuRa.address
+        validatorSetAuRa.address,
+        '0x0000000000000000000000000000000000000000'
       ).should.be.fulfilled;
 
       // Initialize RandomAuRa
@@ -412,7 +413,8 @@ contract('BlockRewardAuRa', async accounts => {
 
       // Initialize BlockRewardAuRa
       await blockRewardAuRa.initialize(
-        validatorSetAuRa.address
+        validatorSetAuRa.address,
+        '0x0000000000000000000000000000000000000000'
       ).should.be.fulfilled;
 
       stakeTokenInflationRate = await blockRewardAuRa.STAKE_TOKEN_INFLATION_RATE.call();

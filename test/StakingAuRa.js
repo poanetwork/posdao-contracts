@@ -305,7 +305,8 @@ contract('StakingAuRa', async accounts => {
     beforeEach(async () => {
       // Initialize BlockRewardAuRa
       await blockRewardAuRa.initialize(
-        validatorSetAuRa.address
+        validatorSetAuRa.address,
+        '0x0000000000000000000000000000000000000000'
       ).should.be.fulfilled;
 
       // Initialize RandomAuRa
@@ -2879,7 +2880,7 @@ contract('StakingAuRa', async accounts => {
       (await stakingAuRa.stakingEpoch.call()).should.be.bignumber.equal(new BN(1));
 
       // Finalize a new validator set
-      await blockRewardAuRa.initialize(validatorSetAuRa.address).should.be.fulfilled;
+      await blockRewardAuRa.initialize(validatorSetAuRa.address, '0x0000000000000000000000000000000000000000').should.be.fulfilled;
       await validatorSetAuRa.emitInitiateChange().should.be.fulfilled;
       await validatorSetAuRa.finalizeChange({from: owner}).should.be.fulfilled;
 

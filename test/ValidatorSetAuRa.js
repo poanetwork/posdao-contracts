@@ -214,7 +214,7 @@ contract('ValidatorSetAuRa', async accounts => {
       await validatorSetAuRa.emitInitiateChange().should.be.rejectedWith(ERROR_MSG);
     });
     it('shouldn\'t emit InitiateChange event if an empty pending validators array was queued', async () => {
-      await blockRewardAuRa.initialize(validatorSetAuRa.address).should.be.fulfilled;
+      await blockRewardAuRa.initialize(validatorSetAuRa.address, '0x0000000000000000000000000000000000000000').should.be.fulfilled;
       await validatorSetAuRa.emitInitiateChange().should.be.fulfilled;
       await validatorSetAuRa.setCurrentBlockNumber(120980).should.be.fulfilled;
       await validatorSetAuRa.finalizeChange({from: owner}).should.be.fulfilled;

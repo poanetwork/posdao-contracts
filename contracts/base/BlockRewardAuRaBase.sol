@@ -29,6 +29,7 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
     mapping(address => uint256[]) internal _epochsPoolGotRewardFor;
     mapping(address => bool) internal _ercToNativeBridgeAllowed;
     address[] internal _ercToNativeBridgesAllowed;
+    IBlockRewardAuRa internal _prevBlockRewardContract;
     bool internal _queueERInitialized;
     uint256 internal _queueERFirst;
     uint256 internal _queueERLast;
@@ -206,27 +207,15 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
     /// @dev Initializes the contract at network startup.
     /// Can only be called by the constructor of the `InitializerAuRa` contract or owner.
     /// @param _validatorSet The address of the `ValidatorSetAuRa` contract.
-    function initialize(address _validatorSet) external {
+    /// @param _prevBlockReward The address of the previous BlockReward contract
+    /// (for statistics migration purposes).
+    function initialize(address _validatorSet, address _prevBlockReward) external {
         require(_getCurrentBlockNumber() == 0 || msg.sender == _admin());
         require(!isInitialized());
         require(_validatorSet != address(0));
         validatorSetContract = IValidatorSetAuRa(_validatorSet);
         validatorMinRewardPercent[0] = VALIDATOR_MIN_REWARD_PERCENT;
-    }
-
-    /// @dev Copies the minting statistics from the previous BlockReward contract
-    /// for the `mintedTotally` and `mintedTotallyByBridge` getters. Can only be called once by the owner.
-    /// This function assumes the bridge contract address is not changed due to its upgradable nature.
-    /// @param _bridge The address of a bridge contract.
-    /// @param _prevBlockRewardContract The address of the previous BlockReward contract.
-    function migrateMintingStatistics(address _bridge, IBlockRewardAuRa _prevBlockRewardContract) external onlyOwner {
-        require(mintedTotally == 0);
-        uint256 prevMinted = _prevBlockRewardContract.mintedTotally();
-        uint256 prevMintedByBridge = _prevBlockRewardContract.mintedTotallyByBridge(_bridge);
-        require(prevMinted != 0);
-        require(prevMintedByBridge != 0);
-        mintedTotally = prevMinted;
-        mintedTotallyByBridge[_bridge] = prevMintedByBridge;
+        _prevBlockRewardContract = IBlockRewardAuRa(_prevBlockReward);
     }
 
     /// @dev Called by the validator's node when producing and closing a block,
@@ -245,7 +234,7 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
         }
 
         // Check if the validator is existed
-        if (!validatorSetContract.isValidator(benefactors[0])) {
+        if (validatorSetContract == IValidatorSetAuRa(0) || !validatorSetContract.isValidator(benefactors[0])) {
             return (new address[](0), new uint256[](0));
         }
 
@@ -258,6 +247,10 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
             _queueERFirst = 1;
             _queueERLast = 0;
             _queueERInitialized = true;
+
+            // Migrate minting statistics for erc-to-native bridges
+            // from the `_prevBlockRewardContract`
+            _migrateMintingStatistics();
         }
 
         uint256 bridgeQueueLimit = 100;
@@ -693,6 +686,22 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
             blocksCreatedShareNum,
             blocksCreatedShareDenom
         );
+    }
+
+    /// @dev Copies the minting statistics from the previous BlockReward contract
+    /// for the `mintedTotally` and `mintedTotallyByBridge` getters.
+    /// Called only once by the `reward` function.
+    function _migrateMintingStatistics() internal {
+        if (_prevBlockRewardContract == IBlockRewardAuRa(0)) {
+            return;
+        }
+        for (uint256 i = 0; i < _ercToNativeBridgesAllowed.length; i++) {
+            address bridge = _ercToNativeBridgesAllowed[i];
+            mintedTotallyByBridge[bridge] = _prevBlockRewardContract.mintedTotallyByBridge(bridge);
+        }
+        if (_ercToNativeBridgesAllowed.length != 0) {
+            mintedTotally = _prevBlockRewardContract.mintedTotally();
+        }
     }
 
     /// @dev Returns the current block number. Needed mostly for unit tests.
