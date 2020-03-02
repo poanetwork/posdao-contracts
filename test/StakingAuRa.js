@@ -813,7 +813,9 @@ contract('StakingAuRa', async accounts => {
       result.logs[0].args.stakingEpoch.should.be.bignumber.equal(new BN(11));
       unclaimedReward = unclaimedReward.sub(result.logs[0].args.tokensAmount);
 
-      (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(unclaimedReward);
+      const blockRewardTokenBalance = await erc677Token.balanceOf.call(blockRewardAuRa.address);
+      blockRewardTokenBalance.sub(unclaimedReward).should.be.bignumber.lte(new BN(1)); // because of rounding error
+
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(new BN(0));
 
       (await stakingAuRa.stakeFirstEpoch.call(stakingAddress, delegator)).should.be.bignumber.equal(new BN(11));
@@ -901,7 +903,9 @@ contract('StakingAuRa', async accounts => {
         unclaimedReward = unclaimedReward.sub(result.logs[i].args.tokensAmount);
       }
 
-      (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(unclaimedReward);
+      const blockRewardTokenBalance = await erc677Token.balanceOf.call(blockRewardAuRa.address);
+      blockRewardTokenBalance.sub(unclaimedReward).should.be.bignumber.lte(new BN(1)); // because of rounding error
+
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(new BN(0));
 
       (await stakingAuRa.stakeFirstEpoch.call(stakingAddress, delegator)).should.be.bignumber.equal(new BN(11));
