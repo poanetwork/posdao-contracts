@@ -20,6 +20,11 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
 
     address[] internal _allowedSenders;
 
+    /// @dev A boolean flag indicating whether the specified address is allowed
+    /// to initiate transactions of any type. Used by the `allowedTxTypes` getter.
+    /// See also the `addAllowedSender` and `removeAllowedSender` functions.
+    mapping(address => bool) public isSenderAllowed;
+
     /// @dev The address of the `ValidatorSetAuRa` contract.
     IValidatorSetAuRa public validatorSetContract;
 
@@ -73,15 +78,19 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
     /// See also the `addAllowedSender` function and `allowedSenders` getter.
     /// @param _sender The removed address.
     function removeAllowedSender(address _sender) public onlyOwner onlyInitialized {
+        require(isSenderAllowed[_sender]);
+
         uint256 allowedSendersLength = _allowedSenders.length;
 
         for (uint256 i = 0; i < allowedSendersLength; i++) {
             if (_sender == _allowedSenders[i]) {
                 _allowedSenders[i] = _allowedSenders[allowedSendersLength - 1];
                 _allowedSenders.length--;
-                return;
+                break;
             }
         }
+
+        isSenderAllowed[_sender] = false;
     }
 
     // =============================================== Getters ========================================================
@@ -135,7 +144,7 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
         view
         returns(uint32 typesMask, bool cache)
     {
-        if (isSenderAllowed(_sender)) {
+        if (isSenderAllowed[_sender]) {
             // Let the `_sender` initiate any transaction if the `_sender` is in the `allowedSenders` list
             return (ALL, false);
         }
@@ -233,22 +242,6 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
         return validatorSetContract != IValidatorSetAuRa(0);
     }
 
-    /// @dev Returns a boolean flag indicating whether the specified address is allowed
-    /// to initiate transactions of any type. Used by the `allowedTxTypes` getter.
-    /// See also the `addAllowedSender` and `removeAllowedSender` functions.
-    /// @param _sender The specified address to check.
-    function isSenderAllowed(address _sender) public view returns(bool) {
-        uint256 allowedSendersLength = _allowedSenders.length;
-
-        for (uint256 i = 0; i < allowedSendersLength; i++) {
-            if (_sender == _allowedSenders[i]) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     // ============================================== Internal ========================================================
 
     // Allowed transaction types mask
@@ -279,8 +272,9 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
     /// @dev An internal function used by the `addAllowedSender` and `initialize` functions.
     /// @param _sender The address for which transactions of any type must be allowed.
     function _addAllowedSender(address _sender) internal {
-        require(!isSenderAllowed(_sender));
+        require(!isSenderAllowed[_sender]);
         require(_sender != address(0));
         _allowedSenders.push(_sender);
+        isSenderAllowed[_sender] = true;
     }
 }
