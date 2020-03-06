@@ -72,7 +72,7 @@ contract InitializerAuRa {
         IRandomAuRa(_contracts[2]).initialize(_collectRoundLength, _contracts[0]);
         address[] memory permittedAddresses = new address[](1);
         permittedAddresses[0] = _owner;
-        ITxPermission(_contracts[4]).initialize(permittedAddresses, _contracts[0]);
+        ITxPermission(_contracts[4]).initialize(permittedAddresses, _contracts[5], _contracts[0]);
         ICertifier(_contracts[5]).initialize(permittedAddresses, _contracts[0]);
         selfdestruct(msg.sender);
     }

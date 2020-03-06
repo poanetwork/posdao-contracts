@@ -1,5 +1,6 @@
 pragma solidity 0.5.10;
 
+import "./interfaces/ICertifier.sol";
 import "./interfaces/IRandomAuRa.sol";
 import "./interfaces/IStakingAuRa.sol";
 import "./interfaces/ITxPermission.sol";
@@ -19,6 +20,9 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
     // and do not change their types!
 
     address[] internal _allowedSenders;
+
+    /// @dev The address of the `Certifier` contract.
+    ICertifier public certifierContract;
 
     /// @dev A boolean flag indicating whether the specified address is allowed
     /// to initiate transactions of any type. Used by the `allowedTxTypes` getter.
@@ -52,17 +56,22 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
     /// Can only be called by the constructor of the `InitializerAuRa` contract or owner.
     /// @param _allowed The addresses for which transactions of any type must be allowed.
     /// See the `allowedTxTypes` getter.
+    /// @param _certifier The address of the `Certifier` contract. It is used by `allowedTxTypes` function to know
+    /// whether some address is explicitly allowed to use zero gas price.
     /// @param _validatorSet The address of the `ValidatorSetAuRa` contract.
     function initialize(
         address[] calldata _allowed,
+        address _certifier,
         address _validatorSet
     ) external {
         require(block.number == 0 || msg.sender == _admin());
         require(!isInitialized());
+        require(_certifier != address(0));
         require(_validatorSet != address(0));
         for (uint256 i = 0; i < _allowed.length; i++) {
             _addAllowedSender(_allowed[i]);
         }
+        certifierContract = ICertifier(_certifier);
         validatorSetContract = IValidatorSetAuRa(_validatorSet);
     }
 
@@ -221,9 +230,13 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
             return (NONE, false);
         }
 
-        // In other cases let the `_sender` create any transaction with non-zero gas price,
-        // don't let them use a zero gas price
-        return (_gasPrice > 0 ? ALL : NONE, false);
+        // Don't let the `_sender` use a zero gas price, if it is not explicitly allowed by the `Certifier` contract
+        if (_gasPrice == 0) {
+            return (certifierContract.certifiedExplicitly(_sender) ? ALL : NONE, false);
+        }
+
+        // In other cases let the `_sender` create any transaction with non-zero gas price
+        return (ALL, false);
     }
 
     /// @dev Returns the current block gas limit which depends on the stage of the current
