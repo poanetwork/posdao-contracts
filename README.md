@@ -11,8 +11,8 @@ The algorithm provides a Sybil control mechanism for reporting malicious validat
 ## POSDAO Repositories and Resources
 
 - White paper https://forum.poa.network/t/posdao-white-paper/2208
-- Modified Parity Ethereum client with changes related to POSDAO https://github.com/poanetwork/parity-ethereum/tree/aura-pos
-- Original Parity Ethereum client supporting POSDAO features https://github.com/paritytech/parity-ethereum starting from v2.7.2 (except [posdaoTransition spec option](https://github.com/paritytech/parity-ethereum/pull/11245) which waits to be released in the next version)
+- Backported Open Ethereum client with all POSDAO features https://github.com/poanetwork/open-ethereum/tree/posdao-backport
+- Original Open Ethereum client supporting POSDAO features https://github.com/OpenEthereum/open-ethereum starting from v2.7.2 (except [posdaoTransition spec option](https://github.com/OpenEthereum/open-ethereum/pull/11245) which waits to be released in the next version)
 - Integration tests setup for a POSDAO network https://github.com/poanetwork/posdao-test-setup
 - Discussion forum https://forum.poa.network/c/posdao
 
