@@ -145,7 +145,9 @@ contract RandomAuRa is UpgradeabilityAdmin, IRandomAuRa {
             uint256 maxRevealSkipsAllowed =
                 IStakingAuRa(stakingContract).stakeWithdrawDisallowPeriod() / collectRoundLength;
 
-            if (maxRevealSkipsAllowed > 0) {
+            if (maxRevealSkipsAllowed > 1) {
+                maxRevealSkipsAllowed -= 2;
+            } else if (maxRevealSkipsAllowed > 0) {
                 maxRevealSkipsAllowed--;
             }
 
