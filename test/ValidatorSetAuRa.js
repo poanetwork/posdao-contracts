@@ -1,5 +1,5 @@
 const BlockRewardAuRa = artifacts.require('BlockRewardAuRaTokensMock');
-const ERC677BridgeTokenRewardable = artifacts.require('ERC677BridgeTokenRewardableMock');
+const ERC677BridgeTokenRewardable = artifacts.require('ERC677BridgeTokenRewardable');
 const AdminUpgradeabilityProxy = artifacts.require('AdminUpgradeabilityProxy');
 const RandomAuRa = artifacts.require('RandomAuRaMock');
 const StakingAuRa = artifacts.require('StakingAuRaTokensMock');

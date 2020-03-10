@@ -1,5 +1,8 @@
 pragma solidity 0.5.10;
 
+// This is a staking token ERC677 contract
+// (a copy of the token contract from https://github.com/poanetwork/tokenbridge-contracts repo).
+
 // Since the source `ERC677BridgeTokenRewardable` requires solc v0.4.24 but truffle
 // doesn't allow using different versions of compiler at the same time, this flat
 // source file for `ERC677BridgeTokenRewardable` was taken from
@@ -7,6 +10,7 @@ pragma solidity 0.5.10;
 // and adapted for solc v0.5.10.
 
 
+/* solhint-disable */
 // File: openzeppelin-solidity/contracts/token/ERC20/ERC20Basic.sol
 
 /**
@@ -690,16 +694,4 @@ contract ERC677BridgeTokenRewardable is ERC677BridgeToken {
     }
 
 }
-
-contract ERC677BridgeTokenRewardableMock is ERC677BridgeTokenRewardable {
-    constructor(
-        string memory _name,
-        string memory _symbol,
-        uint8 _decimals
-    ) public ERC677BridgeTokenRewardable(
-        _name,
-        _symbol,
-        _decimals
-    ) {
-    }
-}
+/* solhint-enable */
