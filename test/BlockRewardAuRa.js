@@ -94,7 +94,8 @@ contract('BlockRewardAuRa', async accounts => {
       // Initialize RandomAuRa
       await randomAuRa.initialize(
         COLLECT_ROUND_LENGTH,
-        validatorSetAuRa.address
+        validatorSetAuRa.address,
+        true
       ).should.be.fulfilled;
 
       // Deploy ERC677 contract
@@ -422,7 +423,8 @@ contract('BlockRewardAuRa', async accounts => {
       // Initialize RandomAuRa
       await randomAuRa.initialize(
         COLLECT_ROUND_LENGTH,
-        validatorSetAuRa.address
+        validatorSetAuRa.address,
+        true
       ).should.be.fulfilled;
 
       // Start the network

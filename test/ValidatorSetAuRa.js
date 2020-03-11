@@ -663,7 +663,7 @@ contract('ValidatorSetAuRa', async accounts => {
       // Generate a random seed
       (await randomAuRa.currentSeed.call()).should.be.bignumber.equal(new BN(0));
       await randomAuRa.setCurrentBlockNumber(0).should.be.fulfilled;
-      await randomAuRa.initialize(114, validatorSetAuRa.address).should.be.fulfilled;
+      await randomAuRa.initialize(114, validatorSetAuRa.address, true).should.be.fulfilled;
       let secretNumbers = [];
       let seed = 0;
       for (let i = 0; i < initialValidators.length; i++) {
@@ -791,7 +791,7 @@ contract('ValidatorSetAuRa', async accounts => {
       // Generate a random seed
       (await randomAuRa.currentSeed.call()).should.be.bignumber.equal(new BN(0));
       await randomAuRa.setCurrentBlockNumber(0).should.be.fulfilled;
-      await randomAuRa.initialize(114, validatorSetAuRa.address).should.be.fulfilled;
+      await randomAuRa.initialize(114, validatorSetAuRa.address, true).should.be.fulfilled;
       let secretNumbers = [];
       let seed = 0;
       for (let i = 0; i < initialValidators.length; i++) {

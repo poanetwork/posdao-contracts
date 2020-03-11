@@ -312,7 +312,8 @@ contract('StakingAuRa', async accounts => {
       // Initialize RandomAuRa
       await randomAuRa.initialize(
         114, // _collectRoundLength
-        validatorSetAuRa.address
+        validatorSetAuRa.address,
+        true
       ).should.be.fulfilled;
 
       // Initialize StakingAuRa

@@ -3,13 +3,13 @@ pragma solidity 0.5.10;
 import "./interfaces/IRandomAuRa.sol";
 import "./interfaces/IStakingAuRa.sol";
 import "./interfaces/IValidatorSetAuRa.sol";
-import "./upgradeability/UpgradeabilityAdmin.sol";
+import "./upgradeability/UpgradeableOwned.sol";
 
 
 /// @dev Generates and stores random numbers in a RANDAO manner (and controls when they are revealed by AuRa
 /// validators) and accumulates a random seed. The random seed is used to form a new validator set by the
 /// `ValidatorSetAuRa.newValidatorSet` function.
-contract RandomAuRa is UpgradeabilityAdmin, IRandomAuRa {
+contract RandomAuRa is UpgradeableOwned, IRandomAuRa {
 
     // =============================================== Storage ========================================================
 
@@ -27,6 +27,9 @@ contract RandomAuRa is UpgradeabilityAdmin, IRandomAuRa {
     /// @dev The current random seed accumulated during RANDAO or another process
     /// (depending on implementation).
     uint256 public currentSeed;
+
+    /// @dev A boolean flag defining whether to punish validators for unrevealing.
+    bool public punishForUnreveal;
 
     /// @dev The number of reveal skips made by the specified validator during the specified staking epoch.
     mapping(uint256 => mapping(address => uint256)) public revealSkips;
@@ -90,22 +93,33 @@ contract RandomAuRa is UpgradeabilityAdmin, IRandomAuRa {
         _revealNumber(_number);
     }
 
+    /// @dev Changes the `punishForUnreveal` boolean flag. Can only be called by an owner.
+    function setPunishForUnreveal(bool _punishForUnreveal) external onlyOwner {
+        punishForUnreveal = _punishForUnreveal;
+    }
+
     /// @dev Initializes the contract at network startup.
     /// Can only be called by the constructor of the `InitializerAuRa` contract or owner.
     /// @param _collectRoundLength The length of a collection round in blocks.
     /// @param _validatorSet The address of the `ValidatorSet` contract.
+    /// @param _punishForUnreveal A boolean flag defining whether to punish validators for unrevealing.
     function initialize(
         uint256 _collectRoundLength, // in blocks
-        address _validatorSet
+        address _validatorSet,
+        bool _punishForUnreveal
     ) external {
+        require(_getCurrentBlockNumber() == 0 || msg.sender == _admin());
+        require(!isInitialized());
         IValidatorSetAuRa validatorSet = IValidatorSetAuRa(_validatorSet);
         require(_collectRoundLength % 2 == 0);
         require(_collectRoundLength % validatorSet.MAX_VALIDATORS() == 0);
         require(IStakingAuRa(validatorSet.stakingContract()).stakingEpochDuration() % _collectRoundLength == 0);
         require(_collectRoundLength > 0);
         require(collectRoundLength == 0);
+        require(_validatorSet != address(0));
         collectRoundLength = _collectRoundLength;
-        _initialize(_validatorSet);
+        validatorSetContract = IValidatorSetAuRa(_validatorSet);
+        punishForUnreveal = _punishForUnreveal;
     }
 
     /// @dev Checks whether the current validators at the end of each collection round revealed their numbers,
@@ -140,8 +154,12 @@ contract RandomAuRa is UpgradeabilityAdmin, IRandomAuRa {
             }
         }
 
-        // If this is the last collection round in the current staking epoch.
-        if (_getCurrentBlockNumber() == endBlock || _getCurrentBlockNumber() + collectRoundLength > endBlock) {
+        // If this is the last collection round in the current staking epoch
+        // and punishing for unreveal is enabled.
+        if (
+            punishForUnreveal &&
+            (_getCurrentBlockNumber() == endBlock || _getCurrentBlockNumber() + collectRoundLength > endBlock)
+        ) {
             uint256 maxRevealSkipsAllowed =
                 IStakingAuRa(stakingContract).stakeWithdrawDisallowPeriod() / collectRoundLength;
 
@@ -325,15 +343,6 @@ contract RandomAuRa is UpgradeabilityAdmin, IRandomAuRa {
         for (uint256 i = 0; i < miningAddressesLength; i++) {
             delete _ciphers[collectRound][miningAddresses[i]];
         }
-    }
-
-    /// @dev Initializes the network parameters. Used by the `initialize` function.
-    /// @param _validatorSet The address of the `ValidatorSetAuRa` contract.
-    function _initialize(address _validatorSet) internal {
-        require(_getCurrentBlockNumber() == 0 || msg.sender == _admin());
-        require(!isInitialized());
-        require(_validatorSet != address(0));
-        validatorSetContract = IValidatorSetAuRa(_validatorSet);
     }
 
     /// @dev Used by the `revealNumber` function.
