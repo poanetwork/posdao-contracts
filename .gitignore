@@ -1,3 +1,5 @@
+abis
+key
 node_modules
 /mochawesome-report
 /coverage
@@ -7,6 +9,7 @@ node_modules
 /coverage.json
 /flat
 /build
+/contracts.json
 /spec.json
 
 # Emacs backups
