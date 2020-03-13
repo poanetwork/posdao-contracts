@@ -231,8 +231,7 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
     /// Automatically called by the `BlockRewardHbbft.reward` function at the latest block of the staking epoch.
     function newValidatorSet() external onlyBlockRewardContract {
         address[] memory poolsToBeElected = stakingContract.getPoolsToBeElected();
-        require(poolsToBeElected.length != 0, "No active pools!");
-
+    
         // Choose new validators
         if (
             poolsToBeElected.length >= MAX_VALIDATORS &&
@@ -431,13 +430,13 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
             return true;
         }
 
-        return isPending(_miningAddress);
+        return isPendingValidator(_miningAddress);
     }
 
     /// @dev Returns a boolean flag indicating whether the specified mining address is a pending validator.
     /// Used by the `isValidatorOrPending` and `KeyGenHistory.writeAck/Part` functions.
     /// @param _miningAddress The mining address.
-    function isPending(address _miningAddress) public view returns(bool) {
+    function isPendingValidator(address _miningAddress) public view returns(bool) {
 
         uint256 i;
         uint256 length;
@@ -678,13 +677,17 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
     ) internal {
         address unremovableMiningAddress = miningByStakingAddress[unremovableValidator];
 
+        // clear  the pending validators list first
+        delete _pendingValidators;
+
         if (_stakingAddresses.length == 0) {
             // If there are no `poolsToBeElected`, we remove the
             // validators which want to exit from the validator set
-            for (uint256 i = 0; i < _pendingValidators.length; i++) {
-                address pvMiningAddress = _pendingValidators[i];
+            for (uint256 i = 0; i < _currentValidators.length; i++) {
+                address pvMiningAddress = _currentValidators[i];
                 if (pvMiningAddress == unremovableMiningAddress) {
-                    continue; // don't touch unremovable validator
+                    _pendingValidators.push(pvMiningAddress); // add unremovable validator
+                    continue;
                 }
                 address pvStakingAddress = stakingByMiningAddress[pvMiningAddress];
                 if (
@@ -693,21 +696,13 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
                 ) {
                     // The validator has an active pool and is not going to withdraw their
                     // entire stake, so this validator doesn't want to exit from the validator set
-                    continue;
-                }
-                if (_pendingValidators.length == 1) {
-                    break; // don't remove one and only validator
-                }
-                // Remove the validator
-                _pendingValidators[i] = _pendingValidators[_pendingValidators.length - 1];
-                _pendingValidators.length--;
-                i--;
+                    _pendingValidators.push(pvMiningAddress);
+                }   
+            }
+            if (_pendingValidators.length == 0) {
+                     _pendingValidators.push(_currentValidators[0]); // add at least on validator
             }
         } else {
-            // If there are some `poolsToBeElected`, we remove all
-            // validators which are not in the `poolsToBeElected` or
-            // not selected by randomness
-            delete _pendingValidators;
 
             if (unremovableMiningAddress != address(0)) {
                 // Keep unremovable validator
