@@ -7,12 +7,13 @@ import "./upgradeability/UpgradeableOwned.sol";
 
 /// @dev Allows validators to use a zero gas price for their service transactions
 /// (see https://wiki.parity.io/Permissioning.html#gas-price for more info).
-contract CertifierAuRa is UpgradeableOwned, ICertifier {
+contract Certifier is UpgradeableOwned, ICertifier {
 
     // =============================================== Storage ========================================================
 
     // WARNING: since this contract is upgradeable, do not remove
-    // existing storage variables and do not change their types!
+    // existing storage variables, do not change their order,
+    // and do not change their types!
 
     mapping(address => bool) internal _certified;
 
@@ -63,7 +64,6 @@ contract CertifierAuRa is UpgradeableOwned, ICertifier {
     /// @param _who The address for which zero gas price transactions must be allowed.
     function certify(address _who) external onlyOwner onlyInitialized {
         _certify(_who);
-        emit Confirmed(_who);
     }
 
     /// @dev Denies the specified address usage of a zero gas price for its transactions.
@@ -77,7 +77,7 @@ contract CertifierAuRa is UpgradeableOwned, ICertifier {
     // =============================================== Getters ========================================================
 
     /// @dev Returns a boolean flag indicating whether the specified address is allowed to use zero gas price
-    /// transactions. Returns `true` if either the address is certified using the `_certify` function or if
+    /// transactions. Returns `true` if either the address is certified using the `_certify` function or if 
     /// `ValidatorSetAuRa.isReportValidatorValid` returns `true` for the specified address.
     /// @param _who The address for which the boolean flag must be determined.
     function certified(address _who) external view returns(bool) {
@@ -85,6 +85,15 @@ contract CertifierAuRa is UpgradeableOwned, ICertifier {
             return true;
         }
         return validatorSetContract.isReportValidatorValid(_who);
+    }
+
+    /// @dev Returns a boolean flag indicating whether the specified address is allowed to use zero gas price
+    /// transactions. Returns `true` if the address is certified using the `_certify` function.
+    /// This function differs from the `certified`: it doesn't take into account the returned value of
+    /// `ValidatorSetAuRa.isReportValidatorValid` function.
+    /// @param _who The address for which the boolean flag must be determined.
+    function certifiedExplicitly(address _who) external view returns(bool) {
+        return _certified[_who];
     }
 
     /// @dev Returns a boolean flag indicating if the `initialize` function has been called.
@@ -99,5 +108,6 @@ contract CertifierAuRa is UpgradeableOwned, ICertifier {
     function _certify(address _who) internal {
         require(_who != address(0));
         _certified[_who] = true;
+        emit Confirmed(_who);
     }
 }
