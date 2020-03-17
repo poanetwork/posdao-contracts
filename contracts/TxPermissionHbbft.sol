@@ -1,8 +1,8 @@
 pragma solidity ^0.5.16;
 
 import "./interfaces/ICertifier.sol";
-import "./interfaces/IRandomAuRa.sol";
-import "./interfaces/IStakingAuRa.sol";
+import "./interfaces/IRandomHbbft.sol";
+import "./interfaces/IStakingHbbft.sol";
 import "./interfaces/ITxPermission.sol";
 import "./interfaces/IValidatorSetHbbft.sol";
 import "./upgradeability/UpgradeableOwned.sol";
@@ -29,8 +29,8 @@ contract TxPermissionHbbft is UpgradeableOwned, ITxPermission {
     /// See also the `addAllowedSender` and `removeAllowedSender` functions.
     mapping(address => bool) public isSenderAllowed;
 
-    /// @dev The address of the `ValidatorSetAuRa` contract.
-    IValidatorSetAuRa public validatorSetContract;
+    /// @dev The address of the `ValidatorSetHbbft` contract.
+    IValidatorSetHbbft public validatorSetContract;
 
     // ============================================== Constants =======================================================
 
@@ -58,7 +58,7 @@ contract TxPermissionHbbft is UpgradeableOwned, ITxPermission {
     /// See the `allowedTxTypes` getter.
     /// @param _certifier The address of the `Certifier` contract. It is used by `allowedTxTypes` function to know
     /// whether some address is explicitly allowed to use zero gas price.
-    /// @param _validatorSet The address of the `ValidatorSetAuRa` contract.
+    /// @param _validatorSet The address of the `ValidatorSetHbbft` contract.
     function initialize(
         address[] calldata _allowed,
         address _certifier,
@@ -72,7 +72,7 @@ contract TxPermissionHbbft is UpgradeableOwned, ITxPermission {
             _addAllowedSender(_allowed[i]);
         }
         certifierContract = ICertifier(_certifier);
-        validatorSetContract = IValidatorSetAuRa(_validatorSet);
+        validatorSetContract = IValidatorSetHbbft(_validatorSet);
     }
 
     /// @dev Adds the address for which transactions of any type must be allowed.
@@ -166,24 +166,6 @@ contract TxPermissionHbbft is UpgradeableOwned, ITxPermission {
             signature |= bytes4(_data[i]) >> i*8;
         }
 
-        if (_to == validatorSetContract.randomContract()) {
-            address randomContract = validatorSetContract.randomContract();
-            abiParams = new bytes(_data.length - 4 > 32 ? 32 : _data.length - 4);
-
-            for (i = 0; i < abiParams.length; i++) {
-                abiParams[i] = _data[i + 4];
-            }
-
-            if (signature == COMMIT_HASH_SIGNATURE) {
-                (bytes32 numberHash) = abi.decode(abiParams, (bytes32));
-                return (IRandomAuRa(randomContract).commitHashCallable(_sender, numberHash) ? CALL : NONE, false);
-            } else if (signature == REVEAL_NUMBER_SIGNATURE || signature == REVEAL_SECRET_SIGNATURE) {
-                (uint256 number) = abi.decode(abiParams, (uint256));
-                return (IRandomAuRa(randomContract).revealNumberCallable(_sender, number) ? CALL : NONE, false);
-            } else {
-                return (NONE, false);
-            }
-        }
 
         if (_to == address(validatorSetContract)) {
             // The rules for the ValidatorSet contract
