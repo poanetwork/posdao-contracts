@@ -263,11 +263,12 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
             _setPendingValidators(poolsToBeElected);
         }
 
+        // From this moment the `getPendingValidators()` returns the new validator set
+        // set the flag tha indicates that a new Epoch is coming.
+        _forNewEpoch = true;
+        
         // clear previousValidator KetGenHistory state
         keyGenHistoryContract.clearPrevKeyGenState(_currentValidators);
-
-        // From this moment the `getPendingValidators()` returns the new validator set.
-         /* _setPendingValidatorsChanged(true);  //TO DO: decide how to handle it */
 
         if (poolsToBeElected.length != 0) {
             // Remove pools marked as `to be removed`
@@ -438,10 +439,7 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
     /// @param _miningAddress The mining address.
     function isPendingValidator(address _miningAddress) public view returns(bool) {
 
-        uint256 i;
-        uint256 length;
-
-        for (i = 0; i < _pendingValidators.length; i++) {
+        for (uint256 i = 0; i < _pendingValidators.length; i++) {
             if (_miningAddress == _pendingValidators[i]) {
                 return true;
             }
@@ -645,11 +643,6 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
                 removed = true;
             }
         }
-
-        // TODO: decide how to handle it
-        /* if (removed) {
-            _setPendingValidatorsChanged(false);
-        } */
     }
 
     /// @dev Stores previous validators. Used by the `finalizeChange` function.

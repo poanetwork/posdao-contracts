@@ -1,5 +1,5 @@
 const BlockRewardHbbft = artifacts.require('BlockRewardHbbftTokensMock');
-const ERC677BridgeTokenRewardable = artifacts.require('ERC677BridgeTokenRewardableMock');
+const ERC677BridgeTokenRewardable = artifacts.require('ERC677BridgeTokenRewardable');
 const AdminUpgradeabilityProxy = artifacts.require('AdminUpgradeabilityProxy');
 const RandomHbbft = artifacts.require('RandomHbbftMock');
 const ValidatorSetHbbft = artifacts.require('ValidatorSetHbbftMock');
