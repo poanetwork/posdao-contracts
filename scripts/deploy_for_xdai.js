@@ -51,6 +51,7 @@ async function main() {
     '0x657E832b1a67CDEF9e117aFd2F419387259Fa93e', // Syncnode S.R.L
     '0x10AaE121b3c62F3DAfec9cC46C27b4c1dfe4A835', // Lab10 collective
     '0x1438087186FdbFd4c256Fa2DF446921E30E54Df8', // Gnosis
+    '0x0000999dc55126CA626c20377F0045946db69b6E', // Galt Project
   ];
 
   const stakingAddresses = [
@@ -64,6 +65,7 @@ async function main() {
     '0x29CF39dE6d963D092c177a60ce67879EeA9910BB', // Syncnode S.R.L
     '0x10Bb52d950B0d472d989A4D220Fa73bC0Cc7e62d', // Lab10 collective
     '0xd3537bD39480C91271825a862180551037fddA99', // Gnosis
+    '0xE868BE4d8C7A212a41a288A409658Ed3F4750495', // Galt Project
   ];
 
   assert(miningAddresses.length == stakingAddresses.length);
