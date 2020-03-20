@@ -6,7 +6,7 @@ pragma solidity 0.5.10;
 // Since the source `ERC677BridgeTokenRewardable` requires solc v0.4.24 but truffle
 // doesn't allow using different versions of compiler at the same time, this flat
 // source file for `ERC677BridgeTokenRewardable` was taken from
-// https://github.com/poanetwork/tokenbridge-contracts/tree/026dbfdac8eb067af078a69483f474051a8a6379
+// https://github.com/poanetwork/tokenbridge-contracts/tree/ae66b522827c609d277d7211c623f9a5340352b5
 // and adapted for solc v0.5.10.
 
 
@@ -549,7 +549,8 @@ contract Claimable {
 // File: contracts/ERC677BridgeToken.sol
 
 contract ERC677BridgeToken is IBurnableMintableERC677Token, DetailedERC20, BurnableToken, MintableToken, Claimable {
-    address public bridgeContract;
+    address[] internal _bridgeContracts;
+    mapping(address => bool) internal _isBridgeContract;
 
     event ContractFallbackCallFailed(address from, address to, uint256 value);
 
@@ -557,15 +558,30 @@ contract ERC677BridgeToken is IBurnableMintableERC677Token, DetailedERC20, Burna
         // solhint-disable-previous-line no-empty-blocks
     }
 
-    function setBridgeContract(address _bridgeContract) external onlyOwner {
-        require(AddressUtils.isContract(_bridgeContract));
-        bridgeContract = _bridgeContract;
+    function setBridgeContracts(address[] calldata _contracts) external onlyOwner {
+        require(_contracts.length > 0);
+        uint256 i;
+
+        for (i = 0; i < _bridgeContracts.length; i++) {
+            _isBridgeContract[_bridgeContracts[i]] = false;
+        }
+
+        _bridgeContracts = _contracts;
+
+        for (i = 0; i < _contracts.length; i++) {
+            require(AddressUtils.isContract(_contracts[i]));
+            _isBridgeContract[_contracts[i]] = true;
+        }
     }
 
     modifier validRecipient(address _recipient) {
         require(_recipient != address(0) && _recipient != address(this));
         /* solcov ignore next */
         _;
+    }
+
+    function bridgeContracts() external view returns (address[] memory) {
+        return _bridgeContracts;
     }
 
     function transferAndCall(address _to, uint256 _value, bytes calldata _data) external validRecipient(_to) returns (bool) {
@@ -600,7 +616,7 @@ contract ERC677BridgeToken is IBurnableMintableERC677Token, DetailedERC20, Burna
 
     function callAfterTransfer(address _from, address _to, uint256 _value) internal {
         if (AddressUtils.isContract(_to) && !contractFallback(_from, _to, _value, new bytes(0))) {
-            require(_to != bridgeContract);
+            require(!_isBridgeContract[_to]);
             emit ContractFallbackCallFailed(_from, _to, _value);
         }
     }
