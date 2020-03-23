@@ -53,6 +53,7 @@ async function main() {
     '0x1438087186FdbFd4c256Fa2DF446921E30E54Df8', // Gnosis
     '0x0000999dc55126CA626c20377F0045946db69b6E', // Galt Project
     '0x1A740616e96E07d86203707C1619d9871614922A', // Nethermind
+    '0x9488f50c33e9616EE3B5B09CD3A9c603A108db4a', // POA Network (second validator)
   ];
 
   const stakingAddresses = [
@@ -68,6 +69,7 @@ async function main() {
     '0xd3537bD39480C91271825a862180551037fddA99', // Gnosis
     '0xE868BE4d8C7A212a41a288A409658Ed3F4750495', // Galt Project
     '0x915E73d969a1e8B718D225B929dAf96E963e56DE', // Nethermind
+    '0xe6Ae876Cdb07acC21390722352789aD989BbF0de', // POA Network (second validator)
   ];
 
   assert(miningAddresses.length == stakingAddresses.length);
