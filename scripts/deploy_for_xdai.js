@@ -101,7 +101,7 @@ async function main() {
 
   const firstValidatorIsUnremovable = true;
   const punishForUnreveal = false;
-  const stakingEpochStartBlock = (chain == 'sokol') ? 15000000 : 9154733; // 30 March 14:00 MSK (11:00 UTC) = Unix timestamp 1585566000
+  const stakingEpochStartBlock = (chain == 'sokol') ? 15000000 : 9186425; // April 1st, ~07:00 am UTC = Unix timestamp ~1585724400
   const delegatorMinStake = '1000000000000000000000'; // 1000 STAKE tokens
   const candidateMinStake = '20000000000000000000000'; // 20000 STAKE tokens
   const stakingEpochDuration = 120992; // in blocks, ~1 week for 5-second blocks
