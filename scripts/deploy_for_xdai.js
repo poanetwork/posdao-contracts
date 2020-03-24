@@ -318,8 +318,7 @@ async function deploy(contractName, constructorArguments = null) {
 
   const proxy = await signAndDeploy(proxyContractName, [
     implementation.options.address, // implementation address
-    owner, // admin (owner)
-    []
+    owner // admin (owner)
   ]);
   assert(await proxy.methods.admin().call() == owner);
   assert(await proxy.methods.implementation().call() == implementation.options.address);

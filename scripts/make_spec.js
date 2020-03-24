@@ -79,8 +79,7 @@ async function main() {
   // Build ValidatorSetAuRa contract
   deploy = await contract.deploy({data: '0x' + storageProxyCompiled.bytecode, arguments: [
     '0x1000000000000000000000000000000000000000', // implementation address
-    owner,
-    []
+    owner
   ]});
   spec.engine.authorityRound.params.validators.multi = {
     "0": {
@@ -99,8 +98,7 @@ async function main() {
   // Build StakingAuRa contract
   deploy = await contract.deploy({data: '0x' + storageProxyCompiled.bytecode, arguments: [
     '0x1100000000000000000000000000000000000000', // implementation address
-    owner,
-    []
+    owner
   ]});
   spec.accounts[STAKING_CONTRACT] = {
     balance: '0',
@@ -114,8 +112,7 @@ async function main() {
   // Build BlockRewardAuRa contract
   deploy = await contract.deploy({data: '0x' + storageProxyCompiled.bytecode, arguments: [
     '0x2000000000000000000000000000000000000000', // implementation address
-    owner,
-    []
+    owner
   ]});
   spec.accounts[BLOCK_REWARD_CONTRACT] = {
     balance: '0',
@@ -131,8 +128,7 @@ async function main() {
   // Build RandomAuRa contract
   deploy = await contract.deploy({data: '0x' + storageProxyCompiled.bytecode, arguments: [
     '0x3000000000000000000000000000000000000000', // implementation address
-    owner,
-    []
+    owner
   ]});
   spec.accounts[RANDOM_CONTRACT] = {
     balance: '0',
@@ -147,8 +143,7 @@ async function main() {
   // Build TxPermission contract
   deploy = await contract.deploy({data: '0x' + storageProxyCompiled.bytecode, arguments: [
     '0x4000000000000000000000000000000000000000', // implementation address
-    owner,
-    []
+    owner
   ]});
   spec.accounts[PERMISSION_CONTRACT] = {
     balance: '0',
@@ -163,8 +158,7 @@ async function main() {
   // Build Certifier contract
   deploy = await contract.deploy({data: '0x' + storageProxyCompiled.bytecode, arguments: [
     '0x5000000000000000000000000000000000000000', // implementation address
-    owner,
-    []
+    owner
   ]});
   spec.accounts[CERTIFIER_CONTRACT] = {
     balance: '0',

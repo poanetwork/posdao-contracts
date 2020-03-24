@@ -23,15 +23,15 @@ contract('ValidatorSetAuRa', async accounts => {
     owner = accounts[0];
     // Deploy BlockReward contract
     blockRewardAuRa = await BlockRewardAuRa.new();
-    blockRewardAuRa = await AdminUpgradeabilityProxy.new(blockRewardAuRa.address, owner, []);
+    blockRewardAuRa = await AdminUpgradeabilityProxy.new(blockRewardAuRa.address, owner);
     blockRewardAuRa = await BlockRewardAuRa.at(blockRewardAuRa.address);
     // Deploy Staking contract
     stakingAuRa = await StakingAuRa.new();
-    stakingAuRa = await AdminUpgradeabilityProxy.new(stakingAuRa.address, owner, []);
+    stakingAuRa = await AdminUpgradeabilityProxy.new(stakingAuRa.address, owner);
     stakingAuRa = await StakingAuRa.at(stakingAuRa.address);
     // Deploy ValidatorSet contract
     validatorSetAuRa = await ValidatorSetAuRa.new();
-    validatorSetAuRa = await AdminUpgradeabilityProxy.new(validatorSetAuRa.address, owner, []);
+    validatorSetAuRa = await AdminUpgradeabilityProxy.new(validatorSetAuRa.address, owner);
     validatorSetAuRa = await ValidatorSetAuRa.at(validatorSetAuRa.address);
   });
 
@@ -147,7 +147,7 @@ contract('ValidatorSetAuRa', async accounts => {
       initialStakingAddresses = accounts.slice(4, 6 + 1); // accounts[4...6]
 
       randomAuRa = await RandomAuRa.new();
-      randomAuRa = await AdminUpgradeabilityProxy.new(randomAuRa.address, owner, []);
+      randomAuRa = await AdminUpgradeabilityProxy.new(randomAuRa.address, owner);
       randomAuRa = await RandomAuRa.at(randomAuRa.address);
 
       await validatorSetAuRa.setCurrentBlockNumber(0).should.be.fulfilled;
@@ -407,7 +407,7 @@ contract('ValidatorSetAuRa', async accounts => {
       initialStakingAddresses = accounts.slice(4, 6 + 1); // accounts[4...6]
 
       randomAuRa = await RandomAuRa.new();
-      randomAuRa = await AdminUpgradeabilityProxy.new(randomAuRa.address, owner, []);
+      randomAuRa = await AdminUpgradeabilityProxy.new(randomAuRa.address, owner);
       randomAuRa = await RandomAuRa.at(randomAuRa.address);
 
       await validatorSetAuRa.setCurrentBlockNumber(0).should.be.fulfilled;
@@ -525,11 +525,11 @@ contract('ValidatorSetAuRa', async accounts => {
     });
     it('should enqueue unremovable validator anyway', async () => {
       validatorSetAuRa = await ValidatorSetAuRa.new();
-      validatorSetAuRa = await AdminUpgradeabilityProxy.new(validatorSetAuRa.address, owner, []);
+      validatorSetAuRa = await AdminUpgradeabilityProxy.new(validatorSetAuRa.address, owner);
       validatorSetAuRa = await ValidatorSetAuRa.at(validatorSetAuRa.address);
 
       stakingAuRa = await StakingAuRa.new();
-      stakingAuRa = await AdminUpgradeabilityProxy.new(stakingAuRa.address, owner, []);
+      stakingAuRa = await AdminUpgradeabilityProxy.new(stakingAuRa.address, owner);
       stakingAuRa = await StakingAuRa.at(stakingAuRa.address);
 
       await validatorSetAuRa.setCurrentBlockNumber(0).should.be.fulfilled;
@@ -700,11 +700,11 @@ contract('ValidatorSetAuRa', async accounts => {
     });
     it('should choose validators randomly but leave an unremovable validator', async () => {
       validatorSetAuRa = await ValidatorSetAuRa.new();
-      validatorSetAuRa = await AdminUpgradeabilityProxy.new(validatorSetAuRa.address, owner, []);
+      validatorSetAuRa = await AdminUpgradeabilityProxy.new(validatorSetAuRa.address, owner);
       validatorSetAuRa = await ValidatorSetAuRa.at(validatorSetAuRa.address);
 
       stakingAuRa = await StakingAuRa.new();
-      stakingAuRa = await AdminUpgradeabilityProxy.new(stakingAuRa.address, owner, []);
+      stakingAuRa = await AdminUpgradeabilityProxy.new(stakingAuRa.address, owner);
       stakingAuRa = await StakingAuRa.at(stakingAuRa.address);
 
       await validatorSetAuRa.setCurrentBlockNumber(0).should.be.fulfilled;

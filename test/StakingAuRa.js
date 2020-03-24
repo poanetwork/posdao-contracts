@@ -33,19 +33,19 @@ contract('StakingAuRa', async accounts => {
     initialStakingAddresses[2].should.not.be.equal('0x0000000000000000000000000000000000000000');
     // Deploy BlockReward contract
     blockRewardAuRa = await BlockRewardAuRa.new();
-    blockRewardAuRa = await AdminUpgradeabilityProxy.new(blockRewardAuRa.address, owner, []);
+    blockRewardAuRa = await AdminUpgradeabilityProxy.new(blockRewardAuRa.address, owner);
     blockRewardAuRa = await BlockRewardAuRa.at(blockRewardAuRa.address);
     // Deploy Random contract
     randomAuRa = await RandomAuRa.new();
-    randomAuRa = await AdminUpgradeabilityProxy.new(randomAuRa.address, owner, []);
+    randomAuRa = await AdminUpgradeabilityProxy.new(randomAuRa.address, owner);
     randomAuRa = await RandomAuRa.at(randomAuRa.address);
     // Deploy Staking contract
     stakingAuRa = await StakingAuRaTokens.new();
-    stakingAuRa = await AdminUpgradeabilityProxy.new(stakingAuRa.address, owner, []);
+    stakingAuRa = await AdminUpgradeabilityProxy.new(stakingAuRa.address, owner);
     stakingAuRa = await StakingAuRaTokens.at(stakingAuRa.address);
     // Deploy ValidatorSet contract
     validatorSetAuRa = await ValidatorSetAuRa.new();
-    validatorSetAuRa = await AdminUpgradeabilityProxy.new(validatorSetAuRa.address, owner, []);
+    validatorSetAuRa = await AdminUpgradeabilityProxy.new(validatorSetAuRa.address, owner);
     validatorSetAuRa = await ValidatorSetAuRa.at(validatorSetAuRa.address);
     // Initialize ValidatorSet
     await validatorSetAuRa.initialize(
@@ -1861,7 +1861,7 @@ contract('StakingAuRa', async accounts => {
     beforeEach(async () => {
       // Deploy ValidatorSet contract
       validatorSetAuRa = await ValidatorSetAuRa.new();
-      validatorSetAuRa = await AdminUpgradeabilityProxy.new(validatorSetAuRa.address, owner, []);
+      validatorSetAuRa = await AdminUpgradeabilityProxy.new(validatorSetAuRa.address, owner);
       validatorSetAuRa = await ValidatorSetAuRa.at(validatorSetAuRa.address);
 
       // Initialize ValidatorSet
@@ -2406,7 +2406,7 @@ contract('StakingAuRa', async accounts => {
 
       // Deploy StakingAuRa contract
       stakingAuRa = await StakingAuRaCoins.new();
-      stakingAuRa = await AdminUpgradeabilityProxy.new(stakingAuRa.address, owner, []);
+      stakingAuRa = await AdminUpgradeabilityProxy.new(stakingAuRa.address, owner);
       stakingAuRa = await StakingAuRaCoins.at(stakingAuRa.address);
       await validatorSetAuRa.setStakingContract(stakingAuRa.address).should.be.fulfilled;
 
@@ -2678,12 +2678,12 @@ contract('StakingAuRa', async accounts => {
     it('should fail for a non-removable validator', async () => {
       // Deploy Staking contract
       stakingAuRa = await StakingAuRaTokens.new();
-      stakingAuRa = await AdminUpgradeabilityProxy.new(stakingAuRa.address, owner, []);
+      stakingAuRa = await AdminUpgradeabilityProxy.new(stakingAuRa.address, owner);
       stakingAuRa = await StakingAuRaTokens.at(stakingAuRa.address);
 
       // Deploy ValidatorSet contract
       validatorSetAuRa = await ValidatorSetAuRa.new();
-      validatorSetAuRa = await AdminUpgradeabilityProxy.new(validatorSetAuRa.address, owner, []);
+      validatorSetAuRa = await AdminUpgradeabilityProxy.new(validatorSetAuRa.address, owner);
       validatorSetAuRa = await ValidatorSetAuRa.at(validatorSetAuRa.address);
 
       // Initialize ValidatorSet
