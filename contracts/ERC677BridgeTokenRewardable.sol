@@ -6,8 +6,8 @@ pragma solidity 0.5.10;
 // Since the source `ERC677BridgeTokenRewardable` requires solc v0.4.24 but truffle
 // doesn't allow using different versions of compiler at the same time, this flat
 // source file for `ERC677BridgeTokenRewardable` was taken from
-// https://github.com/poanetwork/tokenbridge-contracts/tree/ae66b522827c609d277d7211c623f9a5340352b5
-// and adapted for solc v0.5.10.
+// https://github.com/poanetwork/tokenbridge-contracts/tree/b5d30e09a0d4a55b7482679431ecb2423db81d51
+// cleared of excess functions and adapted for solc v0.5.10.
 
 
 /* solhint-disable */
@@ -306,7 +306,6 @@ contract Ownable {
   address public owner;
 
 
-  event OwnershipRenounced(address indexed previousOwner);
   event OwnershipTransferred(
     address indexed previousOwner,
     address indexed newOwner
@@ -327,17 +326,6 @@ contract Ownable {
   modifier onlyOwner() {
     require(msg.sender == owner);
     _;
-  }
-
-  /**
-   * @dev Allows the current owner to relinquish control of the contract.
-   * @notice Renouncing to ownership will leave the contract without an owner.
-   * It will not be possible to call the functions with the `onlyOwner`
-   * modifier anymore.
-   */
-  function renounceOwnership() public onlyOwner {
-    emit OwnershipRenounced(owner);
-    owner = address(0);
   }
 
   /**
@@ -368,15 +356,6 @@ contract Ownable {
  */
 contract MintableToken is StandardToken, Ownable {
   event Mint(address indexed to, uint256 amount);
-  event MintFinished();
-
-  bool public mintingFinished = false;
-
-
-  modifier canMint() {
-    require(!mintingFinished);
-    _;
-  }
 
   modifier hasMintPermission() {
     require(msg.sender == owner);
@@ -395,23 +374,12 @@ contract MintableToken is StandardToken, Ownable {
   )
     public
     hasMintPermission
-    canMint
     returns (bool)
   {
     totalSupply_ = totalSupply_.add(_amount);
     balances[_to] = balances[_to].add(_amount);
     emit Mint(_to, _amount);
     emit Transfer(address(0), _to, _amount);
-    return true;
-  }
-
-  /**
-   * @dev Function to stop minting new tokens.
-   * @return True if the operation was successful.
-   */
-  function finishMinting() public onlyOwner canMint returns (bool) {
-    mintingFinished = true;
-    emit MintFinished();
     return true;
   }
 }
@@ -549,39 +517,16 @@ contract Claimable {
 // File: contracts/ERC677BridgeToken.sol
 
 contract ERC677BridgeToken is IBurnableMintableERC677Token, DetailedERC20, BurnableToken, MintableToken, Claimable {
-    address[] internal _bridgeContracts;
-    mapping(address => bool) internal _isBridgeContract;
-
     event ContractFallbackCallFailed(address from, address to, uint256 value);
 
     constructor(string memory _name, string memory _symbol, uint8 _decimals) public DetailedERC20(_name, _symbol, _decimals) {
         // solhint-disable-previous-line no-empty-blocks
     }
 
-    function setBridgeContracts(address[] calldata _contracts) external onlyOwner {
-        require(_contracts.length > 0);
-        uint256 i;
-
-        for (i = 0; i < _bridgeContracts.length; i++) {
-            _isBridgeContract[_bridgeContracts[i]] = false;
-        }
-
-        _bridgeContracts = _contracts;
-
-        for (i = 0; i < _contracts.length; i++) {
-            require(AddressUtils.isContract(_contracts[i]));
-            _isBridgeContract[_contracts[i]] = true;
-        }
-    }
-
     modifier validRecipient(address _recipient) {
         require(_recipient != address(0) && _recipient != address(this));
         /* solcov ignore next */
         _;
-    }
-
-    function bridgeContracts() external view returns (address[] memory) {
-        return _bridgeContracts;
     }
 
     function transferAndCall(address _to, uint256 _value, bytes calldata _data) external validRecipient(_to) returns (bool) {
@@ -616,22 +561,16 @@ contract ERC677BridgeToken is IBurnableMintableERC677Token, DetailedERC20, Burna
 
     function callAfterTransfer(address _from, address _to, uint256 _value) internal {
         if (AddressUtils.isContract(_to) && !contractFallback(_from, _to, _value, new bytes(0))) {
-            require(!_isBridgeContract[_to]);
+            require(!isBridge(_to));
             emit ContractFallbackCallFailed(_from, _to, _value);
         }
     }
 
+    function isBridge(address) public view returns (bool);
+
     function contractFallback(address _from, address _to, uint256 _value, bytes memory _data) private returns (bool) {
         (bool success,) = _to.call(abi.encodeWithSignature("onTokenTransfer(address,uint256,bytes)", _from, _value, _data));
         return success;
-    }
-
-    function finishMinting() public returns (bool) {
-        revert();
-    }
-
-    function renounceOwnership() public onlyOwner {
-        revert();
     }
 
     function claimTokens(address _token, address payable _to) public onlyOwner validAddress(_to) {
@@ -647,13 +586,113 @@ contract ERC677BridgeToken is IBurnableMintableERC677Token, DetailedERC20, Burna
     }
 }
 
+// File: contracts/ERC677MultiBridgeToken.sol
+
+/**
+ * @title ERC677MultiBridgeToken
+ * @dev This contract extends ERC677BridgeToken to support several bridge simulteniously
+ */
+contract ERC677MultiBridgeToken is ERC677BridgeToken {
+    address public constant F_ADDR = 0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF;
+    uint256 internal constant MAX_BRIDGES = 50;
+    mapping(address => address) public bridgePointers;
+    uint256 public bridgeCount;
+
+    event BridgeAdded(address indexed bridge);
+    event BridgeRemoved(address indexed bridge);
+
+    constructor(string memory _name, string memory _symbol, uint8 _decimals)
+        public
+        ERC677BridgeToken(_name, _symbol, _decimals)
+    {
+        bridgePointers[F_ADDR] = F_ADDR; // empty bridge contracts list
+    }
+
+    /**
+    * @dev Adds one more bridge contract into the list
+    * @param _bridge bridge contract address
+    */
+    function addBridge(address _bridge) external onlyOwner {
+        require(bridgeCount < MAX_BRIDGES);
+        require(AddressUtils.isContract(_bridge));
+        require(!isBridge(_bridge));
+
+        address firstBridge = bridgePointers[F_ADDR];
+        require(firstBridge != address(0));
+        bridgePointers[F_ADDR] = _bridge;
+        bridgePointers[_bridge] = firstBridge;
+        bridgeCount = bridgeCount.add(1);
+
+        emit BridgeAdded(_bridge);
+    }
+
+    /**
+    * @dev Removes one existing bridge contract from the list
+    * @param _bridge bridge contract address
+    */
+    function removeBridge(address _bridge) external onlyOwner {
+        require(isBridge(_bridge));
+
+        address nextBridge = bridgePointers[_bridge];
+        address index = F_ADDR;
+        address next = bridgePointers[index];
+        require(next != address(0));
+
+        while (next != _bridge) {
+            index = next;
+            next = bridgePointers[index];
+
+            require(next != F_ADDR && next != address(0));
+        }
+
+        bridgePointers[index] = nextBridge;
+        delete bridgePointers[_bridge];
+        bridgeCount = bridgeCount.sub(1);
+
+        emit BridgeRemoved(_bridge);
+    }
+
+    /**
+    * @dev Returns all recorded bridge contract addresses
+    * @return address[] bridge contract addresses
+    */
+    function bridgeList() external view returns (address[] memory) {
+        address[] memory list = new address[](bridgeCount);
+        uint256 counter = 0;
+        address nextBridge = bridgePointers[F_ADDR];
+        require(nextBridge != address(0));
+
+        while (nextBridge != F_ADDR) {
+            list[counter] = nextBridge;
+            nextBridge = bridgePointers[nextBridge];
+            counter++;
+
+            require(nextBridge != address(0));
+        }
+
+        return list;
+    }
+
+    /**
+    * @dev Checks if given address is included into bridge contracts list
+    * @param _address bridge contract address
+    * @return bool true, if given address is a known bridge contract 
+    */
+    function isBridge(address _address) public view returns (bool) {
+        return _address != F_ADDR && bridgePointers[_address] != address(0);
+    }
+}
+
 // File: contracts/ERC677BridgeTokenRewardable.sol
 
-contract ERC677BridgeTokenRewardable is ERC677BridgeToken {
+contract ERC677BridgeTokenRewardable is ERC677MultiBridgeToken {
     address public blockRewardContract;
     address public stakingContract;
 
-    constructor(string memory _name, string memory _symbol, uint8 _decimals) public ERC677BridgeToken(_name, _symbol, _decimals) {
+    constructor(string memory _name, string memory _symbol, uint8 _decimals)
+        public
+        ERC677MultiBridgeToken(_name, _symbol, _decimals)
+    {
         // solhint-disable-previous-line no-empty-blocks
     }
 
