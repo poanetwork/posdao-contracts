@@ -49,6 +49,10 @@ contract StakingHbbftBaseMock is StakingHbbftBase {
         validatorSetContract = _validatorSetAddress;
     }
 
+    function getCurrentBlockNumber() external view returns(uint256) {
+        return _currentBlockNumber;
+    }
+
     // =============================================== Private ========================================================
 
     function _getCurrentBlockNumber() internal view returns(uint256) {

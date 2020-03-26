@@ -21,6 +21,11 @@ contract ValidatorSetHbbftMock is ValidatorSetHbbft {
         delete _pendingValidators;
     }
 
+    function setBannedUntil(address _miningAddress, uint256 _bannedUntil) public {
+        bannedUntil[_miningAddress] = _bannedUntil;
+        bannedDelegatorsUntil[_miningAddress] = _bannedUntil;
+    }
+    
     function setBlockRewardContract(address _address) public {
         blockRewardContract = _address;
     }
@@ -59,14 +64,9 @@ contract ValidatorSetHbbftMock is ValidatorSetHbbft {
         );
     }
 
-    /* function getValidators() public view returns(address[] memory) {
-        return _currentValidators;
-    } */
-
-    /* function getPendingValidators() public view returns(address[] memory) {
-        return _pendingValidators;
-    } */
-
+    function getCurrentBlockNumber() external view returns(uint256) {
+        return _currentBlockNumber;
+    }
     // =============================================== Private ========================================================
 
     function _getCurrentBlockNumber() internal view returns(uint256) {
@@ -76,12 +76,5 @@ contract ValidatorSetHbbftMock is ValidatorSetHbbft {
     function _getSystemAddress() internal view returns(address) {
         return _systemAddress;
     }
-
-
-    // =============================================== Internal ========================================================
-
-    /* function _setPendingValidators(address[] memory _stakingAddresses) internal {
-        _pendingValidators = _stakingAddresses;
-    } */
 
 }
