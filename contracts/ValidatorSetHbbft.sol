@@ -92,7 +92,7 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
 
     /// @dev The block number when the `finalizeChange` function was called to apply
     /// the current validator set formed by the `newValidatorSet` function. If it is zero,
-    /// it means the `newValidatorSet` function has already been called (a new staking epoch has been started),
+    /// it means the `newValidatorSet` function has already been called,
     /// but the new staking epoch's validator set hasn't yet been finalized by the `finalizeChange` function.
     uint256 public validatorSetApplyBlock;
 
@@ -166,6 +166,10 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
             _finalizeNewValidators(true);
             IBlockRewardHbbft(blockRewardContract).clearBlocksCreated();
             validatorSetApplyBlock = _getCurrentBlockNumber();
+            // new epoch starts
+            stakingContract.incrementStakingEpoch();
+            stakingContract.setStakingEpochStartBlock(_getCurrentBlockNumber() + 1);
+            _forNewEpoch = false;
         } else if (_pendingValidators.length != 0) {
             // Apply the changed validator set after malicious validator is removed
             _finalizeNewValidators(false);
@@ -174,7 +178,6 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
             validatorSetApplyBlock = _getCurrentBlockNumber();
         }
         delete _pendingValidators;
-        _forNewEpoch = false;
     }
 
     /// @dev Initializes the network parameters. Used by the
@@ -214,7 +217,7 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
         for (uint256 i = 0; i < _initialMiningAddresses.length; i++) {
             address miningAddress = _initialMiningAddresses[i];
             _currentValidators.push(miningAddress);
-            /* _pendingValidators.push(miningAddress); */
+            // _pendingValidators.push(miningAddress);
             isValidator[miningAddress] = true;
             validatorCounter[miningAddress]++;
             _setStakingAddress(miningAddress, _initialStakingAddresses[i]);
@@ -274,6 +277,7 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
             // Remove pools marked as `to be removed`
             stakingContract.removePools();
         }
+        validatorSetApplyBlock = 0;
     }
 
     /// @dev Removes malicious validators. Called by the `RandomHbbft.onFinishCollectRound` function.
@@ -560,9 +564,6 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
                 validatorCounter[miningAddress]++;
             }
         }
-        stakingContract.incrementStakingEpoch();
-        stakingContract.setStakingEpochStartBlock(_getCurrentBlockNumber() + 1);
-        validatorSetApplyBlock = 0;
     }
 
     /// @dev Increments the reporting counter for the specified validator and the current staking epoch.
@@ -609,6 +610,8 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
         // Remove malicious validator from the `pools`
         stakingContract.removePool(stakingAddress);
 
+        // assign to and edit pending validators set, to be finalzied by finaleChange()
+        _pendingValidators = _currentValidators;
         uint256 length = _pendingValidators.length;
 
         if (length == 1) {
