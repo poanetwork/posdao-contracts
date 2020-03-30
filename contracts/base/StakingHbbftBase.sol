@@ -424,8 +424,9 @@ contract StakingHbbftBase is UpgradeableOwned, IStakingHbbft {
         address staker = msg.sender;
 
         require(_isWithdrawAllowed(
-            validatorSetContract.miningByStakingAddress(_poolStakingAddress), staker != _poolStakingAddress
-        ));
+            validatorSetContract.miningByStakingAddress(_poolStakingAddress), staker != _poolStakingAddress), 
+            "orderWithdraw: Withdraw not allowed"
+        );
 
         uint256 newOrderedAmount = orderedWithdrawAmount[_poolStakingAddress][staker];
         uint256 newOrderedAmountTotal = orderedWithdrawAmountTotal[_poolStakingAddress];
@@ -435,7 +436,7 @@ contract StakingHbbftBase is UpgradeableOwned, IStakingHbbft {
             uint256 amount = uint256(_amount);
 
             // How much can `staker` order for withdrawal from `_poolStakingAddress` at the moment?
-            require(amount <= maxWithdrawOrderAllowed(_poolStakingAddress, staker));
+            require(amount <= maxWithdrawOrderAllowed(_poolStakingAddress, staker), "orderWithdraw: maxWithdrawOrderAllowed exceeded");
 
             newOrderedAmount = newOrderedAmount.add(amount);
             newOrderedAmountTotal = newOrderedAmountTotal.add(amount);
@@ -506,8 +507,9 @@ contract StakingHbbftBase is UpgradeableOwned, IStakingHbbft {
 
         require(stakingEpoch > orderWithdrawEpoch[_poolStakingAddress][staker]);
         require(_isWithdrawAllowed(
-            validatorSetContract.miningByStakingAddress(_poolStakingAddress), staker != _poolStakingAddress
-        ));
+            validatorSetContract.miningByStakingAddress(_poolStakingAddress), staker != _poolStakingAddress),
+            "claimOrderedWithdraw: Withdraw not allowed"
+        );
 
         uint256 claimAmount = orderedWithdrawAmount[_poolStakingAddress][staker];
         require(claimAmount != 0);
@@ -600,7 +602,7 @@ contract StakingHbbftBase is UpgradeableOwned, IStakingHbbft {
         uint256 currentBlock = _getCurrentBlockNumber();
         uint256 allowedDuration = stakingEpochDuration - stakeWithdrawDisallowPeriod;
         if (currentBlock < stakingEpochStartBlock) return false;
-        return currentBlock - stakingEpochStartBlock <= allowedDuration;
+        return currentBlock - stakingEpochStartBlock <= allowedDuration; //TODO: should be < not <=?
     }
 
     /// @dev Returns a boolean flag indicating if the `initialize` function has been called.

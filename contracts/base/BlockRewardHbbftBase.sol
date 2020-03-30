@@ -231,7 +231,7 @@ contract BlockRewardHbbftBase is UpgradeableOwned, IBlockRewardHbbft {
             return (new address[](0), new uint256[](0));
         }
 
-        // Check if the validator is existed
+        // Check if the validator exists
         if (!validatorSetContract.isValidator(benefactors[0])) {
             return (new address[](0), new uint256[](0));
         }

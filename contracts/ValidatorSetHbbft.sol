@@ -267,7 +267,7 @@ contract ValidatorSetHbbft is UpgradeabilityAdmin, IValidatorSetHbbft {
         }
 
         // From this moment the `getPendingValidators()` returns the new validator set
-        // set the flag tha indicates that a new Epoch is coming.
+        // set the flag that indicates that a new Epoch is coming.
         _forNewEpoch = true;
         
         // clear previousValidator KetGenHistory state
