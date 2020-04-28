@@ -83,7 +83,7 @@ contract('ValidatorSetAuRa', async accounts => {
       ).should.be.fulfilled;
 
       // Deploy ERC677 contract
-      const erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, {from: owner});
+      const erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, 100, {from: owner});
 
       // Mint some balance for the non-removable validator (imagine that the validator got 2 STAKE_UNITs from a bridge)
       const stakeUnit = new BN(web3.utils.toWei('1', 'ether'));
@@ -495,7 +495,7 @@ contract('ValidatorSetAuRa', async accounts => {
       await validatorSetAuRa.setCurrentBlockNumber(10).should.be.fulfilled;
 
       // Deploy token contract and mint some tokens for the first initial validator
-      const erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, {from: owner});
+      const erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, 100, {from: owner});
       await erc677Token.mint(initialStakingAddresses[0], mintAmount, {from: owner}).should.be.fulfilled;
       mintAmount.should.be.bignumber.equal(await erc677Token.balanceOf.call(initialStakingAddresses[0]));
 
@@ -562,7 +562,7 @@ contract('ValidatorSetAuRa', async accounts => {
       await validatorSetAuRa.setCurrentBlockNumber(10).should.be.fulfilled;
 
       // Deploy token contract and mint some tokens for the second initial validator
-      const erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, {from: owner});
+      const erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, 100, {from: owner});
       await erc677Token.mint(initialStakingAddresses[1], mintAmount, {from: owner}).should.be.fulfilled;
       mintAmount.should.be.bignumber.equal(await erc677Token.balanceOf.call(initialStakingAddresses[1]));
 
@@ -626,7 +626,7 @@ contract('ValidatorSetAuRa', async accounts => {
       await validatorSetAuRa.setCurrentBlockNumber(20).should.be.fulfilled;
 
       // Deploy token contract and mint tokens for the candidates
-      const erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, {from: owner});
+      const erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, 100, {from: owner});
       for (let i = 0; i < stakingAddresses.length; i++) {
         await erc677Token.mint(stakingAddresses[i], mintAmount, {from: owner}).should.be.fulfilled;
         mintAmount.should.be.bignumber.equal(await erc677Token.balanceOf.call(stakingAddresses[i]));
@@ -753,7 +753,7 @@ contract('ValidatorSetAuRa', async accounts => {
       await stakingAuRa.setCurrentBlockNumber(20).should.be.fulfilled;
 
       // Deploy token contract and mint tokens for the candidates
-      const erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, {from: owner});
+      const erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, 100, {from: owner});
       for (let i = 0; i < stakingAddresses.length; i++) {
         await erc677Token.mint(stakingAddresses[i], mintAmount, {from: owner}).should.be.fulfilled;
         mintAmount.should.be.bignumber.equal(await erc677Token.balanceOf.call(stakingAddresses[i]));

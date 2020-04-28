@@ -80,7 +80,7 @@ contract('StakingAuRa', async accounts => {
       ).should.be.fulfilled;
 
       // Deploy ERC677 contract
-      erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, {from: owner});
+      erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, 100, {from: owner});
 
       // Mint some balance for candidate (imagine that the candidate got 2 STAKE_UNITs from a bridge)
       stakeUnit = new BN(web3.utils.toWei('1', 'ether'));
@@ -263,7 +263,7 @@ contract('StakingAuRa', async accounts => {
 
     beforeEach(async () => {
       // Deploy ERC677 contract
-      erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, {from: owner});
+      erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, 100, {from: owner});
 
       // Mint some balance for an arbitrary address
       const stakeUnit = new BN(web3.utils.toWei('1', 'ether'));
@@ -333,7 +333,7 @@ contract('StakingAuRa', async accounts => {
       (await validatorSetAuRa.validatorSetApplyBlock.call()).should.be.bignumber.equal(new BN(1));
 
       // Deploy ERC677 contract
-      erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, {from: owner});
+      erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, 100, {from: owner});
       await stakingAuRa.setErc677TokenContract(erc677Token.address, {from: owner}).should.be.fulfilled;
       await erc677Token.setBlockRewardContract(blockRewardAuRa.address).should.be.fulfilled;
       await erc677Token.setStakingContract(stakingAuRa.address).should.be.fulfilled;
@@ -1888,7 +1888,7 @@ contract('StakingAuRa', async accounts => {
 
     it('should add validator pool to the poolsToBeElected list', async () => {
       // Deploy ERC677 contract
-      const erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, {from: owner});
+      const erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, 100, {from: owner});
 
       // Mint some balance for the non-removable validator (imagine that the validator got 2 STAKE_UNITs from a bridge)
       const stakeUnit = new BN(web3.utils.toWei('1', 'ether'));
@@ -2144,7 +2144,7 @@ contract('StakingAuRa', async accounts => {
       ).should.be.fulfilled;
 
       // Deploy ERC677 contract
-      erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, {from: owner});
+      erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, 100, {from: owner});
 
       // Mint some balance for delegator and candidates (imagine that they got some STAKE_UNITs from a bridge)
       stakeUnit = new BN(web3.utils.toWei('1', 'ether'));
@@ -2245,7 +2245,7 @@ contract('StakingAuRa', async accounts => {
       delegatorMinStake = await stakingAuRa.delegatorMinStake.call();
 
       // Deploy ERC677 contract
-      erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, {from: owner});
+      erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, 100, {from: owner});
 
       // Mint some balance for delegator and candidates (imagine that they got some STAKE_UNITs from a bridge)
       const stakeUnit = new BN(web3.utils.toWei('1', 'ether'));
@@ -2585,7 +2585,7 @@ contract('StakingAuRa', async accounts => {
     });
     it('should add/remove a pool to/from the utility lists', async () => {
       // Deploy ERC677 contract
-      const erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, {from: owner});
+      const erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, 100, {from: owner});
 
       // Mint some balance for candidate (imagine that the candidate got 2 STAKE_UNITs from a bridge)
       const stakeUnit = new BN(web3.utils.toWei('1', 'ether'));
@@ -2747,7 +2747,7 @@ contract('StakingAuRa', async accounts => {
       delegatorMinStake = await stakingAuRa.delegatorMinStake.call();
 
       // Deploy ERC677 contract
-      erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, {from: owner});
+      erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, 100, {from: owner});
 
       // Mint some balance for delegator and candidates (imagine that they got some STAKE_UNITs from a bridge)
       const stakeUnit = new BN(web3.utils.toWei('1', 'ether'));

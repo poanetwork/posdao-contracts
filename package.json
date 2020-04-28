@@ -1,6 +1,6 @@
 {
   "name": "posdao-contracts",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Smart contracts for DPoS",
   "main": "index.js",
   "scripts": {
@@ -31,6 +31,8 @@
     "chai-as-promised": "^7.1.1",
     "chai-bn": "^0.1.1",
     "eth-gas-reporter": "^0.2.12",
+    "ethereumjs-abi": "0.6.8",
+    "ethereumjs-util": "6.2.0",
     "ganache-cli": "^6.6.0",
     "mochawesome": "^3.1.1",
     "node-fetch": "^2.6.0",

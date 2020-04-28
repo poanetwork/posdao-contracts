@@ -99,7 +99,7 @@ contract('BlockRewardAuRa', async accounts => {
       ).should.be.fulfilled;
 
       // Deploy ERC677 contract
-      erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, {from: owner});
+      erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, 100, {from: owner});
       await stakingAuRa.setErc677TokenContract(erc677Token.address, {from: owner}).should.be.fulfilled;
       await erc677Token.setBlockRewardContract(blockRewardAuRa.address).should.be.fulfilled;
       await erc677Token.setStakingContract(stakingAuRa.address).should.be.fulfilled;
@@ -433,7 +433,7 @@ contract('BlockRewardAuRa', async accounts => {
       (await validatorSetAuRa.validatorSetApplyBlock.call()).should.be.bignumber.equal(new BN(STAKING_EPOCH_START_BLOCK));
 
       // Deploy ERC677 contract
-      erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, {from: owner});
+      erc677Token = await ERC677BridgeTokenRewardable.new("STAKE", "STAKE", 18, 100, {from: owner});
       await stakingAuRa.setErc677TokenContract(erc677Token.address, {from: owner}).should.be.fulfilled;
       await erc677Token.setBlockRewardContract(blockRewardAuRa.address).should.be.fulfilled;
       await erc677Token.setStakingContract(stakingAuRa.address).should.be.fulfilled;
