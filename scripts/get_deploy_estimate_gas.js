@@ -29,7 +29,7 @@ async function main() {
       const contractName = filename.replace('.sol', '');
 
       if (
-        contractName.startsWith('ERC677BridgeTokenRewardable') ||
+        //contractName.startsWith('ERC677BridgeTokenRewardable') ||
         contractName.startsWith('Initializer') ||
         contractName.startsWith('Migrations') ||
         contractName.startsWith('Registry')
@@ -48,8 +48,14 @@ async function main() {
   for (let i = 0; i < contracts.length; i++) {
     const contractName = contracts[i];
 
+    let arguments = [];
+
+    if (contractName == 'ERC677BridgeTokenRewardable') {
+      arguments = ['STAKE', 'STAKE', 18, 100];
+    }
+
     const compiled = await compile(dir, contractName);
-    let {gas, size} = await estimateGas(compiled, []);
+    let {gas, size} = await estimateGas(compiled, arguments);
     gas /= 1000000;
     size = Math.round(size * 100 / 1024) / 100;
     const dotsCount = maxContractNameLength - contractName.length;

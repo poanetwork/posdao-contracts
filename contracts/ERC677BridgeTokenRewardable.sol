@@ -514,7 +514,9 @@ contract Claimable {
     }
 }
 
-contract Permittable is IBurnableMintableERC677Token, DetailedERC20, BurnableToken, MintableToken {
+// File: contracts/PermittableToken.sol
+
+contract PermittableToken is IBurnableMintableERC677Token, DetailedERC20, BurnableToken, MintableToken {
     string public constant version = "1";
 
     // EIP712 niceties
@@ -660,7 +662,7 @@ contract Permittable is IBurnableMintableERC677Token, DetailedERC20, BurnableTok
 
 // File: contracts/ERC677BridgeToken.sol
 
-contract ERC677BridgeToken is Permittable, Claimable {
+contract ERC677BridgeToken is PermittableToken, Claimable {
     event ContractFallbackCallFailed(address from, address to, uint256 value);
 
     constructor(
@@ -668,7 +670,7 @@ contract ERC677BridgeToken is Permittable, Claimable {
         string memory _symbol,
         uint8 _decimals,
         uint256 _chainId
-    ) Permittable(_name, _symbol, _decimals, _chainId) public {
+    ) PermittableToken(_name, _symbol, _decimals, _chainId) public {
         // solhint-disable-previous-line no-empty-blocks
     }
 
