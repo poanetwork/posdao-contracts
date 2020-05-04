@@ -514,9 +514,98 @@ contract Claimable {
     }
 }
 
+// File: contracts/ERC677BridgeToken.sol
+
+/**
+* @title ERC677BridgeToken
+* @dev The basic implementation of a bridgeable ERC677-compatible token
+*/
+contract ERC677BridgeToken is IBurnableMintableERC677Token, DetailedERC20, BurnableToken, MintableToken, Claimable {
+    bytes4 internal constant ON_TOKEN_TRANSFER = 0xa4c0ed36; // onTokenTransfer(address,uint256,bytes)
+
+    event ContractFallbackCallFailed(address from, address to, uint256 value);
+
+    constructor(
+        string memory _name,
+        string memory _symbol,
+        uint8 _decimals
+    ) DetailedERC20(_name, _symbol, _decimals) public {
+        // solhint-disable-previous-line no-empty-blocks
+    }
+
+    modifier validRecipient(address _recipient) {
+        require(_recipient != address(0) && _recipient != address(this));
+        /* solcov ignore next */
+        _;
+    }
+
+    function transferAndCall(address _to, uint256 _value, bytes calldata _data) external validRecipient(_to) returns (bool) {
+        require(superTransfer(_to, _value));
+        emit Transfer(msg.sender, _to, _value, _data);
+
+        if (AddressUtils.isContract(_to)) {
+            require(contractFallback(msg.sender, _to, _value, _data));
+        }
+        return true;
+    }
+
+    function getTokenInterfacesVersion() external pure returns (uint64 major, uint64 minor, uint64 patch) {
+        return (2, 2, 0);
+    }
+
+    function superTransfer(address _to, uint256 _value) internal returns (bool) {
+        return super.transfer(_to, _value);
+    }
+
+    function transfer(address _to, uint256 _value) public returns (bool) {
+        require(superTransfer(_to, _value));
+        callAfterTransfer(msg.sender, _to, _value);
+        return true;
+    }
+
+    function transferFrom(address _from, address _to, uint256 _value) public returns (bool) {
+        require(super.transferFrom(_from, _to, _value));
+        callAfterTransfer(_from, _to, _value);
+        return true;
+    }
+
+    function callAfterTransfer(address _from, address _to, uint256 _value) internal {
+        if (AddressUtils.isContract(_to) && !contractFallback(_from, _to, _value, new bytes(0))) {
+            require(!isBridge(_to));
+            emit ContractFallbackCallFailed(_from, _to, _value);
+        }
+    }
+
+    function isBridge(address) public view returns (bool);
+
+    /**
+     * @dev call onTokenTransfer fallback on the token recipient contract
+     * @param _from tokens sender
+     * @param _to tokens recipient
+     * @param _value amount of tokens that was sent
+     * @param _data set of extra bytes that can be passed to the recipient
+     */
+    function contractFallback(address _from, address _to, uint256 _value, bytes memory _data) private returns (bool) {
+        (bool success,) = _to.call(abi.encodeWithSelector(ON_TOKEN_TRANSFER, _from, _value, _data));
+        return success;
+    }
+
+    function claimTokens(address _token, address payable _to) public onlyOwner validAddress(_to) {
+        claimValues(_token, _to);
+    }
+
+    function increaseAllowance(address spender, uint256 addedValue) public returns (bool) {
+        return super.increaseApproval(spender, addedValue);
+    }
+
+    function decreaseAllowance(address spender, uint256 subtractedValue) public returns (bool) {
+        return super.decreaseApproval(spender, subtractedValue);
+    }
+}
+
 // File: contracts/PermittableToken.sol
 
-contract PermittableToken is IBurnableMintableERC677Token, DetailedERC20, BurnableToken, MintableToken {
+contract PermittableToken is ERC677BridgeToken {
     string public constant version = "1";
 
     // EIP712 niceties
@@ -532,7 +621,7 @@ contract PermittableToken is IBurnableMintableERC677Token, DetailedERC20, Burnab
         string memory _symbol,
         uint8 _decimals,
         uint256 _chainId
-    ) DetailedERC20(_name, _symbol, _decimals) public {
+    ) ERC677BridgeToken(_name, _symbol, _decimals) public {
         require(_chainId != 0);
         DOMAIN_SEPARATOR = keccak256(abi.encode(
             keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
@@ -579,6 +668,7 @@ contract PermittableToken is IBurnableMintableERC677Token, DetailedERC20, Burnab
             // the function works just like `transfer()`
         }
 
+        callAfterTransfer(_sender, _recipient, _amount);
         return true;
     }
 
@@ -660,103 +750,13 @@ contract PermittableToken is IBurnableMintableERC677Token, DetailedERC20, Burnab
     }
 }
 
-// File: contracts/ERC677BridgeToken.sol
-
-/**
-* @title ERC677BridgeToken
-* @dev The basic implementation of a bridgeable ERC677-compatible token
-*/
-contract ERC677BridgeToken is PermittableToken, Claimable {
-    bytes4 internal constant ON_TOKEN_TRANSFER = 0xa4c0ed36; // onTokenTransfer(address,uint256,bytes)
-
-    event ContractFallbackCallFailed(address from, address to, uint256 value);
-
-    constructor(
-        string memory _name,
-        string memory _symbol,
-        uint8 _decimals,
-        uint256 _chainId
-    ) PermittableToken(_name, _symbol, _decimals, _chainId) public {
-        // solhint-disable-previous-line no-empty-blocks
-    }
-
-    modifier validRecipient(address _recipient) {
-        require(_recipient != address(0) && _recipient != address(this));
-        /* solcov ignore next */
-        _;
-    }
-
-    function transferAndCall(address _to, uint256 _value, bytes calldata _data) external validRecipient(_to) returns (bool) {
-        require(superTransfer(_to, _value));
-        emit Transfer(msg.sender, _to, _value, _data);
-
-        if (AddressUtils.isContract(_to)) {
-            require(contractFallback(msg.sender, _to, _value, _data));
-        }
-        return true;
-    }
-
-    function getTokenInterfacesVersion() external pure returns (uint64 major, uint64 minor, uint64 patch) {
-        return (2, 2, 0);
-    }
-
-    function superTransfer(address _to, uint256 _value) internal returns (bool) {
-        return super.transfer(_to, _value);
-    }
-
-    function transfer(address _to, uint256 _value) public returns (bool) {
-        require(superTransfer(_to, _value));
-        callAfterTransfer(msg.sender, _to, _value);
-        return true;
-    }
-
-    function transferFrom(address _from, address _to, uint256 _value) public returns (bool) {
-        require(super.transferFrom(_from, _to, _value));
-        callAfterTransfer(_from, _to, _value);
-        return true;
-    }
-
-    function callAfterTransfer(address _from, address _to, uint256 _value) internal {
-        if (AddressUtils.isContract(_to) && !contractFallback(_from, _to, _value, new bytes(0))) {
-            require(!isBridge(_to));
-            emit ContractFallbackCallFailed(_from, _to, _value);
-        }
-    }
-
-    function isBridge(address) public view returns (bool);
-
-    /**
-     * @dev call onTokenTransfer fallback on the token recipient contract
-     * @param _from tokens sender
-     * @param _to tokens recipient
-     * @param _value amount of tokens that was sent
-     * @param _data set of extra bytes that can be passed to the recipient
-     */
-    function contractFallback(address _from, address _to, uint256 _value, bytes memory _data) private returns (bool) {
-        (bool success,) = _to.call(abi.encodeWithSelector(ON_TOKEN_TRANSFER, _from, _value, _data));
-        return success;
-    }
-
-    function claimTokens(address _token, address payable _to) public onlyOwner validAddress(_to) {
-        claimValues(_token, _to);
-    }
-
-    function increaseAllowance(address spender, uint256 addedValue) public returns (bool) {
-        return super.increaseApproval(spender, addedValue);
-    }
-
-    function decreaseAllowance(address spender, uint256 subtractedValue) public returns (bool) {
-        return super.decreaseApproval(spender, subtractedValue);
-    }
-}
-
 // File: contracts/ERC677MultiBridgeToken.sol
 
 /**
  * @title ERC677MultiBridgeToken
  * @dev This contract extends ERC677BridgeToken to support several bridge simulteniously
  */
-contract ERC677MultiBridgeToken is ERC677BridgeToken {
+contract ERC677MultiBridgeToken is PermittableToken {
     address public constant F_ADDR = 0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF;
     uint256 internal constant MAX_BRIDGES = 50;
     mapping(address => address) public bridgePointers;
@@ -770,7 +770,7 @@ contract ERC677MultiBridgeToken is ERC677BridgeToken {
         string memory _symbol,
         uint8 _decimals,
         uint256 _chainId
-    ) ERC677BridgeToken(_name, _symbol, _decimals, _chainId) public {
+    ) PermittableToken(_name, _symbol, _decimals, _chainId) public {
         bridgePointers[F_ADDR] = F_ADDR; // empty bridge contracts list
     }
 
