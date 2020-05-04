@@ -662,7 +662,13 @@ contract PermittableToken is IBurnableMintableERC677Token, DetailedERC20, Burnab
 
 // File: contracts/ERC677BridgeToken.sol
 
+/**
+* @title ERC677BridgeToken
+* @dev The basic implementation of a bridgeable ERC677-compatible token
+*/
 contract ERC677BridgeToken is PermittableToken, Claimable {
+    bytes4 internal constant ON_TOKEN_TRANSFER = 0xa4c0ed36; // onTokenTransfer(address,uint256,bytes)
+
     event ContractFallbackCallFailed(address from, address to, uint256 value);
 
     constructor(
@@ -719,8 +725,15 @@ contract ERC677BridgeToken is PermittableToken, Claimable {
 
     function isBridge(address) public view returns (bool);
 
+    /**
+     * @dev call onTokenTransfer fallback on the token recipient contract
+     * @param _from tokens sender
+     * @param _to tokens recipient
+     * @param _value amount of tokens that was sent
+     * @param _data set of extra bytes that can be passed to the recipient
+     */
     function contractFallback(address _from, address _to, uint256 _value, bytes memory _data) private returns (bool) {
-        (bool success,) = _to.call(abi.encodeWithSignature("onTokenTransfer(address,uint256,bytes)", _from, _value, _data));
+        (bool success,) = _to.call(abi.encodeWithSelector(ON_TOKEN_TRANSFER, _from, _value, _data));
         return success;
     }
 
