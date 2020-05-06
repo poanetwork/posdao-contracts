@@ -6,7 +6,7 @@ pragma solidity 0.5.10;
 // Since the source `ERC677BridgeTokenRewardable` requires solc v0.4.24 but truffle
 // doesn't allow using different versions of compiler at the same time, this flat
 // source file for `ERC677BridgeTokenRewardable` was taken from
-// https://github.com/poanetwork/tokenbridge-contracts/tree/b5d30e09a0d4a55b7482679431ecb2423db81d51
+// https://github.com/poanetwork/tokenbridge-contracts/tree/a7ce4441ab77e1c3e4d01017d862c53516933645
 // cleared of excess functions and adapted for solc v0.5.10.
 
 
