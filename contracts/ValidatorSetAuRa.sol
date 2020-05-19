@@ -108,7 +108,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     // ================================================ Events ========================================================
 
     /// @dev Emitted by the `emitInitiateChange` function when a new validator set
-    /// needs to be applied by validator nodes. See https://wiki.parity.io/Validator-Set.html
+    /// needs to be applied by validator nodes. See https://openethereum.github.io/wiki/Validator-Set.html
     /// @param parentHash Should be the parent block hash, otherwise the signal won't be recognized.
     /// @param newSet An array of new validators (their mining addresses).
     event InitiateChange(bytes32 indexed parentHash, address[] newSet);
@@ -146,7 +146,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         _;
     }
 
-    /// @dev Ensures the caller is the SYSTEM_ADDRESS. See https://wiki.parity.io/Validator-Set.html
+    /// @dev Ensures the caller is the SYSTEM_ADDRESS. See https://openethereum.github.io/wiki/Validator-Set.html
     modifier onlySystem() {
         require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
         _;
@@ -168,7 +168,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// returns `true` (when some validator needs to be removed as malicious or the validator set needs to be
     /// updated at the beginning of a new staking epoch). The new validator set is passed to the validator nodes
     /// through the `InitiateChange` event and saved for later use by the `finalizeChange` function.
-    /// See https://wiki.parity.io/Validator-Set.html for more info about the `InitiateChange` event.
+    /// See https://openethereum.github.io/wiki/Validator-Set.html for more info about the `InitiateChange` event.
     function emitInitiateChange() external onlyInitialized {
         require(emitInitiateChangeCallable());
         bool forNewEpoch = _unsetPendingValidatorsChanged();
@@ -311,7 +311,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
 
     /// @dev Reports that the malicious validator misbehaved at the specified block.
     /// Called by the node of each honest validator after the specified validator misbehaved.
-    /// See https://wiki.parity.io/Validator-Set.html#reporting-contract
+    /// See https://openethereum.github.io/wiki/Validator-Set.html#reporting-contract
     /// Can only be called when the `reportMaliciousCallable` getter returns `true`.
     /// @param _maliciousMiningAddress The mining address of the malicious validator.
     /// @param _blockNumber The block number where the misbehavior was observed.

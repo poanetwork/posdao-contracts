@@ -121,14 +121,14 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
 
     /// @dev Returns the list of addresses allowed to initiate transactions of any type.
     /// For these addresses the `allowedTxTypes` getter always returns the `ALL` bit mask
-    /// (see https://wiki.parity.io/Permissioning.html#how-it-works-1).
+    /// (see https://openethereum.github.io/wiki/Permissioning.html#how-it-works-1).
     function allowedSenders() public view returns(address[] memory) {
         return _allowedSenders;
     }
 
     /// @dev Defines the allowed transaction types which may be initiated by the specified sender with
     /// the specified gas price and data. Used by node's engine each time a transaction is about to be
-    /// included into a block. See https://wiki.parity.io/Permissioning.html#how-it-works-1
+    /// included into a block. See https://openethereum.github.io/wiki/Permissioning.html#how-it-works-1
     /// @param _sender Transaction sender address.
     /// @param _to Transaction recipient address. If creating a contract, the `_to` address is zero.
     /// @param _value Transaction amount in wei.

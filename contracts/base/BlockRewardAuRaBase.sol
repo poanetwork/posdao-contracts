@@ -141,7 +141,8 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
         _;
     }
 
-    /// @dev Ensures the caller is the SYSTEM_ADDRESS. See https://wiki.parity.io/Block-Reward-Contract.html
+    /// @dev Ensures the caller is the SYSTEM_ADDRESS.
+    /// See https://openethereum.github.io/wiki/Block-Reward-Contract.html
     modifier onlySystem {
         require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
         _;
@@ -219,7 +220,7 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
     }
 
     /// @dev Called by the validator's node when producing and closing a block,
-    /// see https://wiki.parity.io/Block-Reward-Contract.html.
+    /// see https://openethereum.github.io/wiki/Block-Reward-Contract.html.
     /// This function performs all of the automatic operations needed for controlling numbers revealing by validators,
     /// accumulating block producing statistics, starting a new staking epoch, snapshotting staking amounts
     /// for the upcoming staking epoch, rewards distributing at the end of a staking epoch, and minting
