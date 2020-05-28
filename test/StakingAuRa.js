@@ -257,6 +257,48 @@ contract('StakingAuRa', async accounts => {
     });
   });
 
+  describe('areStakeAndWithdrawAllowed', async () => {
+    it('should return false during stakeWithdrawDisallowPeriod', async () => {
+      // Initialize StakingAuRa
+      await stakingAuRa.initialize(
+        validatorSetAuRa.address, // _validatorSetContract
+        initialStakingAddresses, // _initialStakingAddresses
+        web3.utils.toWei('1', 'ether'), // _delegatorMinStake
+        web3.utils.toWei('1', 'ether'), // _candidateMinStake
+        76, // _stakingEpochDuration
+        0, // _stakingEpochStartBlock
+        10 // _stakeWithdrawDisallowPeriod
+      ).should.be.fulfilled;
+
+      await stakingAuRa.setValidatorSetAddress(owner).should.be.fulfilled;
+
+      await stakingAuRa.setCurrentBlockNumber(66).should.be.fulfilled;
+      (await stakingAuRa.areStakeAndWithdrawAllowed.call()).should.be.equal(true);
+      for (let block = 67; block <= 76; block++) {
+        await stakingAuRa.setCurrentBlockNumber(block).should.be.fulfilled;
+        (await stakingAuRa.areStakeAndWithdrawAllowed.call()).should.be.equal(false);
+      }
+      
+      await stakingAuRa.setStakingEpochStartBlock(77).should.be.fulfilled;
+      await stakingAuRa.setCurrentBlockNumber(76).should.be.fulfilled;
+      (await stakingAuRa.areStakeAndWithdrawAllowed.call()).should.be.equal(false);
+      await stakingAuRa.setCurrentBlockNumber(77).should.be.fulfilled;
+      (await stakingAuRa.areStakeAndWithdrawAllowed.call()).should.be.equal(true);
+
+      await stakingAuRa.setCurrentBlockNumber(142).should.be.fulfilled;
+      (await stakingAuRa.areStakeAndWithdrawAllowed.call()).should.be.equal(true);
+      for (let block = 143; block <= 152; block++) {
+        await stakingAuRa.setCurrentBlockNumber(block).should.be.fulfilled;
+        (await stakingAuRa.areStakeAndWithdrawAllowed.call()).should.be.equal(false);
+      }
+      await stakingAuRa.setStakingEpochStartBlock(153).should.be.fulfilled;
+      await stakingAuRa.setCurrentBlockNumber(152).should.be.fulfilled;
+      (await stakingAuRa.areStakeAndWithdrawAllowed.call()).should.be.equal(false);
+      await stakingAuRa.setCurrentBlockNumber(153).should.be.fulfilled;
+      (await stakingAuRa.areStakeAndWithdrawAllowed.call()).should.be.equal(true);
+    });
+  });
+
   describe('balance', async () => {
     let erc677Token;
     let mintAmount;

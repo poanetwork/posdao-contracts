@@ -1,7 +1,7 @@
 {
   "name": "posdao-contracts",
-  "version": "0.1.5",
-  "description": "Smart contracts for DPoS",
+  "version": "0.1.6",
+  "description": "Smart contracts for POSDAO consensus",
   "main": "index.js",
   "scripts": {
     "compile": "node_modules/.bin/truffle compile",

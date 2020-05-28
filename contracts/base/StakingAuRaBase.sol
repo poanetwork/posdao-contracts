@@ -665,10 +665,12 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
     /// Used by all staking/withdrawal functions.
     function areStakeAndWithdrawAllowed() public view returns(bool) {
         uint256 currentBlock = _getCurrentBlockNumber();
-        uint256 allowedDuration = stakingEpochDuration - stakeWithdrawDisallowPeriod;
         if (currentBlock < stakingEpochStartBlock) return false;
-        return currentBlock - stakingEpochStartBlock <= allowedDuration;
+        uint256 allowedDuration = stakingEpochDuration - stakeWithdrawDisallowPeriod;
+        if (stakingEpochStartBlock == 0) allowedDuration++;
+        return currentBlock - stakingEpochStartBlock < allowedDuration;
     }
+
 
     /// @dev Returns a boolean flag indicating if the `initialize` function has been called.
     function isInitialized() public view returns(bool) {
