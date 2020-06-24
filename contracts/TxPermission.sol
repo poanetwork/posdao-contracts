@@ -36,7 +36,7 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
 
     /// @dev A constant that defines a regular block gas limit.
     /// Used by the `blockGasLimit` public getter.
-    uint256 public constant BLOCK_GAS_LIMIT = 10000000;
+    uint256 public constant BLOCK_GAS_LIMIT = 12500000;
 
     /// @dev A constant that defines a reduced block gas limit.
     /// Used by the `blockGasLimit` public getter.
