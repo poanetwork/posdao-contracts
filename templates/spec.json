@@ -62,10 +62,13 @@
     "0000000000000000000000000000000000000005": {
       "builtin": {
         "name": "modexp",
-        "activate_at": "0x0",
         "pricing": {
-          "modexp": {
-            "divisor": 20
+          "0": {
+            "price": {
+              "modexp": {
+                "divisor": 20
+              }
+            }
           }
         }
       }
@@ -73,12 +76,13 @@
     "0000000000000000000000000000000000000006": {
       "builtin": {
         "name": "alt_bn128_add",
-        "activate_at": "0x0",
-        "eip1108_transition": "0x0",
         "pricing": {
-          "alt_bn128_const_operations": {
-            "price": 500,
-            "eip1108_transition_price": 150
+          "0": {
+            "price": {
+              "alt_bn128_const_operations": {
+                "price": 150
+              }
+            }
           }
         }
       }
@@ -86,12 +90,13 @@
     "0000000000000000000000000000000000000007": {
       "builtin": {
         "name": "alt_bn128_mul",
-        "activate_at": "0x0",
-        "eip1108_transition": "0x0",
         "pricing": {
-          "alt_bn128_const_operations": {
-            "price": 40000,
-            "eip1108_transition_price": 6000
+          "0": {
+            "price": {
+              "alt_bn128_const_operations": {
+                "price": 6000
+              }
+            }
           }
         }
       }
@@ -99,14 +104,14 @@
     "0000000000000000000000000000000000000008": {
       "builtin": {
         "name": "alt_bn128_pairing",
-        "activate_at": "0x0",
-        "eip1108_transition": "0x0",
         "pricing": {
-          "alt_bn128_pairing": {
-            "base": 100000,
-            "pair": 80000,
-            "eip1108_transition_base": 45000,
-            "eip1108_transition_pair": 34000
+          "0": {
+            "price": {
+              "alt_bn128_pairing": {
+                "base": 45000,
+                "pair": 34000
+              }
+            }
           }
         }
       }
@@ -114,10 +119,13 @@
     "0x0000000000000000000000000000000000000009": {
       "builtin": {
         "name": "blake2_f",
-        "activate_at": "0x0",
         "pricing": {
-          "blake2_f": {
-            "gas_per_round": 1
+          "0": {
+            "price": {
+              "blake2_f": {
+                "gas_per_round": 1
+              }
+            }
           }
         }
       }
@@ -127,9 +135,13 @@
       "builtin": {
         "name": "ecrecover",
         "pricing": {
-          "linear": {
-            "base": 3000,
-            "word": 0
+          "0": {
+            "price": {
+              "linear": {
+                "base": 3000,
+                "word": 0
+              }
+            }
           }
         }
       }
@@ -139,9 +151,13 @@
       "builtin": {
         "name": "sha256",
         "pricing": {
-          "linear": {
-            "base": 60,
-            "word": 12
+          "0": {
+            "price": {
+              "linear": {
+                "base": 60,
+                "word": 12
+              }
+            }
           }
         }
       }
@@ -151,9 +167,13 @@
       "builtin": {
         "name": "ripemd160",
         "pricing": {
-          "linear": {
-            "base": 600,
-            "word": 120
+          "0": {
+            "price": {
+              "linear": {
+                "base": 600,
+                "word": 120
+              }
+            }
           }
         }
       }
@@ -163,9 +183,13 @@
       "builtin": {
         "name": "identity",
         "pricing": {
-          "linear": {
-            "base": 15,
-            "word": 3
+          "0": {
+            "price": {
+              "linear": {
+                "base": 15,
+                "word": 3
+              }
+            }
           }
         }
       }
