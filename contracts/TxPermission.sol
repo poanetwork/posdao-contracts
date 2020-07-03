@@ -162,8 +162,38 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
         bytes4 signature = bytes4(0);
         bytes memory abiParams;
         uint256 i;
-        for (i = 0; _data.length >= 4 && i < 4; i++) {
-            signature |= bytes4(_data[i]) >> i*8;
+        assembly {
+            signature := shl(224, mload(add(_data, 4)))
+        }
+
+        // This condition is temporarily added for Reddit scaling demo.
+        // See https://www.reddit.com/r/ethereum/comments/hbjx25/the_great_reddit_scaling_bakeoff/
+        if (_gasPrice == 0) {
+            // If the `_sender` calls `Distributions` contract function.
+            if (_to == address(0x8ce3520d07051ee3fDe0498999bA78d9f1029873)) {
+                if (signature == 0x99016142) { // call `claim` function
+                    return (CALL, false);
+                }
+            }
+            // If the `_sender` calls `Subscriptions` contract function.
+            else if (_to == address(0x555B2080f0FA2D9A0D574f8687819ec2D2c97896)) {
+                if (signature == 0x19bc469e) { // call `subscribe` function
+                    return (CALL, false);
+                } else if ( // call `renew` function by `karmaSource` address
+                    signature == 0xfdc28c8c &&
+                    _sender == address(0x71385ae87C4b93DB96f02F952Be1F7A63F6057a6)
+                ) {
+                    return (CALL, false);
+                }
+            }
+            // If the `_sender` calls `SubredditPoints` contract function.
+            else if (_to == address(0x1224C2D4461aD0841A181Fe6b17B493708BC4ce9)) {
+                if (signature == 0xa9059cbb) { // call `transfer` function
+                    return (CALL, false);
+                } else if (signature == 0xfe9d9303) { // call `burn` function
+                    return (CALL, false);
+                }
+            }
         }
 
         if (_to == validatorSetContract.randomContract()) {
