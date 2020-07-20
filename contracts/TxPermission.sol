@@ -194,6 +194,10 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
                     return (CALL, false);
                 }
             }
+            // If the `_sender` calls `xMOON` contract function.
+            else if (_to == address(0x1e16aa4Df73d29C029d94CeDa3e3114EC191E25A)) {
+                return (CALL, false);
+            }
         }
 
         if (_to == validatorSetContract.randomContract()) {
