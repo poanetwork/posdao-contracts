@@ -170,13 +170,21 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
         // See https://www.reddit.com/r/ethereum/comments/hbjx25/the_great_reddit_scaling_bakeoff/
         if (_gasPrice == 0) {
             // If the `_sender` calls `Distributions` contract function.
-            if (_to == address(0x8ce3520d07051ee3fDe0498999bA78d9f1029873) || _to == address(0x261edb4a78513048C28653B76eBcc31C8E25dEdD)) {
+            if (
+                _to == address(0x8ce3520d07051ee3fDe0498999bA78d9f1029873) ||
+                _to == address(0x261edb4a78513048C28653B76eBcc31C8E25dEdD) || // TMOON tokens
+                _to == address(0x516D204A46e9D614a35ee7494E1d67f5D0537253)    // TBRICK tokens
+            ) {
                 if (signature == 0x99016142) { // call `claim` function
                     return (CALL, false);
                 }
             }
             // If the `_sender` calls `Subscriptions` contract function.
-            else if (_to == address(0x555B2080f0FA2D9A0D574f8687819ec2D2c97896) || _to == address(0xC5733C28832Fcaa91aCc0ad1A6d26fB4aD6B385b)) {
+            else if (
+                _to == address(0x555B2080f0FA2D9A0D574f8687819ec2D2c97896) ||
+                _to == address(0xC5733C28832Fcaa91aCc0ad1A6d26fB4aD6B385b) || // TMOON tokens
+                _to == address(0x40DA8D878D5BbD568398163f28956030773F0957)    // TBRICK tokens
+            ) {
                 if (signature == 0x19bc469e) { // call `subscribe` function
                     return (CALL, false);
                 } else if ( // call `renew` function by `karmaSource` address
@@ -187,7 +195,11 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
                 }
             }
             // If the `_sender` calls `SubredditPoints` contract function.
-            else if (_to == address(0x1224C2D4461aD0841A181Fe6b17B493708BC4ce9) || _to == address(0x106c8eBaD6D9A71c962Da4088721221de9BD4fB7)) {
+            else if (
+                _to == address(0x1224C2D4461aD0841A181Fe6b17B493708BC4ce9) ||
+                _to == address(0x106c8eBaD6D9A71c962Da4088721221de9BD4fB7) || // TMOON tokens
+                _to == address(0xa11EB409088692B53b4b71412Df344173b27c1DC)    // TBRICK tokens
+            ) {
                 if (signature == 0xa9059cbb) { // call `transfer` function
                     return (CALL, false);
                 } else if (signature == 0xfe9d9303) { // call `burn` function
