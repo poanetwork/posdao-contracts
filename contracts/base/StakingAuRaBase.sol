@@ -29,9 +29,10 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
     mapping(address => address[]) internal _stakerPools;
     mapping(address => mapping(address => uint256)) internal _stakerPoolsIndexes;
     mapping(address => mapping(address => mapping(uint256 => uint256))) internal _stakeAmountByEpoch;
+    mapping(address => uint256) internal _stakeInitial;
 
     // Reserved storage space to allow for layout changes in the future.
-    uint256[25] private ______gapForInternal;
+    uint256[24] private ______gapForInternal;
 
     /// @dev The limit of the minimum candidate stake (CANDIDATE_MIN_STAKE).
     uint256 public candidateMinStake;
@@ -373,6 +374,7 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
             address stakingAddress = _pools[i];
             require(stakeAmount[stakingAddress][stakingAddress] == 0);
             _stake(stakingAddress, stakingAddress, stakingAmount);
+            _stakeInitial[stakingAddress] = stakingAmount;
             emit PlacedStake(stakingAddress, stakingAddress, stakingEpoch, stakingAmount);
         }
 
@@ -504,6 +506,9 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
         stakeAmountTotal[_poolStakingAddress] = newStakeAmountTotal;
 
         if (staker == _poolStakingAddress) {
+            // Initial validator cannot withdraw their initial stake
+            require(newStakeAmount >= _stakeInitial[staker]);
+
             // The amount to be withdrawn must be the whole staked amount or
             // must not exceed the diff between the entire amount and `candidateMinStake`
             require(newStakeAmount == 0 || newStakeAmount >= candidateMinStake);
@@ -691,12 +696,18 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
     /// @param _staker The staker address that is going to withdraw.
     function maxWithdrawAllowed(address _poolStakingAddress, address _staker) public view returns(uint256) {
         address miningAddress = validatorSetContract.miningByStakingAddress(_poolStakingAddress);
+        bool isDelegator = _poolStakingAddress != _staker;
 
-        if (!_isWithdrawAllowed(miningAddress, _poolStakingAddress != _staker)) {
+        if (!_isWithdrawAllowed(miningAddress, isDelegator)) {
             return 0;
         }
 
         uint256 canWithdraw = stakeAmount[_poolStakingAddress][_staker];
+
+        if (!isDelegator) {
+            // Initial validator cannot withdraw their initial stake
+            canWithdraw = canWithdraw.sub(_stakeInitial[_staker]);
+        }
 
         if (!validatorSetContract.isValidatorOrPending(miningAddress)) {
             // The pool is not a validator and is not going to become one,
@@ -723,8 +734,9 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
     /// @param _staker The staker address that is going to order the withdrawal.
     function maxWithdrawOrderAllowed(address _poolStakingAddress, address _staker) public view returns(uint256) {
         address miningAddress = validatorSetContract.miningByStakingAddress(_poolStakingAddress);
+        bool isDelegator = _poolStakingAddress != _staker;
 
-        if (!_isWithdrawAllowed(miningAddress, _poolStakingAddress != _staker)) {
+        if (!_isWithdrawAllowed(miningAddress, isDelegator)) {
             return 0;
         }
 
@@ -738,7 +750,15 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
         // If the pool is an active or pending validator, the staker can order withdrawal
         // up to their total staking amount minus an already ordered amount
         // minus an amount staked during the current staking epoch
-        return stakeAmount[_poolStakingAddress][_staker].sub(stakeAmountByCurrentEpoch(_poolStakingAddress, _staker));
+
+        uint256 canOrder = stakeAmount[_poolStakingAddress][_staker];
+
+        if (!isDelegator) {
+            // Initial validator cannot withdraw their initial stake
+            canOrder = canOrder.sub(_stakeInitial[_staker]);
+        }
+
+        return canOrder.sub(stakeAmountByCurrentEpoch(_poolStakingAddress, _staker));
     }
 
     /// @dev Prevents sending tokens directly to the `StakingAuRa` contract address
@@ -1090,14 +1110,20 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
         require(_poolStakingAddress != address(0));
         require(_amount != 0);
 
-        // How much can `staker` withdraw from `_poolStakingAddress` at the moment?
+        // How much can `_staker` withdraw from `_poolStakingAddress` at the moment?
         require(_amount <= maxWithdrawAllowed(_poolStakingAddress, _staker));
 
         uint256 newStakeAmount = stakeAmount[_poolStakingAddress][_staker].sub(_amount);
 
         // The amount to be withdrawn must be the whole staked amount or
-        // must not exceed the diff between the entire amount and MIN_STAKE
-        uint256 minAllowedStake = (_poolStakingAddress == _staker) ? candidateMinStake : delegatorMinStake;
+        // must not exceed the diff between the entire amount and min allowed stake
+        uint256 minAllowedStake;
+        if (_poolStakingAddress == _staker) {
+            require(newStakeAmount >= _stakeInitial[_staker]); // initial validator cannot withdraw their initial stake
+            minAllowedStake = candidateMinStake;
+        } else {
+            minAllowedStake = delegatorMinStake;
+        }
         require(newStakeAmount == 0 || newStakeAmount >= minAllowedStake);
 
         stakeAmount[_poolStakingAddress][_staker] = newStakeAmount;

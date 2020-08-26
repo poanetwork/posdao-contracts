@@ -29,6 +29,10 @@ contract StakingAuRaBaseMock is StakingAuRaBase {
         _currentBlockNumber = _blockNumber;
     }
 
+    function setInitialStake(address _stakingAddress, uint256 _amount) public {
+        _stakeInitial[_stakingAddress] = _amount;
+    }
+
     function setStakeAmountTotal(address _poolStakingAddress, uint256 _amount) public {
         stakeAmountTotal[_poolStakingAddress] = _amount;
     }

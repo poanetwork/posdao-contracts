@@ -343,6 +343,9 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[2],
         accounts[3]
       ]);
+
+      await setCurrentBlockNumber(stakingEpochEndBlock.add(new BN(1)));
+
       for (let i = 0; i < validators.length; i++) {
         (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
           candidateMinStake
@@ -350,6 +353,9 @@ contract('BlockRewardAuRa', async accounts => {
         (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
           candidateMinStake.add(delegatorMinStake.mul(new BN(3)))
         );
+
+        const stakingAddress = accounts[4 + i];
+        await stakingAuRa.orderWithdraw(stakingAddress, candidateMinStake, {from: stakingAddress}).should.be.rejectedWith(ERROR_MSG);
       }
 
       const validatorsToBeFinalized = (await validatorSetAuRa.validatorsToBeFinalized.call()).miningAddresses;

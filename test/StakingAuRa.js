@@ -2902,6 +2902,23 @@ contract('StakingAuRa', async accounts => {
       await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount.add(new BN(1)), {from: initialStakingAddresses[1]}).should.be.rejectedWith(ERROR_MSG);
       await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
     });
+    it('initial validator cannot withdraw initial stake', async () => {
+      (await stakingAuRa.candidateMinStake.call()).should.be.bignumber.equal(mintAmount.div(new BN(2)));
+      const zero = new BN(0);
+      const one = new BN(1);
+      const initialStake = mintAmount.sub(one);
+      const stakingAddress = initialStakingAddresses[1];
+      await stakingAuRa.stake(stakingAddress, initialStake, { from: stakingAddress }).should.be.fulfilled;
+      await stakingAuRa.setInitialStake(stakingAddress, initialStake).should.be.fulfilled;
+      await stakingAuRa.stake(stakingAddress, one, { from: stakingAddress }).should.be.fulfilled;
+      (await stakingAuRa.stakeAmount.call(stakingAddress, stakingAddress)).should.be.bignumber.equal(mintAmount);
+      await stakingAuRa.withdraw(stakingAddress, one, { from: stakingAddress }).should.be.fulfilled;
+      (await stakingAuRa.stakeAmount.call(stakingAddress, stakingAddress)).should.be.bignumber.equal(initialStake);
+      await stakingAuRa.withdraw(stakingAddress, one, { from: stakingAddress }).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.withdraw(stakingAddress, initialStake, { from: stakingAddress }).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.setInitialStake(stakingAddress, zero).should.be.fulfilled;
+      await stakingAuRa.withdraw(stakingAddress, initialStake, { from: stakingAddress }).should.be.fulfilled;
+    });
     it('should fail if withdraw already ordered amount', async () => {
       // Set `initiateChangeAllowed` boolean flag to `true`
       await validatorSetAuRa.setCurrentBlockNumber(1).should.be.fulfilled;
