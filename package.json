@@ -1,16 +1,13 @@
 {
   "name": "posdao-contracts",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Smart contracts for POSDAO consensus",
   "main": "index.js",
   "scripts": {
     "compile": "node_modules/.bin/truffle compile",
     "coverage": "SOLIDITY_COVERAGE=true bash scripts/test.sh",
-    "docs-publish": "npm run solidity-docgen && cd docs/website && npm i && npm run publish-gh-pages",
-    "docs-start": "npm run solidity-docgen && cd docs/website && npm i && npm start",
     "flat": "bash scripts/make_flat.sh",
     "solhint": "node_modules/.bin/solhint \"contracts/**/*.sol\"",
-    "solidity-docgen": "rm -rf docs/docs/api* && npm i && solidity-docgen --exclude interfaces,libs,ERC677BridgeTokenRewardable.sol,Migrations.sol . contracts docs && node docs/website/sidebars-fix.js",
     "test": "node scripts/check_for_clashing.js && bash scripts/test.sh"
   },
   "repository": {
@@ -23,7 +20,6 @@
   },
   "homepage": "https://github.com/poanetwork/posdao-contracts#readme",
   "dependencies": {
-    "solidity-docgen": "0.1.1",
     "solidity-flattener": "github:poanetwork/solidity-flattener#master"
   },
   "devDependencies": {
