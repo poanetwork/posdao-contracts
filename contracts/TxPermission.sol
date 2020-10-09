@@ -40,7 +40,7 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
 
     /// @dev A constant that defines a reduced block gas limit.
     /// Used by the `blockGasLimit` public getter.
-    uint256 public constant BLOCK_GAS_LIMIT_REDUCED = 2000000;
+    uint256 public constant BLOCK_GAS_LIMIT_REDUCED = 4000000;
 
     // ============================================== Modifiers =======================================================
 
@@ -162,8 +162,8 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
         bytes4 signature = bytes4(0);
         bytes memory abiParams;
         uint256 i;
-        for (i = 0; _data.length >= 4 && i < 4; i++) {
-            signature |= bytes4(_data[i]) >> i*8;
+        assembly {
+            signature := shl(224, mload(add(_data, 4)))
         }
 
         if (_to == validatorSetContract.randomContract()) {
