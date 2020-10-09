@@ -41,9 +41,13 @@ contract TxPriority {
         _;
     }
 
-    constructor () public {
-        owner = msg.sender;
-        emit OwnershipTransferred(address(0), msg.sender);
+    constructor (address _owner) public {
+        if (_owner == address(0)) {
+            _owner = msg.sender;
+        }
+        require(_owner != address(0));
+        owner = _owner;
+        emit OwnershipTransferred(address(0), _owner);
     }
 
     /// @dev Transfers ownership of the contract to a new account (`_newOwner`).

@@ -40,6 +40,7 @@ async function main() {
     'Registry',
     'StakingAuRa',
     'TxPermission',
+    'TxPriority',
     'ValidatorSetAuRa',
   ];
 
@@ -153,6 +154,16 @@ async function main() {
   spec.accounts['0x4000000000000000000000000000000000000000'] = {
     balance: '0',
     constructor: '0x' + contractsCompiled['TxPermission'].bytecode
+  };
+
+  // Build TxPriority contract
+  const txPriorityContract = new web3.eth.Contract(contractsCompiled['TxPriority'].abi);
+  deploy = await txPriorityContract.deploy({data: '0x' + contractsCompiled['TxPriority'].bytecode, arguments: [
+    owner
+  ]});
+  spec.accounts['0x4100000000000000000000000000000000000000'] = {
+    balance: '0',
+    constructor: await deploy.encodeABI()
   };
 
   // Build Certifier contract
