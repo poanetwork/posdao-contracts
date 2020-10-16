@@ -5,6 +5,8 @@ import "./interfaces/IRandomAuRa.sol";
 import "./interfaces/IStakingAuRa.sol";
 import "./interfaces/IValidatorSetAuRa.sol";
 import "./upgradeability/UpgradeabilityAdmin.sol";
+import "./libs/QuickSort.sol";
+import "./libs/MerkleTree.sol";
 import "./libs/SafeMath.sol";
 
 
@@ -100,6 +102,40 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// but the new staking epoch's validator set hasn't yet been finalized by the `finalizeChange` function.
     uint256 public validatorSetApplyBlock;
 
+    /// @dev The merkle root of the new validator set which was initiated at the specified block.
+    mapping(uint256 => bytes32) internal _changeMerkleRoot;
+
+    /// @dev Data of the validator set change which was initiated at the specified block.
+    /// Consists of the following fields:
+    /// byte 0: isFinalized boolean flag
+    /// byte 1: validator set change threshold (50%+1 or 2/3+1 of the new validator set)
+    /// byte 2: reject threshold (50%+1 of the new validator set), used by the optimistic omnibridge
+    /// byte 3: a number of unique signatures verified and accepted for the specified InitiateChange
+    /// bytes 4-7: validator set approximate expiration timestamp
+    /// bytes 8-11: the validator set change block's timestamp
+    /// bytes 12-15: the previous InitiateChange block number
+    /// bytes 16-19: the next InitiateChange block number
+    /// bytes 20-31: reserved for future use
+    mapping(uint256 => uint256) internal _changeData;
+
+    /// @dev A sorted list of the mining addresses passed to the InitiateChange event on the specified block.
+    mapping(uint256 => address[]) internal _changeValidatorsSorted;
+
+    /// @dev Signature for the specified InitiateChange block number and mining address.
+    mapping(uint256 => mapping(address => bytes)) internal _changeSignature;
+
+    /// @dev Returns an ID of the last successfully signed change by the specified mining address.
+    mapping(address => uint256) public lastSignedID;
+
+    /// @dev Allows to know a block number of the latest InitiateChange associated with the specified merkleRoot.
+    mapping(bytes32 => uint256) public merkleRootToChangeID;
+
+    /// @dev The block number of the first InitiateChange event.
+    uint256 public firstChange;
+
+    /// @dev The block number of the last InitiateChange event.
+    uint256 public lastChange;
+
     // ============================================== Constants =======================================================
 
     /// @dev The max number of validators.
@@ -173,9 +209,19 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         require(emitInitiateChangeCallable());
         bool forNewEpoch = _unsetPendingValidatorsChanged();
         if (_pendingValidators.length > 0) {
-            emit InitiateChange(blockhash(_getCurrentBlockNumber() - 1), _pendingValidators);
+            uint256 blockNumber = _getCurrentBlockNumber();
+
+            emit InitiateChange(blockhash(blockNumber - 1), _pendingValidators);
             _finalizeValidators.list = _pendingValidators;
             _finalizeValidators.forNewEpoch = forNewEpoch;
+
+            // Fill the data for signing the validator set change for utopian bridge
+            address[] memory leaves = QuickSort.sort(_pendingValidators);
+            _changeValidatorsSorted[blockNumber] = leaves;
+            bytes32 root = MerkleTree.getRoot(leaves);
+            _changeMerkleRoot[blockNumber] = root;
+            merkleRootToChangeID[root] = blockNumber;
+            lastChange = blockNumber;
         }
     }
 
