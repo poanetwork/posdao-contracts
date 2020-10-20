@@ -65,12 +65,8 @@ contract RandomAuRa is UpgradeableOwned, IRandomAuRa {
     /// the node is restarted (see the `getCipher` getter).
     function commitHash(bytes32 _numberHash, bytes calldata _cipher) external onlyInitialized {
         address miningAddress = msg.sender;
-
         require(commitHashCallable(miningAddress, _numberHash));
-        require(_getCoinbase() == miningAddress); // make sure validator node is live
-
         uint256 collectRound = currentCollectRound();
-
         _commits[collectRound][miningAddress] = _numberHash;
         _ciphers[collectRound][miningAddress] = _cipher;
         _committedValidators[collectRound].push(miningAddress);
@@ -126,7 +122,7 @@ contract RandomAuRa is UpgradeableOwned, IRandomAuRa {
     /// and removes malicious validators if needed.
     /// This function does nothing if the current block is not the last block of the current collection round.
     /// Can only be called by the `BlockRewardAuRa` contract (by its `reward` function).
-    function onFinishCollectRound() external onlyBlockReward {
+    function onFinishCollectRound(bool lastBlockOfEpoch) external onlyBlockReward {
         if (_getCurrentBlockNumber() % collectRoundLength != 0) return;
 
         // This is the last block of the current collection round
@@ -139,7 +135,6 @@ contract RandomAuRa is UpgradeableOwned, IRandomAuRa {
 
         uint256 stakingEpoch = IStakingAuRa(stakingContract).stakingEpoch();
         uint256 startBlock = IStakingAuRa(stakingContract).stakingEpochStartBlock();
-        uint256 endBlock = IStakingAuRa(stakingContract).stakingEpochEndBlock();
         uint256 currentRound = currentCollectRound();
 
         if (_getCurrentBlockNumber() > startBlock + collectRoundLength * 3) {
@@ -156,10 +151,7 @@ contract RandomAuRa is UpgradeableOwned, IRandomAuRa {
 
         // If this is the last collection round in the current staking epoch
         // and punishing for unreveal is enabled.
-        if (
-            punishForUnreveal &&
-            (_getCurrentBlockNumber() == endBlock || _getCurrentBlockNumber() + collectRoundLength > endBlock)
-        ) {
+        if (lastBlockOfEpoch && punishForUnreveal) {
             uint256 maxRevealSkipsAllowed =
                 IStakingAuRa(stakingContract).stakeWithdrawDisallowPeriod() / collectRoundLength;
 
@@ -343,23 +335,16 @@ contract RandomAuRa is UpgradeableOwned, IRandomAuRa {
         for (uint256 i = 0; i < miningAddressesLength; i++) {
             delete _ciphers[collectRound][miningAddresses[i]];
         }
+        miningAddresses.length = 0;
     }
 
     /// @dev Used by the `revealNumber` function.
     /// @param _number The validator's number.
     function _revealNumber(uint256 _number) internal {
         address miningAddress = msg.sender;
-
         require(revealNumberCallable(miningAddress, _number));
-        require(_getCoinbase() == miningAddress); // make sure validator node is live
-
         currentSeed = currentSeed ^ _number;
         sentReveal[currentCollectRound()][miningAddress] = true;
-    }
-
-    /// @dev Returns the current `coinbase` address. Needed mostly for unit tests.
-    function _getCoinbase() internal view returns(address) {
-        return block.coinbase;
     }
 
     /// @dev Returns the current block number. Needed mostly for unit tests.

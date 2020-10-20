@@ -239,10 +239,6 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
             return (new address[](0), new uint256[](0));
         }
 
-        // Check the current validators at the end of each collection round whether
-        // they revealed their numbers, and remove a validator as a malicious if needed
-        IRandomAuRa(validatorSetContract.randomContract()).onFinishCollectRound();
-
         // Initialize the extra receivers queue
         if (!_queueERInitialized) {
             _queueERFirst = 1;
@@ -269,7 +265,13 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
             }
         }
 
-        if (_getCurrentBlockNumber() == stakingEpochEndBlock) {
+        bool lastBlockOfEpoch = (_getCurrentBlockNumber() == stakingEpochEndBlock);
+
+        // Check the current validators at the end of each collection round whether
+        // they revealed their numbers, and remove a validator if needed
+        IRandomAuRa(validatorSetContract.randomContract()).onFinishCollectRound(lastBlockOfEpoch);
+
+        if (lastBlockOfEpoch) {
             // Distribute rewards among validator pools
             if (stakingEpoch != 0) {
                 nativeTotalRewardAmount = _distributeRewards(
