@@ -160,26 +160,22 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
 
         // Get the called function's signature
         bytes4 signature = bytes4(0);
-        bytes memory abiParams;
-        uint256 i;
         assembly {
             signature := shl(224, mload(add(_data, 4)))
         }
 
         if (_to == validatorSetContract.randomContract()) {
-            address randomContract = validatorSetContract.randomContract();
-            abiParams = new bytes(_data.length - 4 > 32 ? 32 : _data.length - 4);
-
-            for (i = 0; i < abiParams.length; i++) {
-                abiParams[i] = _data[i + 4];
-            }
-
-            if (signature == COMMIT_HASH_SIGNATURE) {
-                (bytes32 numberHash) = abi.decode(abiParams, (bytes32));
-                return (IRandomAuRa(randomContract).commitHashCallable(_sender, numberHash) ? CALL : NONE, false);
-            } else if (signature == REVEAL_NUMBER_SIGNATURE || signature == REVEAL_SECRET_SIGNATURE) {
-                (uint256 number) = abi.decode(abiParams, (uint256));
-                return (IRandomAuRa(randomContract).revealNumberCallable(_sender, number) ? CALL : NONE, false);
+            if (signature == COMMIT_HASH_SIGNATURE && _data.length > 4+32) {
+                bytes32 numberHash;
+                assembly { numberHash := mload(add(_data, 36)) }
+                return (IRandomAuRa(_to).commitHashCallable(_sender, numberHash) ? CALL : NONE, false);
+            } else if (
+                (signature == REVEAL_NUMBER_SIGNATURE || signature == REVEAL_SECRET_SIGNATURE) &&
+                _data.length == 4+32
+            ) {
+                uint256 num;
+                assembly { num := mload(add(_data, 36)) }
+                return (IRandomAuRa(_to).revealNumberCallable(_sender, num) ? CALL : NONE, false);
             } else {
                 return (NONE, false);
             }
@@ -191,21 +187,13 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
                 // The `emitInitiateChange()` can be called by anyone
                 // if `emitInitiateChangeCallable()` returns `true`
                 return (validatorSetContract.emitInitiateChangeCallable() ? CALL : NONE, false);
-            } else if (signature == REPORT_MALICIOUS_SIGNATURE) {
-                abiParams = new bytes(_data.length - 4 > 64 ? 64 : _data.length - 4);
-
-                for (i = 0; i < abiParams.length; i++) {
-                    abiParams[i] = _data[i + 4];
+            } else if (signature == REPORT_MALICIOUS_SIGNATURE && _data.length >= 4+64) {
+                address maliciousMiningAddress;
+                uint256 blockNumber;
+                assembly {
+                    maliciousMiningAddress := mload(add(_data, 36))
+                    blockNumber := mload(add(_data, 68))
                 }
-
-                (
-                    address maliciousMiningAddress,
-                    uint256 blockNumber
-                ) = abi.decode(
-                    abiParams,
-                    (address, uint256)
-                );
-
                 // The `reportMalicious()` can only be called by the validator's mining address
                 // when the calling is allowed
                 (bool callable,) = validatorSetContract.reportMaliciousCallable(
