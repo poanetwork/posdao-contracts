@@ -161,10 +161,12 @@ async function main() {
   deploy = await txPriorityContract.deploy({data: '0x' + contractsCompiled['TxPriority'].bytecode, arguments: [
     owner
   ]});
-  spec.accounts['0x4100000000000000000000000000000000000000'] = {
+  const txPriorityContractItem = {
     balance: '0',
     constructor: await deploy.encodeABI()
   };
+  spec.accounts['0x4100000000000000000000000000000000000000'] = txPriorityContractItem;
+  spec.accounts['0x4200000000000000000000000000000000000000'] = txPriorityContractItem;
 
   // Build Certifier contract
   deploy = await contract.deploy({data: '0x' + storageProxyCompiled.bytecode, arguments: [
