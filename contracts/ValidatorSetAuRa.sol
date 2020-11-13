@@ -351,20 +351,9 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
 
         emit ReportedMalicious(reportingMiningAddress, _maliciousMiningAddress, _blockNumber);
 
-        uint256 validatorsLength = _currentValidators.length;
-        bool remove;
-
-        if (validatorsLength > 3) {
-            // If more than 2/3 of validators reported about malicious validator
-            // for the same `blockNumber`
-            remove = reportedValidators.length.mul(3) > validatorsLength.mul(2);
-        } else {
-            // If more than 1/2 of validators reported about malicious validator
-            // for the same `blockNumber`
-            remove = reportedValidators.length.mul(2) > validatorsLength;
-        }
-
-        if (remove) {
+        // If more than 1/2 of validators reported about malicious validator
+        // for the same `blockNumber`
+        if (reportedValidators.length.mul(2) > _currentValidators.length) {
             address[] memory miningAddresses = new address[](1);
             miningAddresses[0] = _maliciousMiningAddress;
             _removeMaliciousValidators(miningAddresses, "malicious");
