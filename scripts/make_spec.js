@@ -166,7 +166,6 @@ async function main() {
     constructor: await deploy.encodeABI()
   };
   spec.accounts['0x4100000000000000000000000000000000000000'] = txPriorityContractItem;
-  spec.accounts['0x4200000000000000000000000000000000000000'] = txPriorityContractItem;
 
   // Build Certifier contract
   deploy = await contract.deploy({data: '0x' + storageProxyCompiled.bytecode, arguments: [
@@ -209,8 +208,8 @@ async function main() {
     initialValidators, // _miningAddresses
     stakingAddresses, // _stakingAddresses
     firstValidatorIsUnremovable, // _firstValidatorIsUnremovable
-    web3.utils.toWei('1', 'ether'), // _delegatorMinStake
-    web3.utils.toWei('1', 'ether'), // _candidateMinStake
+    web3.utils.toWei('1000'), // _delegatorMinStake
+    web3.utils.toWei('20000'), // _candidateMinStake
     stakingEpochDuration, // _stakingEpochDuration
     0, // _stakingEpochStartBlock
     stakeWithdrawDisallowPeriod, // _stakeWithdrawDisallowPeriod
