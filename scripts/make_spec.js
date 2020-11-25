@@ -40,7 +40,7 @@ async function main() {
     'Registry',
     'StakingAuRa',
     'TxPermission',
-    'TxPriority',
+    'TxPriorityMock',
     'ValidatorSetAuRa',
   ];
 
@@ -57,6 +57,8 @@ async function main() {
 
     if (contractName == 'AdminUpgradeabilityProxy') {
       dir = 'contracts/upgradeability/';
+    } else if (contractName == 'TxPriorityMock') {
+      dir = 'test/mockContracts/';
     } else if (contractName == 'StakingAuRa' && erc20Restricted) {
       realContractName = 'StakingAuRaCoins';
       dir = 'contracts/base/';
@@ -157,9 +159,9 @@ async function main() {
   };
 
   // Build TxPriority contract
-  const txPriorityContract = new web3.eth.Contract(contractsCompiled['TxPriority'].abi);
-  deploy = await txPriorityContract.deploy({data: '0x' + contractsCompiled['TxPriority'].bytecode, arguments: [
-    owner
+  const txPriorityContract = new web3.eth.Contract(contractsCompiled['TxPriorityMock'].abi);
+  deploy = await txPriorityContract.deploy({data: '0x' + contractsCompiled['TxPriorityMock'].bytecode, arguments: [
+    owner, true
   ]});
   const txPriorityContractItem = {
     balance: '0',

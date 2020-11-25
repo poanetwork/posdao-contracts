@@ -20,9 +20,9 @@ contract TxPriority {
 
     BokkyPooBahsRedBlackTreeLibrary.Tree internal _weightsTree; // sorted tree of destination weights
     
-    address[] private _sendersWhitelist; // an array of whitelisted senders
-    Destination[] private _minGasPrices; // an array of min gas price rules
-    mapping(address => mapping(bytes4 => uint256)) private _minGasPriceIndex;
+    address[] internal _sendersWhitelist; // an array of whitelisted senders
+    Destination[] internal _minGasPrices; // an array of min gas price rules
+    mapping(address => mapping(bytes4 => uint256)) internal _minGasPriceIndex;
     
     uint256 public weightsCount;
     mapping(uint256 => Destination) public destinationByWeight;

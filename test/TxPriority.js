@@ -1,4 +1,4 @@
-const TxPriority = artifacts.require('TxPriorityMock');
+const TxPriorityMock = artifacts.require('TxPriorityMock');
 
 const ERROR_MSG = 'VM Exception while processing transaction: revert';
 const BN = web3.utils.BN;
@@ -14,7 +14,7 @@ contract('TxPriority', async accounts => {
 
   beforeEach(async () => {
     owner = accounts[0];
-    txPriority = await TxPriority.new();
+    txPriority = await TxPriorityMock.new(owner, false);
   });
 
   describe('setPriority()', async () => {
