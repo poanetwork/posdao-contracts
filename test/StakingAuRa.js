@@ -58,11 +58,12 @@ contract('StakingAuRa', async accounts => {
     ).should.be.fulfilled;
   });
 
-  describe('addPool()', async () => {
+  describe('addPool(), transferAndCall()', async () => {
     let candidateMiningAddress;
     let candidateStakingAddress;
     let erc677Token;
     let stakeUnit;
+    let useTransferAndCall = false;
 
     beforeEach(async () => {
       candidateMiningAddress = accounts[7];
@@ -108,153 +109,169 @@ contract('StakingAuRa', async accounts => {
       await validatorSetAuRa.setCurrentBlockNumber(2).should.be.fulfilled;
     });
 
-    it('should create a new pool', async () => {
-      false.should.be.equal(await stakingAuRa.isPoolActive.call(candidateStakingAddress));
-      await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.fulfilled;
-      true.should.be.equal(await stakingAuRa.isPoolActive.call(candidateStakingAddress));
-    });
-    it('should fail if mining address is 0', async () => {
-      await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), '0x0000000000000000000000000000000000000000', {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
-      await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.fulfilled;
-    });
-    it('should fail if mining address is equal to staking', async () => {
-      await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateStakingAddress, {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
-    });
-    it('should fail if the pool with the same mining/staking address is already existed', async () => {
-      const candidateMiningAddress2 = accounts[9];
-      const candidateStakingAddress2 = accounts[10];
-      
-      await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.fulfilled;
-      
-      await erc677Token.mint(candidateMiningAddress, stakeUnit.mul(new BN(2)), {from: owner}).should.be.fulfilled;
-      await erc677Token.mint(candidateMiningAddress2, stakeUnit.mul(new BN(2)), {from: owner}).should.be.fulfilled;
-      await erc677Token.mint(candidateStakingAddress2, stakeUnit.mul(new BN(2)), {from: owner}).should.be.fulfilled;
+    for (let step = 0; step < 2; step++) {
+      it('should create a new pool' + fnName(step), async () => {
+        false.should.be.equal(await stakingAuRa.isPoolActive.call(candidateStakingAddress));
+        await addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.fulfilled;
+        true.should.be.equal(await stakingAuRa.isPoolActive.call(candidateStakingAddress));
+      });
+      it('should fail if mining address is 0' + fnName(step), async () => {
+        await addPool(stakeUnit.mul(new BN(1)), '0x0000000000000000000000000000000000000000', {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
+        await addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.fulfilled;
+      });
+      it('should fail if mining address is equal to staking' + fnName(step), async () => {
+        await addPool(stakeUnit.mul(new BN(1)), candidateStakingAddress, {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
+      });
+      it('should fail if the pool with the same mining/staking address is already existed' + fnName(step), async () => {
+        const candidateMiningAddress2 = accounts[9];
+        const candidateStakingAddress2 = accounts[10];
+        
+        await addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.fulfilled;
+        
+        await erc677Token.mint(candidateMiningAddress, stakeUnit.mul(new BN(2)), {from: owner}).should.be.fulfilled;
+        await erc677Token.mint(candidateMiningAddress2, stakeUnit.mul(new BN(2)), {from: owner}).should.be.fulfilled;
+        await erc677Token.mint(candidateStakingAddress2, stakeUnit.mul(new BN(2)), {from: owner}).should.be.fulfilled;
 
-      await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress2}).should.be.rejectedWith(ERROR_MSG);
-      await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress2, {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
-      
-      await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateStakingAddress, {from: candidateMiningAddress2}).should.be.rejectedWith(ERROR_MSG);
-      await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateStakingAddress2, {from: candidateMiningAddress}).should.be.rejectedWith(ERROR_MSG);
+        await addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress2}).should.be.rejectedWith(ERROR_MSG);
+        await addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress2, {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
+        
+        await addPool(stakeUnit.mul(new BN(1)), candidateStakingAddress, {from: candidateMiningAddress2}).should.be.rejectedWith(ERROR_MSG);
+        await addPool(stakeUnit.mul(new BN(1)), candidateStakingAddress2, {from: candidateMiningAddress}).should.be.rejectedWith(ERROR_MSG);
 
-      await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateMiningAddress2}).should.be.rejectedWith(ERROR_MSG);
-      await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress2, {from: candidateMiningAddress}).should.be.rejectedWith(ERROR_MSG);
+        await addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateMiningAddress2}).should.be.rejectedWith(ERROR_MSG);
+        await addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress2, {from: candidateMiningAddress}).should.be.rejectedWith(ERROR_MSG);
 
-      await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateStakingAddress, {from: candidateStakingAddress2}).should.be.rejectedWith(ERROR_MSG);
-      await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateStakingAddress2, {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
-      
-      await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress2, {from: candidateStakingAddress2}).should.be.fulfilled;
-    });
-    it('should fail if gasPrice is 0', async () => {
-      await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress, gasPrice: 0}).should.be.rejectedWith(ERROR_MSG);
-    });
-    it('should fail if ERC contract is not specified', async () => {
-      // Set ERC677 contract address to zero
-      await stakingAuRa.setErc677TokenContractMock('0x0000000000000000000000000000000000000000').should.be.fulfilled;
+        await addPool(stakeUnit.mul(new BN(1)), candidateStakingAddress, {from: candidateStakingAddress2}).should.be.rejectedWith(ERROR_MSG);
+        await addPool(stakeUnit.mul(new BN(1)), candidateStakingAddress2, {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
+        
+        await addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress2, {from: candidateStakingAddress2}).should.be.fulfilled;
+      });
+      it('should fail if gasPrice is 0' + fnName(step), async () => {
+        await addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress, gasPrice: 0}).should.be.rejectedWith(ERROR_MSG);
+      });
+      it('should fail if ERC contract is not specified' + fnName(step), async () => {
+        // Set ERC677 contract address to zero
+        await stakingAuRa.setErc677TokenContractMock('0x0000000000000000000000000000000000000000').should.be.fulfilled;
 
-      // Try to add a new pool
-      await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
-      false.should.be.equal(await stakingAuRa.isPoolActive.call(candidateStakingAddress));
+        // Try to add a new pool
+        await addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
+        false.should.be.equal(await stakingAuRa.isPoolActive.call(candidateStakingAddress));
 
-      // Pass ERC677 contract address to ValidatorSet contract
-      await stakingAuRa.setErc677TokenContract(erc677Token.address, {from: owner}).should.be.fulfilled;
-
-      // Add a new pool
-      await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.fulfilled;
-      true.should.be.equal(await stakingAuRa.isPoolActive.call(candidateStakingAddress));
-    });
-    it('should fail if staking amount is 0', async () => {
-      await stakingAuRa.addPool(new BN(0), candidateMiningAddress, {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
-    });
-    it('should fail if block.number is inside disallowed range', async () => {
-      await stakingAuRa.setCurrentBlockNumber(119960).should.be.fulfilled;
-      await validatorSetAuRa.setCurrentBlockNumber(119960).should.be.fulfilled;
-      await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
-      await stakingAuRa.setCurrentBlockNumber(116560).should.be.fulfilled;
-      await validatorSetAuRa.setCurrentBlockNumber(116560).should.be.fulfilled;
-      await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.fulfilled;
-    });
-    it('should fail if staking amount is less than CANDIDATE_MIN_STAKE', async () => {
-      await stakingAuRa.addPool(stakeUnit.mul(new BN(1)).div(new BN(2)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
-      await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.fulfilled;
-    });
-    it('should fail if candidate doesn\'t have enough funds', async () => {
-      await stakingAuRa.addPool(stakeUnit.mul(new BN(3)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
-      await stakingAuRa.addPool(stakeUnit.mul(new BN(2)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.fulfilled;
-    });
-    it('stake amount should be increased', async () => {
-      const amount = stakeUnit.mul(new BN(2));
-      await stakingAuRa.addPool(amount, candidateMiningAddress, {from: candidateStakingAddress}).should.be.fulfilled;
-      amount.should.be.bignumber.equal(await stakingAuRa.stakeAmount.call(candidateStakingAddress, candidateStakingAddress));
-      amount.should.be.bignumber.equal(await stakingAuRa.stakeAmountByCurrentEpoch.call(candidateStakingAddress, candidateStakingAddress));
-      amount.should.be.bignumber.equal(await stakingAuRa.stakeAmountTotal.call(candidateStakingAddress));
-    });
-    it('should be able to add more than one pool', async () => {
-      const candidate1MiningAddress = candidateMiningAddress;
-      const candidate1StakingAddress = candidateStakingAddress;
-      const candidate2MiningAddress = accounts[9];
-      const candidate2StakingAddress = accounts[10];
-      const amount1 = stakeUnit.mul(new BN(2));
-      const amount2 = stakeUnit.mul(new BN(3));
-
-      // Emulate having necessary amount for the candidate #2
-      await erc677Token.mint(candidate2StakingAddress, amount2, {from: owner}).should.be.fulfilled;
-      amount2.should.be.bignumber.equal(await erc677Token.balanceOf.call(candidate2StakingAddress));
-
-      // Add two new pools
-      (await stakingAuRa.isPoolActive.call(candidate1StakingAddress)).should.be.equal(false);
-      (await stakingAuRa.isPoolActive.call(candidate2StakingAddress)).should.be.equal(false);
-      await stakingAuRa.addPool(amount1, candidate1MiningAddress, {from: candidate1StakingAddress}).should.be.fulfilled;
-      await stakingAuRa.addPool(amount2, candidate2MiningAddress, {from: candidate2StakingAddress}).should.be.fulfilled;
-      (await stakingAuRa.isPoolActive.call(candidate1StakingAddress)).should.be.equal(true);
-      (await stakingAuRa.isPoolActive.call(candidate2StakingAddress)).should.be.equal(true);
-
-      // Check indexes (0...2 are busy by initial validators)
-      new BN(3).should.be.bignumber.equal(await stakingAuRa.poolIndex.call(candidate1StakingAddress));
-      new BN(4).should.be.bignumber.equal(await stakingAuRa.poolIndex.call(candidate2StakingAddress));
-
-      // Check indexes in the `poolsToBeElected` list
-      new BN(0).should.be.bignumber.equal(await stakingAuRa.poolToBeElectedIndex.call(candidate1StakingAddress));
-      new BN(1).should.be.bignumber.equal(await stakingAuRa.poolToBeElectedIndex.call(candidate2StakingAddress));
-
-      // Check pools' existence
-      const validators = await validatorSetAuRa.getValidators.call();
-
-      (await stakingAuRa.getPools.call()).should.be.deep.equal([
-        await validatorSetAuRa.stakingByMiningAddress.call(validators[0]),
-        await validatorSetAuRa.stakingByMiningAddress.call(validators[1]),
-        await validatorSetAuRa.stakingByMiningAddress.call(validators[2]),
-        candidate1StakingAddress,
-        candidate2StakingAddress
-      ]);
-    });
-    it('shouldn\'t allow adding more than MAX_CANDIDATES pools', async () => {
-      for (let p = initialValidators.length; p < 100; p++) {
-        // Generate new candidate staking address
-        let candidateStakingAddress = '0x';
-        for (let i = 0; i < 20; i++) {
-          let randomByte = random(0, 255).toString(16);
-          if (randomByte.length % 2) {
-            randomByte = '0' + randomByte;
-          }
-          candidateStakingAddress += randomByte;
-        }
+        // Pass ERC677 contract address to ValidatorSet contract
+        await stakingAuRa.setErc677TokenContract(erc677Token.address, {from: owner}).should.be.fulfilled;
 
         // Add a new pool
-        await stakingAuRa.addPoolActiveMock(candidateStakingAddress).should.be.fulfilled;
-        new BN(p).should.be.bignumber.equal(await stakingAuRa.poolIndex.call(candidateStakingAddress));
-      }
+        await addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.fulfilled;
+        true.should.be.equal(await stakingAuRa.isPoolActive.call(candidateStakingAddress));
+      });
+      it('should fail if staking amount is 0' + fnName(step), async () => {
+        await addPool(new BN(0), candidateMiningAddress, {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
+      });
+      it('should fail if block.number is inside disallowed range' + fnName(step), async () => {
+        await stakingAuRa.setCurrentBlockNumber(119960).should.be.fulfilled;
+        await validatorSetAuRa.setCurrentBlockNumber(119960).should.be.fulfilled;
+        await addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
+        await stakingAuRa.setCurrentBlockNumber(116560).should.be.fulfilled;
+        await validatorSetAuRa.setCurrentBlockNumber(116560).should.be.fulfilled;
+        await addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.fulfilled;
+      });
+      it('should fail if staking amount is less than CANDIDATE_MIN_STAKE' + fnName(step), async () => {
+        await addPool(stakeUnit.mul(new BN(1)).div(new BN(2)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
+        await addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.fulfilled;
+      });
+      it('should fail if candidate doesn\'t have enough funds' + fnName(step), async () => {
+        await addPool(stakeUnit.mul(new BN(3)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
+        await addPool(stakeUnit.mul(new BN(2)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.fulfilled;
+      });
+      it('stake amount should be increased' + fnName(step), async () => {
+        const amount = stakeUnit.mul(new BN(2));
+        await addPool(amount, candidateMiningAddress, {from: candidateStakingAddress}).should.be.fulfilled;
+        amount.should.be.bignumber.equal(await stakingAuRa.stakeAmount.call(candidateStakingAddress, candidateStakingAddress));
+        amount.should.be.bignumber.equal(await stakingAuRa.stakeAmountByCurrentEpoch.call(candidateStakingAddress, candidateStakingAddress));
+        amount.should.be.bignumber.equal(await stakingAuRa.stakeAmountTotal.call(candidateStakingAddress));
+      });
+      it('should be able to add more than one pool' + fnName(step), async () => {
+        const candidate1MiningAddress = candidateMiningAddress;
+        const candidate1StakingAddress = candidateStakingAddress;
+        const candidate2MiningAddress = accounts[9];
+        const candidate2StakingAddress = accounts[10];
+        const amount1 = stakeUnit.mul(new BN(2));
+        const amount2 = stakeUnit.mul(new BN(3));
 
-      // Try to add a new pool outside of max limit
-      await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
-      false.should.be.equal(await stakingAuRa.isPoolActive.call(candidateStakingAddress));
-    });
-    it('should remove added pool from the list of inactive pools', async () => {
-      await stakingAuRa.addPoolInactiveMock(candidateStakingAddress).should.be.fulfilled;
-      (await stakingAuRa.getPoolsInactive.call()).should.be.deep.equal([candidateStakingAddress]);
-      await stakingAuRa.addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.fulfilled;
-      true.should.be.equal(await stakingAuRa.isPoolActive.call(candidateStakingAddress));
-      (await stakingAuRa.getPoolsInactive.call()).length.should.be.equal(0);
-    });
+        // Emulate having necessary amount for the candidate #2
+        await erc677Token.mint(candidate2StakingAddress, amount2, {from: owner}).should.be.fulfilled;
+        amount2.should.be.bignumber.equal(await erc677Token.balanceOf.call(candidate2StakingAddress));
+
+        // Add two new pools
+        (await stakingAuRa.isPoolActive.call(candidate1StakingAddress)).should.be.equal(false);
+        (await stakingAuRa.isPoolActive.call(candidate2StakingAddress)).should.be.equal(false);
+        await addPool(amount1, candidate1MiningAddress, {from: candidate1StakingAddress}).should.be.fulfilled;
+        await addPool(amount2, candidate2MiningAddress, {from: candidate2StakingAddress}).should.be.fulfilled;
+        (await stakingAuRa.isPoolActive.call(candidate1StakingAddress)).should.be.equal(true);
+        (await stakingAuRa.isPoolActive.call(candidate2StakingAddress)).should.be.equal(true);
+
+        // Check indexes (0...2 are busy by initial validators)
+        new BN(3).should.be.bignumber.equal(await stakingAuRa.poolIndex.call(candidate1StakingAddress));
+        new BN(4).should.be.bignumber.equal(await stakingAuRa.poolIndex.call(candidate2StakingAddress));
+
+        // Check indexes in the `poolsToBeElected` list
+        new BN(0).should.be.bignumber.equal(await stakingAuRa.poolToBeElectedIndex.call(candidate1StakingAddress));
+        new BN(1).should.be.bignumber.equal(await stakingAuRa.poolToBeElectedIndex.call(candidate2StakingAddress));
+
+        // Check pools' existence
+        const validators = await validatorSetAuRa.getValidators.call();
+
+        (await stakingAuRa.getPools.call()).should.be.deep.equal([
+          await validatorSetAuRa.stakingByMiningAddress.call(validators[0]),
+          await validatorSetAuRa.stakingByMiningAddress.call(validators[1]),
+          await validatorSetAuRa.stakingByMiningAddress.call(validators[2]),
+          candidate1StakingAddress,
+          candidate2StakingAddress
+        ]);
+      });
+      it('shouldn\'t allow adding more than MAX_CANDIDATES pools' + fnName(step), async () => {
+        for (let p = initialValidators.length; p < 100; p++) {
+          // Generate new candidate staking address
+          let candidateStakingAddress = '0x';
+          for (let i = 0; i < 20; i++) {
+            let randomByte = random(0, 255).toString(16);
+            if (randomByte.length % 2) {
+              randomByte = '0' + randomByte;
+            }
+            candidateStakingAddress += randomByte;
+          }
+
+          // Add a new pool
+          await stakingAuRa.addPoolActiveMock(candidateStakingAddress).should.be.fulfilled;
+          new BN(p).should.be.bignumber.equal(await stakingAuRa.poolIndex.call(candidateStakingAddress));
+        }
+
+        // Try to add a new pool outside of max limit
+        await addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
+        false.should.be.equal(await stakingAuRa.isPoolActive.call(candidateStakingAddress));
+      });
+      it('should remove added pool from the list of inactive pools' + fnName(step), async () => {
+        await stakingAuRa.addPoolInactiveMock(candidateStakingAddress).should.be.fulfilled;
+        (await stakingAuRa.getPoolsInactive.call()).should.be.deep.equal([candidateStakingAddress]);
+        await addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.fulfilled;
+        true.should.be.equal(await stakingAuRa.isPoolActive.call(candidateStakingAddress));
+        (await stakingAuRa.getPoolsInactive.call()).length.should.be.equal(0);
+      });
+      it('switch useTransferAndCall variable', async () => {
+        useTransferAndCall = !useTransferAndCall;
+      });
+    }
+
+    function fnName(step) {
+      return step == 0 ? ' [addPool]' : ' [transferAndCall]';
+    }
+
+    function addPool(amount, miningAddress, options) {
+      if (useTransferAndCall) {
+        return erc677Token.transferAndCall(stakingAuRa.address, amount, `${miningAddress}01`, options);
+      }
+      return stakingAuRa.addPool(amount, miningAddress, options);
+    }
   });
 
   describe('areStakeAndWithdrawAllowed', async () => {
@@ -329,7 +346,7 @@ contract('StakingAuRa', async accounts => {
       await erc677Token.transferFrom(accounts[10], stakingAuRa.address, mintAmount, {from: accounts[9]}).should.be.rejectedWith(ERROR_MSG);
       await erc677Token.transferFrom(accounts[10], accounts[11], mintAmount, {from: accounts[9]}).should.be.fulfilled;
     });
-    it('cannot be increased by token.transferAndCall function', async () => {
+    it('cannot be increased by token.transferAndCall function with an empty data param', async () => {
       await erc677Token.transferAndCall(stakingAuRa.address, mintAmount, [], {from: accounts[10]}).should.be.rejectedWith(ERROR_MSG);
       await erc677Token.transferAndCall(accounts[11], mintAmount, [], {from: accounts[10]}).should.be.fulfilled;
     });
@@ -2262,12 +2279,13 @@ contract('StakingAuRa', async accounts => {
     });
   });
 
-  describe('stake() [tokens]', async () => {
+  describe('stake(), transferAndCall() [tokens]', async () => {
     let delegatorAddress;
     let erc677Token;
     let mintAmount;
     let candidateMinStake;
     let delegatorMinStake;
+    let useTransferAndCall = false;
 
     beforeEach(async () => {
       delegatorAddress = accounts[7];
@@ -2312,130 +2330,147 @@ contract('StakingAuRa', async accounts => {
       await validatorSetAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
     });
 
-    it('should place a stake', async () => {
-      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], initialStakingAddresses[1])).should.be.bignumber.equal(new BN(0));
-      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
-      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
-      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], initialStakingAddresses[1])).should.be.bignumber.equal(mintAmount);
-      const result = await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
-      result.logs[0].event.should.be.equal("PlacedStake");
-      result.logs[0].args.toPoolStakingAddress.should.be.equal(initialStakingAddresses[1]);
-      result.logs[0].args.staker.should.be.equal(delegatorAddress);
-      result.logs[0].args.stakingEpoch.should.be.bignumber.equal(new BN(0));
-      result.logs[0].args.amount.should.be.bignumber.equal(mintAmount);
-      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(mintAmount);
-      (await stakingAuRa.stakeAmountTotal.call(initialStakingAddresses[1])).should.be.bignumber.equal(mintAmount.mul(new BN(2)));
-    });
-    it('should fail for zero gas price', async () => {
-      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1], gasPrice: 0}).should.be.rejectedWith(ERROR_MSG);
-      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
-    });
-    it('should fail if erc677TokenContract address is not defined', async () => {
-      await stakingAuRa.setErc677TokenContractMock('0x0000000000000000000000000000000000000000').should.be.fulfilled;
-      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.rejectedWith(ERROR_MSG);
-      await stakingAuRa.setErc677TokenContract(erc677Token.address, {from: owner}).should.be.fulfilled;
-      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
-    });
-    it('should fail if erc677TokenContract address is defined but msg.value is not zero', async () => {
-      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1], value: 1}).should.be.rejectedWith(ERROR_MSG);
-      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
-    });
-    it('should fail for a non-existing pool', async () => {
-      await stakingAuRa.stake(accounts[10], mintAmount, {from: delegatorAddress}).should.be.rejectedWith(ERROR_MSG);
-      await stakingAuRa.stake('0x0000000000000000000000000000000000000000', mintAmount, {from: delegatorAddress}).should.be.rejectedWith(ERROR_MSG);
-    });
-    it('should fail for a zero amount', async () => {
-      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
-      await stakingAuRa.stake(initialStakingAddresses[1], new BN(0), {from: delegatorAddress}).should.be.rejectedWith(ERROR_MSG);
-      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
-    });
-    it('should fail for a banned validator', async () => {
-      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
-      await validatorSetAuRa.setRandomContract(accounts[8]).should.be.fulfilled;
-      await validatorSetAuRa.removeMaliciousValidators([initialValidators[1]], {from: accounts[8]}).should.be.fulfilled;
-      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.rejectedWith(ERROR_MSG);
-    });
-    it('should only success in the allowed staking window', async () => {
-      await stakingAuRa.setCurrentBlockNumber(117000).should.be.fulfilled;
-      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.rejectedWith(ERROR_MSG);
-      await stakingAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
-      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
-    });
-    it('should fail if a candidate stakes less than CANDIDATE_MIN_STAKE', async () => {
-      const halfOfCandidateMinStake = candidateMinStake.div(new BN(2));
-      await stakingAuRa.stake(initialStakingAddresses[1], halfOfCandidateMinStake, {from: initialStakingAddresses[1]}).should.be.rejectedWith(ERROR_MSG);
-      await stakingAuRa.stake(initialStakingAddresses[1], candidateMinStake, {from: initialStakingAddresses[1]}).should.be.fulfilled;
-    });
-    it('should fail if a delegator stakes less than DELEGATOR_MIN_STAKE', async () => {
-      await stakingAuRa.stake(initialStakingAddresses[1], candidateMinStake, {from: initialStakingAddresses[1]}).should.be.fulfilled;
-      const halfOfDelegatorMinStake = delegatorMinStake.div(new BN(2));
-      await stakingAuRa.stake(initialStakingAddresses[1], halfOfDelegatorMinStake, {from: delegatorAddress}).should.be.rejectedWith(ERROR_MSG);
-      await stakingAuRa.stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
-    });
-    it('should fail if a delegator stakes into an empty pool', async () => {
-      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], initialStakingAddresses[1])).should.be.bignumber.equal(new BN(0));
-      await stakingAuRa.stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.rejectedWith(ERROR_MSG);
-      await stakingAuRa.stake(initialStakingAddresses[1], candidateMinStake, {from: initialStakingAddresses[1]}).should.be.fulfilled;
-      await stakingAuRa.stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
-    });
-    it('should increase a stake amount', async () => {
-      await stakingAuRa.stake(initialStakingAddresses[1], candidateMinStake, {from: initialStakingAddresses[1]}).should.be.fulfilled;
-      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
-      await stakingAuRa.stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
-      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(delegatorMinStake);
-      await stakingAuRa.stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
-      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(delegatorMinStake.mul(new BN(2)));
-    });
-    it('should increase the stakeAmountByCurrentEpoch', async () => {
-      await stakingAuRa.stake(initialStakingAddresses[1], candidateMinStake, {from: initialStakingAddresses[1]}).should.be.fulfilled;
-      (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
-      await stakingAuRa.stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
-      (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(delegatorMinStake);
-      await stakingAuRa.stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
-      (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(delegatorMinStake.mul(new BN(2)));
-    });
-    it('should increase a total stake amount', async () => {
-      await stakingAuRa.stake(initialStakingAddresses[1], candidateMinStake, {from: initialStakingAddresses[1]}).should.be.fulfilled;
-      (await stakingAuRa.stakeAmountTotal.call(initialStakingAddresses[1])).should.be.bignumber.equal(candidateMinStake);
-      await stakingAuRa.stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
-      (await stakingAuRa.stakeAmountTotal.call(initialStakingAddresses[1])).should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake));
-      await stakingAuRa.stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
-      (await stakingAuRa.stakeAmountTotal.call(initialStakingAddresses[1])).should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake.mul(new BN(2))));
-    });
-    it('should add a delegator to the pool', async () => {
-      await stakingAuRa.stake(initialStakingAddresses[1], candidateMinStake, {from: initialStakingAddresses[1]}).should.be.fulfilled;
-      (await stakingAuRa.poolDelegators.call(initialStakingAddresses[1])).length.should.be.equal(0);
-      await stakingAuRa.stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
-      await stakingAuRa.stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
-      (await stakingAuRa.poolDelegators.call(initialStakingAddresses[1])).should.be.deep.equal([delegatorAddress]);
-    });
-    it('should update pool\'s likelihood', async () => {
-      let likelihoodInfo = await stakingAuRa.getPoolsLikelihood.call();
-      likelihoodInfo.likelihoods.length.should.be.equal(0);
-      likelihoodInfo.sum.should.be.bignumber.equal(new BN(0));
-      await stakingAuRa.stake(initialStakingAddresses[1], candidateMinStake, {from: initialStakingAddresses[1]}).should.be.fulfilled;
-      likelihoodInfo = await stakingAuRa.getPoolsLikelihood.call();
-      likelihoodInfo.likelihoods[0].should.be.bignumber.equal(candidateMinStake);
-      likelihoodInfo.sum.should.be.bignumber.equal(candidateMinStake);
-      await stakingAuRa.stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
-      likelihoodInfo = await stakingAuRa.getPoolsLikelihood.call();
-      likelihoodInfo.likelihoods[0].should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake));
-      likelihoodInfo.sum.should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake));
-      await stakingAuRa.stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
-      likelihoodInfo = await stakingAuRa.getPoolsLikelihood.call();
-      likelihoodInfo.likelihoods[0].should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake.mul(new BN(2))));
-      likelihoodInfo.sum.should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake.mul(new BN(2))));
-    });
-    it('should fail if the staker stakes more than they have', async () => {
-      await stakingAuRa.stake(initialStakingAddresses[1], mintAmount.mul(new BN(2)), {from: initialStakingAddresses[1]}).should.be.rejectedWith(ERROR_MSG);
-      await stakingAuRa.stake(initialStakingAddresses[1], candidateMinStake, {from: initialStakingAddresses[1]}).should.be.fulfilled;
-    });
-    it('should decrease the balance of the staker and increase the balance of the Staking contract', async () => {
-      (await erc677Token.balanceOf.call(stakingAuRa.address)).should.be.bignumber.equal(new BN(0));
-      await stakingAuRa.stake(initialStakingAddresses[1], candidateMinStake, {from: initialStakingAddresses[1]}).should.be.fulfilled;
-      (await erc677Token.balanceOf.call(initialStakingAddresses[1])).should.be.bignumber.equal(mintAmount.sub(candidateMinStake));
-      (await erc677Token.balanceOf.call(stakingAuRa.address)).should.be.bignumber.equal(candidateMinStake);
-    });
+    for (let step = 0; step < 2; step++) {
+      it('should place a stake' + fnName(step), async () => {
+        (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], initialStakingAddresses[1])).should.be.bignumber.equal(new BN(0));
+        (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
+        await stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+        (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], initialStakingAddresses[1])).should.be.bignumber.equal(mintAmount);
+        const result = await stake(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
+        const events = await stakingAuRa.getPastEvents('PlacedStake', {fromBlock: result.receipt.blockNumber, toBlock: result.receipt.blockNumber});
+        events[0].event.should.be.equal("PlacedStake");
+        events[0].args.toPoolStakingAddress.should.be.equal(initialStakingAddresses[1]);
+        events[0].args.staker.should.be.equal(delegatorAddress);
+        events[0].args.stakingEpoch.should.be.bignumber.equal(new BN(0));
+        events[0].args.amount.should.be.bignumber.equal(mintAmount);
+        (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(mintAmount);
+        (await stakingAuRa.stakeAmountTotal.call(initialStakingAddresses[1])).should.be.bignumber.equal(mintAmount.mul(new BN(2)));
+      });
+      it('should fail for zero gas price' + fnName(step), async () => {
+        await stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1], gasPrice: 0}).should.be.rejectedWith(ERROR_MSG);
+        await stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+      });
+      it('should fail if erc677TokenContract address is not defined' + fnName(step), async () => {
+        await stakingAuRa.setErc677TokenContractMock('0x0000000000000000000000000000000000000000').should.be.fulfilled;
+        await stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.rejectedWith(ERROR_MSG);
+        await stakingAuRa.setErc677TokenContract(erc677Token.address, {from: owner}).should.be.fulfilled;
+        await stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+      });
+      it('should fail if erc677TokenContract address is defined but msg.value is not zero' + fnName(step), async () => {
+        await stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1], value: 1}).should.be.rejectedWith(ERROR_MSG);
+        await stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+      });
+      it('should fail for a non-existing pool' + fnName(step), async () => {
+        await stake(accounts[10], mintAmount, {from: delegatorAddress}).should.be.rejectedWith(ERROR_MSG);
+        await stake('0x0000000000000000000000000000000000000000', mintAmount, {from: delegatorAddress}).should.be.rejectedWith(ERROR_MSG);
+      });
+      it('should fail for a zero amount' + fnName(step), async () => {
+        await stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+        await stake(initialStakingAddresses[1], new BN(0), {from: delegatorAddress}).should.be.rejectedWith(ERROR_MSG);
+        await stake(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
+      });
+      it('should fail for a banned validator' + fnName(step), async () => {
+        await stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+        await validatorSetAuRa.setRandomContract(accounts[8]).should.be.fulfilled;
+        await validatorSetAuRa.removeMaliciousValidators([initialValidators[1]], {from: accounts[8]}).should.be.fulfilled;
+        await stake(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.rejectedWith(ERROR_MSG);
+      });
+      it('should only success in the allowed staking window' + fnName(step), async () => {
+        await stakingAuRa.setCurrentBlockNumber(117000).should.be.fulfilled;
+        await stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.rejectedWith(ERROR_MSG);
+        await stakingAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
+        await stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+      });
+      it('should fail if a candidate stakes less than CANDIDATE_MIN_STAKE' + fnName(step), async () => {
+        const halfOfCandidateMinStake = candidateMinStake.div(new BN(2));
+        await stake(initialStakingAddresses[1], halfOfCandidateMinStake, {from: initialStakingAddresses[1]}).should.be.rejectedWith(ERROR_MSG);
+        await stake(initialStakingAddresses[1], candidateMinStake, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+      });
+      it('should fail if a delegator stakes less than DELEGATOR_MIN_STAKE' + fnName(step), async () => {
+        await stake(initialStakingAddresses[1], candidateMinStake, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+        const halfOfDelegatorMinStake = delegatorMinStake.div(new BN(2));
+        await stake(initialStakingAddresses[1], halfOfDelegatorMinStake, {from: delegatorAddress}).should.be.rejectedWith(ERROR_MSG);
+        await stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
+      });
+      it('should fail if a delegator stakes into an empty pool' + fnName(step), async () => {
+        (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], initialStakingAddresses[1])).should.be.bignumber.equal(new BN(0));
+        await stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.rejectedWith(ERROR_MSG);
+        await stake(initialStakingAddresses[1], candidateMinStake, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+        await stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
+      });
+      it('should increase a stake amount' + fnName(step), async () => {
+        await stake(initialStakingAddresses[1], candidateMinStake, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+        (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
+        await stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
+        (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(delegatorMinStake);
+        await stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
+        (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(delegatorMinStake.mul(new BN(2)));
+      });
+      it('should increase the stakeAmountByCurrentEpoch' + fnName(step), async () => {
+        await stake(initialStakingAddresses[1], candidateMinStake, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+        (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
+        await stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
+        (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(delegatorMinStake);
+        await stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
+        (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(delegatorMinStake.mul(new BN(2)));
+      });
+      it('should increase a total stake amount' + fnName(step), async () => {
+        await stake(initialStakingAddresses[1], candidateMinStake, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+        (await stakingAuRa.stakeAmountTotal.call(initialStakingAddresses[1])).should.be.bignumber.equal(candidateMinStake);
+        await stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
+        (await stakingAuRa.stakeAmountTotal.call(initialStakingAddresses[1])).should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake));
+        await stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
+        (await stakingAuRa.stakeAmountTotal.call(initialStakingAddresses[1])).should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake.mul(new BN(2))));
+      });
+      it('should add a delegator to the pool' + fnName(step), async () => {
+        await stake(initialStakingAddresses[1], candidateMinStake, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+        (await stakingAuRa.poolDelegators.call(initialStakingAddresses[1])).length.should.be.equal(0);
+        await stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
+        await stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
+        (await stakingAuRa.poolDelegators.call(initialStakingAddresses[1])).should.be.deep.equal([delegatorAddress]);
+      });
+      it('should update pool\'s likelihood' + fnName(step), async () => {
+        let likelihoodInfo = await stakingAuRa.getPoolsLikelihood.call();
+        likelihoodInfo.likelihoods.length.should.be.equal(0);
+        likelihoodInfo.sum.should.be.bignumber.equal(new BN(0));
+        await stake(initialStakingAddresses[1], candidateMinStake, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+        likelihoodInfo = await stakingAuRa.getPoolsLikelihood.call();
+        likelihoodInfo.likelihoods[0].should.be.bignumber.equal(candidateMinStake);
+        likelihoodInfo.sum.should.be.bignumber.equal(candidateMinStake);
+        await stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
+        likelihoodInfo = await stakingAuRa.getPoolsLikelihood.call();
+        likelihoodInfo.likelihoods[0].should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake));
+        likelihoodInfo.sum.should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake));
+        await stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
+        likelihoodInfo = await stakingAuRa.getPoolsLikelihood.call();
+        likelihoodInfo.likelihoods[0].should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake.mul(new BN(2))));
+        likelihoodInfo.sum.should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake.mul(new BN(2))));
+      });
+      it('should fail if the staker stakes more than they have' + fnName(step), async () => {
+        await stake(initialStakingAddresses[1], mintAmount.mul(new BN(2)), {from: initialStakingAddresses[1]}).should.be.rejectedWith(ERROR_MSG);
+        await stake(initialStakingAddresses[1], candidateMinStake, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+      });
+      it('should decrease the balance of the staker and increase the balance of the Staking contract' + fnName(step), async () => {
+        (await erc677Token.balanceOf.call(stakingAuRa.address)).should.be.bignumber.equal(new BN(0));
+        await stake(initialStakingAddresses[1], candidateMinStake, {from: initialStakingAddresses[1]}).should.be.fulfilled;
+        (await erc677Token.balanceOf.call(initialStakingAddresses[1])).should.be.bignumber.equal(mintAmount.sub(candidateMinStake));
+        (await erc677Token.balanceOf.call(stakingAuRa.address)).should.be.bignumber.equal(candidateMinStake);
+      });
+      it('switch useTransferAndCall variable', async () => {
+        useTransferAndCall = !useTransferAndCall;
+      });
+    }
+
+    function fnName(step) {
+      return step == 0 ? ' [stake]' : ' [transferAndCall]';
+    }
+
+    function stake(stakingAddress, amount, options) {
+      if (useTransferAndCall) {
+        return erc677Token.transferAndCall(stakingAuRa.address, amount, stakingAddress, options);
+      }
+      return stakingAuRa.stake(stakingAddress, amount, options);
+    }
   });
 
   describe('stake() [native coins]', async () => {

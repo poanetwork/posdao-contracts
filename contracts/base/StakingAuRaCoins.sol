@@ -162,7 +162,7 @@ contract StakingAuRaCoins is StakingAuRaBase {
     /// @dev Sends coins from this contract to the specified address.
     /// @param _to The target address to send amount to.
     /// @param _amount The amount to send.
-    function _sendWithdrawnStakeAmount(address payable _to, uint256 _amount) internal {
+    function _sendWithdrawnStakeAmount(address payable _to, uint256 _amount) internal gasPriceIsValid onlyInitialized {
         if (!_to.send(_amount)) {
             // We use the `Sacrifice` trick to be sure the coins can be 100% sent to the receiver.
             // Otherwise, if the receiver is a contract which has a revert in its fallback function,
@@ -175,11 +175,10 @@ contract StakingAuRaCoins is StakingAuRaBase {
     /// See the `stake` public function for more details.
     /// @param _toPoolStakingAddress The staking address of the pool where the coins should be staked.
     /// @param _amount The amount of coins to be staked.
-    function _stake(address _toPoolStakingAddress, uint256 _amount) internal gasPriceIsValid onlyInitialized {
+    function _stake(address _toPoolStakingAddress, uint256 _amount) internal {
         address staker = msg.sender;
         _amount = msg.value;
         _stake(_toPoolStakingAddress, staker, _amount);
-        emit PlacedStake(_toPoolStakingAddress, staker, stakingEpoch, _amount);
     }
 
     /// @dev Returns the balance of this contract in staking coins.

@@ -52,6 +52,8 @@ async function main() {
 
     if (contractName == 'ERC677BridgeTokenRewardable') {
       arguments = ['STAKE', 'STAKE', 18, 100];
+    } else if (contractName == 'TxPriority') {
+      arguments = ['0x1111000000000000000000000000000000000000'];
     }
 
     const compiled = await compile(dir, contractName);

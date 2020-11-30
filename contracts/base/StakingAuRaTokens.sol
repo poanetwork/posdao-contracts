@@ -116,6 +116,45 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
         blockRewardContract.transferReward(rewardSum.tokenAmount, rewardSum.nativeAmount, staker);
     }
 
+    /// @dev Stakes the sent tokens to the specified pool by the specified staker.
+    /// Fails if called not by `ERC677BridgeTokenRewardable.transferAndCall` function.
+    /// This function allows to use the `transferAndCall` function of the token contract
+    /// instead of the `stake` function. It can be useful if the token contract doesn't
+    /// contain a separate `stake` function.
+    /// @param _staker The address that sent the tokens. Must be a pool's staking address or delegator's address.
+    /// @param _amount The amount of tokens transferred to this contract.
+    /// @param _data A data field encoding the staker's address or miningAddress (in case of adding a new pool).
+    /// The first 20 bytes must represent the staker's address.
+    /// The last optional byte is a boolean flag indicating whether the first 20 bytes
+    /// represent the staker's address or miningAddress. If the flag is zero (by default),
+    /// this function calls the internal `_stake` function to stake the received tokens
+    /// to the specified staking pool (staking address). If the flag is not zero,
+    /// this function calls the internal `_addPool` function to add a new candidate's pool
+    /// to the list of active pools. In this case, the first 20 bytes of the `_data` field
+    /// represent the mining address which should be bound to the staking address defined
+    /// by the `_staker` param.
+    function onTokenTransfer(
+        address _staker,
+        uint256 _amount,
+        bytes memory _data
+    ) public onlyInitialized returns(bool) {
+        require(msg.sender == address(erc677TokenContract));
+        require(_data.length == 20 || _data.length == 21);
+        address inputAddress;
+        bool isAddPool;
+        assembly {
+            let dataLengthless := mload(add(_data, 32))
+            inputAddress := shr(96, dataLengthless)
+            isAddPool := gt(and(shr(88, dataLengthless), 0xff), 0)
+        }
+        if (isAddPool) {
+            _addPool(_amount, _staker, inputAddress, true);
+        } else {
+            _stake(inputAddress, _staker, _amount);
+        }
+        return true;
+    }
+
     /// @dev Sets the address of the ERC677 staking token contract. Can only be called by the `owner`.
     /// Cannot be called if there was at least one stake in staking tokens before.
     /// @param _erc677TokenContract The address of the contract.
@@ -191,7 +230,7 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
     /// @dev Sends tokens from this contract to the specified address.
     /// @param _to The target address to send amount to.
     /// @param _amount The amount to send.
-    function _sendWithdrawnStakeAmount(address payable _to, uint256 _amount) internal {
+    function _sendWithdrawnStakeAmount(address payable _to, uint256 _amount) internal gasPriceIsValid onlyInitialized {
         require(erc677TokenContract != IERC677Minting(0));
         erc677TokenContract.transfer(_to, _amount);
     }
@@ -200,13 +239,12 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
     /// See the `stake` public function for more details.
     /// @param _toPoolStakingAddress The staking address of the pool where the tokens should be staked.
     /// @param _amount The amount of tokens to be staked.
-    function _stake(address _toPoolStakingAddress, uint256 _amount) internal gasPriceIsValid onlyInitialized {
+    function _stake(address _toPoolStakingAddress, uint256 _amount) internal {
         address staker = msg.sender;
         _stake(_toPoolStakingAddress, staker, _amount);
         require(msg.value == 0);
         require(erc677TokenContract != IERC677Minting(0));
         erc677TokenContract.stake(staker, _amount);
-        emit PlacedStake(_toPoolStakingAddress, staker, stakingEpoch, _amount);
     }
 
     /// @dev Returns the balance of this contract in staking tokens.

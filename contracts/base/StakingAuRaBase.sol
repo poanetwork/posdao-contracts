@@ -273,9 +273,7 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
     /// @param _miningAddress The mining address of the candidate. The mining address is bound to the staking address
     /// (msg.sender). This address cannot be equal to `msg.sender`.
     function addPool(uint256 _amount, address _miningAddress) external payable {
-        address stakingAddress = msg.sender;
-        validatorSetContract.setStakingAddress(_miningAddress, stakingAddress);
-        _stake(stakingAddress, _amount);
+        _addPool(_amount, msg.sender, _miningAddress, false);
     }
 
     /// @dev Adds the `unremovable validator` to either the `poolsToBeElected` or the `poolsToBeRemoved` array
@@ -375,7 +373,6 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
             require(stakeAmount[stakingAddress][stakingAddress] == 0);
             _stake(stakingAddress, stakingAddress, stakingAmount);
             _stakeInitial[stakingAddress] = stakingAmount;
-            emit PlacedStake(stakingAddress, stakingAddress, stakingEpoch, stakingAmount);
         }
 
         // Restore `stakingEpochStartBlock` value
@@ -429,7 +426,7 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
         address _fromPoolStakingAddress,
         address _toPoolStakingAddress,
         uint256 _amount
-    ) external gasPriceIsValid onlyInitialized {
+    ) external {
         require(_fromPoolStakingAddress != _toPoolStakingAddress);
         address staker = msg.sender;
         _withdraw(_fromPoolStakingAddress, staker, _amount);
@@ -453,7 +450,7 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
     /// @param _fromPoolStakingAddress The staking address of the pool from which the tokens/coins should be withdrawn.
     /// @param _amount The amount of tokens/coins to be withdrawn. The amount cannot exceed the value returned
     /// by the `maxWithdrawAllowed` getter.
-    function withdraw(address _fromPoolStakingAddress, uint256 _amount) external gasPriceIsValid onlyInitialized {
+    function withdraw(address _fromPoolStakingAddress, uint256 _amount) external {
         address payable staker = msg.sender;
         _withdraw(_fromPoolStakingAddress, staker, _amount);
         _sendWithdrawnStakeAmount(staker, _amount);
@@ -555,7 +552,7 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
     /// @dev Withdraws the staking tokens/coins from the specified pool ordered during the previous staking epochs with
     /// the `orderWithdraw` function. The ordered amount can be retrieved by the `orderedWithdrawAmount` getter.
     /// @param _poolStakingAddress The staking address of the pool from which the ordered tokens/coins are withdrawn.
-    function claimOrderedWithdraw(address _poolStakingAddress) external gasPriceIsValid onlyInitialized {
+    function claimOrderedWithdraw(address _poolStakingAddress) external {
         address payable staker = msg.sender;
 
         require(stakingEpoch > orderWithdrawEpoch[_poolStakingAddress][staker]);
@@ -761,12 +758,6 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
         return canOrder.sub(stakeAmountByCurrentEpoch(_poolStakingAddress, _staker));
     }
 
-    /// @dev Prevents sending tokens directly to the `StakingAuRa` contract address
-    /// by the `ERC677BridgeTokenRewardable.transferAndCall` function.
-    function onTokenTransfer(address, uint256, bytes memory) public pure returns(bool) {
-        revert();
-    }
-
     /// @dev Returns an array of the current active delegators of the specified pool.
     /// A delegator is considered active if they have staked into the specified
     /// pool and their stake is not ordered to be withdrawn.
@@ -937,6 +928,28 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
         }
     }
 
+    /// @dev Used by `addPool` and `onTokenTransfer` functions. See their descriptions and code.
+    /// @param _amount The amount of tokens to be staked. Ignored when staking in native coins
+    /// because `msg.value` is used in that case.
+    /// @param _stakingAddress The staking address of the new candidate.
+    /// @param _miningAddress The mining address of the candidate. The mining address is bound to the staking address
+    /// (msg.sender). This address cannot be equal to `_stakingAddress`.
+    /// @param _byOnTokenTransfer A boolean flag defining whether this internal function is called
+    /// by the `onTokenTransfer` function.
+    function _addPool(
+        uint256 _amount,
+        address _stakingAddress,
+        address _miningAddress,
+        bool _byOnTokenTransfer
+    ) internal {
+        validatorSetContract.setStakingAddress(_miningAddress, _stakingAddress);
+        if (_byOnTokenTransfer) {
+            _stake(_stakingAddress, _stakingAddress, _amount);
+        } else {
+            _stake(_stakingAddress, _amount);
+        }
+    }
+
     /// @dev Adds the specified address to the array of the current active delegators of the specified pool.
     /// Used by the `stake` and `orderWithdraw` functions. See the `poolDelegators` getter.
     /// @param _poolStakingAddress The pool staking address.
@@ -1051,7 +1064,11 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
     /// @param _poolStakingAddress The staking address of the pool where the tokens/coins should be staked.
     /// @param _staker The staker's address.
     /// @param _amount The amount of tokens/coins to be staked.
-    function _stake(address _poolStakingAddress, address _staker, uint256 _amount) internal {
+    function _stake(
+        address _poolStakingAddress,
+        address _staker,
+        uint256 _amount
+    ) internal gasPriceIsValid onlyInitialized {
         address poolMiningAddress = validatorSetContract.miningByStakingAddress(_poolStakingAddress);
 
         require(poolMiningAddress != address(0));
@@ -1099,6 +1116,8 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
             _stakerPoolsIndexes[_staker][_poolStakingAddress] = stakerPools.length;
             stakerPools.push(_poolStakingAddress);
         }
+
+        emit PlacedStake(_poolStakingAddress, _staker, stakingEpoch, _amount);
     }
 
     /// @dev The internal function used by the `withdraw` and `moveStake` functions.
@@ -1106,7 +1125,11 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
     /// @param _poolStakingAddress The staking address of the pool from which the tokens/coins should be withdrawn.
     /// @param _staker The staker's address.
     /// @param _amount The amount of the tokens/coins to be withdrawn.
-    function _withdraw(address _poolStakingAddress, address _staker, uint256 _amount) internal {
+    function _withdraw(
+        address _poolStakingAddress,
+        address _staker,
+        uint256 _amount
+    ) internal gasPriceIsValid onlyInitialized {
         require(_poolStakingAddress != address(0));
         require(_amount != 0);
 
