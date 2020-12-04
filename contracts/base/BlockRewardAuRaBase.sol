@@ -1,7 +1,7 @@
 pragma solidity 0.5.10;
 
 import "../interfaces/IBlockRewardAuRa.sol";
-import "../interfaces/IERC677Minting.sol";
+import "../interfaces/IERC677.sol";
 import "../interfaces/IRandomAuRa.sol";
 import "../interfaces/IStakingAuRa.sol";
 import "../interfaces/IValidatorSetAuRa.sol";

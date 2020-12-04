@@ -3,6 +3,7 @@ pragma solidity 0.5.10;
 import "./BlockRewardAuRaBase.sol";
 import "../interfaces/IBlockRewardAuRaTokens.sol";
 import "../interfaces/IStakingAuRaTokens.sol";
+import "../interfaces/ITokenMinter.sol";
 
 
 contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
@@ -28,6 +29,10 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
 
     /// @dev The total reward amount in staking tokens which is not yet distributed among pools.
     uint256 public tokenRewardUndistributed;
+
+    /// @dev The address of the minting contract. If it's zero, the address returned by
+    /// IStakingAuRaTokens(_stakingContract).erc677TokenContract() is used.
+    ITokenMinter public tokenMinterContract;
 
     // ============================================== Constants =======================================================
 
@@ -108,6 +113,16 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
         }
     }
 
+    /// @dev Sets the address of the contract which will mint staking tokens.
+    /// Such a contract is used when there is no `mintReward` function in the staking token contract
+    /// and thus we use an intermediate minting contract.
+    /// @param _tokenMinterContract The minter contract address. If it is zero,
+    /// the address returned by IStakingAuRaTokens(_stakingContract).erc677TokenContract() is used
+    /// as a minting contract.
+    function setTokenMinterContract(ITokenMinter _tokenMinterContract) external onlyOwner onlyInitialized {
+        tokenMinterContract = _tokenMinterContract;
+    }
+
     /// @dev Called by the `StakingAuRa.claimReward` function to transfer tokens and native coins
     /// from the balance of the `BlockRewardAuRa` contract to the specified address as a reward.
     /// @param _tokens The amount of tokens to transfer as a reward.
@@ -116,7 +131,7 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
     function transferReward(uint256 _tokens, uint256 _nativeCoins, address payable _to) external onlyStakingContract {
         if (_tokens != 0) {
             IStakingAuRaTokens stakingContract = IStakingAuRaTokens(msg.sender);
-            IERC677Minting erc677TokenContract = IERC677Minting(stakingContract.erc677TokenContract());
+            IERC677 erc677TokenContract = IERC677(stakingContract.erc677TokenContract());
             erc677TokenContract.transfer(_to, _tokens);
         }
 
@@ -234,15 +249,20 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
 
         bridgeTokenReward = 0;
 
-        IERC677Minting erc677TokenContract = IERC677Minting(
-            IStakingAuRaTokens(_stakingContract).erc677TokenContract()
-        );
+        ITokenMinter minterContract;
+        if (tokenMinterContract == ITokenMinter(0)) {
+            minterContract = ITokenMinter(
+                IStakingAuRaTokens(_stakingContract).erc677TokenContract()
+            );
+        } else {
+            minterContract = tokenMinterContract;
+        }
 
         uint256 distributedAmount = 0;
 
         if (
-            erc677TokenContract != IERC677Minting(0) &&
-            erc677TokenContract.blockRewardContract() == address(this) &&
+            minterContract != ITokenMinter(0) &&
+            minterContract.blockRewardContract() == address(this) &&
             _blocksCreatedShareDenom != 0 &&
             _totalRewardShareDenom != 0
         ) {
@@ -259,7 +279,7 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
                     }
                 }
 
-                erc677TokenContract.mintReward(distributedAmount);
+                minterContract.mintReward(distributedAmount);
             }
         }
 

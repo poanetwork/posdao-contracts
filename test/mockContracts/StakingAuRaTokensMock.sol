@@ -5,7 +5,7 @@ import '../../contracts/base/StakingAuRaTokens.sol';
 
 
 contract StakingAuRaTokensMock is StakingAuRaTokens, StakingAuRaBaseMock {
-    function setErc677TokenContractMock(IERC677Minting _erc677TokenContract) public {
+    function setErc677TokenContractMock(IERC677 _erc677TokenContract) public {
         erc677TokenContract = _erc677TokenContract;
     }
 }

@@ -15,7 +15,7 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
     // and do not change their types!
 
     /// @dev The address of the ERC677 staking token contract.
-    IERC677Minting public erc677TokenContract;
+    IERC677 public erc677TokenContract;
 
     // =============================================== Structs ========================================================
 
@@ -158,9 +158,9 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
     /// @dev Sets the address of the ERC677 staking token contract. Can only be called by the `owner`.
     /// Cannot be called if there was at least one stake in staking tokens before.
     /// @param _erc677TokenContract The address of the contract.
-    function setErc677TokenContract(IERC677Minting _erc677TokenContract) external onlyOwner onlyInitialized {
-        require(_erc677TokenContract != IERC677Minting(0));
-        require(erc677TokenContract == IERC677Minting(0));
+    function setErc677TokenContract(IERC677 _erc677TokenContract) external onlyOwner onlyInitialized {
+        require(_erc677TokenContract != IERC677(0));
+        require(erc677TokenContract == IERC677(0));
         erc677TokenContract = _erc677TokenContract;
         require(_thisBalance() == 0);
     }
@@ -231,7 +231,7 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
     /// @param _to The target address to send amount to.
     /// @param _amount The amount to send.
     function _sendWithdrawnStakeAmount(address payable _to, uint256 _amount) internal gasPriceIsValid onlyInitialized {
-        require(erc677TokenContract != IERC677Minting(0));
+        require(erc677TokenContract != IERC677(0));
         erc677TokenContract.transfer(_to, _amount);
     }
 
@@ -243,7 +243,7 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
         address staker = msg.sender;
         _stake(_toPoolStakingAddress, staker, _amount);
         require(msg.value == 0);
-        require(erc677TokenContract != IERC677Minting(0));
+        require(erc677TokenContract != IERC677(0));
         erc677TokenContract.stake(staker, _amount);
     }
 
