@@ -101,6 +101,8 @@ _Note: The following descriptions are for AuRa contracts only. HBBFT contract im
   - withdrawing tokens and rewards by participants from the pools;
   - moving tokens between pools by participant.
 
+- `TokenMinter`: used when we need to have an ability to mint POSDAO tokens not only by the bridge, but also by the `BlockRewardAuRa` contract if the staking token contract doesn't support a `mintReward` function.
+
 - `TxPermission`: along with the `Certifier` contract, controls the use of zero gas price by validators in service transactions, protecting the network against "transaction spamming" by malicious validators. The protection logic is declared in the `allowedTxTypes` function.
 
 - `TxPriority`: manages and stores the transactions priority list used by Ethereum client. See https://github.com/NethermindEth/nethermind/issues/2300 for description.

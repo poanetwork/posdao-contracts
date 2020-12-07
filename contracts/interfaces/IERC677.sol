@@ -7,5 +7,6 @@ interface IERC677 {
 
     // Other functions (ERC677)
     function balanceOf(address) external view returns(uint256);
+    function owner() external view returns(address);
     function transfer(address, uint256) external returns(bool);
 }

@@ -249,13 +249,16 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
 
         bridgeTokenReward = 0;
 
+        IERC677 tokenContract = IERC677(IStakingAuRaTokens(_stakingContract).erc677TokenContract());
         ITokenMinter minterContract;
-        if (tokenMinterContract == ITokenMinter(0)) {
-            minterContract = ITokenMinter(
-                IStakingAuRaTokens(_stakingContract).erc677TokenContract()
-            );
+        if (tokenMinterContract != ITokenMinter(0) && tokenContract != IERC677(0)) {
+            if (tokenContract.owner() == address(tokenMinterContract)) {
+                minterContract = tokenMinterContract;
+            } else {
+                minterContract = ITokenMinter(0);
+            }
         } else {
-            minterContract = tokenMinterContract;
+            minterContract = ITokenMinter(address(tokenContract));
         }
 
         uint256 distributedAmount = 0;

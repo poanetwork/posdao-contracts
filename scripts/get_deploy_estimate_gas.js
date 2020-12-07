@@ -32,7 +32,8 @@ async function main() {
         //contractName.startsWith('ERC677BridgeTokenRewardable') ||
         contractName.startsWith('Initializer') ||
         contractName.startsWith('Migrations') ||
-        contractName.startsWith('Registry')
+        contractName.startsWith('Registry') ||
+        contractName.startsWith('TokenMinter')
       ) {
         continue;
       }
