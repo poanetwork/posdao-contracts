@@ -6,4 +6,5 @@ interface ITokenMinter {
     function mintReward(uint256 _amount) external;
 
     function blockRewardContract() external view returns(address);
+    function tokenContract() external view returns(address);
 }
