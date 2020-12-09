@@ -4,6 +4,7 @@ pragma solidity 0.5.10;
 interface IToken {
     function claimTokens(address _token, address payable _to) external;
     function mint(address _to, uint256 _amount) external returns (bool);
+    function setBridgeContract(address _bridgeContract) external;
     function transferOwnership(address _newOwner) external;
 }
 
@@ -13,8 +14,8 @@ interface IToken {
 /// the `mintReward` function.
 contract TokenMinter {
 
+    address public owner;
     address public blockRewardContract;
-    address public bridgeContract;
     IToken public tokenContract;
 
     address public constant F_ADDR = 0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF;
@@ -24,17 +25,12 @@ contract TokenMinter {
     uint256 public minterCount;
 
     event BlockRewardContractSet(address blockRewardContractAddress);
-    event BridgeContractSet(address bridgeContractAddress);
     event MinterAdded(address indexed minter);
     event MinterRemoved(address indexed minter);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
     modifier onlyBlockRewardContract() {
         require(msg.sender == blockRewardContract);
-        _;
-    }
-
-    modifier onlyBridgeContract() {
-        require(msg.sender == bridgeContract);
         _;
     }
 
@@ -43,20 +39,32 @@ contract TokenMinter {
         _;
     }
 
-    constructor(address _blockRewardContract, address _bridgeContract, IToken _tokenContract) public {
-        _setBlockRewardContract(_blockRewardContract);
-        _setBridgeContract(_bridgeContract);
-        require(_isContract(address(_tokenContract)));
-        tokenContract = _tokenContract;
-        minterPointers[F_ADDR] = F_ADDR; // initially empty minter list
-        _addMinter(_bridgeContract);
+    modifier onlyOwner() {
+        require(msg.sender == owner);
+        _;
     }
 
-    function addMinter(address _minter) external onlyBridgeContract {
+    constructor(
+        address _owner,
+        address _blockRewardContract,
+        address _bridgeContract,
+        IToken _tokenContract
+    ) public {
+        _transferOwnership(_owner);
+        _setBlockRewardContract(_blockRewardContract);
+
+        minterPointers[F_ADDR] = F_ADDR; // initially empty minter list
+        _addMinter(_bridgeContract);
+
+        require(_isContract(address(_tokenContract)));
+        tokenContract = _tokenContract;
+    }
+
+    function addMinter(address _minter) external onlyOwner {
         _addMinter(_minter);
     }
 
-    function removeMinter(address _minter) external onlyBridgeContract {
+    function removeMinter(address _minter) external onlyOwner {
         require(isMinter(_minter));
 
         address nextMinter = minterPointers[_minter];
@@ -77,7 +85,7 @@ contract TokenMinter {
         emit MinterRemoved(_minter);
     }
 
-    function claimTokens(address _token, address payable _to) external onlyBridgeContract {
+    function claimTokens(address _token, address payable _to) external onlyOwner {
         tokenContract.claimTokens(_token, _to);
     }
 
@@ -90,15 +98,19 @@ contract TokenMinter {
         tokenContract.mint(blockRewardContract, _amount);
     }
 
-    function setBlockRewardContract(address _blockRewardContract) external onlyBridgeContract {
+    function setBlockRewardContract(address _blockRewardContract) external onlyOwner {
         _setBlockRewardContract(_blockRewardContract);
     }
 
-    function setBridgeContract(address _bridgeContract) external onlyBridgeContract {
-        _setBridgeContract(_bridgeContract);
+    function setBridgeContract(address _bridgeContract) external onlyOwner {
+        tokenContract.setBridgeContract(_bridgeContract);
     }
 
-    function transferOwnership(address _newOwner) external onlyBridgeContract {
+    function transferOwnership(address _newOwner) external onlyOwner {
+        _transferOwnership(_newOwner);
+    }
+
+    function transferTokenOwnership(address _newOwner) external onlyOwner {
         tokenContract.transferOwnership(_newOwner);
     }
 
@@ -141,10 +153,10 @@ contract TokenMinter {
         emit BlockRewardContractSet(_blockRewardContract);
     }
 
-    function _setBridgeContract(address _bridgeContract) private {
-        require(_isContract(_bridgeContract));
-        bridgeContract = _bridgeContract;
-        emit BridgeContractSet(_bridgeContract);
+    function _transferOwnership(address _newOwner) private {
+        require(_newOwner != address(0));
+        emit OwnershipTransferred(owner, _newOwner);
+        owner = _newOwner;
     }
 
     function _isContract(address _account) private view returns (bool) {
