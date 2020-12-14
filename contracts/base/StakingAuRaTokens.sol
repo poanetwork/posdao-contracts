@@ -44,7 +44,6 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
 
     // =============================================== Setters ========================================================
 
-    /*
     /// @dev Withdraws a reward from the specified pool for the specified staking epochs
     /// to the staker address (msg.sender).
     /// @param _stakingEpochs The list of staking epochs in ascending order.
@@ -116,7 +115,6 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
 
         blockRewardContract.transferReward(rewardSum.tokenAmount, rewardSum.nativeAmount, staker);
     }
-    */
 
     /// @dev Stakes the sent tokens to the specified pool by the specified staker.
     /// Fails if called not by `ERC677BridgeTokenRewardable.transferAndCall` function.
@@ -165,10 +163,6 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
         require(erc677TokenContract == IERC677(0));
         erc677TokenContract = _erc677TokenContract;
         require(_thisBalance() == 0);
-    }
-
-    function migrateToBridgedSTAKE(address _erc677TokenContract) external onlyBlockRewardContract {
-        erc677TokenContract = IERC677(_erc677TokenContract);
     }
 
     // =============================================== Getters ========================================================

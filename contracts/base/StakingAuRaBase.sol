@@ -670,8 +670,7 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
         if (currentBlock < stakingEpochStartBlock) return false;
         uint256 allowedDuration = stakingEpochDuration - stakeWithdrawDisallowPeriod;
         if (stakingEpochStartBlock == 0) allowedDuration++;
-        //return currentBlock - stakingEpochStartBlock < allowedDuration;
-        return false;
+        return currentBlock - stakingEpochStartBlock < allowedDuration;
     }
 
 

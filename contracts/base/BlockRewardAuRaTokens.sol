@@ -138,30 +138,6 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
         _transferNativeReward(_nativeCoins, _to);
     }
 
-    function migrateToBridgedSTAKE(ITokenMinter _tokenMinterContract) external onlyOwner {
-        require(_tokenMinterContract != ITokenMinter(0));
-        require(tokenMinterContract == ITokenMinter(0));
-        tokenMinterContract = _tokenMinterContract;
-
-        address stakingContract = validatorSetContract.stakingContract();
-        IERC677 tokenContract = IERC677(IStakingAuRaTokens(stakingContract).erc677TokenContract());
-        IERC677 newTokenContract = IERC677(_tokenMinterContract.tokenContract());
-
-        require(address(tokenContract) == address(0xAb84415fBB0D35abc08dee250356F19Bc37aBaeA));
-        require(address(newTokenContract) == address(0xb7D311E2Eb55F2f68a9440da38e7989210b9A05e));
-
-        uint256 blockRewardContractBalance = tokenContract.balanceOf(address(this));
-        uint256 stakingContractBalance = tokenContract.balanceOf(stakingContract);
-
-        _tokenMinterContract.mintReward(blockRewardContractBalance.add(stakingContractBalance));
-        newTokenContract.transfer(stakingContract, stakingContractBalance);
-
-        require(newTokenContract.balanceOf(address(this)) == blockRewardContractBalance);
-        require(newTokenContract.balanceOf(stakingContract) == stakingContractBalance);
-
-        IStakingAuRaTokens(stakingContract).migrateToBridgedSTAKE(address(newTokenContract));
-    }
-
     // =============================================== Getters ========================================================
 
     /// @dev Returns the array of `erc-to-erc` bridge addresses set by the `setErcToErcBridgesAllowed` setter.
