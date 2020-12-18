@@ -1,3 +1,6 @@
+// !! this code is dirty and the script is a very simple temporary POSDAO monitoring solution.
+// !! don't use this for production
+
 const Web3 = require('web3');
 const web3 = new Web3(new Web3.providers.HttpProvider(`https://dai.poa.network`));
 const BN = web3.utils.BN;
@@ -98,23 +101,116 @@ async function main() {
   //const currentSeed = await Random.methods.currentSeed().call();
   //const punishForUnreveal = await Random.methods.punishForUnreveal().call();
 
-  const getPools = displayArrays ? await Staking.methods.getPools().call() : null;
-  const getPoolsToBeElected = displayArrays ? await Staking.methods.getPoolsToBeElected().call() : null;
-  const getPoolsToBeRemoved = displayArrays ? await Staking.methods.getPoolsToBeRemoved().call() : null;
-  const stakingEpoch = await Staking.methods.stakingEpoch().call();
-  const stakingEpochStartBlock = await Staking.methods.stakingEpochStartBlock().call();
-  const stakingEpochEndBlock = await Staking.methods.stakingEpochEndBlock().call();
-
-  const validatorSetApplyBlock = await ValidatorSet.methods.validatorSetApplyBlock().call();
-  const getValidators = await ValidatorSet.methods.getValidators().call();
-  const getPendingValidators = await ValidatorSet.methods.getPendingValidators().call();
-  const unremovableValidator = await ValidatorSet.methods.unremovableValidator().call();
+  let promises = [];
+  let batch = new web3.BatchRequest();
+  promises.push(new Promise((resolve, reject) => {
+    if (displayArrays) {
+      batch.add(Staking.methods.getPools().call.request((err, result) => {
+        if (err) reject(err);
+        else resolve(result);
+      }));
+    } else {
+      resolve(null);
+    }
+  }));
+  promises.push(new Promise((resolve, reject) => {
+    if (displayArrays) {
+      batch.add(Staking.methods.getPoolsToBeElected().call.request((err, result) => {
+        if (err) reject(err);
+        else resolve(result);
+      }));
+    } else {
+      resolve(null);
+    }
+  }));
+  promises.push(new Promise((resolve, reject) => {
+    if (displayArrays) {
+      batch.add(Staking.methods.getPoolsToBeRemoved().call.request((err, result) => {
+        if (err) reject(err);
+        else resolve(result);
+      }));
+    } else {
+      resolve(null);
+    }
+  }));
+  promises.push(new Promise((resolve, reject) => {
+    batch.add(Staking.methods.stakingEpoch().call.request((err, result) => {
+      if (err) reject(err);
+      else resolve(result);
+    }));
+  }));
+  promises.push(new Promise((resolve, reject) => {
+    batch.add(Staking.methods.stakingEpochStartBlock().call.request((err, result) => {
+      if (err) reject(err);
+      else resolve(result);
+    }));
+  }));
+  promises.push(new Promise((resolve, reject) => {
+    batch.add(Staking.methods.stakingEpochEndBlock().call.request((err, result) => {
+      if (err) reject(err);
+      else resolve(result);
+    }));
+  }));
+  promises.push(new Promise((resolve, reject) => {
+    batch.add(ValidatorSet.methods.validatorSetApplyBlock().call.request((err, result) => {
+      if (err) reject(err);
+      else resolve(result);
+    }));
+  }));
+  promises.push(new Promise((resolve, reject) => {
+    batch.add(ValidatorSet.methods.getValidators().call.request((err, result) => {
+      if (err) reject(err);
+      else resolve(result);
+    }));
+  }));
+  promises.push(new Promise((resolve, reject) => {
+    batch.add(ValidatorSet.methods.getPendingValidators().call.request((err, result) => {
+      if (err) reject(err);
+      else resolve(result);
+    }));
+  }));
+  promises.push(new Promise((resolve, reject) => {
+    batch.add(ValidatorSet.methods.unremovableValidator().call.request((err, result) => {
+      if (err) reject(err);
+      else resolve(result);
+    }));
+  }));
+  promises.push(new Promise((resolve, reject) => {
+    batch.add(Token.methods.balanceOf(BlockReward.options.address).call.request((err, result) => {
+      if (err) reject(err);
+      else resolve(result);
+    }));
+  }));
+  promises.push(new Promise((resolve, reject) => {
+    batch.add(Token.methods.balanceOf(Staking.options.address).call.request((err, result) => {
+      if (err) reject(err);
+      else resolve(result);
+    }));
+  }));
+  promises.push(new Promise((resolve, reject) => {
+    batch.add(Token.methods.totalSupply().call.request((err, result) => {
+      if (err) reject(err);
+      else resolve(result);
+    }));
+  }));
+  await batch.execute();
+  const [
+    getPools,
+    getPoolsToBeElected,
+    getPoolsToBeRemoved,
+    stakingEpoch,
+    stakingEpochStartBlock,
+    stakingEpochEndBlock,
+    validatorSetApplyBlock,
+    getValidators,
+    getPendingValidators,
+    unremovableValidator,
+    blockRewardBalance,
+    stakingBalance,
+    totalSupply
+  ] = await Promise.all(promises);
 
   //const blockRewardContract = await HomeBridgeErcToNative.methods.blockRewardContract().call();
-
-  const blockRewardBalance = await Token.methods.balanceOf(BlockReward.options.address).call();
-  const stakingBalance = await Token.methods.balanceOf(Staking.options.address).call();
-  const totalSupply = await Token.methods.totalSupply().call();
 
   console.log('BlockReward');
   /*
@@ -123,11 +219,37 @@ async function main() {
     console.log(`  epochPoolTokenReward(${miningAddresses[i]}) = ${epochPoolTokenReward}`);
   }
   */
+
+  promises = [];
+  batch = new web3.BatchRequest();
   for (let i = 0; i < miningAddresses.length; i++) {
-    const blocksCreated = await BlockReward.methods.blocksCreated(stakingEpoch, miningAddresses[i]).call();
-    const revealSkips = await Random.methods.revealSkips(stakingEpoch, miningAddresses[i]).call();
-    console.log(`  blocksCreated(${miningAddresses[i]}) = ${blocksCreated}, ${revealSkips}`);
+    promises.push(new Promise((resolve, reject) => {
+      batch.add(BlockReward.methods.blocksCreated(stakingEpoch, miningAddresses[i]).call.request((err, result) => {
+        if (err) reject(err);
+        else resolve(result);
+      }));
+    }));
   }
+  await batch.execute();
+  const blocksCreated = await Promise.all(promises);
+
+  promises = [];
+  batch = new web3.BatchRequest();
+  for (let i = 0; i < miningAddresses.length; i++) {
+    promises.push(new Promise((resolve, reject) => {
+      batch.add(Random.methods.revealSkips(stakingEpoch, miningAddresses[i]).call.request((err, result) => {
+        if (err) reject(err);
+        else resolve(result);
+      }));
+    }));
+  }
+  await batch.execute();
+  const revealSkips = await Promise.all(promises);
+
+  for (let i = 0; i < miningAddresses.length; i++) {
+    console.log(`  blocksCreated(${miningAddresses[i]}) = ${blocksCreated[i]}, ${revealSkips[i]}`);
+  }
+
   /*
   if (displayArrays) {
     console.log(`  ercToNativeBridgesAllowed = ${ercToNativeBridgesAllowed.toString()}`);
@@ -174,7 +296,7 @@ async function main() {
   */
 
   console.log('Native');
-  console.log(`  blockRewardBalance = ${await web3.eth.getBalance('0x481c034c6d9441db23Ea48De68BCAe812C5d39bA')}`);
+  console.log(`  blockRewardBalance = ${await web3.eth.getBalance(BlockReward.options.address)}`);
 
   console.log('Token');
   console.log(`  blockRewardBalance = ${blockRewardBalance}`);
