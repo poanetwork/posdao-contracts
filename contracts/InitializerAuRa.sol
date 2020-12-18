@@ -74,6 +74,12 @@ contract InitializerAuRa {
         permittedAddresses[0] = _owner;
         ITxPermission(_contracts[4]).initialize(permittedAddresses, _contracts[5], _contracts[0]);
         ICertifier(_contracts[5]).initialize(permittedAddresses, _contracts[0]);
-        selfdestruct(msg.sender);
+        if (block.number > 0) {
+            selfdestruct(msg.sender); // this is to clear the state
+            // OpenEthereum and Nethermind clients
+            // behave differently for SELFDESTRUCT on genesis block
+            // (see https://github.com/openethereum/openethereum/issues/184)
+            // so we call `selfdestruct` here only if we are not in genesis
+        }
     }
 }
