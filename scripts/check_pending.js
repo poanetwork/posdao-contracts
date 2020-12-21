@@ -7,6 +7,8 @@ const BN = web3.utils.BN;
 main();
 
 async function main() {
+  const netId = await web3.eth.net.getId();
+
   console.log(`Retrieving pending transactions from ${RPC} ...`);
   const pending = await getPendingList(RPC);
 
@@ -17,7 +19,7 @@ async function main() {
 
   for (let i = 0; i < pending.result.length; i++) {
     const from = pending.result[i].from.toLowerCase();
-    addresses[from] = { balance: new BN(0), nonce: new BN(0) };
+    addresses[from] = { balance: new BN(0), nonce: new BN(0), certified: false };
   }
 
   const addressArray = Object.keys(addresses);
@@ -51,6 +53,28 @@ async function main() {
   }
   await batch.execute();
   const balances = await Promise.all(promises);
+
+  if (netId == 100) { // if this is xDai chain
+    // Retrieve `certified` boolean flag for each address
+    const Certifier = new web3.eth.Contract([{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"certify","inputs":[{"type":"address","name":"_who"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bool","name":""}],"name":"isInitialized","inputs":[],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"initialize","inputs":[{"type":"address[]","name":"_certifiedAddresses"},{"type":"address","name":"_validatorSet"}],"constant":false},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"revoke","inputs":[{"type":"address","name":"_who"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bool","name":""}],"name":"certified","inputs":[{"type":"address","name":"_who"}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"address","name":""}],"name":"validatorSetContract","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bool","name":""}],"name":"certifiedExplicitly","inputs":[{"type":"address","name":"_who"}],"constant":true},{"type":"event","name":"Confirmed","inputs":[{"type":"address","name":"who","indexed":true}],"anonymous":false},{"type":"event","name":"Revoked","inputs":[{"type":"address","name":"who","indexed":true}],"anonymous":false}], '0xD218aA7619900da0ff5a04C6bBC3411D76d7F6c9');
+    promises = [];
+    batch = new web3.BatchRequest();
+    for (let i = 0; i < addressArray.length; i++) {
+      const address = addressArray[i];
+      promises.push(new Promise((resolve, reject) => {
+        batch.add(Certifier.methods.certified(address).call.request((err, result) => {
+          if (err) reject(err);
+          else resolve(result);
+        }));
+      }));
+    }
+    await batch.execute();
+    const certified = await Promise.all(promises);
+    for (let i = 0; i < addressArray.length; i++) {
+      const address = addressArray[i];
+      addresses[address].certified = certified[i];
+    }
+  }
   
   for (let i = 0; i < addressArray.length; i++) {
     const address = addressArray[i];
@@ -72,6 +96,13 @@ async function main() {
     let minGasLimit = new BN('21000');
     if (tx.input != '0x' && tx.input) {
       minGasLimit = new BN('21064');
+    }
+
+    if (netId == 100) { // if this is xDai chain
+      // check for zero gas price allowance
+      if (txGasPrice.isZero() && !addresses[from].certified) {
+        continue;
+      }
     }
 
     if (txNonce.eq(addresses[from].nonce) && txGas.lt(gasLimit) && txGas.gte(minGasLimit) && txValuePlusGas.lte(addresses[from].balance)) {
