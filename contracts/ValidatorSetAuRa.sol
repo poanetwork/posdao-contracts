@@ -565,7 +565,9 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         uint256 _blockNumber
     ) public view returns(bool) {
         uint256 currentBlock = _getCurrentBlockNumber();
-        if (_blockNumber > currentBlock) {
+        if (_blockNumber > currentBlock + 1) {
+            // we added +1 in the condition to let validator next to the malicious one correctly report
+            // because that validator will use the previous block state when calling this getter
             return false;
         }
         if (currentBlock > 100 && currentBlock - 100 > _blockNumber) {
