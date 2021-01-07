@@ -1,6 +1,3 @@
-// !! this code is dirty and the script is a very simple temporary POSDAO monitoring solution.
-// !! don't use this for production
-
 const Web3 = require('web3');
 const web3 = new Web3(new Web3.providers.HttpProvider(`https://dai.poa.network`));
 //const web3 = new Web3(new Web3.providers.WebsocketProvider(`...`));
@@ -150,26 +147,68 @@ async function main() {
       console.log(`    ${(index + 1).toString().padStart(2, ' ')}. ${stakingAddress}`);
     });
   }
-  const { poolDelegators, poolDelegatorsInactive } = await getPoolDelegators(validators);
+  let {
+    poolDelegators,
+    allPoolsDelegatorsUnique,
+    poolDelegatorsInactive
+  } = await getPoolDelegators(validators);
+  const {
+    stakeAmountTotal,
+    orderedWithdrawAmountTotal,
+    orderedWithdrawAmountTotalThisEpoch,
+    howMuchStakerOrderedOnThisEpoch,
+    howMuchDelegatorHolds
+  } = await getAmounts(validators, poolDelegators, stakingEpochStartBlock);
   const {
     totalDelegators,
-    totalDelegatorsUnique,
     totalOrderedWithdrawDelegators,
-    totalOrderedWithdrawDelegatorsUnique
+    orderedWithdrawDelegatorsUnique
   } = await countDelegators(
     validators,
     stakingEpoch,
     poolDelegators,
-    poolDelegatorsInactive
+    poolDelegatorsInactive,
+    howMuchDelegatorHolds
   );
-  const { stakeAmountTotal, orderedWithdrawAmountTotal } = await getAmounts(validators);
+  allPoolsDelegatorsUnique = Array.from(new Set(allPoolsDelegatorsUnique.concat(orderedWithdrawDelegatorsUnique)));
   console.log(`  stakingEpoch:               ${stakingEpoch}`);
   console.log(`  stakingEpochStartBlock:     ${stakingEpochStartBlock}`);
   console.log(`  stakingEpochEndBlock:       ${stakingEpochEndBlock}`);
-  console.log(`  totalDelegators:            ${totalDelegators} (incl. ${totalOrderedWithdrawDelegators} who want to exit after this epoch)`);
-  console.log(`  totalDelegatorsUnique:      ${totalDelegatorsUnique} (incl. ${totalOrderedWithdrawDelegatorsUnique} who want to exit after this epoch)`);
-  console.log(`  orderedWithdrawAmountTotal: ${web3.utils.fromWei(orderedWithdrawAmountTotal)}`);
+  console.log(`  orderedWithdrawAmountTotal: ${web3.utils.fromWei(orderedWithdrawAmountTotal)} (incl. ${web3.utils.fromWei(orderedWithdrawAmountTotalThisEpoch)} on this epoch)`);
   console.log(`  stakeAmountTotal:           ${web3.utils.fromWei(stakeAmountTotal)} (excl. orderedWithdrawAmountTotal)`);
+  console.log(`  totalDelegators:            ${totalDelegators} (incl. ${totalOrderedWithdrawDelegators} who want to exit after this epoch)`);
+  console.log(`  totalDelegatorsUnique:      ${allPoolsDelegatorsUnique.length} (incl. ${orderedWithdrawDelegatorsUnique.length} who want to exit after this epoch)`);
+  //if (allPoolsDelegatorsUnique.length >= 100) {
+    const uniqueDelegatorsList = [];
+    console.log('  uniqueDelegatorsList:');
+    allPoolsDelegatorsUnique.forEach(delegator => {
+      const delegatorLowercased = delegator.toLowerCase();
+      const orderedAmount = howMuchStakerOrderedOnThisEpoch[delegatorLowercased] || new BN(0);
+      const holdAmount = (howMuchDelegatorHolds[delegatorLowercased] || new BN(0)).add(orderedAmount);
+      const exits = orderedWithdrawDelegatorsUnique.some(d => d.toLowerCase() == delegatorLowercased);
+      uniqueDelegatorsList.push({ delegator, holdAmount, orderedAmount, exits });
+    });
+    uniqueDelegatorsList.sort((a, b) => {
+      const cmpResult = b.holdAmount.cmp(a.holdAmount);
+      if (cmpResult != 0) {
+        return cmpResult;
+      } else {
+        return a.exits >= b.exits ? 1 : -1;
+      }
+    });
+    uniqueDelegatorsList.forEach(({ delegator, holdAmount, orderedAmount, exits }, index) => {
+      const delegatorLowercased = delegator.toLowerCase();
+      let includingOrdered = '';
+      if (!orderedAmount.isZero()) {
+        includingOrdered = `, ordered ${toFixed(web3.utils.fromWei(orderedAmount), 2)} on this epoch`;
+      }
+      let wantsToExit = '';
+      if (exits) {
+        wantsToExit = ', wants to exit'
+      }
+      console.log(`    ${(index + 1).toString().padStart(2, ' ')}. ${delegator} (stakes ${toFixed(web3.utils.fromWei(holdAmount), 2)} tokens${includingOrdered}${wantsToExit})`);
+    });
+  //}
   console.log();
 
   console.log('ValidatorSet');
@@ -193,61 +232,53 @@ async function main() {
   console.log(`    stakingBalance = ${stakingBalance}`);
   console.log(`    totalSupply = ${totalSupply}`);
 
-  // const events = await ValidatorSet.getPastEvents('ReportedMalicious', {fromBlock: '10638329', toBlock: '10759282'});
-  // for (let i = 0; i < events.length; i++) {
-  //   console.log('ReportedMalicious:');
-  //   console.log(events[i].returnValues.reportingValidator);
-  //   console.log(events[i].returnValues.maliciousValidator);
-  //   console.log(events[i].returnValues.blockNumber);
-  //   console.log('');
-  // }
-
   console.log('==================================================================');
 }
 
-async function countDelegators(validators, stakingEpoch, poolDelegators, poolDelegatorsInactive) {
+async function countDelegators(validators, stakingEpoch, poolDelegators, poolDelegatorsInactive, howMuchDelegatorHolds) {
   let totalDelegators = 0;
-  let allPoolsDelegators = [];
   for (let i = 0; i < validators.length; i++) {
     totalDelegators += poolDelegators[i].length;
-    allPoolsDelegators = allPoolsDelegators.concat(poolDelegators[i]);
   }
-  const totalDelegatorsUnique = Array.from(new Set(allPoolsDelegators)).length;
-  let totalOrderedWithdrawDelegators = 0;
-  let allPoolsDelegatorsInactive = [];
-  promises = [];
-  batch = new web3.BatchRequest();
+  const promises = [];
+  const batch = new web3.BatchRequest();
   validators.forEach((validator, i) => {
     poolDelegatorsInactive[i].forEach(delegator => {
       promises.push(new Promise((resolve, reject) => {
         batch.add(Staking.methods.orderWithdrawEpoch(validator.stakingAddress, delegator).call.request((err, result) => {
           if (err) reject(err);
-          else resolve({ epoch: result, delegator, stakingAddress: validator.stakingAddress });
+          else resolve({ epoch: result, delegator });
         }));
       }));
     });
   });
   await batch.execute();
   const orderWithdrawEpoch = await Promise.all(promises);
+  const allPoolsDelegatorsInactive = [];
+  let totalOrderedWithdrawDelegators = 0;
   orderWithdrawEpoch.forEach(result => {
     if (result.epoch == stakingEpoch) {
       totalDelegators++;
       totalOrderedWithdrawDelegators++;
-      allPoolsDelegatorsInactive.push(result.delegator);
+      if (!howMuchDelegatorHolds.hasOwnProperty(result.delegator.toLowerCase())) {
+        allPoolsDelegatorsInactive.push(result.delegator);
+      }
     }
   });
-  const totalOrderedWithdrawDelegatorsUnique = Array.from(new Set(allPoolsDelegatorsInactive)).length;
+  const orderedWithdrawDelegatorsUnique = Array.from(new Set(allPoolsDelegatorsInactive));
   return {
     totalDelegators,
-    totalDelegatorsUnique,
     totalOrderedWithdrawDelegators,
-    totalOrderedWithdrawDelegatorsUnique
+    orderedWithdrawDelegatorsUnique
   };
 }
 
-async function getAmounts(validators) {
-  const promises = [];
-  const batch = new web3.BatchRequest();
+async function getAmounts(validators, poolDelegators, stakingEpochStartBlock) {
+  // Calculate total amount of tokens currently staked into
+  // the current validator pools and total amount of tokens
+  // ordered for withdrawal from the current validator pools
+  let promises = [];
+  let batch = new web3.BatchRequest();
   validators.forEach((validator, i) => {
     promises.push(new Promise((resolve, reject) => {
       batch.add(Staking.methods.stakeAmountTotal(validator.stakingAddress).call.request((err, result) => {
@@ -263,7 +294,7 @@ async function getAmounts(validators) {
     }));
   });
   await batch.execute();
-  const items = await Promise.all(promises);
+  let items = await Promise.all(promises);
   let stakeAmountTotal = [], orderedWithdrawAmountTotal = [];
   items.forEach(result => {
     if (result.hasOwnProperty('stakeAmountTotal')) {
@@ -274,7 +305,61 @@ async function getAmounts(validators) {
   });
   stakeAmountTotal = stakeAmountTotal.reduce((acc, val) => acc.add(new BN(val)), new BN(0));
   orderedWithdrawAmountTotal = orderedWithdrawAmountTotal.reduce((acc, val) => acc.add(new BN(val)), new BN(0));
-  return { stakeAmountTotal, orderedWithdrawAmountTotal };
+
+  // Determine how much tokens each staker ordered to withdraw
+  // during the current staking epoch from the current validator pools
+  // and calculate the corresponding total ordered amount
+  let orderedWithdrawAmountTotalThisEpoch = new BN(0);
+  const howMuchStakerOrderedOnThisEpoch = {};
+  const events = await Staking.getPastEvents('OrderedWithdrawal', { fromBlock: stakingEpochStartBlock, toBlock: 'latest' });
+  events.forEach(event => {
+    const eventAmount = new BN(event.returnValues.amount);
+    if (validators.some(v => v.stakingAddress.toLowerCase() == event.returnValues.fromPoolStakingAddress.toLowerCase())) {
+      const stakerAddress = event.returnValues.staker.toLowerCase();
+      orderedWithdrawAmountTotalThisEpoch = orderedWithdrawAmountTotalThisEpoch.add(eventAmount);
+      if (howMuchStakerOrderedOnThisEpoch.hasOwnProperty(stakerAddress)) {
+        howMuchStakerOrderedOnThisEpoch[stakerAddress] = howMuchStakerOrderedOnThisEpoch[stakerAddress].add(eventAmount);
+      } else {
+        howMuchStakerOrderedOnThisEpoch[stakerAddress] = eventAmount;
+      }
+      //console.log(`OrderedWithdrawal: ${event.returnValues.fromPoolStakingAddress} - ${stakerAddress}: ${web3.utils.fromWei(eventAmount)}`);
+    }
+  });
+
+  // Determine how much tokens each delegator currently holds
+  // in the current validator pools
+  const howMuchDelegatorHolds = {};
+  promises = [];
+  batch = new web3.BatchRequest();
+  validators.forEach((validator, i) => {
+    poolDelegators[i].forEach((delegator, j) => {
+      promises.push(new Promise((resolve, reject) => {
+        batch.add(Staking.methods.stakeAmount(validator.stakingAddress, delegator).call.request((err, result) => {
+          if (err) reject(err);
+          else resolve({ i, j, stakeAmount: result });
+        }));
+      }));
+    });
+  });
+  await batch.execute();
+  items = await Promise.all(promises);
+  items.forEach(item => {
+    const delegator = poolDelegators[item.i][item.j].toLowerCase();
+    const stakeAmount = new BN(item.stakeAmount);
+    if (howMuchDelegatorHolds.hasOwnProperty(delegator)) {
+      howMuchDelegatorHolds[delegator] = howMuchDelegatorHolds[delegator].add(stakeAmount);
+    } else {
+      howMuchDelegatorHolds[delegator] = stakeAmount;
+    }
+  });
+
+  return {
+    stakeAmountTotal,
+    orderedWithdrawAmountTotal,
+    orderedWithdrawAmountTotalThisEpoch,
+    howMuchStakerOrderedOnThisEpoch,
+    howMuchDelegatorHolds
+  };
 }
 
 async function getBlocksCreatedAndRevealSkips(validators, stakingEpoch) {
@@ -334,5 +419,19 @@ async function getPoolDelegators(validators) {
       poolDelegatorsInactive[result.i] = result.poolDelegatorsInactive;
     }
   });
-  return { poolDelegators, poolDelegatorsInactive };
+  let allPoolsDelegators = [];
+  for (let i = 0; i < validators.length; i++) {
+    allPoolsDelegators = allPoolsDelegators.concat(poolDelegators[i]);
+  }
+  const allPoolsDelegatorsUnique = Array.from(new Set(allPoolsDelegators));
+  return { poolDelegators, allPoolsDelegatorsUnique, poolDelegatorsInactive };
+}
+
+function toFixed(x, n) {
+  const v = (typeof x === 'string' ? x : x.toString()).split('.');
+  if (n <= 0) return v[0];
+  let f = v[1] || '';
+  if (f.length > n) return `${v[0]}.${f.substr(0,n)}`;
+  while (f.length < n) f += '0';
+  return `${v[0]}.${f}`
 }
