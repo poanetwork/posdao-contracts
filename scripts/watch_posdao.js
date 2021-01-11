@@ -66,8 +66,14 @@ async function main() {
   //
   // return;
 
-  const blockNumber = await web3.eth.getBlockNumber();
-  console.log(`CURRENT BLOCK ${blockNumber}`);
+  const currentBlock = await web3.eth.getBlock('latest');
+  const oldBlock = await web3.eth.getBlock(currentBlock.number - 100);
+  console.log(`CURRENT BLOCK ${currentBlock.number}`);
+  console.log();
+
+  // Calculate average block time
+  const averageBlockTime = (currentBlock.timestamp - oldBlock.timestamp) / (currentBlock.number - oldBlock.number);
+  console.log(`averageBlockTime = ${averageBlockTime} sec`);
   console.log();
 
   const methods = [
@@ -124,6 +130,10 @@ async function main() {
     blockRewardNativeBalance
   ] = await Promise.all(promises);
 
+  // Calculate approximate stakingEpochEndTime
+  const stakingEpochEndTime = new Date();
+  stakingEpochEndTime.setTime((Math.floor(Date.now() / 1000) + Math.ceil((stakingEpochEndBlock - currentBlock.number) * averageBlockTime)) * 1000);
+
   console.log('BlockReward');
   const { blocksCreated, revealSkips } = await getBlocksCreatedAndRevealSkips(validators, stakingEpoch);
   const maxValidatorNameLength = validators.reduce((acc, val) => Math.max(val.name.length, acc), 0);
@@ -173,7 +183,7 @@ async function main() {
   allPoolsDelegatorsUnique = Array.from(new Set(allPoolsDelegatorsUnique.concat(orderedWithdrawDelegatorsUnique)));
   console.log(`  stakingEpoch:               ${stakingEpoch}`);
   console.log(`  stakingEpochStartBlock:     ${stakingEpochStartBlock}`);
-  console.log(`  stakingEpochEndBlock:       ${stakingEpochEndBlock}`);
+  console.log(`  stakingEpochEndBlock:       ${stakingEpochEndBlock} (at ~ ${stakingEpochEndTime.toUTCString()})`);
   console.log(`  orderedWithdrawAmountTotal: ${web3.utils.fromWei(orderedWithdrawAmountTotal)} (incl. ${web3.utils.fromWei(orderedWithdrawAmountTotalThisEpoch)} on this epoch)`);
   console.log(`  stakeAmountTotal:           ${web3.utils.fromWei(stakeAmountTotal)} (excl. orderedWithdrawAmountTotal)`);
   console.log(`  totalDelegators:            ${totalDelegators} (incl. ${totalOrderedWithdrawDelegators} who want to exit after this epoch)`);
