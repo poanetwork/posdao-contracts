@@ -1,6 +1,6 @@
 const Web3 = require('web3');
-const web3 = new Web3(new Web3.providers.HttpProvider(`https://dai.poa.network`));
-//const web3 = new Web3(new Web3.providers.WebsocketProvider(`...`));
+const { program } = require('commander');
+const web3 = new Web3();
 const BN = web3.utils.BN;
 
 // web3.eth.subscribe('newBlockHeaders', function(error, result){
@@ -24,6 +24,20 @@ const Token = new web3.eth.Contract([{"constant":false,"inputs":[{"name":"_bridg
 main();
 
 async function main() {
+  program.name("npm run watch").usage("-- <options>");
+  program.option('-r, --rpc <rpc>', 'RPC Node URL', 'https://dai.poa.network');
+  program.option('-g, --general', 'Shows general info (ignored for --epoch-delegators).');
+  program.option('-e, --epoch-delegators <epoch>', 'Shows active delegator list (excluding pending) for the given staking epoch,\nsorted by stake amount. Requires using RPC from an archive node.');
+  program.option('-u, --show-unique', 'Shows unique delegator list for the current staking epoch\n(used with --general, ignored for --epoch-delegators).');
+  program.option('-h, --help', 'Display this help.');
+  program.parse(process.argv);
+
+  if (!program.general && !program.epochDelegators) {
+    program.help();
+  }
+
+  web3.setProvider(program.rpc);
+
   const validators = [
     { miningAddress: '0x9233042B8E9E03D5DC6454BBBe5aee83818fF103', stakingAddress: '0x6A3154a1f55a8fAF96DFdE75D25eFf0C06eB6784', name: 'POA Network 1' },
     { miningAddress: '0x6dC0c0be4c8B2dFE750156dc7d59FaABFb5B923D', stakingAddress: '0x99c72Eb5c22c38137541ef4B9a2FD0316C42b510', name: 'Giveth' },
@@ -67,14 +81,17 @@ async function main() {
   // return;
 
   const currentBlock = await web3.eth.getBlock('latest');
-  const oldBlock = await web3.eth.getBlock(currentBlock.number - 100);
-  console.log(`CURRENT BLOCK ${currentBlock.number}`);
-  console.log();
+  let averageBlockTime;
+  if (!program.epochDelegators) {
+    const oldBlock = await web3.eth.getBlock(currentBlock.number - 50);
+    console.log(`CURRENT BLOCK ${currentBlock.number}`);
+    console.log();
 
-  // Calculate average block time
-  const averageBlockTime = (currentBlock.timestamp - oldBlock.timestamp) / (currentBlock.number - oldBlock.number);
-  console.log(`averageBlockTime = ${averageBlockTime} sec`);
-  console.log();
+    // Calculate average block time
+    averageBlockTime = (currentBlock.timestamp - oldBlock.timestamp) / (currentBlock.number - oldBlock.number);
+    console.log(`averageBlockTime = ${averageBlockTime} sec`);
+    console.log();
+  }
 
   const methods = [
     [Staking.methods.getPools, []],
@@ -83,6 +100,7 @@ async function main() {
     [Staking.methods.stakingEpoch, []],
     [Staking.methods.stakingEpochStartBlock, []],
     [Staking.methods.stakingEpochEndBlock, []],
+    [Staking.methods.stakingEpochDuration, []],
     [ValidatorSet.methods.validatorSetApplyBlock, []],
     [ValidatorSet.methods.getValidators, []],
     [ValidatorSet.methods.getPendingValidators, []],
@@ -120,6 +138,7 @@ async function main() {
     stakingEpoch,
     stakingEpochStartBlock,
     stakingEpochEndBlock,
+    stakingEpochDuration,
     validatorSetApplyBlock,
     getValidators,
     getPendingValidators,
@@ -129,6 +148,20 @@ async function main() {
     blockRewardTokenBalance,
     blockRewardNativeBalance
   ] = await Promise.all(promises);
+
+  if (program.epochDelegators) {
+    console.log(`Current staking epoch: ${stakingEpoch}`);
+    console.log(`Requested staking epoch: ${program.epochDelegators}`);
+    console.log();
+    await showActiveDelegatorsByStakingEpoch(
+      program.epochDelegators,
+      stakingEpochDuration,
+      stakingEpoch,
+      stakingEpochStartBlock,
+      currentBlock.number
+    );
+    process.exit(0);
+  }
 
   // Calculate approximate stakingEpochEndTime
   const stakingEpochEndTime = new Date();
@@ -188,7 +221,7 @@ async function main() {
   console.log(`  stakeAmountTotal:           ${web3.utils.fromWei(stakeAmountTotal)} (excl. orderedWithdrawAmountTotal)`);
   console.log(`  totalDelegators:            ${totalDelegators} (incl. ${totalOrderedWithdrawDelegators} who want to exit after this epoch)`);
   console.log(`  totalDelegatorsUnique:      ${allPoolsDelegatorsUnique.length} (incl. ${orderedWithdrawDelegatorsUnique.length} who want to exit after this epoch)`);
-  //if (allPoolsDelegatorsUnique.length >= 100) {
+  if (program.showUnique) {
     const uniqueDelegatorsList = [];
     console.log('  uniqueDelegatorsList:');
     allPoolsDelegatorsUnique.forEach(delegator => {
@@ -218,7 +251,7 @@ async function main() {
       }
       console.log(`    ${(index + 1).toString().padStart(2, ' ')}. ${delegator} (stakes ${toFixed(web3.utils.fromWei(holdAmount), 2)} tokens${includingOrdered}${wantsToExit})`);
     });
-  //}
+  }
   console.log();
 
   console.log('ValidatorSet');
@@ -243,6 +276,7 @@ async function main() {
   console.log(`    totalSupply = ${totalSupply}`);
 
   console.log('==================================================================');
+  process.exit(0);
 }
 
 async function countDelegators(validators, stakingEpoch, poolDelegators, poolDelegatorsInactive, howMuchDelegatorHolds) {
@@ -435,6 +469,80 @@ async function getPoolDelegators(validators) {
   }
   const allPoolsDelegatorsUnique = Array.from(new Set(allPoolsDelegators));
   return { poolDelegators, allPoolsDelegatorsUnique, poolDelegatorsInactive };
+}
+
+async function showActiveDelegatorsByStakingEpoch(stakingEpoch, stakingEpochDuration, currentEpochNumber, currentEpochStartBlock, currentBlockNumber) {
+  if (stakingEpoch > currentEpochNumber) {
+    console.log('Unable to find any delegators for the given staking epoch');
+    return;
+  }
+  const { startBlock, endBlock } = blocksByStakingEpochNumber(stakingEpoch, stakingEpochDuration, currentEpochNumber, currentEpochStartBlock);
+  const blockNumber = endBlock > currentBlockNumber ? currentBlockNumber : endBlock;
+  const miningAddresses = await ValidatorSet.methods.getValidators().call({}, blockNumber);
+  let promises = [];
+  let batch = new web3.BatchRequest();
+  miningAddresses.forEach(miningAddress => {
+    promises.push(new Promise((resolve, reject) => {
+      batch.add(ValidatorSet.methods.stakingByMiningAddress(miningAddress).call.request({}, blockNumber, (err, result) => {
+        if (err) reject(err);
+        else resolve(result);
+      }));
+    }));
+  });
+  await batch.execute();
+  const stakingAddresses = await Promise.all(promises);
+  promises = [];
+  batch = new web3.BatchRequest();
+  stakingAddresses.forEach(stakingAddress => {
+    promises.push(new Promise((resolve, reject) => {
+      batch.add(Staking.methods.poolDelegators(stakingAddress).call.request({}, startBlock - 1, (err, delegators) => {
+        if (err) reject(err);
+        else resolve({ stakingAddress, delegators });
+      }));
+    }));
+  });
+  await batch.execute();
+  const poolDelegators = await Promise.all(promises);
+  promises = [];
+  batch = new web3.BatchRequest();
+  poolDelegators.forEach(({ stakingAddress, delegators }) => {
+    delegators.forEach(delegator => {
+      promises.push(new Promise((resolve, reject) => {
+        batch.add(Staking.methods.stakeAmount(stakingAddress, delegator).call.request({}, startBlock - 1, (err, amount) => {
+          if (err) reject(err);
+          else resolve({ delegator, amount: new BN(amount) });
+        }));
+      }));
+    });
+  });
+  await batch.execute();
+  const amounts = await Promise.all(promises);
+  const delegatorTotalAmount = {};
+  amounts.forEach(({ delegator, amount }) => {
+    if (delegatorTotalAmount.hasOwnProperty(delegator)) {
+      delegatorTotalAmount[delegator] = delegatorTotalAmount[delegator].add(amount);
+    } else {
+      delegatorTotalAmount[delegator] = amount;
+    }
+  });
+  const delegators = Object.keys(delegatorTotalAmount);
+  if (delegators.length) {
+    console.log(`Delegator list for the staking epoch # ${stakingEpoch} (does not include pending delegators):`);
+    console.log();
+    delegators.sort((a, b) => delegatorTotalAmount[b].cmp(delegatorTotalAmount[a]));
+    delegators.forEach((delegator, index) => {
+      console.log(`${index + 1}. ${delegator} (stake amount: ${web3.utils.fromWei(delegatorTotalAmount[delegator])})`);
+    });
+  } else {
+    console.log('Unable to find any delegators for the given staking epoch');
+  }
+}
+
+function blocksByStakingEpochNumber(stakingEpoch, stakingEpochDuration, currentEpochNumber, currentEpochStartBlock) {
+  const diff = currentEpochNumber - stakingEpoch;
+  const startBlock = currentEpochStartBlock - stakingEpochDuration * diff;
+  const endBlock = stakingEpochDuration - 1 + startBlock;
+  return { startBlock, endBlock };
 }
 
 function toFixed(x, n) {
