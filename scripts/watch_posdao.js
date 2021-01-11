@@ -29,7 +29,6 @@ async function main() {
   program.option('-g, --general', 'Shows general info (ignored for --epoch-delegators).');
   program.option('-e, --epoch-delegators <epoch>', 'Shows active delegator list (excluding pending) for the given staking epoch,\nsorted by stake amount. Requires using RPC from an archive node.');
   program.option('-u, --show-unique', 'Shows unique delegator list for the current staking epoch\n(used with --general, ignored for --epoch-delegators).');
-  program.option('-h, --help', 'Display this help.');
   program.parse(process.argv);
 
   if (!program.general && !program.epochDelegators) {
@@ -219,8 +218,8 @@ async function main() {
   console.log(`  stakingEpochEndBlock:       ${stakingEpochEndBlock} (at ~ ${stakingEpochEndTime.toUTCString()})`);
   console.log(`  orderedWithdrawAmountTotal: ${web3.utils.fromWei(orderedWithdrawAmountTotal)} (incl. ${web3.utils.fromWei(orderedWithdrawAmountTotalThisEpoch)} on this epoch)`);
   console.log(`  stakeAmountTotal:           ${web3.utils.fromWei(stakeAmountTotal)} (excl. orderedWithdrawAmountTotal)`);
-  console.log(`  totalDelegators:            ${totalDelegators} (incl. ${totalOrderedWithdrawDelegators} who want to exit after this epoch)`);
-  console.log(`  totalDelegatorsUnique:      ${allPoolsDelegatorsUnique.length} (incl. ${orderedWithdrawDelegatorsUnique.length} who want to exit after this epoch)`);
+  console.log(`  totalDelegators:            ${totalDelegators} (incl. ${totalOrderedWithdrawDelegators} who want to exit after this epoch; incl. pending delegators)`);
+  console.log(`  totalDelegatorsUnique:      ${allPoolsDelegatorsUnique.length} (incl. ${orderedWithdrawDelegatorsUnique.length} who want to exit after this epoch; incl. pending delegators)`);
   if (program.showUnique) {
     const uniqueDelegatorsList = [];
     console.log('  uniqueDelegatorsList:');
