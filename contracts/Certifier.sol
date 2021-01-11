@@ -59,19 +59,25 @@ contract Certifier is UpgradeableOwned, ICertifier {
         validatorSetContract = IValidatorSetAuRa(_validatorSet);
     }
 
-    /// @dev Allows the specified address to use a zero gas price for its transactions.
+    /// @dev Allows the specified addresses to use a zero gas price for their transactions.
     /// Can only be called by the `owner`.
-    /// @param _who The address for which zero gas price transactions must be allowed.
-    function certify(address _who) external onlyOwner onlyInitialized {
-        _certify(_who);
+    /// @param _who The address array for which zero gas price transactions must be allowed.
+    function certify(address[] calldata _who) external onlyOwner onlyInitialized {
+        for (uint256 i = 0; i < _who.length; i++) {
+            _certify(_who[i]);
+        }
     }
 
-    /// @dev Denies the specified address usage of a zero gas price for its transactions.
+    /// @dev Denies the specified addresses using a zero gas price for their transactions.
     /// Can only be called by the `owner`.
-    /// @param _who The address for which transactions with a zero gas price must be denied.
-    function revoke(address _who) external onlyOwner onlyInitialized {
-        _certified[_who] = false;
-        emit Revoked(_who);
+    /// @param _who The address array for which transactions with a zero gas price must be denied.
+    function revoke(address[] calldata _who) external onlyOwner onlyInitialized {
+        for (uint256 i = 0; i < _who.length; i++) {
+            address revokeAddress = _who[i];
+            require(_certified[revokeAddress]);
+            _certified[revokeAddress] = false;
+            emit Revoked(revokeAddress);
+        }
     }
 
     // =============================================== Getters ========================================================
