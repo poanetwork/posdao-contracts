@@ -27,7 +27,7 @@ const validators = [
   { miningAddress: '0x9e41BA620FebA8198369c26351063B26eC5b7C9E', stakingAddress: '0x2FFEA37B7ab0977dac61f980d6c633946407627B', name: 'MakerDAO' },
   { miningAddress: '0xA13D45301207711B7C0328c6b2b64862abFe9b7a', stakingAddress: '0xCb253E1Fd995cb1E2b33A9c64be9D09Dc4dF0336', name: 'Protofire' },
   { miningAddress: '0x657eA4A9572DfdBFd95899eAdA0f6197211527BE', stakingAddress: '0x5DCeE6BC39F327F9317530B61fA75ffe0AF46C62', name: 'Burner Wallet' },
-  { miningAddress: '0xb76756f95A9fB6ff9ad3E6cb41b734c1bd805103', stakingAddress: '0xeb43574E8f4FDdF11FBAf65A8632CA92262A1266', name: 'Portis' },
+  { miningAddress: '0x06d563905b085A6B3070C819BDB96a44E5665005', stakingAddress: '0x30C1002d1F341609fbBb45b5e18dd9B1Ab79C26D', name: 'POA Network 4' },
   { miningAddress: '0xDb1c683758F493Cef2E7089A3640502AB306322a', stakingAddress: '0x751F0Bf3Ddec2e6677C90E869D8154C6622f31b2', name: 'Anyblock Analytics' },
   { miningAddress: '0x657E832b1a67CDEF9e117aFd2F419387259Fa93e', stakingAddress: '0x29CF39dE6d963D092c177a60ce67879EeA9910BB', name: 'Syncnode' },
   { miningAddress: '0x10AaE121b3c62F3DAfec9cC46C27b4c1dfe4A835', stakingAddress: '0x10Bb52d950B0d472d989A4D220Fa73bC0Cc7e62d', name: 'Lab10' },
@@ -36,7 +36,7 @@ const validators = [
   { miningAddress: '0x9488f50c33e9616EE3B5B09CD3A9c603A108db4a', stakingAddress: '0xe6Ae876Cdb07acC21390722352789aD989BbF0de', name: 'POA Network 2' },
   { miningAddress: '0x1A740616e96E07d86203707C1619d9871614922A', stakingAddress: '0x915E73d969a1e8B718D225B929dAf96E963e56DE', name: 'Nethermind' },
   { miningAddress: '0x642C40173134f6E457a62D4C2033259433A53E8C', stakingAddress: '0x59bE7069745A9820a75Aa66357A50A5d7f66ceD5', name: 'POA Network 3' },
-  { miningAddress: '0x06d563905b085A6B3070C819BDB96a44E5665005', stakingAddress: '0x30C1002d1F341609fbBb45b5e18dd9B1Ab79C26D', name: 'POA Network 4' },
+  //{ miningAddress: '0xb76756f95A9fB6ff9ad3E6cb41b734c1bd805103', stakingAddress: '0xeb43574E8f4FDdF11FBAf65A8632CA92262A1266', name: 'Portis' },
 ];
 
 main();
