@@ -100,6 +100,10 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// but the new staking epoch's validator set hasn't yet been finalized by the `finalizeChange` function.
     uint256 public validatorSetApplyBlock;
 
+    /// @dev The block number of the last change in this contract.
+    /// Can be used by Staking DApp.
+    uint256 public lastChangeBlock;
+
     // ============================================== Constants =======================================================
 
     /// @dev The max number of validators.
@@ -161,6 +165,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         require(msg.sender == unremovableStakingAddress || msg.sender == _admin());
         unremovableValidator = address(0);
         stakingContract.clearUnremovableValidator(unremovableStakingAddress);
+        lastChangeBlock = _getCurrentBlockNumber();
     }
 
     /// @dev Emits the `InitiateChange` event to pass a new validator set to the validator nodes.
@@ -176,6 +181,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
             emit InitiateChange(blockhash(_getCurrentBlockNumber() - 1), _pendingValidators);
             _finalizeValidators.list = _pendingValidators;
             _finalizeValidators.forNewEpoch = forNewEpoch;
+            lastChangeBlock = _getCurrentBlockNumber();
         }
     }
 
@@ -204,6 +210,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
             validatorSetApplyBlock = _getCurrentBlockNumber();
         }
         delete _finalizeValidators; // since this moment the `emitInitiateChange` is allowed
+        lastChangeBlock = _getCurrentBlockNumber();
     }
 
     /// @dev Initializes the network parameters. Used by the
@@ -235,6 +242,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         blockRewardContract = _blockRewardContract;
         randomContract = _randomContract;
         stakingContract = IStakingAuRa(_stakingContract);
+        lastChangeBlock = _getCurrentBlockNumber();
 
         // Add initial validators to the `_currentValidators` array
         for (uint256 i = 0; i < _initialMiningAddresses.length; i++) {
@@ -301,6 +309,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         stakingContract.incrementStakingEpoch();
         stakingContract.setStakingEpochStartBlock(_getCurrentBlockNumber() + 1);
         validatorSetApplyBlock = 0;
+        lastChangeBlock = _getCurrentBlockNumber();
     }
 
     /// @dev Removes malicious validators. Called by the `RandomAuRa.onFinishCollectRound` function.
@@ -740,6 +749,8 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         if (removed) {
             _setPendingValidatorsChanged(false);
         }
+
+        lastChangeBlock = _getCurrentBlockNumber();
     }
 
     /// @dev Stores previous validators. Used by the `finalizeChange` function.

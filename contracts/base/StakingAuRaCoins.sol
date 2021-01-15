@@ -169,6 +169,7 @@ contract StakingAuRaCoins is StakingAuRaBase {
             // the sending will fail.
             (new Sacrifice).value(_amount)(_to);
         }
+        lastChangeBlock = _getCurrentBlockNumber();
     }
 
     /// @dev The internal function used by the `stake` and `addPool` functions.

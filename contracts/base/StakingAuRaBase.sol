@@ -143,8 +143,12 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
     /// @dev The address of the `ValidatorSetAuRa` contract.
     IValidatorSetAuRa public validatorSetContract;
 
+    /// @dev The block number of the last change in this contract.
+    /// Can be used by Staking DApp.
+    uint256 public lastChangeBlock;
+
     // Reserved storage space to allow for layout changes in the future.
-    uint256[25] private ______gapForPublic;
+    uint256[24] private ______gapForPublic;
 
     // ============================================== Constants =======================================================
 
@@ -346,6 +350,7 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
         stakingEpochDuration = _stakingEpochDuration;
         stakingEpochStartBlock = _stakingEpochStartBlock;
         stakeWithdrawDisallowPeriod = _stakeWithdrawDisallowPeriod;
+        lastChangeBlock = _getCurrentBlockNumber();
     }
 
     /// @dev Makes initial validator stakes. Can only be called by the owner
@@ -911,6 +916,7 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
         }
         _deletePoolToBeElected(_stakingAddress);
         _deletePoolToBeRemoved(_stakingAddress);
+        lastChangeBlock = _getCurrentBlockNumber();
     }
 
     /// @dev Removes the specified staking address from the array of inactive pools returned by
@@ -1024,6 +1030,8 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
     /// Used by the staking and withdrawal functions.
     /// @param _poolStakingAddress The address of the pool for which the probability coefficient must be updated.
     function _setLikelihood(address _poolStakingAddress) internal {
+        lastChangeBlock = _getCurrentBlockNumber();
+
         (bool isToBeElected, uint256 index) = _isPoolToBeElected(_poolStakingAddress);
 
         if (!isToBeElected) return;
