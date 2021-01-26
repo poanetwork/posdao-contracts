@@ -213,6 +213,42 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
         return _nativeToErcBridgesAllowed;
     }
 
+    function currentRewardToDistribute(
+        IStakingAuRa _stakingContract,
+        uint256 _stakingEpoch,
+        uint256 _totalRewardShareNum,
+        uint256 _totalRewardShareDenom,
+        address[] memory _validators
+    ) public view returns(uint256, uint256) {
+        uint256 totalReward =
+            bridgeTokenReward +
+            tokenRewardUndistributed +
+            _inflationAmount(_stakingEpoch, _validators, STAKE_TOKEN_INFLATION_RATE);
+
+        if (_totalRewardShareDenom == 0) {
+            (_totalRewardShareNum, _totalRewardShareDenom) = _rewardShareNumDenom(_stakingContract, _stakingContract.stakingEpochEndBlock());
+        }
+
+        uint256 rewardToDistribute = _totalRewardShareDenom != 0 ? totalReward * _totalRewardShareNum / _totalRewardShareDenom : 0;
+        return (rewardToDistribute, totalReward);
+    }
+
+    function currentPoolRewards(uint256 _rewardToDistribute, uint256[] memory _blocksCreatedShareNum, uint256 _blocksCreatedShareDenom) public pure returns(uint256[] memory) {
+        uint256[] memory poolRewards;
+        if (_blocksCreatedShareDenom == 0) {
+            // ... _blocksShareNumDenom(uint256 _stakingEpoch, address[] memory _validators)
+        }
+        if (_rewardToDistribute == 0 || _blocksCreatedShareDenom == 0) {
+            poolRewards = new uint256[](0);
+        } else {
+            poolRewards = new uint256[](_blocksCreatedShareNum.length);
+            for (uint256 i = 0; i < _blocksCreatedShareNum.length; i++) {
+                poolRewards[i] = _rewardToDistribute * _blocksCreatedShareNum[i] / _blocksCreatedShareDenom;
+            }
+        }
+        return poolRewards;
+    }
+
     // ============================================== Internal ========================================================
 
     /// @dev See the description of `BlockRewardAuRaCoins._coinInflationAmount` internal function.
@@ -239,9 +275,13 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
         uint256[] memory _blocksCreatedShareNum,
         uint256 _blocksCreatedShareDenom
     ) internal {
-        uint256 totalReward = bridgeTokenReward + tokenRewardUndistributed;
-
-        totalReward += _inflationAmount(_stakingEpoch, _validators, STAKE_TOKEN_INFLATION_RATE);
+        (uint256 rewardToDistribute, uint256 totalReward) = currentRewardToDistribute(
+            IStakingAuRa(_stakingContract),
+            _stakingEpoch,
+            _totalRewardShareNum,
+            _totalRewardShareDenom,
+            _validators
+        );
 
         if (totalReward == 0) {
             return;
@@ -263,21 +303,13 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
 
         uint256 distributedAmount = 0;
 
-        if (
-            minterContract != ITokenMinter(0) &&
-            minterContract.blockRewardContract() == address(this) &&
-            _blocksCreatedShareDenom != 0 &&
-            _totalRewardShareDenom != 0
-        ) {
-            uint256 rewardToDistribute = totalReward * _totalRewardShareNum / _totalRewardShareDenom;
-
-            if (rewardToDistribute != 0) {
+        if (minterContract != ITokenMinter(0) && minterContract.blockRewardContract() == address(this)) {
+            uint256[] memory poolReward = currentPoolRewards(rewardToDistribute, _blocksCreatedShareNum, _blocksCreatedShareDenom);
+            if (poolReward.length == _validators.length) {
                 for (uint256 i = 0; i < _validators.length; i++) {
-                    uint256 poolReward =
-                        rewardToDistribute * _blocksCreatedShareNum[i] / _blocksCreatedShareDenom;
-                    epochPoolTokenReward[_stakingEpoch][_validators[i]] = poolReward;
-                    distributedAmount += poolReward;
-                    if (poolReward != 0 && epochPoolNativeReward[_stakingEpoch][_validators[i]] == 0) {
+                    epochPoolTokenReward[_stakingEpoch][_validators[i]] = poolReward[i];
+                    distributedAmount += poolReward[i];
+                    if (poolReward[i] != 0 && epochPoolNativeReward[_stakingEpoch][_validators[i]] == 0) {
                         _epochsPoolGotRewardFor[_validators[i]].push(_stakingEpoch);
                     }
                 }

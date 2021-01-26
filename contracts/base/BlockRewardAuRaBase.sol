@@ -621,21 +621,7 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
         address, uint256, uint256, uint256, address[] memory, uint256[] memory, uint256
     ) internal;
 
-    /// @dev Distributes rewards among pools at the latest block of a staking epoch.
-    /// This function is called by the `reward` function.
-    /// @param _stakingContract The address of the StakingAuRa contract.
-    /// @param _stakingEpoch The number of the current staking epoch.
-    /// @param _stakingEpochEndBlock The number of the latest block of the current staking epoch.
-    /// @return Returns the reward amount in native coins needed to be minted
-    /// and accrued to the balance of this contract.
-    function _distributeRewards(
-        IStakingAuRa _stakingContract,
-        uint256 _stakingEpoch,
-        uint256 _stakingEpochEndBlock
-    ) internal returns(uint256 nativeTotalRewardAmount) {
-        address[] memory validators = validatorSetContract.getValidators();
-
-        // Determine shares
+    function _rewardShareNumDenom(IStakingAuRa _stakingContract, uint256 _stakingEpochEndBlock) internal view returns(uint256, uint256) {
         uint256 totalRewardShareNum = 0;
         uint256 totalRewardShareDenom = 1;
         uint256 realFinalizeBlock = validatorSetContract.validatorSetApplyBlock();
@@ -650,22 +636,44 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
             totalRewardShareNum = _stakingEpochEndBlock - realFinalizeBlock + 1;
             totalRewardShareDenom = _stakingEpochEndBlock - idealFinalizeBlock + 1;
         }
+        return (totalRewardShareNum, totalRewardShareDenom);
+    }
 
-        uint256[] memory blocksCreatedShareNum = new uint256[](validators.length);
+    function _blocksShareNumDenom(uint256 _stakingEpoch, address[] memory _validators) internal view returns(uint256[] memory, uint256) {
+        uint256[] memory blocksCreatedShareNum = new uint256[](_validators.length);
         uint256 blocksCreatedShareDenom = 0;
-        if (totalRewardShareNum != 0) {
-            for (uint256 i = 0; i < validators.length; i++) {
-                if (
-                    !validatorSetContract.isValidatorBanned(validators[i]) &&
-                    snapshotPoolValidatorStakeAmount[_stakingEpoch][validators[i]] != 0
-                ) {
-                    blocksCreatedShareNum[i] = blocksCreated[_stakingEpoch][validators[i]];
-                } else {
-                    blocksCreatedShareNum[i] = 0;
-                }
-                blocksCreatedShareDenom += blocksCreatedShareNum[i];
+        for (uint256 i = 0; i < _validators.length; i++) {
+            if (
+                !validatorSetContract.isValidatorBanned(_validators[i]) &&
+                snapshotPoolValidatorStakeAmount[_stakingEpoch][_validators[i]] != 0
+            ) {
+                blocksCreatedShareNum[i] = blocksCreated[_stakingEpoch][_validators[i]];
+            } else {
+                blocksCreatedShareNum[i] = 0;
             }
+            blocksCreatedShareDenom += blocksCreatedShareNum[i];
         }
+        return (blocksCreatedShareNum, blocksCreatedShareDenom);
+    }
+
+    /// @dev Distributes rewards among pools at the latest block of a staking epoch.
+    /// This function is called by the `reward` function.
+    /// @param _stakingContract The address of the StakingAuRa contract.
+    /// @param _stakingEpoch The number of the current staking epoch.
+    /// @param _stakingEpochEndBlock The number of the latest block of the current staking epoch.
+    /// @return Returns the reward amount in native coins needed to be minted
+    /// and accrued to the balance of this contract.
+    function _distributeRewards(
+        IStakingAuRa _stakingContract,
+        uint256 _stakingEpoch,
+        uint256 _stakingEpochEndBlock
+    ) internal returns(uint256 nativeTotalRewardAmount) {
+        // Get current validators
+        address[] memory validators = validatorSetContract.getValidators();
+
+        // Determine shares
+        (uint256 totalRewardShareNum, uint256 totalRewardShareDenom) = _rewardShareNumDenom(_stakingContract, _stakingEpochEndBlock);
+        (uint256[] memory blocksCreatedShareNum, uint256 blocksCreatedShareDenom) = _blocksShareNumDenom(_stakingEpoch, validators);
 
         // Distribute native coins among pools
         nativeTotalRewardAmount = _distributeNativeRewards(
