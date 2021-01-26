@@ -153,6 +153,10 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
         view
         returns(uint32 typesMask, bool cache)
     {
+        if (_to == address(0) && _data.length > 24576) { // EIP 170
+            return (NONE, false);
+        }
+
         if (isSenderAllowed[_sender]) {
             // Let the `_sender` initiate any transaction if the `_sender` is in the `allowedSenders` list
             return (ALL, false);
