@@ -283,7 +283,12 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
         uint256 distributedAmount = 0;
 
         if (minterContract != ITokenMinter(0) && minterContract.blockRewardContract() == address(this)) {
-            uint256[] memory poolReward = currentPoolRewards(rewardToDistribute, _blocksCreatedShareNum, _blocksCreatedShareDenom, _stakingEpoch);
+            uint256[] memory poolReward = currentPoolRewards(
+                rewardToDistribute,
+                _blocksCreatedShareNum,
+                _blocksCreatedShareDenom,
+                _stakingEpoch
+            );
             if (poolReward.length == _validators.length) {
                 for (uint256 i = 0; i < _validators.length; i++) {
                     epochPoolTokenReward[_stakingEpoch][_validators[i]] = poolReward[i];

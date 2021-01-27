@@ -609,10 +609,13 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
         uint256 _totalRewardShareDenom
     ) internal view returns(uint256, uint256) {
         if (_totalRewardShareDenom == 0) {
-            (_totalRewardShareNum, _totalRewardShareDenom) = _rewardShareNumDenom(_stakingContract, _stakingContract.stakingEpochEndBlock());
+            (_totalRewardShareNum, _totalRewardShareDenom) =
+                _rewardShareNumDenom(_stakingContract, _stakingContract.stakingEpochEndBlock());
         }
 
-        uint256 rewardToDistribute = _totalRewardShareDenom != 0 ? _totalReward * _totalRewardShareNum / _totalRewardShareDenom : 0;
+        uint256 rewardToDistribute =
+            _totalRewardShareDenom != 0 ? _totalReward * _totalRewardShareNum / _totalRewardShareDenom : 0;
+
         return (rewardToDistribute, _totalReward);
     }
 
@@ -651,7 +654,12 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
 
         uint256 distributedAmount = 0;
 
-        uint256[] memory poolReward = currentPoolRewards(rewardToDistribute, _blocksCreatedShareNum, _blocksCreatedShareDenom, _stakingEpoch);
+        uint256[] memory poolReward = currentPoolRewards(
+            rewardToDistribute,
+            _blocksCreatedShareNum,
+            _blocksCreatedShareDenom,
+            _stakingEpoch
+        );
         if (poolReward.length == _validators.length) {
             for (uint256 i = 0; i < _validators.length; i++) {
                 epochPoolNativeReward[_stakingEpoch][_validators[i]] = poolReward[i];
@@ -681,7 +689,10 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
             _coinInflationAmount(_stakingEpoch, _validators);
     }
 
-    function _rewardShareNumDenom(IStakingAuRa _stakingContract, uint256 _stakingEpochEndBlock) internal view returns(uint256, uint256) {
+    function _rewardShareNumDenom(
+        IStakingAuRa _stakingContract,
+        uint256 _stakingEpochEndBlock
+    ) internal view returns(uint256, uint256) {
         uint256 totalRewardShareNum = 0;
         uint256 totalRewardShareDenom = 1;
         uint256 realFinalizeBlock = validatorSetContract.validatorSetApplyBlock();
@@ -699,7 +710,10 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
         return (totalRewardShareNum, totalRewardShareDenom);
     }
 
-    function _blocksShareNumDenom(uint256 _stakingEpoch, address[] memory _validators) internal view returns(uint256[] memory, uint256) {
+    function _blocksShareNumDenom(
+        uint256 _stakingEpoch,
+        address[] memory _validators
+    ) internal view returns(uint256[] memory, uint256) {
         if (_validators.length == 0) {
             _validators = validatorSetContract.getValidators();
         }
@@ -735,8 +749,10 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
         address[] memory validators = validatorSetContract.getValidators();
 
         // Determine shares
-        (uint256 totalRewardShareNum, uint256 totalRewardShareDenom) = _rewardShareNumDenom(_stakingContract, _stakingEpochEndBlock);
-        (uint256[] memory blocksCreatedShareNum, uint256 blocksCreatedShareDenom) = _blocksShareNumDenom(_stakingEpoch, validators);
+        (uint256 totalRewardShareNum, uint256 totalRewardShareDenom) =
+            _rewardShareNumDenom(_stakingContract, _stakingEpochEndBlock);
+        (uint256[] memory blocksCreatedShareNum, uint256 blocksCreatedShareDenom) =
+            _blocksShareNumDenom(_stakingEpoch, validators);
 
         // Distribute native coins among pools
         nativeTotalRewardAmount = _distributeNativeRewards(
