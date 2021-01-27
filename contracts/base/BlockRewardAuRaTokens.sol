@@ -213,6 +213,22 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
         return _nativeToErcBridgesAllowed;
     }
 
+    /// @dev Calculates the current total reward in tokens which is going to be distributed
+    /// among validator pools once the current staking epoch finishes. Its value can differ
+    /// from block to block since the reward can increase in time due to bridge's fees.
+    /// Used by the `_distributeTokenRewards` internal function but can also be used by
+    /// any external user.
+    /// @param _stakingContract The address of StakingAuRa contract.
+    /// @param _stakingEpoch The number of the current staking epoch.
+    /// @param _totalRewardShareNum The value returned by the `_rewardShareNumDenom` internal function.
+    /// Ignored if the `_totalRewardShareDenom` param is zero.
+    /// @param _totalRewardShareDenom The value returned by the `_rewardShareNumDenom` internal function.
+    /// Set it to zero to calculate `_totalRewardShareNum` and `_totalRewardShareDenom` automatically.
+    /// @param _validators The array of the current validators. Leave it empty to get the array automatically.
+    /// @return `uint256 rewardToDistribute` - The current total reward in tokens to distribute.
+    /// `uint256 totalReward` - The current total reward in tokens. Can be greater or equal to `rewardToDistribute`
+    /// depending on chain's health (how soon validator set change was finalized after beginning of staking epoch).
+    /// Usually equals to `rewardToDistribute`. Used internally by the `_distributeTokenRewards` function.
     function currentTokenRewardToDistribute(
         IStakingAuRa _stakingContract,
         uint256 _stakingEpoch,
@@ -305,6 +321,13 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
         tokenRewardUndistributed = totalReward - distributedAmount;
     }
 
+    /// @dev Calculates the current total reward in tokens.
+    /// Used by the `currentTokenRewardToDistribute` function.
+    /// @param _stakingEpoch The number of the current staking epoch.
+    /// @param _validators The array of the current validators
+    /// returned by the `ValidatorSetAuRa.getValidators` getter.
+    /// Can be empty to retrieve the array automatically inside
+    /// the `_inflationAmount` internal function.
     function _getTotalTokenReward(
         uint256 _stakingEpoch,
         address[] memory _validators

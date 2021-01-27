@@ -350,6 +350,70 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
         return 0x0d35a7ca; // bytes4(keccak256("blockReward"))
     }
 
+    /// @dev Calculates the current total reward in native coins which is going to be distributed
+    /// among validator pools once the current staking epoch finishes. Its value can differ
+    /// from block to block since the reward can increase in time due to bridge's fees.
+    /// Used by the `_distributeNativeRewards` internal function but can also be used by
+    /// any external user.
+    /// @param _stakingContract The address of StakingAuRa contract.
+    /// @param _stakingEpoch The number of the current staking epoch.
+    /// @param _totalRewardShareNum The value returned by the `_rewardShareNumDenom` internal function.
+    /// Ignored if the `_totalRewardShareDenom` param is zero.
+    /// @param _totalRewardShareDenom The value returned by the `_rewardShareNumDenom` internal function.
+    /// Set it to zero to calculate `_totalRewardShareNum` and `_totalRewardShareDenom` automatically.
+    /// @param _validators The array of the current validators. Leave it empty to get the array automatically.
+    /// @return `uint256 rewardToDistribute` - The current total reward in native coins to distribute.
+    /// `uint256 totalReward` - The current total reward in native coins. Can be greater or equal
+    /// to `rewardToDistribute` depending on chain's health (how soon validator set change was finalized after
+    /// beginning of staking epoch). Usually equals to `rewardToDistribute`.
+    /// Used internally by the `_distributeNativeRewards` function.
+    function currentNativeRewardToDistribute(
+        IStakingAuRa _stakingContract,
+        uint256 _stakingEpoch,
+        uint256 _totalRewardShareNum,
+        uint256 _totalRewardShareDenom,
+        address[] memory _validators
+    ) public view returns(uint256, uint256) {
+        return _currentRewardToDistribute(
+            _getTotalNativeReward(_stakingEpoch, _validators),
+            _stakingContract,
+            _totalRewardShareNum,
+            _totalRewardShareDenom
+        );
+    }
+
+    /// @dev Calculates and returns an array of validator pool rewards. Each returned item represents a pool reward
+    /// for each corresponding item returned by `ValidatorSetAuRa.getValidators` getter.
+    /// Used by the `_distributeNativeRewards` and `_distributeTokenRewards` internal functions
+    /// but can also be used by any external user.
+    /// @param _rewardToDistribute The amount to distribute calculated by the `currentNativeRewardToDistribute`
+    /// or `currentTokenRewardToDistribute` functions.
+    /// @param _blocksCreatedShareNum The array returned by the `_blocksShareNumDenom` internal function.
+    /// Ignored if `_blocksCreatedShareDenom` is zero.
+    /// @param _blocksCreatedShareDenom The value returned by the `_blocksShareNumDenom` internal function.
+    /// Set it to zero to calculate `_blocksCreatedShareNum` and `_blocksCreatedShareDenom` automatically.
+    /// @param _stakingEpoch The number of the current staking epoch.
+    function currentPoolRewards(
+        uint256 _rewardToDistribute,
+        uint256[] memory _blocksCreatedShareNum,
+        uint256 _blocksCreatedShareDenom,
+        uint256 _stakingEpoch
+    ) public view returns(uint256[] memory) {
+        uint256[] memory poolRewards;
+        if (_blocksCreatedShareDenom == 0) {
+            (_blocksCreatedShareNum, _blocksCreatedShareDenom) = _blocksShareNumDenom(_stakingEpoch, new address[](0));
+        }
+        if (_rewardToDistribute == 0 || _blocksCreatedShareDenom == 0) {
+            poolRewards = new uint256[](0);
+        } else {
+            poolRewards = new uint256[](_blocksCreatedShareNum.length);
+            for (uint256 i = 0; i < _blocksCreatedShareNum.length; i++) {
+                poolRewards[i] = _rewardToDistribute * _blocksCreatedShareNum[i] / _blocksCreatedShareDenom;
+            }
+        }
+        return poolRewards;
+    }
+
     /// @dev Returns an array of epoch numbers for which the specified pool (mining address)
     /// got a non-zero reward.
     function epochsPoolGotRewardFor(address _miningAddress) public view returns(uint256[] memory) {
@@ -559,42 +623,6 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
         return share;
     }
 
-    function currentPoolRewards(
-        uint256 _rewardToDistribute,
-        uint256[] memory _blocksCreatedShareNum,
-        uint256 _blocksCreatedShareDenom,
-        uint256 _stakingEpoch
-    ) public view returns(uint256[] memory) {
-        uint256[] memory poolRewards;
-        if (_blocksCreatedShareDenom == 0) {
-            (_blocksCreatedShareNum, _blocksCreatedShareDenom) = _blocksShareNumDenom(_stakingEpoch, new address[](0));
-        }
-        if (_rewardToDistribute == 0 || _blocksCreatedShareDenom == 0) {
-            poolRewards = new uint256[](0);
-        } else {
-            poolRewards = new uint256[](_blocksCreatedShareNum.length);
-            for (uint256 i = 0; i < _blocksCreatedShareNum.length; i++) {
-                poolRewards[i] = _rewardToDistribute * _blocksCreatedShareNum[i] / _blocksCreatedShareDenom;
-            }
-        }
-        return poolRewards;
-    }
-
-    function currentNativeRewardToDistribute(
-        IStakingAuRa _stakingContract,
-        uint256 _stakingEpoch,
-        uint256 _totalRewardShareNum,
-        uint256 _totalRewardShareDenom,
-        address[] memory _validators
-    ) public view returns(uint256, uint256) {
-        return _currentRewardToDistribute(
-            _getTotalNativeReward(_stakingEpoch, _validators),
-            _stakingContract,
-            _totalRewardShareNum,
-            _totalRewardShareDenom
-        );
-    }
-
     // ============================================== Internal ========================================================
 
     uint256 internal constant VALIDATOR_MIN_REWARD_PERCENT = 30; // 30%
@@ -602,6 +630,19 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
 
     function _coinInflationAmount(uint256, address[] memory) internal view returns(uint256);
 
+    /// @dev Calculates the current total reward to distribute among validator pools
+    /// once the current staking epoch finishes. Based on the `_totalReward` value calculated
+    /// by `_getTotalNativeReward` or `_getTotalTokenReward` functions.
+    /// Used by the `currentNativeRewardToDistribute` and `currentTokenRewardToDistribute` functions.
+    /// @param _totalReward The total reward calculated by `_getTotalNativeReward`
+    /// or `_getTotalTokenReward` internal function.
+    /// @param _stakingContract The address of StakingAuRa contract.
+    /// @param _totalRewardShareNum The value returned by the `_rewardShareNumDenom` internal function.
+    /// Ignored if the `_totalRewardShareDenom` param is zero.
+    /// @param _totalRewardShareDenom The value returned by the `_rewardShareNumDenom` internal function.
+    /// Set it to zero to calculate `_totalRewardShareNum` and `_totalRewardShareDenom` automatically.
+    /// @return `uint256 rewardToDistribute` - The current total reward to distribute.
+    /// `uint256 totalReward` - Duplicates the `_totalReward` input parameter.
     function _currentRewardToDistribute(
         uint256 _totalReward,
         IStakingAuRa _stakingContract,
@@ -679,6 +720,13 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
         address, uint256, uint256, uint256, address[] memory, uint256[] memory, uint256
     ) internal;
 
+    /// @dev Calculates the current total reward in native coins.
+    /// Used by the `currentNativeRewardToDistribute` function.
+    /// @param _stakingEpoch The number of the current staking epoch.
+    /// @param _validators The array of the current validators
+    /// returned by the `ValidatorSetAuRa.getValidators` getter.
+    /// Can be empty to retrieve the array automatically inside
+    /// the `_inflationAmount` internal function.
     function _getTotalNativeReward(
         uint256 _stakingEpoch,
         address[] memory _validators
@@ -689,6 +737,17 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
             _coinInflationAmount(_stakingEpoch, _validators);
     }
 
+    /// @dev Calculates and returns values which define a share of total reward
+    /// needed to be distributed among validator pools at the end of staking epoch.
+    /// Used by the `_currentRewardToDistribute` and `_distributeRewards` functions.
+    /// When validators behave correctly, it returns 100% share of total reward.
+    /// When, e.g. validators finalized a new validator set at the middle of staking epoch
+    /// for some reason, the share will be 50%. And so on.
+    /// @param _stakingContract The address of the StakingAuRa contract.
+    /// @param _stakingEpochEndBlock The latest block of the current staking epoch
+    /// returned by the `StakingAuRa.stakingEpochEndBlock` getter.
+    /// @return `uint256 totalRewardShareNum` - numerator of the share.
+    /// `uint256 totalRewardShareDenom` - denominator of the share.
     function _rewardShareNumDenom(
         IStakingAuRa _stakingContract,
         uint256 _stakingEpochEndBlock
@@ -710,6 +769,16 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
         return (totalRewardShareNum, totalRewardShareDenom);
     }
 
+    /// @dev Calculates and returns values defining a share of the total number of created blocks
+    /// during the current staking epoch for each validator.
+    /// Used by the `currentPoolRewards` and `_distributeRewards` functions to determine
+    /// a pool reward for each validator depending on how many blocks the validator created
+    /// during the current staking epoch.
+    /// @param _stakingEpoch The number of the current staking epoch.
+    /// @param _validators The array of the current validators. Leave it empty to get the array automatically.
+    /// @return `uint256[] blocksCreatedShareNum` - array of numerators of the share for each validator.
+    /// Each item corresponds to the item of the array returned by the `ValidatorSetAuRa.getValidators` getter.
+    /// `uint256 blocksCreatedShareDenom` - denominator for the shares.
     function _blocksShareNumDenom(
         uint256 _stakingEpoch,
         address[] memory _validators
