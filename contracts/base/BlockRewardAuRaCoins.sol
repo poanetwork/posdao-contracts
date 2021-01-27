@@ -90,4 +90,5 @@ contract BlockRewardAuRaCoins is BlockRewardAuRaBase, IBlockRewardAuRaCoins {
         address, uint256, uint256, uint256, address[] memory, uint256[] memory, uint256
     ) internal {
     }
+
 }

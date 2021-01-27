@@ -559,6 +559,42 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
         return share;
     }
 
+    function currentPoolRewards(
+        uint256 _rewardToDistribute,
+        uint256[] memory _blocksCreatedShareNum,
+        uint256 _blocksCreatedShareDenom,
+        uint256 _stakingEpoch
+    ) public view returns(uint256[] memory) {
+        uint256[] memory poolRewards;
+        if (_blocksCreatedShareDenom == 0) {
+            (_blocksCreatedShareNum, _blocksCreatedShareDenom) = _blocksShareNumDenom(_stakingEpoch, new address[](0));
+        }
+        if (_rewardToDistribute == 0 || _blocksCreatedShareDenom == 0) {
+            poolRewards = new uint256[](0);
+        } else {
+            poolRewards = new uint256[](_blocksCreatedShareNum.length);
+            for (uint256 i = 0; i < _blocksCreatedShareNum.length; i++) {
+                poolRewards[i] = _rewardToDistribute * _blocksCreatedShareNum[i] / _blocksCreatedShareDenom;
+            }
+        }
+        return poolRewards;
+    }
+
+    function currentNativeRewardToDistribute(
+        IStakingAuRa _stakingContract,
+        uint256 _stakingEpoch,
+        uint256 _totalRewardShareNum,
+        uint256 _totalRewardShareDenom,
+        address[] memory _validators
+    ) public view returns(uint256, uint256) {
+        return _currentRewardToDistribute(
+            _getTotalNativeReward(_stakingEpoch, _validators),
+            _stakingContract,
+            _totalRewardShareNum,
+            _totalRewardShareDenom
+        );
+    }
+
     // ============================================== Internal ========================================================
 
     uint256 internal constant VALIDATOR_MIN_REWARD_PERCENT = 30; // 30%
@@ -566,8 +602,23 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
 
     function _coinInflationAmount(uint256, address[] memory) internal view returns(uint256);
 
+    function _currentRewardToDistribute(
+        uint256 _totalReward,
+        IStakingAuRa _stakingContract,
+        uint256 _totalRewardShareNum,
+        uint256 _totalRewardShareDenom
+    ) internal view returns(uint256, uint256) {
+        if (_totalRewardShareDenom == 0) {
+            (_totalRewardShareNum, _totalRewardShareDenom) = _rewardShareNumDenom(_stakingContract, _stakingContract.stakingEpochEndBlock());
+        }
+
+        uint256 rewardToDistribute = _totalRewardShareDenom != 0 ? _totalReward * _totalRewardShareNum / _totalRewardShareDenom : 0;
+        return (rewardToDistribute, _totalReward);
+    }
+
     /// @dev Distributes rewards in native coins among pools at the latest block of a staking epoch.
     /// This function is called by the `_distributeRewards` function.
+    /// @param _stakingContract The address of the StakingAuRa contract.
     /// @param _stakingEpoch The number of the current staking epoch.
     /// @param _totalRewardShareNum Numerator of the total reward share.
     /// @param _totalRewardShareDenom Denominator of the total reward share.
@@ -576,6 +627,7 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
     /// @param _blocksCreatedShareDenom Denominator of blockCreated share.
     /// @return Returns the amount of native coins which need to be minted.
     function _distributeNativeRewards(
+        IStakingAuRa _stakingContract,
         uint256 _stakingEpoch,
         uint256 _totalRewardShareNum,
         uint256 _totalRewardShareDenom,
@@ -583,9 +635,13 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
         uint256[] memory _blocksCreatedShareNum,
         uint256 _blocksCreatedShareDenom
     ) internal returns(uint256) {
-        uint256 totalReward = bridgeNativeReward + nativeRewardUndistributed;
-
-        totalReward += _coinInflationAmount(_stakingEpoch, _validators);
+        (uint256 rewardToDistribute, uint256 totalReward) = currentNativeRewardToDistribute(
+            _stakingContract,
+            _stakingEpoch,
+            _totalRewardShareNum,
+            _totalRewardShareDenom,
+            _validators
+        );
 
         if (totalReward == 0) {
             return 0;
@@ -593,21 +649,15 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
 
         bridgeNativeReward = 0;
 
-        uint256 rewardToDistribute = 0;
         uint256 distributedAmount = 0;
 
-        if (_blocksCreatedShareDenom != 0 && _totalRewardShareDenom != 0) {
-            rewardToDistribute = totalReward * _totalRewardShareNum / _totalRewardShareDenom;
-
-            if (rewardToDistribute != 0) {
-                for (uint256 i = 0; i < _validators.length; i++) {
-                    uint256 poolReward =
-                        rewardToDistribute * _blocksCreatedShareNum[i] / _blocksCreatedShareDenom;
-                    epochPoolNativeReward[_stakingEpoch][_validators[i]] = poolReward;
-                    distributedAmount += poolReward;
-                    if (poolReward != 0) {
-                        _epochsPoolGotRewardFor[_validators[i]].push(_stakingEpoch);
-                    }
+        uint256[] memory poolReward = currentPoolRewards(rewardToDistribute, _blocksCreatedShareNum, _blocksCreatedShareDenom, _stakingEpoch);
+        if (poolReward.length == _validators.length) {
+            for (uint256 i = 0; i < _validators.length; i++) {
+                epochPoolNativeReward[_stakingEpoch][_validators[i]] = poolReward[i];
+                distributedAmount += poolReward[i];
+                if (poolReward[i] != 0) {
+                    _epochsPoolGotRewardFor[_validators[i]].push(_stakingEpoch);
                 }
             }
         }
@@ -620,6 +670,16 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
     function _distributeTokenRewards(
         address, uint256, uint256, uint256, address[] memory, uint256[] memory, uint256
     ) internal;
+
+    function _getTotalNativeReward(
+        uint256 _stakingEpoch,
+        address[] memory _validators
+    ) internal view returns(uint256 totalReward) {
+        totalReward =
+            bridgeNativeReward +
+            nativeRewardUndistributed +
+            _coinInflationAmount(_stakingEpoch, _validators);
+    }
 
     function _rewardShareNumDenom(IStakingAuRa _stakingContract, uint256 _stakingEpochEndBlock) internal view returns(uint256, uint256) {
         uint256 totalRewardShareNum = 0;
@@ -640,6 +700,9 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
     }
 
     function _blocksShareNumDenom(uint256 _stakingEpoch, address[] memory _validators) internal view returns(uint256[] memory, uint256) {
+        if (_validators.length == 0) {
+            _validators = validatorSetContract.getValidators();
+        }
         uint256[] memory blocksCreatedShareNum = new uint256[](_validators.length);
         uint256 blocksCreatedShareDenom = 0;
         for (uint256 i = 0; i < _validators.length; i++) {
@@ -677,6 +740,7 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
 
         // Distribute native coins among pools
         nativeTotalRewardAmount = _distributeNativeRewards(
+            _stakingContract,
             _stakingEpoch,
             totalRewardShareNum,
             totalRewardShareDenom,
@@ -723,6 +787,7 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
     /// Used by `_coinInflationAmount` and `_distributeTokenRewards` functions.
     /// @param _stakingEpoch The number of the current staking epoch.
     /// @param _validators The array of the current validators (their mining addresses).
+    /// If empty, the function gets the array itself with ValidatorSetAuRa.getValidators().
     /// @param _inflationRate Inflation rate.
     function _inflationAmount(
         uint256 _stakingEpoch,
@@ -730,6 +795,9 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
         uint256 _inflationRate
     ) internal view returns(uint256) {
         if (_inflationRate == 0) return 0;
+        if (_validators.length == 0) {
+            _validators = validatorSetContract.getValidators();
+        }
         uint256 snapshotTotalStakeAmount = 0;
         for (uint256 i = 0; i < _validators.length; i++) {
             snapshotTotalStakeAmount += snapshotPoolTotalStakeAmount[_stakingEpoch][_validators[i]];
