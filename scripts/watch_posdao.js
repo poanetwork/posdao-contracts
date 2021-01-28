@@ -15,7 +15,7 @@ const BN = web3.utils.BN;
 //   console.log();
 // }
 
-const BlockReward = new web3.eth.Contract([{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"addBridgeTokenFeeReceivers","inputs":[{"type":"uint256","name":"_amount"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"snapshotPoolValidatorStakeAmount","inputs":[{"type":"uint256","name":""},{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"setErcToNativeBridgesAllowed","inputs":[{"type":"address[]","name":"_bridgesAllowed"}],"constant":false},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"addBridgeNativeRewardReceivers","inputs":[{"type":"uint256","name":"_amount"}],"constant":false},{"type":"function","stateMutability":"pure","payable":false,"outputs":[{"type":"bytes4","name":""}],"name":"blockRewardContractId","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"mintedForAccountInBlock","inputs":[{"type":"address","name":""},{"type":"uint256","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"epochPoolNativeReward","inputs":[{"type":"uint256","name":""},{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bool","name":""}],"name":"isInitialized","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"mintedForAccount","inputs":[{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"address[]","name":""}],"name":"ercToNativeBridgesAllowed","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"mintedInBlock","inputs":[{"type":"uint256","name":""}],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"initialize","inputs":[{"type":"address","name":"_validatorSet"},{"type":"address","name":"_prevBlockReward"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"STAKE_TOKEN_INFLATION_RATE","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256[]","name":"epochsToClaimFrom"}],"name":"epochsToClaimRewardFrom","inputs":[{"type":"address","name":"_poolStakingAddress"},{"type":"address","name":"_staker"}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"validatorRewardPercent","inputs":[{"type":"address","name":"_stakingAddress"}],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"addBridgeNativeFeeReceivers","inputs":[{"type":"uint256","name":"_amount"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"mintedTotally","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"delegatorShare","inputs":[{"type":"uint256","name":"_stakingEpoch"},{"type":"uint256","name":"_delegatorStaked"},{"type":"uint256","name":"_validatorStaked"},{"type":"uint256","name":"_totalStaked"},{"type":"uint256","name":"_poolReward"}],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"addBridgeTokenRewardReceivers","inputs":[{"type":"uint256","name":"_amount"}],"constant":false},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"setNativeToErcBridgesAllowed","inputs":[{"type":"address[]","name":"_bridgesAllowed"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"tokenRewardUndistributed","inputs":[],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"transferReward","inputs":[{"type":"uint256","name":"_tokens"},{"type":"uint256","name":"_nativeCoins"},{"type":"address","name":"_to"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"snapshotPoolTotalStakeAmount","inputs":[{"type":"uint256","name":""},{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"validatorShare","inputs":[{"type":"uint256","name":"_stakingEpoch"},{"type":"uint256","name":"_validatorStaked"},{"type":"uint256","name":"_totalStaked"},{"type":"uint256","name":"_poolReward"}],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"setErcToErcBridgesAllowed","inputs":[{"type":"address[]","name":"_bridgesAllowed"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"address[]","name":""}],"name":"ercToErcBridgesAllowed","inputs":[],"constant":true},{"type":"function","stateMutability":"pure","payable":false,"outputs":[{"type":"bool","name":""}],"name":"onTokenTransfer","inputs":[{"type":"address","name":""},{"type":"uint256","name":""},{"type":"bytes","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"extraReceiversQueueSize","inputs":[],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"addExtraReceiver","inputs":[{"type":"uint256","name":"_amount"},{"type":"address","name":"_receiver"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"bridgeNativeReward","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"nativeRewardUndistributed","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"address[]","name":""}],"name":"nativeToErcBridgesAllowed","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"mintedTotallyByBridge","inputs":[{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"epochPoolTokenReward","inputs":[{"type":"uint256","name":""},{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":"tokenReward"},{"type":"uint256","name":"nativeReward"}],"name":"getValidatorReward","inputs":[{"type":"uint256","name":"_stakingEpoch"},{"type":"address","name":"_poolMiningAddress"}],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"clearBlocksCreated","inputs":[],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"validatorMinRewardPercent","inputs":[{"type":"uint256","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256[]","name":""}],"name":"epochsPoolGotRewardFor","inputs":[{"type":"address","name":"_miningAddress"}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"address","name":""}],"name":"validatorSetContract","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":"tokenReward"},{"type":"uint256","name":"nativeReward"}],"name":"getDelegatorReward","inputs":[{"type":"uint256","name":"_delegatorStake"},{"type":"uint256","name":"_stakingEpoch"},{"type":"address","name":"_poolMiningAddress"}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"blocksCreated","inputs":[{"type":"uint256","name":""},{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[{"type":"address[]","name":"receiversNative"},{"type":"uint256[]","name":"rewardsNative"}],"name":"reward","inputs":[{"type":"address[]","name":"benefactors"},{"type":"uint16[]","name":"kind"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"bridgeTokenReward","inputs":[],"constant":true},{"type":"fallback","stateMutability":"payable","payable":true},{"type":"event","name":"BridgeTokenRewardAdded","inputs":[{"type":"uint256","name":"amount","indexed":false},{"type":"uint256","name":"cumulativeAmount","indexed":false},{"type":"address","name":"bridge","indexed":true}],"anonymous":false},{"type":"event","name":"AddedReceiver","inputs":[{"type":"uint256","name":"amount","indexed":false},{"type":"address","name":"receiver","indexed":true},{"type":"address","name":"bridge","indexed":true}],"anonymous":false},{"type":"event","name":"BridgeNativeRewardAdded","inputs":[{"type":"uint256","name":"amount","indexed":false},{"type":"uint256","name":"cumulativeAmount","indexed":false},{"type":"address","name":"bridge","indexed":true}],"anonymous":false},{"type":"event","name":"MintedNative","inputs":[{"type":"address[]","name":"receivers","indexed":false},{"type":"uint256[]","name":"rewards","indexed":false}],"anonymous":false}], '0x481c034c6d9441db23Ea48De68BCAe812C5d39bA');
+const BlockReward = new web3.eth.Contract([{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"setTokenMinterContract","inputs":[{"type":"address","name":"_tokenMinterContract"}],"constant":false},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"addBridgeTokenFeeReceivers","inputs":[{"type":"uint256","name":"_amount"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"snapshotPoolValidatorStakeAmount","inputs":[{"type":"uint256","name":""},{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"setErcToNativeBridgesAllowed","inputs":[{"type":"address[]","name":"_bridgesAllowed"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256[]","name":""}],"name":"currentPoolRewards","inputs":[{"type":"uint256","name":"_rewardToDistribute"},{"type":"uint256[]","name":"_blocksCreatedShareNum"},{"type":"uint256","name":"_blocksCreatedShareDenom"},{"type":"uint256","name":"_stakingEpoch"}],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"addBridgeNativeRewardReceivers","inputs":[{"type":"uint256","name":"_amount"}],"constant":false},{"type":"function","stateMutability":"pure","payable":false,"outputs":[{"type":"bytes4","name":""}],"name":"blockRewardContractId","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"mintedForAccountInBlock","inputs":[{"type":"address","name":""},{"type":"uint256","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"epochPoolNativeReward","inputs":[{"type":"uint256","name":""},{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bool","name":""}],"name":"isInitialized","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""},{"type":"uint256","name":""}],"name":"currentNativeRewardToDistribute","inputs":[{"type":"address","name":"_stakingContract"},{"type":"uint256","name":"_stakingEpoch"},{"type":"uint256","name":"_totalRewardShareNum"},{"type":"uint256","name":"_totalRewardShareDenom"},{"type":"address[]","name":"_validators"}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"mintedForAccount","inputs":[{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"address[]","name":""}],"name":"ercToNativeBridgesAllowed","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"mintedInBlock","inputs":[{"type":"uint256","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""},{"type":"uint256","name":""}],"name":"currentTokenRewardToDistribute","inputs":[{"type":"address","name":"_stakingContract"},{"type":"uint256","name":"_stakingEpoch"},{"type":"uint256","name":"_totalRewardShareNum"},{"type":"uint256","name":"_totalRewardShareDenom"},{"type":"address[]","name":"_validators"}],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"initialize","inputs":[{"type":"address","name":"_validatorSet"},{"type":"address","name":"_prevBlockReward"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"STAKE_TOKEN_INFLATION_RATE","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256[]","name":"epochsToClaimFrom"}],"name":"epochsToClaimRewardFrom","inputs":[{"type":"address","name":"_poolStakingAddress"},{"type":"address","name":"_staker"}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"validatorRewardPercent","inputs":[{"type":"address","name":"_stakingAddress"}],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"addBridgeNativeFeeReceivers","inputs":[{"type":"uint256","name":"_amount"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"mintedTotally","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"delegatorShare","inputs":[{"type":"uint256","name":"_stakingEpoch"},{"type":"uint256","name":"_delegatorStaked"},{"type":"uint256","name":"_validatorStaked"},{"type":"uint256","name":"_totalStaked"},{"type":"uint256","name":"_poolReward"}],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"addBridgeTokenRewardReceivers","inputs":[{"type":"uint256","name":"_amount"}],"constant":false},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"setNativeToErcBridgesAllowed","inputs":[{"type":"address[]","name":"_bridgesAllowed"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"tokenRewardUndistributed","inputs":[],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"transferReward","inputs":[{"type":"uint256","name":"_tokens"},{"type":"uint256","name":"_nativeCoins"},{"type":"address","name":"_to"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"snapshotPoolTotalStakeAmount","inputs":[{"type":"uint256","name":""},{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"validatorShare","inputs":[{"type":"uint256","name":"_stakingEpoch"},{"type":"uint256","name":"_validatorStaked"},{"type":"uint256","name":"_totalStaked"},{"type":"uint256","name":"_poolReward"}],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"setErcToErcBridgesAllowed","inputs":[{"type":"address[]","name":"_bridgesAllowed"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"address[]","name":""}],"name":"ercToErcBridgesAllowed","inputs":[],"constant":true},{"type":"function","stateMutability":"pure","payable":false,"outputs":[{"type":"bool","name":""}],"name":"onTokenTransfer","inputs":[{"type":"address","name":""},{"type":"uint256","name":""},{"type":"bytes","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"extraReceiversQueueSize","inputs":[],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"addExtraReceiver","inputs":[{"type":"uint256","name":"_amount"},{"type":"address","name":"_receiver"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"bridgeNativeReward","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"nativeRewardUndistributed","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"address[]","name":""}],"name":"nativeToErcBridgesAllowed","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"mintedTotallyByBridge","inputs":[{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"epochPoolTokenReward","inputs":[{"type":"uint256","name":""},{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":"tokenReward"},{"type":"uint256","name":"nativeReward"}],"name":"getValidatorReward","inputs":[{"type":"uint256","name":"_stakingEpoch"},{"type":"address","name":"_poolMiningAddress"}],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"clearBlocksCreated","inputs":[],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"address","name":""}],"name":"tokenMinterContract","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"validatorMinRewardPercent","inputs":[{"type":"uint256","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256[]","name":""}],"name":"epochsPoolGotRewardFor","inputs":[{"type":"address","name":"_miningAddress"}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"address","name":""}],"name":"validatorSetContract","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":"tokenReward"},{"type":"uint256","name":"nativeReward"}],"name":"getDelegatorReward","inputs":[{"type":"uint256","name":"_delegatorStake"},{"type":"uint256","name":"_stakingEpoch"},{"type":"address","name":"_poolMiningAddress"}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"blocksCreated","inputs":[{"type":"uint256","name":""},{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[{"type":"address[]","name":"receiversNative"},{"type":"uint256[]","name":"rewardsNative"}],"name":"reward","inputs":[{"type":"address[]","name":"benefactors"},{"type":"uint16[]","name":"kind"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"bridgeTokenReward","inputs":[],"constant":true},{"type":"fallback","stateMutability":"payable","payable":true},{"type":"event","name":"BridgeTokenRewardAdded","inputs":[{"type":"uint256","name":"amount","indexed":false},{"type":"uint256","name":"cumulativeAmount","indexed":false},{"type":"address","name":"bridge","indexed":true}],"anonymous":false},{"type":"event","name":"AddedReceiver","inputs":[{"type":"uint256","name":"amount","indexed":false},{"type":"address","name":"receiver","indexed":true},{"type":"address","name":"bridge","indexed":true}],"anonymous":false},{"type":"event","name":"BridgeNativeRewardAdded","inputs":[{"type":"uint256","name":"amount","indexed":false},{"type":"uint256","name":"cumulativeAmount","indexed":false},{"type":"address","name":"bridge","indexed":true}],"anonymous":false},{"type":"event","name":"MintedNative","inputs":[{"type":"address[]","name":"receivers","indexed":false},{"type":"uint256[]","name":"rewards","indexed":false}],"anonymous":false}], '0x481c034c6d9441db23Ea48De68BCAe812C5d39bA');
 const Random = new web3.eth.Contract([{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bytes","name":""}],"name":"getCipher","inputs":[{"type":"uint256","name":"_collectRound"},{"type":"address","name":"_miningAddress"}],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"commitHash","inputs":[{"type":"bytes32","name":"_numberHash"},{"type":"bytes","name":"_cipher"}],"constant":false},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"onFinishCollectRound","inputs":[],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"collectRoundLength","inputs":[],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"initialize","inputs":[{"type":"uint256","name":"_collectRoundLength"},{"type":"address","name":"_validatorSet"},{"type":"bool","name":"_punishForUnreveal"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bool","name":""}],"name":"isInitialized","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bool","name":""}],"name":"punishForUnreveal","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"commitPhaseLength","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"revealSkips","inputs":[{"type":"uint256","name":""},{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bool","name":""}],"name":"sentReveal","inputs":[{"type":"uint256","name":""},{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bytes32","name":""},{"type":"bytes","name":""}],"name":"getCommitAndCipher","inputs":[{"type":"uint256","name":"_collectRound"},{"type":"address","name":"_miningAddress"}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bool","name":""}],"name":"isCommitPhase","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"nextCommitPhaseStartBlock","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"currentCollectRound","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"nextCollectRoundStartBlock","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"currentSeed","inputs":[],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"revealSecret","inputs":[{"type":"uint256","name":"_number"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bool","name":""}],"name":"revealSecretCallable","inputs":[{"type":"address","name":"_miningAddress"},{"type":"uint256","name":"_number"}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bool","name":""}],"name":"isCommitted","inputs":[{"type":"uint256","name":"_collectRound"},{"type":"address","name":"_miningAddress"}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bool","name":""}],"name":"isRevealPhase","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"nextRevealPhaseStartBlock","inputs":[],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"setPunishForUnreveal","inputs":[{"type":"bool","name":"_punishForUnreveal"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bool","name":""}],"name":"commitHashCallable","inputs":[{"type":"address","name":"_miningAddress"},{"type":"bytes32","name":"_numberHash"}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"address","name":""}],"name":"validatorSetContract","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bytes32","name":""}],"name":"getCommit","inputs":[{"type":"uint256","name":"_collectRound"},{"type":"address","name":"_miningAddress"}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"currentCollectRoundStartBlock","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bool","name":""}],"name":"revealNumberCallable","inputs":[{"type":"address","name":"_miningAddress"},{"type":"uint256","name":"_number"}],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"revealNumber","inputs":[{"type":"uint256","name":"_number"}],"constant":false}], '0x5870b0527DeDB1cFBD9534343Feda1a41Ce47766');
 const Staking = new web3.eth.Contract([{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"delegatorStakeSnapshot","inputs":[{"type":"address","name":""},{"type":"address","name":""},{"type":"uint256","name":""}],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"initialValidatorStake","inputs":[{"type":"uint256","name":"_totalAmount"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"poolDelegatorIndex","inputs":[{"type":"address","name":""},{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"removePools","inputs":[],"constant":false},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"initialize","inputs":[{"type":"address","name":"_validatorSetContract"},{"type":"address[]","name":"_initialStakingAddresses"},{"type":"uint256","name":"_delegatorMinStake"},{"type":"uint256","name":"_candidateMinStake"},{"type":"uint256","name":"_stakingEpochDuration"},{"type":"uint256","name":"_stakingEpochStartBlock"},{"type":"uint256","name":"_stakeWithdrawDisallowPeriod"}],"constant":false},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"setStakingEpochStartBlock","inputs":[{"type":"uint256","name":"_blockNumber"}],"constant":false},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"moveStake","inputs":[{"type":"address","name":"_fromPoolStakingAddress"},{"type":"address","name":"_toPoolStakingAddress"},{"type":"uint256","name":"_amount"}],"constant":false},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"setDelegatorMinStake","inputs":[{"type":"uint256","name":"_minStake"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"address","name":""}],"name":"erc677TokenContract","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bool","name":""}],"name":"rewardWasTaken","inputs":[{"type":"address","name":""},{"type":"address","name":""},{"type":"uint256","name":""}],"constant":true},{"type":"function","stateMutability":"payable","payable":true,"outputs":[],"name":"addPool","inputs":[{"type":"uint256","name":"_amount"},{"type":"address","name":"_miningAddress"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bool","name":""}],"name":"isInitialized","inputs":[],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"removePool","inputs":[{"type":"address","name":"_stakingAddress"}],"constant":false},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"claimReward","inputs":[{"type":"uint256[]","name":"_stakingEpochs"},{"type":"address","name":"_poolStakingAddress"}],"constant":false},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"setCandidateMinStake","inputs":[{"type":"uint256","name":"_minStake"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"stakeAmountTotal","inputs":[{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"stakeFirstEpoch","inputs":[{"type":"address","name":""},{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"setErc677TokenContract","inputs":[{"type":"address","name":"_erc677TokenContract"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"candidateMinStake","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"poolInactiveIndex","inputs":[{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"address[]","name":""}],"name":"getPools","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"maxWithdrawAllowed","inputs":[{"type":"address","name":"_poolStakingAddress"},{"type":"address","name":"_staker"}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"stakingEpochStartBlock","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"address[]","name":""}],"name":"poolDelegatorsInactive","inputs":[{"type":"address","name":"_poolStakingAddress"}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"stakeAmountByCurrentEpoch","inputs":[{"type":"address","name":"_poolStakingAddress"},{"type":"address","name":"_staker"}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"stakingEpoch","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"stakingEpochEndBlock","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"maxWithdrawOrderAllowed","inputs":[{"type":"address","name":"_poolStakingAddress"},{"type":"address","name":"_staker"}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"poolDelegatorInactiveIndex","inputs":[{"type":"address","name":""},{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256[]","name":"likelihoods"},{"type":"uint256","name":"sum"}],"name":"getPoolsLikelihood","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"stakeWithdrawDisallowPeriod","inputs":[],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"clearUnremovableValidator","inputs":[{"type":"address","name":"_unremovableStakingAddress"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"address[]","name":"result"}],"name":"getStakerPools","inputs":[{"type":"address","name":"_staker"},{"type":"uint256","name":"_offset"},{"type":"uint256","name":"_length"}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"address[]","name":""}],"name":"poolDelegators","inputs":[{"type":"address","name":"_poolStakingAddress"}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"orderWithdrawEpoch","inputs":[{"type":"address","name":""},{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"pure","payable":false,"outputs":[{"type":"bool","name":""}],"name":"onTokenTransfer","inputs":[{"type":"address","name":""},{"type":"uint256","name":""},{"type":"bytes","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"address[]","name":""}],"name":"getPoolsToBeElected","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"stakeAmount","inputs":[{"type":"address","name":""},{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"getStakerPoolsLength","inputs":[{"type":"address","name":"_staker"}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bool","name":""}],"name":"isPoolActive","inputs":[{"type":"address","name":"_stakingAddress"}],"constant":true},{"type":"function","stateMutability":"payable","payable":true,"outputs":[],"name":"stake","inputs":[{"type":"address","name":"_toPoolStakingAddress"},{"type":"uint256","name":"_amount"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"poolIndex","inputs":[{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"orderWithdraw","inputs":[{"type":"address","name":"_poolStakingAddress"},{"type":"int256","name":"_amount"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"stakeLastEpoch","inputs":[{"type":"address","name":""},{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"claimOrderedWithdraw","inputs":[{"type":"address","name":"_poolStakingAddress"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"address[]","name":""}],"name":"getPoolsToBeRemoved","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"stakingEpochDuration","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"delegatorMinStake","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"orderedWithdrawAmountTotal","inputs":[{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"address[]","name":""}],"name":"getPoolsInactive","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"address","name":""}],"name":"validatorSetContract","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"orderedWithdrawAmount","inputs":[{"type":"address","name":""},{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"removeMyPool","inputs":[],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"poolToBeRemovedIndex","inputs":[{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"incrementStakingEpoch","inputs":[],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"MAX_CANDIDATES","inputs":[],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"withdraw","inputs":[{"type":"address","name":"_fromPoolStakingAddress"},{"type":"uint256","name":"_amount"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bool","name":""}],"name":"areStakeAndWithdrawAllowed","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"poolToBeElectedIndex","inputs":[{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":"tokenRewardSum"},{"type":"uint256","name":"nativeRewardSum"}],"name":"getRewardAmount","inputs":[{"type":"uint256[]","name":"_stakingEpochs"},{"type":"address","name":"_poolStakingAddress"},{"type":"address","name":"_staker"}],"constant":true},{"type":"fallback","stateMutability":"payable","payable":true},{"type":"event","name":"ClaimedReward","inputs":[{"type":"address","name":"fromPoolStakingAddress","indexed":true},{"type":"address","name":"staker","indexed":true},{"type":"uint256","name":"stakingEpoch","indexed":true},{"type":"uint256","name":"tokensAmount","indexed":false},{"type":"uint256","name":"nativeCoinsAmount","indexed":false}],"anonymous":false},{"type":"event","name":"AddedPool","inputs":[{"type":"address","name":"poolStakingAddress","indexed":true}],"anonymous":false},{"type":"event","name":"ClaimedOrderedWithdrawal","inputs":[{"type":"address","name":"fromPoolStakingAddress","indexed":true},{"type":"address","name":"staker","indexed":true},{"type":"uint256","name":"stakingEpoch","indexed":true},{"type":"uint256","name":"amount","indexed":false}],"anonymous":false},{"type":"event","name":"MovedStake","inputs":[{"type":"address","name":"fromPoolStakingAddress","indexed":false},{"type":"address","name":"toPoolStakingAddress","indexed":true},{"type":"address","name":"staker","indexed":true},{"type":"uint256","name":"stakingEpoch","indexed":true},{"type":"uint256","name":"amount","indexed":false}],"anonymous":false},{"type":"event","name":"OrderedWithdrawal","inputs":[{"type":"address","name":"fromPoolStakingAddress","indexed":true},{"type":"address","name":"staker","indexed":true},{"type":"uint256","name":"stakingEpoch","indexed":true},{"type":"int256","name":"amount","indexed":false}],"anonymous":false},{"type":"event","name":"PlacedStake","inputs":[{"type":"address","name":"toPoolStakingAddress","indexed":true},{"type":"address","name":"staker","indexed":true},{"type":"uint256","name":"stakingEpoch","indexed":true},{"type":"uint256","name":"amount","indexed":false}],"anonymous":false},{"type":"event","name":"RemovedPool","inputs":[{"type":"address","name":"poolStakingAddress","indexed":true}],"anonymous":false},{"type":"event","name":"WithdrewStake","inputs":[{"type":"address","name":"fromPoolStakingAddress","indexed":true},{"type":"address","name":"staker","indexed":true},{"type":"uint256","name":"stakingEpoch","indexed":true},{"type":"uint256","name":"amount","indexed":false}],"anonymous":false}], '0x2DdB8A7541e6cAA50F74e7FACFF9Fe9da00e0A6c');
 const ValidatorSet = new web3.eth.Contract([{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"address[]","name":"miningAddresses"},{"type":"bool","name":"forNewEpoch"}],"name":"validatorsToBeFinalized","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"address","name":""}],"name":"miningByStakingAddress","inputs":[{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"removeMaliciousValidators","inputs":[{"type":"address[]","name":"_miningAddresses"}],"constant":false},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"setStakingAddress","inputs":[{"type":"address","name":"_miningAddress"},{"type":"address","name":"_stakingAddress"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bool","name":""}],"name":"initiateChangeAllowed","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"bannedDelegatorsUntil","inputs":[{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"banCounter","inputs":[{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"address","name":""}],"name":"stakingByMiningAddress","inputs":[{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"reportingCounter","inputs":[{"type":"address","name":""},{"type":"uint256","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bool","name":""}],"name":"isInitialized","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bool","name":""}],"name":"emitInitiateChangeCallable","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"address","name":""}],"name":"blockRewardContract","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"bannedUntil","inputs":[{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"newValidatorSet","inputs":[],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"address","name":""}],"name":"unremovableValidator","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"MAX_VALIDATORS","inputs":[],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"clearUnremovableValidator","inputs":[],"constant":false},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"finalizeChange","inputs":[],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"address[]","name":""}],"name":"getPreviousValidators","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bool","name":""}],"name":"isReportValidatorValid","inputs":[{"type":"address","name":"_miningAddress"}],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"emitInitiateChange","inputs":[],"constant":false},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"initialize","inputs":[{"type":"address","name":"_blockRewardContract"},{"type":"address","name":"_randomContract"},{"type":"address","name":"_stakingContract"},{"type":"address[]","name":"_initialMiningAddresses"},{"type":"address[]","name":"_initialStakingAddresses"},{"type":"bool","name":"_firstValidatorIsUnremovable"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bool","name":""}],"name":"isValidatorOrPending","inputs":[{"type":"address","name":"_miningAddress"}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bool","name":"callable"},{"type":"bool","name":"removeReportingValidator"}],"name":"reportMaliciousCallable","inputs":[{"type":"address","name":"_reportingMiningAddress"},{"type":"address","name":"_maliciousMiningAddress"},{"type":"uint256","name":"_blockNumber"}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bool","name":""}],"name":"isValidatorPrevious","inputs":[{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bool","name":""}],"name":"areDelegatorsBanned","inputs":[{"type":"address","name":"_miningAddress"}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bool","name":""}],"name":"isValidatorBanned","inputs":[{"type":"address","name":"_miningAddress"}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"validatorCounter","inputs":[{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"address[]","name":""}],"name":"maliceReportedForBlock","inputs":[{"type":"address","name":"_miningAddress"},{"type":"uint256","name":"_blockNumber"}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"address[]","name":""}],"name":"getValidators","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"validatorSetApplyBlock","inputs":[],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"reportMalicious","inputs":[{"type":"address","name":"_maliciousMiningAddress"},{"type":"uint256","name":"_blockNumber"},{"type":"bytes","name":""}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bytes32","name":""}],"name":"banReason","inputs":[{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bool","name":""}],"name":"shouldValidatorReport","inputs":[{"type":"address","name":"_reportingMiningAddress"},{"type":"address","name":"_maliciousMiningAddress"},{"type":"uint256","name":"_blockNumber"}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"address","name":""}],"name":"randomContract","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"changeRequestCount","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"reportingCounterTotal","inputs":[{"type":"uint256","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"address","name":""}],"name":"stakingContract","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"address[]","name":""}],"name":"getPendingValidators","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bool","name":""}],"name":"isValidator","inputs":[{"type":"address","name":""}],"constant":true},{"type":"event","name":"InitiateChange","inputs":[{"type":"bytes32","name":"parentHash","indexed":true},{"type":"address[]","name":"newSet","indexed":false}],"anonymous":false},{"type":"event","name":"ReportedMalicious","inputs":[{"type":"address","name":"reportingValidator","indexed":false},{"type":"address","name":"maliciousValidator","indexed":false},{"type":"uint256","name":"blockNumber","indexed":false}],"anonymous":false}], '0xB87BE9f7196F2AE084Ca1DE6af5264292976e013');
@@ -48,12 +48,13 @@ main();
 async function main() {
   program.name("npm run watch").usage("-- <options>");
   program.option('-r, --rpc <rpc>', 'RPC Node URL', 'https://dai.poa.network');
-  program.option('-g, --general', 'Shows general info (ignored for --epoch-delegators).');
+  program.option('-g, --general', 'Shows general info (ignored for --epoch-delegators and --apy).');
   program.option('-e, --epoch-delegators <epoch>', 'Shows active delegator list (excluding pending) for the given staking epoch,\nsorted by stake amount. Requires using RPC from an archive node.');
-  program.option('-u, --show-unique', 'Shows unique delegator list for the current staking epoch\n(used with --general, ignored for --epoch-delegators).');
+  program.option('-u, --show-unique', 'Shows unique delegator list for the current staking epoch\n(used with --general, ignored for --epoch-delegators and --apy).');
+  program.option('-a, --apy', 'Shows approximate Annual Percentage Yield for the current moment. Requires using RPC from an archive node.');
   program.parse(process.argv);
 
-  if (!program.general && !program.epochDelegators) {
+  if (!program.general && !program.epochDelegators && !program.apy) {
     program.help();
   }
 
@@ -111,7 +112,7 @@ async function main() {
     [Token.methods.totalSupply, []],
     [Token.methods.balanceOf, [Staking.options.address]],
     [Token.methods.balanceOf, [BlockReward.options.address]],
-    [web3.eth.getBalance, [BlockReward.options.address, 'latest']],
+    [web3.eth.getBalance, [BlockReward.options.address, currentBlock.number]],
   ];
 
   let promises = [];
@@ -128,7 +129,7 @@ async function main() {
       if (method == web3.eth.getBalance) {
         request = method.request(...arguments, requestCallback);
       } else {
-        request = method(...arguments).call.request(requestCallback);
+        request = method(...arguments).call.request({}, currentBlock.number, requestCallback);
       }
       batch.add(request);
     }));
@@ -152,7 +153,7 @@ async function main() {
     blockRewardNativeBalance
   ] = await Promise.all(promises);
 
-  await getCurrentValidators(getValidators);
+  await getCurrentValidators(getValidators, currentBlock.number);
 
   if (program.epochDelegators) {
     console.log(`Current staking epoch: ${stakingEpoch}`);
@@ -166,18 +167,40 @@ async function main() {
       currentBlock.number
     );
     process.exit(0);
+  } else if (program.apy) {
+  	await showAPY(
+      stakingEpoch,
+      stakingEpochStartBlock,
+      stakingEpochDuration,
+      currentBlock.number,
+      averageBlockTime,
+      validatorSetApplyBlock
+    );
+  	process.exit(0);
   }
 
   // Calculate approximate stakingEpochEndTime
   const stakingEpochEndTime = new Date();
   stakingEpochEndTime.setTime((Math.floor(Date.now() / 1000) + Math.ceil((stakingEpochEndBlock - currentBlock.number) * averageBlockTime)) * 1000);
 
-  console.log('BlockReward');
-  const { blocksCreated, revealSkips } = await getBlocksCreatedAndRevealSkips(validators, stakingEpoch);
+  console.log('Blocks creation and random reveal skipping statistics for the current staking epoch');
+  const { blocksCreated, revealSkips } = await getBlocksCreatedAndRevealSkips(validators, stakingEpoch, currentBlock.number);
   const maxValidatorNameLength = validators.reduce((acc, val) => Math.max(val.name.length, acc), 0);
-  for (let i = 0; i < validators.length; i++) {
-    console.log(`  blocksCreated / revealSkips by ${validators[i].name.padEnd(maxValidatorNameLength, ' ')} (${validators[i].miningAddress}): ${blocksCreated[i]} / ${revealSkips[i]}`);
-  }
+  const dashes = '-'.repeat(102 + maxValidatorNameLength);
+  let blocksCreatedTotal = 0, revealSkipsTotal = 0;
+  console.log(dashes);
+  console.log(`| ${'Name'.padEnd(maxValidatorNameLength, ' ')} | Staking address | Mining address                             | Blocks created | Reveals skipped | `);
+  console.log(dashes);
+  let validatorIndexes = [...Array(validators.length).keys()];
+  validatorIndexes.sort((a, b) => blocksCreated[b] - blocksCreated[a]);
+  validatorIndexes.forEach(i => {
+    console.log(`| ${validators[i].name.padEnd(maxValidatorNameLength, ' ')} | ${validators[i].stakingAddressShort.toLowerCase().padEnd(15, ' ')} | ${validators[i].miningAddress} | ${blocksCreated[i].padStart(14, ' ')} | ${revealSkips[i].padStart(15, ' ')} | `);
+    blocksCreatedTotal += blocksCreated[i] - 0;
+    revealSkipsTotal += revealSkips[i] - 0;
+  });
+  console.log(dashes);
+  console.log(`| ${'Total'.padEnd(maxValidatorNameLength, ' ')} |                 |                                            | ${blocksCreatedTotal.toString().padStart(14, ' ')} | ${revealSkipsTotal.toString().padStart(15, ' ')} | `);
+  console.log(dashes);
   console.log();
 
   console.log('Staking');
@@ -199,24 +222,24 @@ async function main() {
     poolDelegators,
     allPoolsDelegatorsUnique,
     poolDelegatorsInactive
-  } = await getPoolDelegators(validators);
+  } = await getPoolDelegators(currentBlock.number);
   const {
     stakeAmountTotal,
     orderedWithdrawAmountTotal,
     orderedWithdrawAmountTotalThisEpoch,
     howMuchStakerOrderedOnThisEpoch,
     howMuchDelegatorHolds
-  } = await getAmounts(validators, poolDelegators, stakingEpochStartBlock);
+  } = await getAmounts(poolDelegators, stakingEpochStartBlock, currentBlock.number);
   const {
     totalDelegators,
     totalOrderedWithdrawDelegators,
     orderedWithdrawDelegatorsUnique
   } = await countDelegators(
-    validators,
     stakingEpoch,
     poolDelegators,
     poolDelegatorsInactive,
-    howMuchDelegatorHolds
+    howMuchDelegatorHolds,
+    currentBlock.number
   );
   allPoolsDelegatorsUnique = Array.from(new Set(allPoolsDelegatorsUnique.concat(orderedWithdrawDelegatorsUnique)));
   console.log(`  stakingEpoch:               ${stakingEpoch}`);
@@ -284,7 +307,7 @@ async function main() {
   process.exit(0);
 }
 
-async function countDelegators(validators, stakingEpoch, poolDelegators, poolDelegatorsInactive, howMuchDelegatorHolds) {
+async function countDelegators(stakingEpoch, poolDelegators, poolDelegatorsInactive, howMuchDelegatorHolds, blockNumber) {
   let totalDelegators = 0;
   for (let i = 0; i < validators.length; i++) {
     totalDelegators += poolDelegators[i].length;
@@ -294,7 +317,7 @@ async function countDelegators(validators, stakingEpoch, poolDelegators, poolDel
   validators.forEach((validator, i) => {
     poolDelegatorsInactive[i].forEach(delegator => {
       promises.push(new Promise((resolve, reject) => {
-        batch.add(Staking.methods.orderWithdrawEpoch(validator.stakingAddress, delegator).call.request((err, result) => {
+        batch.add(Staking.methods.orderWithdrawEpoch(validator.stakingAddress, delegator).call.request({}, blockNumber, (err, result) => {
           if (err) reject(err);
           else resolve({ epoch: result, delegator });
         }));
@@ -322,7 +345,7 @@ async function countDelegators(validators, stakingEpoch, poolDelegators, poolDel
   };
 }
 
-async function getAmounts(validators, poolDelegators, stakingEpochStartBlock) {
+async function getAmounts(poolDelegators, stakingEpochStartBlock, blockNumber) {
   // Calculate total amount of tokens currently staked into
   // the current validator pools and total amount of tokens
   // ordered for withdrawal from the current validator pools
@@ -330,13 +353,13 @@ async function getAmounts(validators, poolDelegators, stakingEpochStartBlock) {
   let batch = new web3.BatchRequest();
   validators.forEach((validator, i) => {
     promises.push(new Promise((resolve, reject) => {
-      batch.add(Staking.methods.stakeAmountTotal(validator.stakingAddress).call.request((err, result) => {
+      batch.add(Staking.methods.stakeAmountTotal(validator.stakingAddress).call.request({}, blockNumber, (err, result) => {
         if (err) reject(err);
         else resolve({ stakeAmountTotal: result, i });
       }));
     }));
     promises.push(new Promise((resolve, reject) => {
-      batch.add(Staking.methods.orderedWithdrawAmountTotal(validator.stakingAddress).call.request((err, result) => {
+      batch.add(Staking.methods.orderedWithdrawAmountTotal(validator.stakingAddress).call.request({}, blockNumber, (err, result) => {
         if (err) reject(err);
         else resolve({ orderedWithdrawAmountTotal: result, i });
       }));
@@ -360,7 +383,7 @@ async function getAmounts(validators, poolDelegators, stakingEpochStartBlock) {
   // and calculate the corresponding total ordered amount
   let orderedWithdrawAmountTotalThisEpoch = new BN(0);
   const howMuchStakerOrderedOnThisEpoch = {};
-  const events = await Staking.getPastEvents('OrderedWithdrawal', { fromBlock: stakingEpochStartBlock, toBlock: 'latest' });
+  const events = await Staking.getPastEvents('OrderedWithdrawal', { fromBlock: stakingEpochStartBlock, toBlock: blockNumber });
   events.forEach(event => {
     const eventAmount = new BN(event.returnValues.amount);
     if (validators.some(v => v.stakingAddress.toLowerCase() == event.returnValues.fromPoolStakingAddress.toLowerCase())) {
@@ -383,7 +406,7 @@ async function getAmounts(validators, poolDelegators, stakingEpochStartBlock) {
   validators.forEach((validator, i) => {
     poolDelegators[i].forEach((delegator, j) => {
       promises.push(new Promise((resolve, reject) => {
-        batch.add(Staking.methods.stakeAmount(validator.stakingAddress, delegator).call.request((err, result) => {
+        batch.add(Staking.methods.stakeAmount(validator.stakingAddress, delegator).call.request({}, blockNumber, (err, result) => {
           if (err) reject(err);
           else resolve({ i, j, stakeAmount: result });
         }));
@@ -411,18 +434,18 @@ async function getAmounts(validators, poolDelegators, stakingEpochStartBlock) {
   };
 }
 
-async function getBlocksCreatedAndRevealSkips(validators, stakingEpoch) {
+async function getBlocksCreatedAndRevealSkips(validators, stakingEpoch, blockNumber) {
   const promises = [];
   const batch = new web3.BatchRequest();
   validators.forEach((validator, i) => {
     promises.push(new Promise((resolve, reject) => {
-      batch.add(BlockReward.methods.blocksCreated(stakingEpoch, validator.miningAddress).call.request((err, result) => {
+      batch.add(BlockReward.methods.blocksCreated(stakingEpoch, validator.miningAddress).call.request({}, blockNumber, (err, result) => {
         if (err) reject(err);
         else resolve({ blocksCreated: result, i });
       }));
     }));
     promises.push(new Promise((resolve, reject) => {
-      batch.add(Random.methods.revealSkips(stakingEpoch, validator.miningAddress).call.request((err, result) => {
+      batch.add(Random.methods.revealSkips(stakingEpoch, validator.miningAddress).call.request({}, blockNumber, (err, result) => {
         if (err) reject(err);
         else resolve({ revealSkips: result, i });
       }));
@@ -441,12 +464,12 @@ async function getBlocksCreatedAndRevealSkips(validators, stakingEpoch) {
   return { blocksCreated, revealSkips };
 }
 
-async function getCurrentValidators(miningAddresses) {
+async function getCurrentValidators(miningAddresses, blockNumber) {
   const promises = [];
   const batch = new web3.BatchRequest();
   miningAddresses.forEach(miningAddress => {
     promises.push(new Promise((resolve, reject) => {
-      batch.add(ValidatorSet.methods.stakingByMiningAddress(miningAddress).call.request((err, result) => {
+      batch.add(ValidatorSet.methods.stakingByMiningAddress(miningAddress).call.request({}, blockNumber, (err, result) => {
         if (err) reject(err);
         else resolve(result);
       }));
@@ -456,26 +479,27 @@ async function getCurrentValidators(miningAddresses) {
   const stakingAddresses = await Promise.all(promises);
   miningAddresses.forEach((miningAddress, index) => {
     const stakingAddress = stakingAddresses[index];
-    const name = knownNames[miningAddress] || (stakingAddress.slice(0, 6) + '-' + stakingAddress.slice(-6));
+    const stakingAddressShort = stakingAddress.slice(0, 6) + '-' + stakingAddress.slice(-6);
+    const name = knownNames[miningAddress] || stakingAddressShort;
     if (knownNames[miningAddress]) {
       knownNames[stakingAddress] = name;
     }
-    validators.push({ miningAddress, stakingAddress, name });
+    validators.push({ miningAddress, stakingAddress, stakingAddressShort, name });
   });
 }
 
-async function getPoolDelegators(validators) {
+async function getPoolDelegators(blockNumber) {
   const promises = [];
   const batch = new web3.BatchRequest();
   validators.forEach((validator, i) => {
     promises.push(new Promise((resolve, reject) => {
-      batch.add(Staking.methods.poolDelegators(validator.stakingAddress).call.request((err, result) => {
+      batch.add(Staking.methods.poolDelegators(validator.stakingAddress).call.request({}, blockNumber, (err, result) => {
         if (err) reject(err);
         else resolve({ poolDelegators: result, i });
       }));
     }));
     promises.push(new Promise((resolve, reject) => {
-      batch.add(Staking.methods.poolDelegatorsInactive(validator.stakingAddress).call.request((err, result) => {
+      batch.add(Staking.methods.poolDelegatorsInactive(validator.stakingAddress).call.request({}, blockNumber, (err, result) => {
         if (err) reject(err);
         else resolve({ poolDelegatorsInactive: result, i });
       }));
@@ -605,6 +629,146 @@ async function showActiveDelegatorsByStakingEpoch(stakingEpoch, stakingEpochDura
   } else {
     console.log('Unable to find any delegators for the given staking epoch');
   }
+}
+
+async function showAPY(currentStakingEpoch, currentStakingEpochStartBlock, stakingEpochDuration, currentBlockNumber, averageBlockTime, validatorSetApplyBlock) {
+  if (currentStakingEpoch == 0) {
+    console.log('Current approximate Annual Percentage Yield (APY) cannot be displayed for the initial (zero) staking epoch.');
+    return;
+  }
+  if (validatorSetApplyBlock == 0) {
+    console.log('Current approximate Annual Percentage Yield (APY) cannot be displayed at the very beginning of the staking epoch as the new validator set is not finalized yet. Please, try a bit later in a few blocks.');
+    return;
+  }
+  const apyStartBlockNumber = validatorSetApplyBlock - 0 + validators.length * 10; // skip a few AuRa rounds
+  if (currentBlockNumber < apyStartBlockNumber) {
+    console.log(`Current approximate Annual Percentage Yield (APY) cannot be displayed at the very beginning of the staking epoch as we currently do not know blocks creating statistics. Please, try after block ${apyStartBlockNumber}`);
+    return;
+  }
+  console.log(`Current approximate Annual Percentage Yield (APY) is calculated based on the current staking amounts (excluding pending amounts) for the current staking epoch ${currentStakingEpoch}.`);
+  console.log();
+  const epochsPerYear = new BN(Math.floor(31536000 / averageBlockTime / stakingEpochDuration));
+  const rewardToDistribute = await BlockReward.methods.currentTokenRewardToDistribute(Staking.options.address, currentStakingEpoch, 0, 0, []).call({}, currentBlockNumber);
+  console.log(`Reward to distribute (among all validator pools): ${web3.utils.fromWei(rewardToDistribute[0])} tokens`);
+  console.log(`Predicted number of staking epochs in calendar year: ${epochsPerYear}`);
+  console.log();
+  console.log();
+  const poolRewards = await BlockReward.methods.currentPoolRewards(rewardToDistribute[0], [], 0, currentStakingEpoch).call({}, currentBlockNumber);
+
+  let promises = [];
+  let batch = new web3.BatchRequest();
+  validators.forEach(v => {
+    promises.push(new Promise((resolve, reject) => {
+      batch.add(Staking.methods.poolDelegators(v.stakingAddress).call.request({}, currentStakingEpochStartBlock - 1, (err, delegators) => {
+        if (err) reject(err);
+        else resolve(delegators);
+      }));
+    }));
+  });
+  await batch.execute();
+  const poolDelegators = await Promise.all(promises);
+
+  promises = [];
+  batch = new web3.BatchRequest();
+  poolDelegators.forEach((delegators, validatorIndex) => {
+    const stakingAddress = validators[validatorIndex].stakingAddress;
+    promises.push(new Promise((resolve, reject) => {
+      batch.add(Staking.methods.stakeAmount(stakingAddress, stakingAddress).call.request({}, currentStakingEpochStartBlock - 1, (err, amount) => {
+        if (err) reject(err);
+        else resolve({ validatorIndex, staker: stakingAddress, amount: new BN(amount) });
+      }));
+    }));
+    delegators.forEach(delegator => {
+      promises.push(new Promise((resolve, reject) => {
+        batch.add(Staking.methods.stakeAmount(stakingAddress, delegator).call.request({}, currentStakingEpochStartBlock - 1, (err, amount) => {
+          if (err) reject(err);
+          else resolve({ validatorIndex, staker: delegator, amount: new BN(amount) });
+        }));
+      }));
+    });
+  });
+  await batch.execute();
+  const amounts = await Promise.all(promises);
+
+  const stakeAmounts = [];
+  amounts.forEach(({ validatorIndex, staker, amount }) => {
+    if (!stakeAmounts[validatorIndex]) {
+      stakeAmounts[validatorIndex] = {};
+    }
+    stakeAmounts[validatorIndex][staker] = amount;
+  });
+
+  promises = [];
+  batch = new web3.BatchRequest();
+  poolDelegators.forEach((delegators, validatorIndex) => {
+    const stakingAddress = validators[validatorIndex].stakingAddress;
+    const validatorStaked = stakeAmounts[validatorIndex][stakingAddress];
+    const totalStaked = delegators.reduce((acc, delegator) => acc.add(stakeAmounts[validatorIndex][delegator]), validatorStaked);
+    const poolReward = poolRewards[validatorIndex];
+    promises.push(new Promise((resolve, reject) => {
+      batch.add(BlockReward.methods.validatorShare(currentStakingEpoch, validatorStaked.toString(), totalStaked.toString(), poolReward).call.request({}, currentBlockNumber, (err, reward) => {
+        if (err) reject(err);
+        else resolve({ validatorIndex, staker: stakingAddress, reward: new BN(reward) });
+      }));
+    }));
+    delegators.forEach(delegator => {
+      const delegatorStaked = stakeAmounts[validatorIndex][delegator];
+      promises.push(new Promise((resolve, reject) => {
+        batch.add(BlockReward.methods.delegatorShare(currentStakingEpoch, delegatorStaked.toString(), validatorStaked.toString(), totalStaked.toString(), poolReward).call.request({}, currentBlockNumber, (err, reward) => {
+          if (err) reject(err);
+          else resolve({ validatorIndex, staker: delegator, reward: new BN(reward) });
+        }));
+      }));
+    });
+  });
+  await batch.execute();
+  const rewards = await Promise.all(promises);
+
+  const stakerRewards = [];
+  rewards.forEach(({ validatorIndex, staker, reward }) => {
+    if (!stakerRewards[validatorIndex]) {
+      stakerRewards[validatorIndex] = {};
+    }
+    stakerRewards[validatorIndex][staker] = reward;
+  });
+
+  poolDelegators.forEach((delegators, validatorIndex) => {
+    const miningAddress = validators[validatorIndex].miningAddress;
+    const stakingAddress = validators[validatorIndex].stakingAddress;
+    let rewardSum = new BN(0);
+    let stakeAmountSum = new BN(0);
+
+    let reward = stakerRewards[validatorIndex][stakingAddress];
+    let stakeAmount = stakeAmounts[validatorIndex][stakingAddress];
+    let percentagePerYear = parseFloat(web3.utils.fromWei(reward.mul(new BN('100000000000000000000')).div(stakeAmount).mul(epochsPerYear)));
+    percentagePerYear = (Math.floor(percentagePerYear * 100) / 100).toString() + '%';
+    rewardSum = rewardSum.add(reward);
+    stakeAmountSum = stakeAmountSum.add(stakeAmount);
+    console.log(`Validator ${knownNames[miningAddress]} [stakingAddress: ${stakingAddress}]`);
+    console.log('-----------------------------------------------------------------------------------------------------------------------------');
+    console.log('|     | Staker                                     | Non-pending stake, tokens     | Predicted reward, tokens      | ~APY   |');
+    console.log('-----------------------------------------------------------------------------------------------------------------------------');
+    console.log(`|   1 | ${stakingAddress} | ${web3.utils.fromWei(stakeAmount).padEnd(29, ' ')} | ${web3.utils.fromWei(reward).padEnd(29, ' ')} | ${percentagePerYear.padEnd(6, ' ')} |`);
+    
+    delegators.sort((a, b) => stakerRewards[validatorIndex][b].cmp(stakerRewards[validatorIndex][a]));
+    delegators.forEach((delegator, index) => {
+      reward = stakerRewards[validatorIndex][delegator];
+      stakeAmount = stakeAmounts[validatorIndex][delegator];
+      percentagePerYear = parseFloat(web3.utils.fromWei(reward.mul(new BN('100000000000000000000')).div(stakeAmount).mul(epochsPerYear)));
+      percentagePerYear = (Math.floor(percentagePerYear * 100) / 100).toString() + '%';
+      rewardSum = rewardSum.add(reward);
+      stakeAmountSum = stakeAmountSum.add(stakeAmount);
+      console.log(`| ${(index + 2).toString().padStart(3, ' ')} | ${delegator} | ${web3.utils.fromWei(stakeAmount).padEnd(29, ' ')} | ${web3.utils.fromWei(reward).padEnd(29, ' ')} | ${percentagePerYear.padEnd(6, ' ')} |`);
+    });
+
+    percentagePerYear = parseFloat(web3.utils.fromWei(rewardSum.mul(new BN('100000000000000000000')).div(stakeAmountSum).mul(epochsPerYear)));
+    percentagePerYear = (Math.floor(percentagePerYear * 100) / 100).toString() + '%';
+    console.log('-----------------------------------------------------------------------------------------------------------------------------');
+    console.log(`|     | Total:                                     | ${web3.utils.fromWei(stakeAmountSum).padEnd(29, ' ')} | ${web3.utils.fromWei(rewardSum).padEnd(29, ' ')} | ${percentagePerYear.padEnd(6, ' ')} |`);
+    console.log('-----------------------------------------------------------------------------------------------------------------------------');
+    console.log();
+    console.log();
+  });
 }
 
 function blocksByStakingEpochNumber(stakingEpoch, stakingEpochDuration, currentEpochNumber, currentEpochStartBlock) {
