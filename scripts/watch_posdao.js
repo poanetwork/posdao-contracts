@@ -47,7 +47,7 @@ main();
 
 async function main() {
   program.name("npm run watch").usage("-- <options>");
-  program.option('-r, --rpc <rpc>', 'RPC Node URL', 'https://dai.poa.network');
+  program.option('-r, --rpc <rpc>', 'RPC Node URL', 'https://rpc.xdaichain.com');
   program.option('-g, --general', 'Shows general info (ignored for --epoch-delegators and --apy).');
   program.option('-e, --epoch-delegators <epoch>', 'Shows active delegator list (excluding pending) for the given staking epoch,\nsorted by stake amount. Requires using RPC from an archive node.');
   program.option('-u, --show-unique', 'Shows unique delegator list for the current staking epoch\n(used with --general, ignored for --epoch-delegators and --apy).');
