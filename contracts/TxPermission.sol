@@ -271,7 +271,7 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
         if (limit != 0) {
             return limit;
         } else {
-            return 24576; // default EIP 170 limit (24 Kb)
+            return 30720; // default EIP 170 limit (24 Kb + overhead)
         }
     }
 
