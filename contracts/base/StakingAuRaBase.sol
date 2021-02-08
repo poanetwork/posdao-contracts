@@ -26,8 +26,8 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
     uint256 internal _poolsLikelihoodSum;
     mapping(address => address[]) internal _poolDelegators;
     mapping(address => address[]) internal _poolDelegatorsInactive;
-    mapping(address => address[]) internal _stakerPools;
-    mapping(address => mapping(address => uint256)) internal _stakerPoolsIndexes;
+    mapping(address => address[]) internal _delegatorPools;
+    mapping(address => mapping(address => uint256)) internal _delegatorPoolsIndexes;
     mapping(address => mapping(address => mapping(uint256 => uint256))) internal _stakeAmountByEpoch;
     mapping(address => uint256) internal _stakeInitial;
 
@@ -642,30 +642,30 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
         return _poolsToBeRemoved;
     }
 
-    /// @dev Returns the list of pools (staking addresses) into which the specified staker have ever staked.
-    /// @param _staker The staker address (it can be a delegator or a pool staking address itself).
+    /// @dev Returns the list of pools (staking addresses) into which the specified delegator have ever staked.
+    /// @param _delegator The delegator address.
     /// @param _offset The index in the array at which the reading should start. Ignored if the `_length` is 0.
     /// @param _length The max number of items to return.
-    function getStakerPools(
-        address _staker,
+    function getDelegatorPools(
+        address _delegator,
         uint256 _offset,
         uint256 _length
     ) external view returns(address[] memory result) {
-        address[] storage stakerPools = _stakerPools[_staker];
+        address[] storage delegatorPools = _delegatorPools[_delegator];
         if (_length == 0) {
-            return stakerPools;
+            return delegatorPools;
         }
-        uint256 maxLength = stakerPools.length.sub(_offset);
+        uint256 maxLength = delegatorPools.length.sub(_offset);
         result = new address[](_length > maxLength ? maxLength : _length);
         for (uint256 i = 0; i < result.length; i++) {
-            result[i] = stakerPools[_offset + i];
+            result[i] = delegatorPools[_offset + i];
         }
     }
 
-    /// @dev Returns the length of the list of pools into which the specified staker have ever staked.
-    /// @param _staker The staker address (it can be a delegator or a pool staking address itself).
-    function getStakerPoolsLength(address _staker) external view returns(uint256) {
-        return _stakerPools[_staker].length;
+    /// @dev Returns the length of the list of pools into which the specified delegator have ever staked.
+    /// @param _delegator The delegator address.
+    function getDelegatorPoolsLength(address _delegator) external view returns(uint256) {
+        return _delegatorPools[_delegator].length;
     }
 
     /// @dev Determines whether staking/withdrawal operations are allowed at the moment.
@@ -796,6 +796,17 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
     function stakingEpochEndBlock() public view returns(uint256) {
         uint256 startBlock = stakingEpochStartBlock;
         return startBlock + stakingEpochDuration - (startBlock == 0 ? 0 : 1);
+    }
+
+    // Temporary function (must be removed after `upgradeToAndCall` call)
+    function stakerPoolsToDelegatorPools() external onlyOwner {
+        require(_poolsInactive.length == 0);
+        uint256 length = _pools.length;
+        for (uint256 i = 0; i < length; i++) {
+            address stakingAddress = _pools[i];
+            require(_delegatorPools[stakingAddress].length == 1 && _delegatorPools[stakingAddress][0] == stakingAddress);
+            delete _delegatorPools[stakingAddress];
+        }
     }
 
     // ============================================== Internal ========================================================
@@ -1113,17 +1124,17 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
 
             // Save amount value staked by the delegator
             _snapshotDelegatorStake(_poolStakingAddress, _staker);
+
+            // Remember that the delegator (`_staker`) staked into `_poolStakingAddress`
+            address[] storage delegatorPools = _delegatorPools[_staker];
+            uint256 index = _delegatorPoolsIndexes[_staker][_poolStakingAddress];
+            if (index >= delegatorPools.length || delegatorPools[index] != _poolStakingAddress) {
+                _delegatorPoolsIndexes[_staker][_poolStakingAddress] = delegatorPools.length;
+                delegatorPools.push(_poolStakingAddress);
+            }
         }
 
         _setLikelihood(_poolStakingAddress);
-
-        // Remember that the `_staker` staked into `_poolStakingAddress`
-        address[] storage stakerPools = _stakerPools[_staker];
-        uint256 index = _stakerPoolsIndexes[_staker][_poolStakingAddress];
-        if (index >= stakerPools.length || stakerPools[index] != _poolStakingAddress) {
-            _stakerPoolsIndexes[_staker][_poolStakingAddress] = stakerPools.length;
-            stakerPools.push(_poolStakingAddress);
-        }
 
         emit PlacedStake(_poolStakingAddress, _staker, stakingEpoch, _amount);
     }
