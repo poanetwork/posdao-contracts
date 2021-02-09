@@ -475,12 +475,13 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
         require(_amount != 0);
 
         address staker = msg.sender;
+        address delegatorOrZero = (staker != _poolStakingAddress) ? staker : address(0);
 
         require(_isWithdrawAllowed(
-            validatorSetContract.miningByStakingAddress(_poolStakingAddress), staker != _poolStakingAddress
+            validatorSetContract.miningByStakingAddress(_poolStakingAddress), delegatorOrZero != address(0)
         ));
 
-        uint256 newOrderedAmount = orderedWithdrawAmount[_poolStakingAddress][staker];
+        uint256 newOrderedAmount = orderedWithdrawAmount[_poolStakingAddress][delegatorOrZero];
         uint256 newOrderedAmountTotal = orderedWithdrawAmountTotal[_poolStakingAddress];
         uint256 newStakeAmount = stakeAmount[_poolStakingAddress][staker];
         uint256 newStakeAmountTotal = stakeAmountTotal[_poolStakingAddress];
@@ -494,7 +495,7 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
             newOrderedAmountTotal = newOrderedAmountTotal.add(amount);
             newStakeAmount = newStakeAmount.sub(amount);
             newStakeAmountTotal = newStakeAmountTotal.sub(amount);
-            orderWithdrawEpoch[_poolStakingAddress][staker] = stakingEpoch;
+            orderWithdrawEpoch[_poolStakingAddress][delegatorOrZero] = stakingEpoch;
         } else {
             uint256 amount = uint256(-_amount);
             newOrderedAmount = newOrderedAmount.sub(amount);
@@ -502,14 +503,14 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
             newStakeAmount = newStakeAmount.add(amount);
             newStakeAmountTotal = newStakeAmountTotal.add(amount);
         }
-        orderedWithdrawAmount[_poolStakingAddress][staker] = newOrderedAmount;
+        orderedWithdrawAmount[_poolStakingAddress][delegatorOrZero] = newOrderedAmount;
         orderedWithdrawAmountTotal[_poolStakingAddress] = newOrderedAmountTotal;
         stakeAmount[_poolStakingAddress][staker] = newStakeAmount;
         stakeAmountTotal[_poolStakingAddress] = newStakeAmountTotal;
 
         if (staker == _poolStakingAddress) {
             // Initial validator cannot withdraw their initial stake
-            require(newStakeAmount >= _stakeInitial[staker]);
+            require(newStakeAmount >= _stakeInitial[_poolStakingAddress]);
 
             // The amount to be withdrawn must be the whole staked amount or
             // must not exceed the diff between the entire amount and `candidateMinStake`
@@ -559,16 +560,17 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
     /// @param _poolStakingAddress The staking address of the pool from which the ordered tokens/coins are withdrawn.
     function claimOrderedWithdraw(address _poolStakingAddress) external {
         address payable staker = msg.sender;
+        address delegatorOrZero = (staker != _poolStakingAddress) ? staker : address(0);
 
-        require(stakingEpoch > orderWithdrawEpoch[_poolStakingAddress][staker]);
+        require(stakingEpoch > orderWithdrawEpoch[_poolStakingAddress][delegatorOrZero]);
         require(_isWithdrawAllowed(
-            validatorSetContract.miningByStakingAddress(_poolStakingAddress), staker != _poolStakingAddress
+            validatorSetContract.miningByStakingAddress(_poolStakingAddress), delegatorOrZero != address(0)
         ));
 
-        uint256 claimAmount = orderedWithdrawAmount[_poolStakingAddress][staker];
+        uint256 claimAmount = orderedWithdrawAmount[_poolStakingAddress][delegatorOrZero];
         require(claimAmount != 0);
 
-        orderedWithdrawAmount[_poolStakingAddress][staker] = 0;
+        orderedWithdrawAmount[_poolStakingAddress][delegatorOrZero] = 0;
         orderedWithdrawAmountTotal[_poolStakingAddress] =
             orderedWithdrawAmountTotal[_poolStakingAddress].sub(claimAmount);
 
@@ -708,7 +710,7 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
 
         if (!isDelegator) {
             // Initial validator cannot withdraw their initial stake
-            canWithdraw = canWithdraw.sub(_stakeInitial[_staker]);
+            canWithdraw = canWithdraw.sub(_stakeInitial[_poolStakingAddress]);
         }
 
         if (!validatorSetContract.isValidatorOrPending(miningAddress)) {
@@ -757,7 +759,7 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
 
         if (!isDelegator) {
             // Initial validator cannot withdraw their initial stake
-            canOrder = canOrder.sub(_stakeInitial[_staker]);
+            canOrder = canOrder.sub(_stakeInitial[_poolStakingAddress]);
         }
 
         return canOrder.sub(stakeAmountByCurrentEpoch(_poolStakingAddress, _staker));
@@ -789,7 +791,11 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
         view
         returns(uint256)
     {
-        return _stakeAmountByEpoch[_poolStakingAddress][_staker][stakingEpoch];
+        address staker = _staker;
+        if (_staker == _poolStakingAddress) {
+            staker = address(0);
+        }
+        return _stakeAmountByEpoch[_poolStakingAddress][staker][stakingEpoch];
     }
 
     /// @dev Returns the number of the last block of the current staking epoch.
@@ -799,13 +805,23 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
     }
 
     // Temporary function (must be removed after `upgradeToAndCall` call)
-    function stakerPoolsToDelegatorPools() external onlyOwner {
+    function stakingAddressToZero() external onlyOwner {
         require(_poolsInactive.length == 0);
-        uint256 length = _pools.length;
-        for (uint256 i = 0; i < length; i++) {
-            address stakingAddress = _pools[i];
-            require(_delegatorPools[stakingAddress].length == 1 && _delegatorPools[stakingAddress][0] == stakingAddress);
-            delete _delegatorPools[stakingAddress];
+        uint256 currentStakingEpoch = stakingEpoch;
+        uint256 poolsNumber = _pools.length;
+        for (uint256 p = 0; p < poolsNumber; p++) {
+            address stakingAddress = _pools[p];
+            for (uint256 epoch = 0; epoch <= currentStakingEpoch; epoch++) {
+                uint256 amount = _stakeAmountByEpoch[stakingAddress][stakingAddress][epoch];
+                _stakeAmountByEpoch[stakingAddress][stakingAddress][epoch] = 0;
+                _stakeAmountByEpoch[stakingAddress][address(0)][epoch] = amount;
+            }
+            uint256 amount = orderedWithdrawAmount[stakingAddress][stakingAddress];
+            orderedWithdrawAmount[stakingAddress][stakingAddress] = 0;
+            orderedWithdrawAmount[stakingAddress][address(0)] = amount;
+            uint256 epoch = orderWithdrawEpoch[stakingAddress][stakingAddress];
+            orderWithdrawEpoch[stakingAddress][stakingAddress] = 0;
+            orderWithdrawEpoch[stakingAddress][address(0)] = epoch;
         }
     }
 
@@ -1098,9 +1114,12 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
 
         uint256 newStakeAmount = stakeAmount[_poolStakingAddress][_staker].add(_amount);
 
+        address staker = _staker;
+
         if (_staker == _poolStakingAddress) {
             // The staked amount must be at least CANDIDATE_MIN_STAKE
             require(newStakeAmount >= candidateMinStake);
+            staker = address(0);
         } else {
             // The staked amount must be at least DELEGATOR_MIN_STAKE
             require(newStakeAmount >= delegatorMinStake);
@@ -1111,7 +1130,7 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
         }
 
         stakeAmount[_poolStakingAddress][_staker] = newStakeAmount;
-        _stakeAmountByEpoch[_poolStakingAddress][_staker][stakingEpoch] = 
+        _stakeAmountByEpoch[_poolStakingAddress][staker][stakingEpoch] = 
             stakeAmountByCurrentEpoch(_poolStakingAddress, _staker).add(_amount);
         stakeAmountTotal[_poolStakingAddress] = stakeAmountTotal[_poolStakingAddress].add(_amount);
 
@@ -1157,12 +1176,16 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
 
         uint256 newStakeAmount = stakeAmount[_poolStakingAddress][_staker].sub(_amount);
 
+        address staker = _staker;
+
         // The amount to be withdrawn must be the whole staked amount or
         // must not exceed the diff between the entire amount and min allowed stake
         uint256 minAllowedStake;
         if (_poolStakingAddress == _staker) {
-            require(newStakeAmount >= _stakeInitial[_staker]); // initial validator cannot withdraw their initial stake
+            // initial validator cannot withdraw their initial stake
+            require(newStakeAmount >= _stakeInitial[_poolStakingAddress]);
             minAllowedStake = candidateMinStake;
+            staker = address(0);
         } else {
             minAllowedStake = delegatorMinStake;
         }
@@ -1170,7 +1193,7 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
 
         stakeAmount[_poolStakingAddress][_staker] = newStakeAmount;
         uint256 amountByEpoch = stakeAmountByCurrentEpoch(_poolStakingAddress, _staker);
-        _stakeAmountByEpoch[_poolStakingAddress][_staker][stakingEpoch] = 
+        _stakeAmountByEpoch[_poolStakingAddress][staker][stakingEpoch] = 
             amountByEpoch >= _amount ? amountByEpoch - _amount : 0;
         stakeAmountTotal[_poolStakingAddress] = stakeAmountTotal[_poolStakingAddress].sub(_amount);
 
