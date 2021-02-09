@@ -512,7 +512,7 @@ contract('ValidatorSetAuRa', async accounts => {
       await stakingAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
       await validatorSetAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
       await stakingAuRa.stake(initialStakingAddresses[0], stakeAmount, {from: initialStakingAddresses[0]}).should.be.fulfilled;
-      stakeAmount.should.be.bignumber.equal(await stakingAuRa.stakeAmount.call(initialStakingAddresses[0], initialStakingAddresses[0]));
+      stakeAmount.should.be.bignumber.equal(await stakingAuRa.stakeAmount.call(initialStakingAddresses[0], '0x0000000000000000000000000000000000000000'));
 
       // Emulate calling `newValidatorSet()` at the last block of staking epoch
       await stakingAuRa.setCurrentBlockNumber(120954).should.be.fulfilled;
@@ -579,7 +579,7 @@ contract('ValidatorSetAuRa', async accounts => {
       await stakingAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
       await validatorSetAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
       await stakingAuRa.stake(initialStakingAddresses[1], stakeAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
-      stakeAmount.should.be.bignumber.equal(await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], initialStakingAddresses[1]));
+      stakeAmount.should.be.bignumber.equal(await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], '0x0000000000000000000000000000000000000000'));
 
       // Emulate calling `newValidatorSet()` at the last block of staking epoch
       await stakingAuRa.setCurrentBlockNumber(120954).should.be.fulfilled;
@@ -646,7 +646,7 @@ contract('ValidatorSetAuRa', async accounts => {
       for (let i = 0; i < stakingAddresses.length; i++) {
         const stakeAmount = stakeUnit.mul(new BN(i + 1));
         await stakingAuRa.addPool(stakeAmount, miningAddresses[i], {from: stakingAddresses[i]}).should.be.fulfilled;
-        stakeAmount.should.be.bignumber.equal(await stakingAuRa.stakeAmount.call(stakingAddresses[i], stakingAddresses[i]));
+        stakeAmount.should.be.bignumber.equal(await stakingAuRa.stakeAmount.call(stakingAddresses[i], '0x0000000000000000000000000000000000000000'));
       }
 
       // Check pools of the new candidates
@@ -774,7 +774,7 @@ contract('ValidatorSetAuRa', async accounts => {
       for (let i = 0; i < stakingAddresses.length; i++) {
         const stakeAmount = stakeUnit.mul(new BN(i + 1));
         await stakingAuRa.addPool(stakeAmount, miningAddresses[i], {from: stakingAddresses[i]}).should.be.fulfilled;
-        stakeAmount.should.be.bignumber.equal(await stakingAuRa.stakeAmount.call(stakingAddresses[i], stakingAddresses[i]));
+        stakeAmount.should.be.bignumber.equal(await stakingAuRa.stakeAmount.call(stakingAddresses[i], '0x0000000000000000000000000000000000000000'));
       }
 
       // Check pools of the new candidates

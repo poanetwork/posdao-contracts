@@ -40,7 +40,7 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
     }
     mapping(uint256 => ExtraReceiverQueue) internal _queueER;
 
-    // Reserved storage space to allow for layout changes in the future.
+    // Reserved storage slots to allow for layout changes in the future.
     uint256[25] private ______gapForInternal;
 
     /// @dev A number of blocks produced by the specified validator during the specified staking epoch
@@ -99,7 +99,7 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
     /// @dev The address of the `ValidatorSet` contract.
     IValidatorSetAuRa public validatorSetContract;
 
-    // Reserved storage space to allow for layout changes in the future.
+    // Reserved storage slots to allow for layout changes in the future.
     uint256[25] private ______gapForPublic;
 
     // ================================================ Events ========================================================
@@ -559,7 +559,7 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
         // we return the potentially possible reward coefficient
         return validatorShare(
             stakingEpoch,
-            stakingContract.stakeAmount(_stakingAddress, _stakingAddress),
+            stakingContract.stakeAmount(_stakingAddress, address(0)),
             stakingContract.stakeAmountTotal(_stakingAddress),
             REWARD_PERCENT_MULTIPLIER
         );
@@ -1005,7 +1005,7 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
         }
         snapshotPoolTotalStakeAmount[_stakingEpoch][_miningAddress] = totalAmount;
         snapshotPoolValidatorStakeAmount[_stakingEpoch][_miningAddress] =
-            _stakingContract.stakeAmount(stakingAddress, stakingAddress);
+            _stakingContract.stakeAmount(stakingAddress, address(0));
     }
 
     /// @dev Called by the `transferReward` of a child contract to transfer native coins
