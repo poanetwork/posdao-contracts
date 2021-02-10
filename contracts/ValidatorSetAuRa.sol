@@ -789,7 +789,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
                 address pvStakingAddress = stakingByMiningAddress[pvMiningAddress];
                 if (
                     stakingContract.isPoolActive(pvStakingAddress) &&
-                    stakingContract.orderedWithdrawAmount(pvStakingAddress, pvStakingAddress) == 0
+                    stakingContract.orderedWithdrawAmount(pvStakingAddress, address(0)) == 0
                 ) {
                     // The validator has an active pool and is not going to withdraw their
                     // entire stake, so this validator doesn't want to exit from the validator set
