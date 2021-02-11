@@ -1651,7 +1651,7 @@ contract('StakingAuRa', async accounts => {
       // console.log(`gasUsed = ${result.receipt.gasUsed}, cumulativeGasUsed = ${result.receipt.cumulativeGasUsed}`);
 
       if (!!process.env.SOLIDITY_COVERAGE !== true) {
-        result.receipt.gasUsed.should.be.below(1710000);
+        result.receipt.gasUsed.should.be.below(1720000);
         // result.receipt.gasUsed.should.be.below(2100000); // for Istanbul
       }
 

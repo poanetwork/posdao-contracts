@@ -41,6 +41,11 @@ contract StakingAuRaCoins is StakingAuRaBase {
         address _poolStakingAddress
     ) public gasPriceIsValid onlyInitialized {
         address payable staker = msg.sender;
+
+        require(_poolStakingAddress != address(0));
+        require(staker != address(0));
+
+        address delegatorOrZero = (staker != _poolStakingAddress) ? staker : address(0);
         uint256 firstEpoch;
         uint256 lastEpoch;
 
@@ -65,7 +70,7 @@ contract StakingAuRaCoins is StakingAuRaBase {
             require(i == 0 || epoch > _stakingEpochs[i - 1]);
             require(epoch < stakingEpoch);
 
-            if (rewardWasTaken[_poolStakingAddress][staker][epoch]) continue;
+            if (rewardWasTaken[_poolStakingAddress][delegatorOrZero][epoch]) continue;
             
             uint256 reward;
 
@@ -92,7 +97,7 @@ contract StakingAuRaCoins is StakingAuRaBase {
 
             rewardSum = rewardSum.add(reward);
 
-            rewardWasTaken[_poolStakingAddress][staker][epoch] = true;
+            rewardWasTaken[_poolStakingAddress][delegatorOrZero][epoch] = true;
 
             emit ClaimedReward(_poolStakingAddress, staker, epoch, reward);
         }
@@ -113,6 +118,10 @@ contract StakingAuRaCoins is StakingAuRaBase {
         address _poolStakingAddress,
         address _staker
     ) public view returns(uint256 rewardSum) {
+        require(_poolStakingAddress != address(0));
+        require(_staker != address(0));
+
+        address delegatorOrZero = (_staker != _poolStakingAddress) ? _staker : address(0);
         uint256 firstEpoch;
         uint256 lastEpoch;
 
@@ -137,7 +146,7 @@ contract StakingAuRaCoins is StakingAuRaBase {
             require(i == 0 || epoch > _stakingEpochs[i - 1]);
             require(epoch < stakingEpoch);
 
-            if (rewardWasTaken[_poolStakingAddress][_staker][epoch]) continue;
+            if (rewardWasTaken[_poolStakingAddress][delegatorOrZero][epoch]) continue;
 
             uint256 reward;
 

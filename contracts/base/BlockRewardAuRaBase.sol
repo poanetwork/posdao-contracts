@@ -449,13 +449,16 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
         address _poolStakingAddress,
         address _staker
     ) public view returns(uint256[] memory epochsToClaimFrom) {
+        require(_poolStakingAddress != address(0));
+        require(_staker != address(0));
+
         address miningAddress = validatorSetContract.miningByStakingAddress(_poolStakingAddress);
         IStakingAuRa stakingContract = IStakingAuRa(validatorSetContract.stakingContract());
-        bool isDelegator = _poolStakingAddress != _staker;
+        address delegatorOrZero = (_staker != _poolStakingAddress) ? _staker : address(0);
         uint256 firstEpoch;
         uint256 lastEpoch;
 
-        if (isDelegator) {
+        if (delegatorOrZero != address(0)) { // if this is a delegator
             firstEpoch = stakingContract.stakeFirstEpoch(_poolStakingAddress, _staker);
             if (firstEpoch == 0) {
                 return (new uint256[](0));
@@ -472,7 +475,7 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
 
         for (i = 0; i < length; i++) {
             uint256 epoch = epochs[i];
-            if (isDelegator) {
+            if (delegatorOrZero != address(0)) { // if this is a delegator
                 if (epoch < firstEpoch) {
                     // If the delegator staked for the first time before
                     // the `epoch`, skip this staking epoch
@@ -484,7 +487,7 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
                     break;
                 }
             }
-            if (!stakingContract.rewardWasTaken(_poolStakingAddress, _staker, epoch)) {
+            if (!stakingContract.rewardWasTaken(_poolStakingAddress, delegatorOrZero, epoch)) {
                 tmp[tmpLength++] = epoch;
             }
         }

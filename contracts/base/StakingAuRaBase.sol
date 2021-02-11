@@ -105,6 +105,7 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
     /// from the specified pool by the specified staker for the specified staking epoch.
     /// The first parameter is the pool staking address, the second one is staker's address,
     /// the third one is staking epoch number.
+    /// The second parameter should be a zero address if the staker is the pool itself.
     mapping(address => mapping(address => mapping(uint256 => bool))) public rewardWasTaken;
 
     /// @dev The amount of tokens currently staked into the specified pool by the specified
@@ -814,28 +815,12 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
             address stakingAddress = _pools[p];
 
             for (uint256 epoch = 0; epoch <= currentStakingEpoch; epoch++) {
-                uint256 amount = _stakeAmountByEpoch[stakingAddress][stakingAddress][epoch];
-                _stakeAmountByEpoch[stakingAddress][stakingAddress][epoch] = 0;
-                _stakeAmountByEpoch[stakingAddress][address(0)][epoch] = amount;
-
-                // bool rewardTaken = rewardWasTaken[stakingAddress][stakingAddress][epoch];
-                // if (rewardTaken) {
-                //     rewardWasTaken[stakingAddress][stakingAddress][epoch] = false;
-                //     rewardWasTaken[stakingAddress][address(0)][epoch] = rewardTaken;
-                // }
+                bool rewardTaken = rewardWasTaken[stakingAddress][stakingAddress][epoch];
+                if (rewardTaken) {
+                    rewardWasTaken[stakingAddress][stakingAddress][epoch] = false;
+                    rewardWasTaken[stakingAddress][address(0)][epoch] = rewardTaken;
+                }
             }
-
-            uint256 amount = orderedWithdrawAmount[stakingAddress][stakingAddress];
-            orderedWithdrawAmount[stakingAddress][stakingAddress] = 0;
-            orderedWithdrawAmount[stakingAddress][address(0)] = amount;
-
-            uint256 epoch = orderWithdrawEpoch[stakingAddress][stakingAddress];
-            orderWithdrawEpoch[stakingAddress][stakingAddress] = 0;
-            orderWithdrawEpoch[stakingAddress][address(0)] = epoch;
-
-            amount = stakeAmount[stakingAddress][stakingAddress];
-            stakeAmount[stakingAddress][stakingAddress] = 0;
-            stakeAmount[stakingAddress][address(0)] = amount;
         }
     }
 

@@ -54,6 +54,11 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
         address _poolStakingAddress
     ) public gasPriceIsValid onlyInitialized {
         address payable staker = msg.sender;
+
+        require(_poolStakingAddress != address(0));
+        require(staker != address(0));
+
+        address delegatorOrZero = (staker != _poolStakingAddress) ? staker : address(0);
         uint256 firstEpoch;
         uint256 lastEpoch;
 
@@ -78,7 +83,7 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
             require(i == 0 || epoch > _stakingEpochs[i - 1]);
             require(epoch < stakingEpoch);
 
-            if (rewardWasTaken[_poolStakingAddress][staker][epoch]) continue;
+            if (rewardWasTaken[_poolStakingAddress][delegatorOrZero][epoch]) continue;
             
             RewardAmounts memory reward;
 
@@ -108,7 +113,7 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
             rewardSum.tokenAmount = rewardSum.tokenAmount.add(reward.tokenAmount);
             rewardSum.nativeAmount = rewardSum.nativeAmount.add(reward.nativeAmount);
 
-            rewardWasTaken[_poolStakingAddress][staker][epoch] = true;
+            rewardWasTaken[_poolStakingAddress][delegatorOrZero][epoch] = true;
 
             emit ClaimedReward(_poolStakingAddress, staker, epoch, reward.tokenAmount, reward.nativeAmount);
         }
@@ -178,6 +183,10 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
         address _poolStakingAddress,
         address _staker
     ) public view returns(uint256 tokenRewardSum, uint256 nativeRewardSum) {
+        require(_poolStakingAddress != address(0));
+        require(_staker != address(0));
+
+        address delegatorOrZero = (_staker != _poolStakingAddress) ? _staker : address(0);
         uint256 firstEpoch;
         uint256 lastEpoch;
 
@@ -203,7 +212,7 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
             require(i == 0 || epoch > _stakingEpochs[i - 1]);
             require(epoch < stakingEpoch);
 
-            if (rewardWasTaken[_poolStakingAddress][_staker][epoch]) continue;
+            if (rewardWasTaken[_poolStakingAddress][delegatorOrZero][epoch]) continue;
 
             if (_poolStakingAddress != _staker) { // this is a delegator
                 if (epoch < firstEpoch) continue;
