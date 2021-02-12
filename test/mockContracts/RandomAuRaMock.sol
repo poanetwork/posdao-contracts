@@ -19,7 +19,8 @@ contract RandomAuRaMock is RandomAuRa {
     }
 
     function setSentReveal(address _validator) public {
-        sentReveal[currentCollectRound()][_validator] = true;
+        address stakingAddress = validatorSetContract.stakingByMiningAddress(_validator);
+        _sentReveal[currentCollectRound()][stakingAddress] = true;
     }
 
     // =============================================== Private ========================================================
