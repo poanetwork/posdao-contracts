@@ -806,24 +806,6 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
         return startBlock + stakingEpochDuration - (startBlock == 0 ? 0 : 1);
     }
 
-    // Temporary function (must be removed after `upgradeToAndCall` call)
-    function stakingAddressToZero() external onlyOwner {
-        require(_poolsInactive.length == 0);
-        uint256 currentStakingEpoch = stakingEpoch;
-        uint256 poolsNumber = _pools.length;
-        for (uint256 p = 0; p < poolsNumber; p++) {
-            address stakingAddress = _pools[p];
-
-            for (uint256 epoch = 0; epoch <= currentStakingEpoch; epoch++) {
-                bool rewardTaken = rewardWasTaken[stakingAddress][stakingAddress][epoch];
-                if (rewardTaken) {
-                    rewardWasTaken[stakingAddress][stakingAddress][epoch] = false;
-                    rewardWasTaken[stakingAddress][address(0)][epoch] = rewardTaken;
-                }
-            }
-        }
-    }
-
     // ============================================== Internal ========================================================
 
     /// @dev Adds the specified staking address to the array of active pools returned by
