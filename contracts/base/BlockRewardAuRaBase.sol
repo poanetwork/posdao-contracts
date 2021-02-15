@@ -162,6 +162,16 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
 
     // =============================================== Setters ========================================================
 
+    // Temporary function (must be removed after `upgradeToAndCall` call)
+    function migrateEpochsPoolGotRewardFor() external onlyOwner {
+        address[] memory miningAddresses = validatorSetContract.getValidators();
+        require(miningAddresses.length == 16);
+        for (uint256 i = 0; i < miningAddresses.length; i++) {
+            address miningAddress = miningAddresses[i];
+            delete _epochsPoolGotRewardFor[miningAddress];
+        }
+    }
+
     /// @dev Fallback function. Prevents direct sending native coins to this contract.
     function () payable external {
         revert();
@@ -414,10 +424,10 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
         return poolRewards;
     }
 
-    /// @dev Returns an array of epoch numbers for which the specified pool (mining address)
+    /// @dev Returns an array of epoch numbers for which the specified pool (staking address)
     /// got a non-zero reward.
-    function epochsPoolGotRewardFor(address _miningAddress) public view returns(uint256[] memory) {
-        return _epochsPoolGotRewardFor[_miningAddress];
+    function epochsPoolGotRewardFor(address _stakingAddress) public view returns(uint256[] memory) {
+        return _epochsPoolGotRewardFor[_stakingAddress];
     }
 
     /// @dev Returns the array of `erc-to-native` bridge addresses set by the `setErcToNativeBridgesAllowed` setter.
@@ -452,7 +462,6 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
         require(_poolStakingAddress != address(0));
         require(_staker != address(0));
 
-        address miningAddress = validatorSetContract.miningByStakingAddress(_poolStakingAddress);
         IStakingAuRa stakingContract = IStakingAuRa(validatorSetContract.stakingContract());
         address delegatorOrZero = (_staker != _poolStakingAddress) ? _staker : address(0);
         uint256 firstEpoch;
@@ -466,7 +475,7 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
             lastEpoch = stakingContract.stakeLastEpoch(_poolStakingAddress, _staker);
         }
 
-        uint256[] storage epochs = _epochsPoolGotRewardFor[miningAddress];
+        uint256[] storage epochs = _epochsPoolGotRewardFor[_poolStakingAddress];
         uint256 length = epochs.length;
 
         uint256[] memory tmp = new uint256[](length);
@@ -709,7 +718,8 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
                 epochPoolNativeReward[_stakingEpoch][_validators[i]] = poolReward[i];
                 distributedAmount += poolReward[i];
                 if (poolReward[i] != 0) {
-                    _epochsPoolGotRewardFor[_validators[i]].push(_stakingEpoch);
+                    address stakingAddress = validatorSetContract.stakingByMiningAddress(_validators[i]);
+                    _epochsPoolGotRewardFor[stakingAddress].push(_stakingEpoch);
                 }
             }
         }

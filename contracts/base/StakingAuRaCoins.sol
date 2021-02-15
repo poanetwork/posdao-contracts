@@ -61,7 +61,7 @@ contract StakingAuRaCoins is StakingAuRaBase {
         uint256 delegatorStake = 0;
 
         if (_stakingEpochs.length == 0) {
-            _stakingEpochs = IBlockRewardAuRa(address(blockRewardContract)).epochsPoolGotRewardFor(miningAddress);
+            _stakingEpochs = IBlockRewardAuRa(address(blockRewardContract)).epochsPoolGotRewardFor(_poolStakingAddress);
         }
 
         for (uint256 i = 0; i < _stakingEpochs.length; i++) {
@@ -137,7 +137,7 @@ contract StakingAuRaCoins is StakingAuRaBase {
         rewardSum = 0;
 
         if (_stakingEpochs.length == 0) {
-            _stakingEpochs = IBlockRewardAuRa(address(blockRewardContract)).epochsPoolGotRewardFor(miningAddress);
+            _stakingEpochs = IBlockRewardAuRa(address(blockRewardContract)).epochsPoolGotRewardFor(_poolStakingAddress);
         }
 
         for (uint256 i = 0; i < _stakingEpochs.length; i++) {

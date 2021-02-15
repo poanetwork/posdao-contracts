@@ -310,7 +310,8 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
                     epochPoolTokenReward[_stakingEpoch][_validators[i]] = poolReward[i];
                     distributedAmount += poolReward[i];
                     if (poolReward[i] != 0 && epochPoolNativeReward[_stakingEpoch][_validators[i]] == 0) {
-                        _epochsPoolGotRewardFor[_validators[i]].push(_stakingEpoch);
+                        address stakingAddress = validatorSetContract.stakingByMiningAddress(_validators[i]);
+                        _epochsPoolGotRewardFor[stakingAddress].push(_stakingEpoch);
                     }
                 }
 

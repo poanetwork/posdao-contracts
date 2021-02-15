@@ -16,12 +16,13 @@ contract BlockRewardAuRaTokensMock is BlockRewardAuRaTokens, BlockRewardAuRaBase
         require(msg.value != 0);
         require(epochPoolTokenReward[_stakingEpoch][_poolMiningAddress] == 0);
         require(epochPoolNativeReward[_stakingEpoch][_poolMiningAddress] == 0);
+        address stakingAddress = validatorSetContract.stakingByMiningAddress(_poolMiningAddress);
         ITokenMinter tokenMinter = ITokenMinter(
             IStakingAuRaTokens(validatorSetContract.stakingContract()).erc677TokenContract()
         );
         tokenMinter.mintReward(_tokenReward);
         epochPoolTokenReward[_stakingEpoch][_poolMiningAddress] = _tokenReward;
         epochPoolNativeReward[_stakingEpoch][_poolMiningAddress] = msg.value;
-        _epochsPoolGotRewardFor[_poolMiningAddress].push(_stakingEpoch);
+        _epochsPoolGotRewardFor[stakingAddress].push(_stakingEpoch);
     }
 }

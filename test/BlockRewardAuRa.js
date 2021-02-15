@@ -313,10 +313,11 @@ contract('BlockRewardAuRa', async accounts => {
 
       let rewardDistributed = new BN(0);
       for (let i = 0; i < validators.length; i++) {
+        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(validators[i]);
         const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, validators[i]);
         epochPoolTokenReward.should.be.bignumber.above(new BN(0));
         rewardDistributed = rewardDistributed.add(epochPoolTokenReward);
-        const epochsPoolGotRewardFor = await blockRewardAuRa.epochsPoolGotRewardFor.call(validators[i]);
+        const epochsPoolGotRewardFor = await blockRewardAuRa.epochsPoolGotRewardFor.call(stakingAddress);
         epochsPoolGotRewardFor.length.should.be.equal(2);
         epochsPoolGotRewardFor[0].should.be.bignumber.equal(new BN(1));
         epochsPoolGotRewardFor[1].should.be.bignumber.equal(new BN(2));
@@ -626,10 +627,11 @@ contract('BlockRewardAuRa', async accounts => {
 
       let rewardDistributed = new BN(0);
       for (let i = 0; i < validators.length; i++) {
+        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(validators[i]);
         const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, validators[i]);
         epochPoolTokenReward.should.be.bignumber.above(new BN(0));
         rewardDistributed = rewardDistributed.add(epochPoolTokenReward);
-        const epochsPoolGotRewardFor = await blockRewardAuRa.epochsPoolGotRewardFor.call(validators[i]);
+        const epochsPoolGotRewardFor = await blockRewardAuRa.epochsPoolGotRewardFor.call(stakingAddress);
         epochsPoolGotRewardFor.length.should.be.equal(1);
         epochsPoolGotRewardFor[0].should.be.bignumber.equal(new BN(2));
       }
@@ -757,6 +759,7 @@ contract('BlockRewardAuRa', async accounts => {
 
       let rewardDistributed = new BN(0);
       for (let i = 0; i < validators.length; i++) {
+        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(validators[i]);
         const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, validators[i]);
         if (i == 0) {
           epochPoolTokenReward.should.be.bignumber.above(new BN(0));
@@ -764,7 +767,7 @@ contract('BlockRewardAuRa', async accounts => {
           epochPoolTokenReward.should.be.bignumber.equal(new BN(0));
         }
         rewardDistributed = rewardDistributed.add(epochPoolTokenReward);
-        const epochsPoolGotRewardFor = await blockRewardAuRa.epochsPoolGotRewardFor.call(validators[i]);
+        const epochsPoolGotRewardFor = await blockRewardAuRa.epochsPoolGotRewardFor.call(stakingAddress);
         if (i == 0) {
           epochsPoolGotRewardFor.length.should.be.equal(2);
           epochsPoolGotRewardFor[0].should.be.bignumber.equal(new BN(2));
@@ -914,10 +917,11 @@ contract('BlockRewardAuRa', async accounts => {
 
       let rewardDistributed = new BN(0);
       for (let i = 0; i < validators.length; i++) {
+        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(validators[i]);
         const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, validators[i]);
         epochPoolTokenReward.should.be.bignumber.above(new BN(0));
         rewardDistributed = rewardDistributed.add(epochPoolTokenReward);
-        const epochsPoolGotRewardFor = await blockRewardAuRa.epochsPoolGotRewardFor.call(validators[i]);
+        const epochsPoolGotRewardFor = await blockRewardAuRa.epochsPoolGotRewardFor.call(stakingAddress);
         if (i == 0) {
           epochsPoolGotRewardFor.length.should.be.equal(3);
           epochsPoolGotRewardFor[0].should.be.bignumber.equal(new BN(2));

@@ -1800,7 +1800,7 @@ contract('StakingAuRa', async accounts => {
         }
       }
 
-      const epochsPoolGotRewardFor = await blockRewardAuRa.epochsPoolGotRewardFor.call(initialValidators[0]);
+      const epochsPoolGotRewardFor = await blockRewardAuRa.epochsPoolGotRewardFor.call(initialStakingAddresses[0]);
 
       // The delegator claims their rewards
       const delegatorTokensBalanceBefore = await erc677Token.balanceOf.call(delegator);

@@ -13,7 +13,8 @@ contract BlockRewardAuRaCoinsMock is BlockRewardAuRaCoins, BlockRewardAuRaBaseMo
         require(_poolMiningAddress != address(0));
         require(msg.value != 0);
         require(epochPoolNativeReward[_stakingEpoch][_poolMiningAddress] == 0);
+        address stakingAddress = validatorSetContract.stakingByMiningAddress(_poolMiningAddress);
         epochPoolNativeReward[_stakingEpoch][_poolMiningAddress] = msg.value;
-        _epochsPoolGotRewardFor[_poolMiningAddress].push(_stakingEpoch);
+        _epochsPoolGotRewardFor[stakingAddress].push(_stakingEpoch);
     }
 }
