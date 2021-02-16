@@ -46,7 +46,8 @@ contract BlockRewardAuRaBaseMock is BlockRewardAuRaBase {
     }
 
     function setSnapshotPoolValidatorStakeAmount(uint256 _stakingEpoch, address _poolMiningAddress, uint256 _amount) public {
-        snapshotPoolValidatorStakeAmount[_stakingEpoch][_poolMiningAddress] = _amount;
+        address stakingAddress = validatorSetContract.stakingByMiningAddress(_poolMiningAddress);
+        snapshotPoolValidatorStakeAmount[_stakingEpoch][stakingAddress] = _amount;
     }
 
     // =============================================== Getters ========================================================

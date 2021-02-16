@@ -200,22 +200,25 @@ contract('BlockRewardAuRa', async accounts => {
       await setCurrentBlockNumber(stakingEpochEndBlock);
 
       let validators = await validatorSetAuRa.getValidators.call();
+      let validatorsStakingAddresses = [];
       const blocksCreated = stakingEpochEndBlock.sub(await validatorSetAuRa.validatorSetApplyBlock.call()).div(new BN(validators.length));
       blocksCreated.should.be.bignumber.above(new BN(0));
       for (let i = 0; i < validators.length; i++) {
+        validatorsStakingAddresses.push(await validatorSetAuRa.stakingByMiningAddress.call(validators[i]));
         await blockRewardAuRa.setBlocksCreated(stakingEpoch, validators[i], blocksCreated).should.be.fulfilled;
         await randomAuRa.setSentReveal(validators[i]).should.be.fulfilled;
       }
 
       tokenRewardUndistributed = tokenRewardUndistributed.add(
-        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validators, stakeTokenInflationRate)
+        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validatorsStakingAddresses, stakeTokenInflationRate)
       );
 
       (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(false);
       await callReward();
 
       for (let i = 0; i < validators.length; i++) {
-        const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, validators[i]);
+        const stakingAddress = validatorsStakingAddresses[i];
+        const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, stakingAddress);
         epochPoolTokenReward.should.be.bignumber.above(new BN(0));
         tokenRewardUndistributed = tokenRewardUndistributed.sub(epochPoolTokenReward);
       }
@@ -243,10 +246,11 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[3]
       ]);
       for (let i = 0; i < validators.length; i++) {
-        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
+        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(validators[i]);
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
-        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake.add(delegatorMinStake.mul(new BN(3)))
         );
       }
@@ -292,15 +296,17 @@ contract('BlockRewardAuRa', async accounts => {
       await setCurrentBlockNumber(stakingEpochEndBlock);
 
       let validators = await validatorSetAuRa.getValidators.call();
+      let validatorsStakingAddresses = [];
       const blocksCreated = stakingEpochEndBlock.sub(await validatorSetAuRa.validatorSetApplyBlock.call()).div(new BN(validators.length));
       blocksCreated.should.be.bignumber.above(new BN(0));
       for (let i = 0; i < validators.length; i++) {
+        validatorsStakingAddresses.push(await validatorSetAuRa.stakingByMiningAddress.call(validators[i]));
         await blockRewardAuRa.setBlocksCreated(stakingEpoch, validators[i], blocksCreated).should.be.fulfilled;
         await randomAuRa.setSentReveal(validators[i]).should.be.fulfilled;
       }
 
       tokenRewardUndistributed = tokenRewardUndistributed.add(
-        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validators, stakeTokenInflationRate)
+        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validatorsStakingAddresses, stakeTokenInflationRate)
       );
 
       const blockRewardBalanceBefore = await erc677Token.balanceOf.call(blockRewardAuRa.address);
@@ -313,8 +319,8 @@ contract('BlockRewardAuRa', async accounts => {
 
       let rewardDistributed = new BN(0);
       for (let i = 0; i < validators.length; i++) {
-        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(validators[i]);
-        const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, validators[i]);
+        const stakingAddress = validatorsStakingAddresses[i];
+        const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, stakingAddress);
         epochPoolTokenReward.should.be.bignumber.above(new BN(0));
         rewardDistributed = rewardDistributed.add(epochPoolTokenReward);
         const epochsPoolGotRewardFor = await blockRewardAuRa.epochsPoolGotRewardFor.call(stakingAddress);
@@ -348,14 +354,15 @@ contract('BlockRewardAuRa', async accounts => {
       await setCurrentBlockNumber(stakingEpochEndBlock.add(new BN(1)));
 
       for (let i = 0; i < validators.length; i++) {
-        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
+        const stakingAddress = accounts[4 + i];
+
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
-        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake.add(delegatorMinStake.mul(new BN(3)))
         );
 
-        const stakingAddress = accounts[4 + i];
         await stakingAuRa.orderWithdraw(stakingAddress, candidateMinStake, {from: stakingAddress}).should.be.rejectedWith(ERROR_MSG);
       }
 
@@ -559,10 +566,11 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[3]
       ]);
       for (let i = 0; i < validators.length; i++) {
-        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
+        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(validators[i]);
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
-        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake.add(delegatorMinStake.mul(new BN(3)))
         );
       }
@@ -608,15 +616,17 @@ contract('BlockRewardAuRa', async accounts => {
       await setCurrentBlockNumber(stakingEpochEndBlock);
 
       let validators = await validatorSetAuRa.getValidators.call();
+      let validatorsStakingAddresses = [];
       const blocksCreated = stakingEpochEndBlock.sub(await validatorSetAuRa.validatorSetApplyBlock.call()).div(new BN(validators.length));
       blocksCreated.should.be.bignumber.above(new BN(0));
       for (let i = 0; i < validators.length; i++) {
+        validatorsStakingAddresses.push(await validatorSetAuRa.stakingByMiningAddress.call(validators[i]));
         await blockRewardAuRa.setBlocksCreated(stakingEpoch, validators[i], blocksCreated).should.be.fulfilled;
         await randomAuRa.setSentReveal(validators[i]).should.be.fulfilled;
       }
 
       tokenRewardUndistributed = tokenRewardUndistributed.add(
-        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validators, stakeTokenInflationRate)
+        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validatorsStakingAddresses, stakeTokenInflationRate)
       );
 
       (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(false);
@@ -627,8 +637,8 @@ contract('BlockRewardAuRa', async accounts => {
 
       let rewardDistributed = new BN(0);
       for (let i = 0; i < validators.length; i++) {
-        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(validators[i]);
-        const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, validators[i]);
+        const stakingAddress = validatorsStakingAddresses[i];
+        const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, stakingAddress);
         epochPoolTokenReward.should.be.bignumber.above(new BN(0));
         rewardDistributed = rewardDistributed.add(epochPoolTokenReward);
         const epochsPoolGotRewardFor = await blockRewardAuRa.epochsPoolGotRewardFor.call(stakingAddress);
@@ -658,10 +668,11 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[3]
       ]);
       for (let i = 0; i < validators.length; i++) {
-        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
+        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(validators[i]);
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
-        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake.add(delegatorMinStake.mul(new BN(3)))
         );
       }
@@ -734,9 +745,11 @@ contract('BlockRewardAuRa', async accounts => {
       await setCurrentBlockNumber(stakingEpochEndBlock);
 
       let validators = await validatorSetAuRa.getValidators.call();
+      let validatorsStakingAddresses = [];
       const blocksCreated = stakingEpochEndBlock.sub(await validatorSetAuRa.validatorSetApplyBlock.call()).div(new BN(validators.length));
       blocksCreated.should.be.bignumber.above(new BN(0));
       for (let i = 0; i < validators.length; i++) {
+        validatorsStakingAddresses.push(await validatorSetAuRa.stakingByMiningAddress.call(validators[i]));
         await blockRewardAuRa.setBlocksCreated(stakingEpoch, validators[i], blocksCreated).should.be.fulfilled;
         if (i == 0) { // the last two validators turn off their nodes
           await randomAuRa.setSentReveal(validators[i]).should.be.fulfilled;
@@ -744,7 +757,7 @@ contract('BlockRewardAuRa', async accounts => {
       }
 
       tokenRewardUndistributed = tokenRewardUndistributed.add(
-        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validators, stakeTokenInflationRate)
+        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validatorsStakingAddresses, stakeTokenInflationRate)
       );
 
       const blockRewardBalanceBeforeReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
@@ -759,8 +772,8 @@ contract('BlockRewardAuRa', async accounts => {
 
       let rewardDistributed = new BN(0);
       for (let i = 0; i < validators.length; i++) {
-        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(validators[i]);
-        const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, validators[i]);
+        const stakingAddress = validatorsStakingAddresses[i];
+        const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, stakingAddress);
         if (i == 0) {
           epochPoolTokenReward.should.be.bignumber.above(new BN(0));
         } else {
@@ -795,10 +808,11 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[33],
       ]);
       for (let i = 0; i < pendingValidators.length; i++) {
-        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, pendingValidators[i])).should.be.bignumber.equal(
+        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(pendingValidators[i]);
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
-        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, pendingValidators[i])).should.be.bignumber.equal(
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake.add(delegatorMinStake.mul(new BN(3)))
         );
       }
@@ -810,10 +824,11 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[3]
       ]);
       for (let i = 0; i < validators.length; i++) {
-        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
+        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(validators[i]);
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
-        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake.add(delegatorMinStake.mul(new BN(3)))
         );
       }
@@ -896,15 +911,17 @@ contract('BlockRewardAuRa', async accounts => {
       await setCurrentBlockNumber(stakingEpochEndBlock);
 
       let validators = await validatorSetAuRa.getValidators.call();
+      let validatorsStakingAddresses = [];
       const blocksCreated = stakingEpochEndBlock.sub(await validatorSetAuRa.validatorSetApplyBlock.call()).div(new BN(validators.length));
       blocksCreated.should.be.bignumber.above(new BN(0));
       for (let i = 0; i < validators.length; i++) {
+        validatorsStakingAddresses.push(await validatorSetAuRa.stakingByMiningAddress.call(validators[i]));
         await blockRewardAuRa.setBlocksCreated(stakingEpoch, validators[i], blocksCreated).should.be.fulfilled;
         await randomAuRa.setSentReveal(validators[i]).should.be.fulfilled;
       }
 
       tokenRewardUndistributed = tokenRewardUndistributed.add(
-        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validators, stakeTokenInflationRate)
+        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validatorsStakingAddresses, stakeTokenInflationRate)
       );
 
       const blockRewardBalanceBeforeReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
@@ -917,8 +934,8 @@ contract('BlockRewardAuRa', async accounts => {
 
       let rewardDistributed = new BN(0);
       for (let i = 0; i < validators.length; i++) {
-        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(validators[i]);
-        const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, validators[i]);
+        const stakingAddress = validatorsStakingAddresses[i];
+        const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, stakingAddress);
         epochPoolTokenReward.should.be.bignumber.above(new BN(0));
         rewardDistributed = rewardDistributed.add(epochPoolTokenReward);
         const epochsPoolGotRewardFor = await blockRewardAuRa.epochsPoolGotRewardFor.call(stakingAddress);
@@ -950,10 +967,11 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[63],
       ]);
       for (let i = 0; i < pendingValidators.length; i++) {
-        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, pendingValidators[i])).should.be.bignumber.equal(
+        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(pendingValidators[i]);
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
-        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, pendingValidators[i])).should.be.bignumber.equal(
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake.add(delegatorMinStake.mul(new BN(3)))
         );
       }
@@ -966,10 +984,11 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[33],
       ]);
       for (let i = 0; i < validators.length; i++) {
-        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
+        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(validators[i]);
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
-        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake.add(delegatorMinStake.mul(new BN(3)))
         );
       }
@@ -1030,6 +1049,7 @@ contract('BlockRewardAuRa', async accounts => {
       await setCurrentBlockNumber(stakingEpochEndBlock);
 
       let validators = await validatorSetAuRa.getValidators.call();
+      let validatorsStakingAddresses = [];
       validators.sortedEqual([
         accounts[1],
         accounts[31],
@@ -1037,6 +1057,7 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[33]
       ]);
       for (let i = 0; i < validators.length; i++) {
+        validatorsStakingAddresses.push(await validatorSetAuRa.stakingByMiningAddress.call(validators[i]));
         // the last two validators turn off their nodes
         if (validators[i] == accounts[1] || validators[i] == accounts[31]) {
           await randomAuRa.setSentReveal(validators[i]).should.be.fulfilled;
@@ -1044,7 +1065,7 @@ contract('BlockRewardAuRa', async accounts => {
       }
 
       tokenRewardUndistributed = tokenRewardUndistributed.add(
-        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validators, stakeTokenInflationRate)
+        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validatorsStakingAddresses, stakeTokenInflationRate)
       );
 
       const blockRewardBalanceBeforeReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
@@ -1060,7 +1081,8 @@ contract('BlockRewardAuRa', async accounts => {
       (await validatorSetAuRa.isValidatorBanned.call(accounts[33])).should.be.equal(true);
 
       for (let i = 0; i < validators.length; i++) {
-        const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, validators[i]);
+        const stakingAddress = validatorsStakingAddresses[i];
+        const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, stakingAddress);
         epochPoolTokenReward.should.be.bignumber.equal(new BN(0));
       }
 
@@ -1077,10 +1099,11 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[93],
       ]);
       for (let i = 0; i < pendingValidators.length; i++) {
-        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, pendingValidators[i])).should.be.bignumber.equal(
+        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(pendingValidators[i]);
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
-        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, pendingValidators[i])).should.be.bignumber.equal(
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
       }
@@ -1093,10 +1116,11 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[33],
       ]);
       for (let i = 0; i < validators.length; i++) {
-        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
+        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(validators[i]);
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
-        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake.add(delegatorMinStake.mul(new BN(3)))
         );
       }
@@ -1108,10 +1132,11 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[63]
       ]);
       for (let i = 0; i < validatorsToBeFinalized.length; i++) {
-        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, validatorsToBeFinalized[i])).should.be.bignumber.equal(
+        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(validatorsToBeFinalized[i]);
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
-        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, validatorsToBeFinalized[i])).should.be.bignumber.equal(
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake.add(delegatorMinStake.mul(new BN(3)))
         );
       }
@@ -1179,6 +1204,7 @@ contract('BlockRewardAuRa', async accounts => {
       await setCurrentBlockNumber(stakingEpochEndBlock);
 
       let validators = await validatorSetAuRa.getValidators.call();
+      let validatorsStakingAddresses = [];
       const blocksCreated = stakingEpochEndBlock.sub(await validatorSetAuRa.validatorSetApplyBlock.call()).div(new BN(validators.length));
       blocksCreated.should.be.bignumber.above(new BN(0));
       validators.sortedEqual([
@@ -1187,6 +1213,7 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[63]
       ]);
       for (let i = 0; i < validators.length; i++) {
+        validatorsStakingAddresses.push(await validatorSetAuRa.stakingByMiningAddress.call(validators[i]));
         await blockRewardAuRa.setBlocksCreated(stakingEpoch, validators[i], blocksCreated).should.be.fulfilled;
         // the last two validators turn off their nodes
         if (validators[i] == accounts[61]) {
@@ -1195,7 +1222,7 @@ contract('BlockRewardAuRa', async accounts => {
       }
 
       tokenRewardUndistributed = tokenRewardUndistributed.add(
-        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validators, stakeTokenInflationRate)
+        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validatorsStakingAddresses, stakeTokenInflationRate)
       );
 
       const blockRewardBalanceBeforeReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
@@ -1212,7 +1239,8 @@ contract('BlockRewardAuRa', async accounts => {
 
       let rewardDistributed = new BN(0);
       for (let i = 0; i < validators.length; i++) {
-        const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, validators[i]);
+        const stakingAddress = validatorsStakingAddresses[i];
+        const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, stakingAddress);
         if (validators[i] == accounts[61]) {
           epochPoolTokenReward.should.be.bignumber.above(new BN(0));
         } else {
@@ -1239,10 +1267,11 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[103],
       ]);
       for (let i = 0; i < pendingValidators.length; i++) {
-        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, pendingValidators[i])).should.be.bignumber.equal(
+        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(pendingValidators[i]);
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
-        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, pendingValidators[i])).should.be.bignumber.equal(
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
       }
@@ -1254,10 +1283,11 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[63],
       ]);
       for (let i = 0; i < validators.length; i++) {
-        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
+        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(validators[i]);
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
-        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake.add(delegatorMinStake.mul(new BN(3)))
         );
       }
@@ -1269,10 +1299,11 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[93]
       ]);
       for (let i = 0; i < validatorsToBeFinalized.length; i++) {
-        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, validatorsToBeFinalized[i])).should.be.bignumber.equal(
+        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(validatorsToBeFinalized[i]);
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
-        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, validatorsToBeFinalized[i])).should.be.bignumber.equal(
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
       }
@@ -1337,12 +1368,14 @@ contract('BlockRewardAuRa', async accounts => {
       await setCurrentBlockNumber(stakingEpochEndBlock);
 
       let validators = await validatorSetAuRa.getValidators.call();
+      let validatorsStakingAddresses = [];
       validators.sortedEqual([
         accounts[61],
         accounts[62],
         accounts[63]
       ]);
       for (let i = 0; i < validators.length; i++) {
+        validatorsStakingAddresses.push(await validatorSetAuRa.stakingByMiningAddress.call(validators[i]));
         await blockRewardAuRa.setBlocksCreated(stakingEpoch, validators[i], new BN(0)).should.be.fulfilled;
         // the last two validators still didn't turn on their nodes
         if (validators[i] == accounts[61]) {
@@ -1351,7 +1384,7 @@ contract('BlockRewardAuRa', async accounts => {
       }
 
       tokenRewardUndistributed = tokenRewardUndistributed.add(
-        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validators, stakeTokenInflationRate)
+        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validatorsStakingAddresses, stakeTokenInflationRate)
       );
 
       const blockRewardBalanceBeforeReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
@@ -1376,7 +1409,8 @@ contract('BlockRewardAuRa', async accounts => {
       (await validatorSetAuRa.bannedDelegatorsUntil.call(accounts[63])).should.be.bignumber.equal(bannedDelegatorsUntil63);
 
       for (let i = 0; i < validators.length; i++) {
-        const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, validators[i]);
+        const stakingAddress = validatorsStakingAddresses[i];
+        const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, stakingAddress);
         epochPoolTokenReward.should.be.bignumber.equal(new BN(0));
       }
       tokenRewardUndistributed.should.be.bignumber.equal(await blockRewardAuRa.tokenRewardUndistributed.call());
@@ -1394,10 +1428,11 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[113],
       ]);
       for (let i = 0; i < pendingValidators.length; i++) {
-        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, pendingValidators[i])).should.be.bignumber.equal(
+        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(pendingValidators[i]);
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
-        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, pendingValidators[i])).should.be.bignumber.equal(
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
       }
@@ -1409,10 +1444,11 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[63],
       ]);
       for (let i = 0; i < validators.length; i++) {
-        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
+        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(validators[i]);
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
-        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake.add(delegatorMinStake.mul(new BN(3)))
         );
       }
@@ -1424,10 +1460,11 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[93]
       ]);
       for (let i = 0; i < validatorsToBeFinalized.length; i++) {
-        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, validatorsToBeFinalized[i])).should.be.bignumber.equal(
+        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(validatorsToBeFinalized[i]);
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
-        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, validatorsToBeFinalized[i])).should.be.bignumber.equal(
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
       }
@@ -1492,12 +1529,14 @@ contract('BlockRewardAuRa', async accounts => {
       await setCurrentBlockNumber(stakingEpochEndBlock);
 
       let validators = await validatorSetAuRa.getValidators.call();
+      let validatorsStakingAddresses = [];
       validators.sortedEqual([
         accounts[61],
         accounts[62],
         accounts[63]
       ]);
       for (let i = 0; i < validators.length; i++) {
+        validatorsStakingAddresses.push(await validatorSetAuRa.stakingByMiningAddress.call(validators[i]));
         await blockRewardAuRa.setBlocksCreated(stakingEpoch, validators[i], new BN(0)).should.be.fulfilled;
         // the last two validators still didn't turn on their nodes
         if (validators[i] == accounts[61]) {
@@ -1506,7 +1545,7 @@ contract('BlockRewardAuRa', async accounts => {
       }
 
       tokenRewardUndistributed = tokenRewardUndistributed.add(
-        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validators, stakeTokenInflationRate)
+        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validatorsStakingAddresses, stakeTokenInflationRate)
       );
 
       const blockRewardBalanceBeforeReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
@@ -1531,7 +1570,8 @@ contract('BlockRewardAuRa', async accounts => {
       (await validatorSetAuRa.bannedDelegatorsUntil.call(accounts[63])).should.be.bignumber.equal(bannedDelegatorsUntil63);
 
       for (let i = 0; i < validators.length; i++) {
-        const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, validators[i]);
+        const stakingAddress = validatorsStakingAddresses[i];
+        const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, stakingAddress);
         epochPoolTokenReward.should.be.bignumber.equal(new BN(0));
       }
       tokenRewardUndistributed.should.be.bignumber.equal(await blockRewardAuRa.tokenRewardUndistributed.call());
@@ -1549,10 +1589,11 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[123],
       ]);
       for (let i = 0; i < pendingValidators.length; i++) {
-        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, pendingValidators[i])).should.be.bignumber.equal(
+        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(pendingValidators[i]);
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
-        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, pendingValidators[i])).should.be.bignumber.equal(
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
       }
@@ -1564,10 +1605,11 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[63],
       ]);
       for (let i = 0; i < validators.length; i++) {
-        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
+        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(validators[i]);
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
-        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake.add(delegatorMinStake.mul(new BN(3)))
         );
       }
@@ -1579,10 +1621,11 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[93]
       ]);
       for (let i = 0; i < validatorsToBeFinalized.length; i++) {
-        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, validatorsToBeFinalized[i])).should.be.bignumber.equal(
+        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(validatorsToBeFinalized[i]);
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
-        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, validatorsToBeFinalized[i])).should.be.bignumber.equal(
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
       }
@@ -1669,6 +1712,7 @@ contract('BlockRewardAuRa', async accounts => {
       await setCurrentBlockNumber(stakingEpochEndBlock);
 
       let validators = await validatorSetAuRa.getValidators.call();
+      let validatorsStakingAddresses = [];
       validators.sortedEqual([
         accounts[121],
         accounts[122],
@@ -1677,12 +1721,13 @@ contract('BlockRewardAuRa', async accounts => {
       const blocksCreated = stakingEpochEndBlock.sub(await validatorSetAuRa.validatorSetApplyBlock.call()).div(new BN(validators.length));
       blocksCreated.should.be.bignumber.above(new BN(0));
       for (let i = 0; i < validators.length; i++) {
+        validatorsStakingAddresses.push(await validatorSetAuRa.stakingByMiningAddress.call(validators[i]));
         await blockRewardAuRa.setBlocksCreated(stakingEpoch, validators[i], blocksCreated).should.be.fulfilled;
         await randomAuRa.setSentReveal(validators[i]).should.be.fulfilled;
       }
 
       tokenRewardUndistributed = tokenRewardUndistributed.add(
-        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validators, stakeTokenInflationRate)
+        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validatorsStakingAddresses, stakeTokenInflationRate)
       );
 
       const blockRewardBalanceBeforeReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
@@ -1695,7 +1740,8 @@ contract('BlockRewardAuRa', async accounts => {
 
       let rewardDistributed = new BN(0);
       for (let i = 0; i < validators.length; i++) {
-        const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, validators[i]);
+        const stakingAddress = validatorsStakingAddresses[i];
+        const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, stakingAddress);
         epochPoolTokenReward.should.be.bignumber.above(new BN(0));
         rewardDistributed = rewardDistributed.add(epochPoolTokenReward);
       }
@@ -1716,10 +1762,11 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[133],
       ]);
       for (let i = 0; i < pendingValidators.length; i++) {
-        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, pendingValidators[i])).should.be.bignumber.equal(
+        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(pendingValidators[i]);
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
-        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, pendingValidators[i])).should.be.bignumber.equal(
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
       }
@@ -1731,10 +1778,11 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[123],
       ]);
       for (let i = 0; i < validators.length; i++) {
-        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
+        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(validators[i]);
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
-        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
       }
@@ -1835,6 +1883,7 @@ contract('BlockRewardAuRa', async accounts => {
       await setCurrentBlockNumber(stakingEpochEndBlock);
 
       let validators = await validatorSetAuRa.getValidators.call();
+      let validatorsStakingAddresses = [];
       validators.sortedEqual([
         accounts[131],
         accounts[132],
@@ -1843,12 +1892,13 @@ contract('BlockRewardAuRa', async accounts => {
       const blocksCreated = stakingEpochEndBlock.sub(await validatorSetAuRa.validatorSetApplyBlock.call()).div(new BN(validators.length));
       blocksCreated.should.be.bignumber.above(new BN(0));
       for (let i = 0; i < validators.length; i++) {
+        validatorsStakingAddresses.push(await validatorSetAuRa.stakingByMiningAddress.call(validators[i]));
         await blockRewardAuRa.setBlocksCreated(stakingEpoch, validators[i], blocksCreated).should.be.fulfilled;
         await randomAuRa.setSentReveal(validators[i]).should.be.fulfilled;
       }
 
       tokenRewardUndistributed = tokenRewardUndistributed.add(
-        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validators, stakeTokenInflationRate)
+        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validatorsStakingAddresses, stakeTokenInflationRate)
       );
 
       const blockRewardBalanceBeforeReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
@@ -1862,7 +1912,8 @@ contract('BlockRewardAuRa', async accounts => {
 
       let rewardDistributed = new BN(0);
       for (let i = 0; i < validators.length; i++) {
-        const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, validators[i]);
+        const stakingAddress = validatorsStakingAddresses[i];
+        const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, stakingAddress);
         if (validators[i] == accounts[131] || validators[i] == accounts[132]) {
           epochPoolTokenReward.should.be.bignumber.above(new BN(0));
         } else {
@@ -1886,10 +1937,11 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[143],
       ]);
       for (let i = 0; i < pendingValidators.length; i++) {
-        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, pendingValidators[i])).should.be.bignumber.equal(
+        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(pendingValidators[i]);
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
-        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, pendingValidators[i])).should.be.bignumber.equal(
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
       }
@@ -1901,10 +1953,11 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[133],
       ]);
       for (let i = 0; i < validators.length; i++) {
-        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
+        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(validators[i]);
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
-        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
       }
@@ -1983,18 +2036,20 @@ contract('BlockRewardAuRa', async accounts => {
       await setCurrentBlockNumber(stakingEpochEndBlock);
 
       let validators = await validatorSetAuRa.getValidators.call();
+      let validatorsStakingAddresses = [];
       validators.sortedEqual([
         accounts[131],
         accounts[132]
       ]);
       for (let i = 0; i < validators.length; i++) {
+        validatorsStakingAddresses.push(await validatorSetAuRa.stakingByMiningAddress.call(validators[i]));
         await blockRewardAuRa.setBlocksCreated(stakingEpoch, validators[i], new BN(0)).should.be.fulfilled;
         await randomAuRa.setSentReveal(validators[i]).should.be.fulfilled;
       }
       (await validatorSetAuRa.validatorSetApplyBlock.call()).should.be.bignumber.equal(new BN(0));
 
       tokenRewardUndistributed = tokenRewardUndistributed.add(
-        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validators, stakeTokenInflationRate)
+        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validatorsStakingAddresses, stakeTokenInflationRate)
       );
 
       const blockRewardBalanceBeforeReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
@@ -2006,7 +2061,8 @@ contract('BlockRewardAuRa', async accounts => {
       (await validatorSetAuRa.emitInitiateChangeCallable.call()).should.be.equal(false);
 
       for (let i = 0; i < validators.length; i++) {
-        const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, validators[i]);
+        const stakingAddress = validatorsStakingAddresses[i];
+        const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, stakingAddress);
         epochPoolTokenReward.should.be.bignumber.equal(new BN(0));
       }
       tokenRewardUndistributed.should.be.bignumber.equal(await blockRewardAuRa.tokenRewardUndistributed.call());
@@ -2024,10 +2080,11 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[153],
       ]);
       for (let i = 0; i < pendingValidators.length; i++) {
-        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, pendingValidators[i])).should.be.bignumber.equal(
+        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(pendingValidators[i]);
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
-        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, pendingValidators[i])).should.be.bignumber.equal(
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
       }
@@ -2038,10 +2095,11 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[132]
       ]);
       for (let i = 0; i < validators.length; i++) {
-        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
+        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(validators[i]);
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
-        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
       }
@@ -2053,10 +2111,11 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[143]
       ]);
       for (let i = 0; i < validatorsToBeFinalized.length; i++) {
-        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, validatorsToBeFinalized[i])).should.be.bignumber.equal(
+        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(validatorsToBeFinalized[i]);
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
-        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, validatorsToBeFinalized[i])).should.be.bignumber.equal(
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
       }
@@ -2112,6 +2171,7 @@ contract('BlockRewardAuRa', async accounts => {
       await setCurrentBlockNumber(stakingEpochEndBlock);
 
       let validators = await validatorSetAuRa.getValidators.call();
+      let validatorsStakingAddresses = [];
       validators.sortedEqual([
         accounts[151],
         accounts[152],
@@ -2120,12 +2180,13 @@ contract('BlockRewardAuRa', async accounts => {
       const blocksCreated = stakingEpochEndBlock.sub(await validatorSetAuRa.validatorSetApplyBlock.call()).div(new BN(validators.length));
       blocksCreated.should.be.bignumber.above(new BN(0));
       for (let i = 0; i < validators.length; i++) {
+        validatorsStakingAddresses.push(await validatorSetAuRa.stakingByMiningAddress.call(validators[i]));
         await blockRewardAuRa.setBlocksCreated(stakingEpoch, validators[i], blocksCreated).should.be.fulfilled;
         await randomAuRa.setSentReveal(validators[i]).should.be.fulfilled;
       }
 
       tokenRewardUndistributed = tokenRewardUndistributed.add(
-        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validators, stakeTokenInflationRate)
+        await blockRewardAuRa.inflationAmount.call(stakingEpoch, validatorsStakingAddresses, stakeTokenInflationRate)
       );
 
       const blockRewardBalanceBeforeReward = await erc677Token.balanceOf.call(blockRewardAuRa.address);
@@ -2139,7 +2200,8 @@ contract('BlockRewardAuRa', async accounts => {
 
       let rewardDistributed = new BN(0);
       for (let i = 0; i < validators.length; i++) {
-        const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, validators[i]);
+        const stakingAddress = validatorsStakingAddresses[i];
+        const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, stakingAddress);
         epochPoolTokenReward.should.be.bignumber.above(new BN(0));
         rewardDistributed = rewardDistributed.add(epochPoolTokenReward);
       }
@@ -2159,10 +2221,11 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[153],
       ]);
       for (let i = 0; i < pendingValidators.length; i++) {
-        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, pendingValidators[i])).should.be.bignumber.equal(
+        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(pendingValidators[i]);
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
-        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, pendingValidators[i])).should.be.bignumber.equal(
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
       }
@@ -2174,10 +2237,11 @@ contract('BlockRewardAuRa', async accounts => {
         accounts[153],
       ]);
       for (let i = 0; i < validators.length; i++) {
-        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
+        const stakingAddress = await validatorSetAuRa.stakingByMiningAddress.call(validators[i]);
+        (await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
-        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, validators[i])).should.be.bignumber.equal(
+        (await blockRewardAuRa.snapshotPoolTotalStakeAmount.call(nextStakingEpoch, stakingAddress)).should.be.bignumber.equal(
           candidateMinStake
         );
       }

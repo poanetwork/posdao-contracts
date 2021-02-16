@@ -56,7 +56,6 @@ contract StakingAuRaCoins is StakingAuRaBase {
         }
 
         IBlockRewardAuRaCoins blockRewardContract = IBlockRewardAuRaCoins(validatorSetContract.blockRewardContract());
-        address miningAddress = validatorSetContract.miningByStakingAddress(_poolStakingAddress);
         uint256 rewardSum = 0;
         uint256 delegatorStake = 0;
 
@@ -90,9 +89,9 @@ contract StakingAuRaCoins is StakingAuRaBase {
                 delegatorStake = _getDelegatorStake(epoch, firstEpoch, delegatorStake, _poolStakingAddress, staker);
                 firstEpoch = epoch + 1;
 
-                reward = blockRewardContract.getDelegatorReward(delegatorStake, epoch, miningAddress);
+                reward = blockRewardContract.getDelegatorReward(delegatorStake, epoch, _poolStakingAddress);
             } else { // this is a validator
-                reward = blockRewardContract.getValidatorReward(epoch, miningAddress);
+                reward = blockRewardContract.getValidatorReward(epoch, _poolStakingAddress);
             }
 
             rewardSum = rewardSum.add(reward);
@@ -132,7 +131,6 @@ contract StakingAuRaCoins is StakingAuRaBase {
         }
 
         IBlockRewardAuRaCoins blockRewardContract = IBlockRewardAuRaCoins(validatorSetContract.blockRewardContract());
-        address miningAddress = validatorSetContract.miningByStakingAddress(_poolStakingAddress);
         uint256 delegatorStake = 0;
         rewardSum = 0;
 
@@ -157,9 +155,9 @@ contract StakingAuRaCoins is StakingAuRaBase {
                 delegatorStake = _getDelegatorStake(epoch, firstEpoch, delegatorStake, _poolStakingAddress, _staker);
                 firstEpoch = epoch + 1;
 
-                reward = blockRewardContract.getDelegatorReward(delegatorStake, epoch, miningAddress);
+                reward = blockRewardContract.getDelegatorReward(delegatorStake, epoch, _poolStakingAddress);
             } else { // this is a validator
-                reward = blockRewardContract.getValidatorReward(epoch, miningAddress);
+                reward = blockRewardContract.getValidatorReward(epoch, _poolStakingAddress);
             }
 
             rewardSum += reward;

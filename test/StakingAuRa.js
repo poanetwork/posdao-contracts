@@ -742,7 +742,7 @@ contract('StakingAuRa', async accounts => {
         await stakingAuRa.setStakingEpoch(epochsPoolRewarded[epochsPoolRewarded.length - 1] + 1).should.be.fulfilled;
 
         if (epochsPoolRewarded.length == 1) {
-          const validatorStakeAmount = await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(epochsPoolRewarded[0], miningAddress);
+          const validatorStakeAmount = await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(epochsPoolRewarded[0], stakingAddress);
           await blockRewardAuRa.setSnapshotPoolValidatorStakeAmount(epochsPoolRewarded[0], miningAddress, 0);
           const result = await stakingAuRa.claimReward([], stakingAddress, {from: delegator}).should.be.fulfilled;
           result.logs.length.should.be.equal(1);
@@ -1302,16 +1302,16 @@ contract('StakingAuRa', async accounts => {
       let blockRewardTokensBalanceBefore = await erc677Token.balanceOf.call(blockRewardAuRa.address);
       let blockRewardCoinsBalanceBefore = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
       for (let i = 0; i < initialValidators.length; i++) {
-        (await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialValidators[i])).should.be.bignumber.equal(new BN(0));
-        (await blockRewardAuRa.epochPoolNativeReward.call(stakingEpoch, initialValidators[i])).should.be.bignumber.equal(new BN(0));
+        (await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialStakingAddresses[i])).should.be.bignumber.equal(new BN(0));
+        (await blockRewardAuRa.epochPoolNativeReward.call(stakingEpoch, initialStakingAddresses[i])).should.be.bignumber.equal(new BN(0));
       }
       await callReward();
       (await validatorSetAuRa.validatorSetApplyBlock.call()).should.be.bignumber.equal(new BN(0));
       let distributedTokensAmount = new BN(0);
       let distributedCoinsAmount = new BN(0);
       for (let i = 0; i < initialValidators.length; i++) {
-        const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialValidators[i]);
-        const epochPoolNativeReward = await blockRewardAuRa.epochPoolNativeReward.call(stakingEpoch, initialValidators[i]);
+        const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialStakingAddresses[i]);
+        const epochPoolNativeReward = await blockRewardAuRa.epochPoolNativeReward.call(stakingEpoch, initialStakingAddresses[i]);
         epochPoolTokenReward.should.be.bignumber.above(new BN(0));
         epochPoolNativeReward.should.be.bignumber.above(new BN(0));
         distributedTokensAmount = distributedTokensAmount.add(epochPoolTokenReward);
@@ -1406,15 +1406,15 @@ contract('StakingAuRa', async accounts => {
         const blockRewardTokensBalanceBefore = await erc677Token.balanceOf.call(blockRewardAuRa.address);
         const blockRewardCoinsBalanceBefore = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
         for (let i = 0; i < initialValidators.length; i++) {
-          (await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialValidators[i])).should.be.bignumber.equal(new BN(0));
-          (await blockRewardAuRa.epochPoolNativeReward.call(stakingEpoch, initialValidators[i])).should.be.bignumber.equal(new BN(0));
+          (await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialStakingAddresses[i])).should.be.bignumber.equal(new BN(0));
+          (await blockRewardAuRa.epochPoolNativeReward.call(stakingEpoch, initialStakingAddresses[i])).should.be.bignumber.equal(new BN(0));
         }
         await callReward();
         let distributedTokensAmount = new BN(0);
         let distributedCoinsAmount = new BN(0);
         for (let i = 0; i < initialValidators.length; i++) {
-          const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialValidators[i]);
-          const epochPoolNativeReward = await blockRewardAuRa.epochPoolNativeReward.call(stakingEpoch, initialValidators[i]);
+          const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialStakingAddresses[i]);
+          const epochPoolNativeReward = await blockRewardAuRa.epochPoolNativeReward.call(stakingEpoch, initialStakingAddresses[i]);
           epochPoolTokenReward.should.be.bignumber.above(new BN(0));
           epochPoolNativeReward.should.be.bignumber.above(new BN(0));
           distributedTokensAmount = distributedTokensAmount.add(epochPoolTokenReward);
@@ -1598,15 +1598,15 @@ contract('StakingAuRa', async accounts => {
         const blockRewardTokensBalanceBefore = await erc677Token.balanceOf.call(blockRewardAuRa.address);
         const blockRewardCoinsBalanceBefore = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
         for (let i = 0; i < initialValidators.length; i++) {
-          (await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialValidators[i])).should.be.bignumber.equal(new BN(0));
-          (await blockRewardAuRa.epochPoolNativeReward.call(stakingEpoch, initialValidators[i])).should.be.bignumber.equal(new BN(0));
+          (await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialStakingAddresses[i])).should.be.bignumber.equal(new BN(0));
+          (await blockRewardAuRa.epochPoolNativeReward.call(stakingEpoch, initialStakingAddresses[i])).should.be.bignumber.equal(new BN(0));
         }
         await callReward();
         let distributedTokensAmount = new BN(0);
         let distributedCoinsAmount = new BN(0);
         for (let i = 0; i < initialValidators.length; i++) {
-          const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialValidators[i]);
-          const epochPoolNativeReward = await blockRewardAuRa.epochPoolNativeReward.call(stakingEpoch, initialValidators[i]);
+          const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialStakingAddresses[i]);
+          const epochPoolNativeReward = await blockRewardAuRa.epochPoolNativeReward.call(stakingEpoch, initialStakingAddresses[i]);
           epochPoolTokenReward.should.be.bignumber.above(new BN(0));
           epochPoolNativeReward.should.be.bignumber.above(new BN(0));
           distributedTokensAmount = distributedTokensAmount.add(epochPoolTokenReward);
@@ -1771,15 +1771,15 @@ contract('StakingAuRa', async accounts => {
         const blockRewardTokensBalanceBefore = await erc677Token.balanceOf.call(blockRewardAuRa.address);
         const blockRewardCoinsBalanceBefore = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
         for (let i = 0; i < initialValidators.length; i++) {
-          (await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialValidators[i])).should.be.bignumber.equal(new BN(0));
-          (await blockRewardAuRa.epochPoolNativeReward.call(stakingEpoch, initialValidators[i])).should.be.bignumber.equal(new BN(0));
+          (await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialStakingAddresses[i])).should.be.bignumber.equal(new BN(0));
+          (await blockRewardAuRa.epochPoolNativeReward.call(stakingEpoch, initialStakingAddresses[i])).should.be.bignumber.equal(new BN(0));
         }
         await callReward();
         let distributedTokensAmount = new BN(0);
         let distributedCoinsAmount = new BN(0);
         for (let i = 0; i < initialValidators.length; i++) {
-          const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialValidators[i]);
-          const epochPoolNativeReward = await blockRewardAuRa.epochPoolNativeReward.call(stakingEpoch, initialValidators[i]);
+          const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialStakingAddresses[i]);
+          const epochPoolNativeReward = await blockRewardAuRa.epochPoolNativeReward.call(stakingEpoch, initialStakingAddresses[i]);
           epochPoolTokenReward.should.be.bignumber.above(new BN(0));
           epochPoolNativeReward.should.be.bignumber.above(new BN(0));
           distributedTokensAmount = distributedTokensAmount.add(epochPoolTokenReward);

@@ -69,7 +69,6 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
         }
 
         IBlockRewardAuRaTokens blockRewardContract = IBlockRewardAuRaTokens(validatorSetContract.blockRewardContract());
-        address miningAddress = validatorSetContract.miningByStakingAddress(_poolStakingAddress);
         RewardAmounts memory rewardSum = RewardAmounts(0, 0);
         uint256 delegatorStake = 0;
 
@@ -104,10 +103,10 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
                 firstEpoch = epoch + 1;
 
                 (reward.tokenAmount, reward.nativeAmount) =
-                    blockRewardContract.getDelegatorReward(delegatorStake, epoch, miningAddress);
+                    blockRewardContract.getDelegatorReward(delegatorStake, epoch, _poolStakingAddress);
             } else { // this is a validator
                 (reward.tokenAmount, reward.nativeAmount) =
-                    blockRewardContract.getValidatorReward(epoch, miningAddress);
+                    blockRewardContract.getValidatorReward(epoch, _poolStakingAddress);
             }
 
             rewardSum.tokenAmount = rewardSum.tokenAmount.add(reward.tokenAmount);
@@ -197,7 +196,6 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
         }
 
         IBlockRewardAuRaTokens blockRewardContract = IBlockRewardAuRaTokens(validatorSetContract.blockRewardContract());
-        address miningAddress = validatorSetContract.miningByStakingAddress(_poolStakingAddress);
         uint256 delegatorStake = 0;
         tokenRewardSum = 0;
         nativeRewardSum = 0;
@@ -214,6 +212,8 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
 
             if (rewardWasTaken[_poolStakingAddress][delegatorOrZero][epoch]) continue;
 
+            RewardAmounts memory reward;
+
             if (_poolStakingAddress != _staker) { // this is a delegator
                 if (epoch < firstEpoch) continue;
                 if (lastEpoch <= epoch && lastEpoch != 0) break;
@@ -221,16 +221,15 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
                 delegatorStake = _getDelegatorStake(epoch, firstEpoch, delegatorStake, _poolStakingAddress, _staker);
                 firstEpoch = epoch + 1;
 
-                (uint256 tokenAmount, uint256 nativeAmount) =
-                    blockRewardContract.getDelegatorReward(delegatorStake, epoch, miningAddress);
-                tokenRewardSum += tokenAmount;
-                nativeRewardSum += nativeAmount;
+                (reward.tokenAmount, reward.nativeAmount) = 
+                    blockRewardContract.getDelegatorReward(delegatorStake, epoch, _poolStakingAddress);
             } else { // this is a validator
-                (uint256 tokenAmount, uint256 nativeAmount) =
-                    blockRewardContract.getValidatorReward(epoch, miningAddress);
-                tokenRewardSum += tokenAmount;
-                nativeRewardSum += nativeAmount;
+                (reward.tokenAmount, reward.nativeAmount) = 
+                    blockRewardContract.getValidatorReward(epoch, _poolStakingAddress);
             }
+
+            tokenRewardSum += reward.tokenAmount;
+            nativeRewardSum += reward.nativeAmount;
         }
     }
 
