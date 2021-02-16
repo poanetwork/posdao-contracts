@@ -43,10 +43,11 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
     // Reserved storage slots to allow for layout changes in the future.
     uint256[25] private ______gapForInternal;
 
-    /// @dev A number of blocks produced by the specified validator during the specified staking epoch
-    /// (beginning from the block when the `finalizeChange` function is called until the latest block
-    /// of the staking epoch. The results are used by the `_distributeRewards` function to track
-    /// each validator's downtime (when a validator's node is not running and doesn't produce blocks).
+    /// @dev A number of blocks produced by the specified validator (staking address) during
+    /// the specified staking epoch (beginning from the block when the `finalizeChange`
+    /// function is called until the latest block of the staking epoch. The results are used
+    /// by the `_distributeRewards` function to track each validator's downtime (when
+    /// a validator's node is not running and doesn't produce blocks).
     /// While the validator is banned, the block producing statistics is not accumulated for them.
     mapping(uint256 => mapping(address => uint256)) public blocksCreated;
 
@@ -163,12 +164,28 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
     // =============================================== Setters ========================================================
 
     // Temporary function (must be removed after `upgradeToAndCall` call)
-    function migrateEpochsPoolGotRewardFor() external onlyOwner {
+    function migrateBlocksCreated() external onlyOwner {
         address[] memory miningAddresses = validatorSetContract.getValidators();
         require(miningAddresses.length == 16);
         for (uint256 i = 0; i < miningAddresses.length; i++) {
             address miningAddress = miningAddresses[i];
-            delete _epochsPoolGotRewardFor[miningAddress];
+            address stakingAddress = validatorSetContract.stakingByMiningAddress(miningAddress);
+            uint256 epoch = 44;
+            blocksCreated[epoch][stakingAddress] = blocksCreated[epoch][miningAddress];
+            blocksCreated[epoch][miningAddress] = 0;
+        }
+    }
+
+    // Temporary function
+    function migrateBlocksCreatedForPastEpochs(address _miningAddress) external {
+        require(msg.sender == address(0xF96E3bb5e06DaA129B9981E1467e2DeDd6451DbE));
+        address stakingAddress = validatorSetContract.stakingByMiningAddress(_miningAddress);
+        for (uint256 epoch = 1; epoch < 44; epoch++) {
+            uint256 created = blocksCreated[epoch][_miningAddress];
+            if (created > 0) {
+                blocksCreated[epoch][stakingAddress] = created;
+                blocksCreated[epoch][_miningAddress] = 0;
+            }
         }
     }
 
@@ -211,7 +228,8 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
         uint256 stakingEpoch = stakingContract.stakingEpoch();
         address[] memory validators = validatorSetContract.getValidators();
         for (uint256 i = 0; i < validators.length; i++) {
-            blocksCreated[stakingEpoch][validators[i]] = 0;
+            address stakingAddress = validatorSetContract.stakingByMiningAddress(validators[i]);
+            blocksCreated[stakingEpoch][stakingAddress] = 0;
         }
     }
 
@@ -275,7 +293,8 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
                 // Accumulate blocks producing statistics for each of the
                 // active validators during the current staking epoch. This
                 // statistics is used by the `_distributeRewards` function
-                blocksCreated[stakingEpoch][benefactors[0]]++;
+                address stakingAddress = validatorSetContract.stakingByMiningAddress(benefactors[0]);
+                blocksCreated[stakingEpoch][stakingAddress]++;
             }
         }
 
@@ -802,11 +821,12 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
         uint256[] memory blocksCreatedShareNum = new uint256[](_validators.length);
         uint256 blocksCreatedShareDenom = 0;
         for (uint256 i = 0; i < _validators.length; i++) {
+            address stakingAddress = validatorSetContract.stakingByMiningAddress(_validators[i]);
             if (
                 !validatorSetContract.isValidatorBanned(_validators[i]) &&
                 snapshotPoolValidatorStakeAmount[_stakingEpoch][_validators[i]] != 0
             ) {
-                blocksCreatedShareNum[i] = blocksCreated[_stakingEpoch][_validators[i]];
+                blocksCreatedShareNum[i] = blocksCreated[_stakingEpoch][stakingAddress];
             } else {
                 blocksCreatedShareNum[i] = 0;
             }

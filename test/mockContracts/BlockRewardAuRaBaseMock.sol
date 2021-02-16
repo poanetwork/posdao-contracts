@@ -21,7 +21,8 @@ contract BlockRewardAuRaBaseMock is BlockRewardAuRaBase {
     }
 
     function setBlocksCreated(uint256 _stakingEpoch, address _miningAddress, uint256 _value) public {
-        blocksCreated[_stakingEpoch][_miningAddress] = _value;
+        address stakingAddress = validatorSetContract.stakingByMiningAddress(_miningAddress);
+        blocksCreated[_stakingEpoch][stakingAddress] = _value;
     }
 
     function setCurrentBlockNumber(uint256 _blockNumber) public {

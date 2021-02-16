@@ -439,7 +439,7 @@ async function getBlocksCreatedAndRevealSkips(validators, stakingEpoch, blockNum
   const batch = new web3.BatchRequest();
   validators.forEach((validator, i) => {
     promises.push(new Promise((resolve, reject) => {
-      batch.add(BlockReward.methods.blocksCreated(stakingEpoch, validator.miningAddress).call.request({}, blockNumber, (err, result) => {
+      batch.add(BlockReward.methods.blocksCreated(stakingEpoch, validator.stakingAddress).call.request({}, blockNumber, (err, result) => {
         if (err) reject(err);
         else resolve({ blocksCreated: result, i });
       }));
