@@ -63,34 +63,6 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
 
     // =============================================== Setters ========================================================
 
-    // Temporary function
-    function migrateSnapshotsAndRewards(address _miningAddress) external {
-        require(msg.sender == address(0xF96E3bb5e06DaA129B9981E1467e2DeDd6451DbE));
-        address stakingAddress = validatorSetContract.stakingByMiningAddress(_miningAddress);
-        for (uint256 epoch = 0; epoch <= 44; epoch++) {
-            uint256 amount = snapshotPoolTotalStakeAmount[epoch][_miningAddress];
-            if (amount > 0) {
-                snapshotPoolTotalStakeAmount[epoch][stakingAddress] = amount;
-                delete snapshotPoolTotalStakeAmount[epoch][_miningAddress];
-            }
-            amount = snapshotPoolValidatorStakeAmount[epoch][_miningAddress];
-            if (amount > 0) {
-                snapshotPoolValidatorStakeAmount[epoch][stakingAddress] = amount;
-                delete snapshotPoolValidatorStakeAmount[epoch][_miningAddress];
-            }
-            amount = epochPoolNativeReward[epoch][_miningAddress];
-            if (amount > 0) {
-                epochPoolNativeReward[epoch][stakingAddress] = amount;
-                delete epochPoolNativeReward[epoch][_miningAddress];
-            }
-            amount = epochPoolTokenReward[epoch][_miningAddress];
-            if (amount > 0) {
-                epochPoolTokenReward[epoch][stakingAddress] = amount;
-                delete epochPoolTokenReward[epoch][_miningAddress];
-            }
-        }
-    }
-
     /// @dev An alias for `addBridgeTokenRewardReceivers`
     /// (for backward compatibility with the previous bridge contract).
     function addBridgeTokenFeeReceivers(uint256 _amount) external {
@@ -151,7 +123,6 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
         tokenMinterContract = _tokenMinterContract;
     }
 
-    /*
     /// @dev Called by the `StakingAuRa.claimReward` function to transfer tokens and native coins
     /// from the balance of the `BlockRewardAuRa` contract to the specified address as a reward.
     /// @param _tokens The amount of tokens to transfer as a reward.
@@ -165,11 +136,6 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
         }
 
         _transferNativeReward(_nativeCoins, _to);
-    }
-    */
-    // Temporarily lock reward withdrawals
-    function transferReward(uint256, uint256, address payable) external onlyStakingContract {
-        revert("Temporarily locked");
     }
 
     // =============================================== Getters ========================================================
