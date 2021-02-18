@@ -22,9 +22,9 @@ contract ValidatorSetAuRaMock is ValidatorSetAuRa {
         _setPendingValidatorsChanged(true);
     }
 
-    function setBannedUntil(address _miningAddress, uint256 _bannedUntil) public {
-        bannedUntil[_miningAddress] = _bannedUntil;
-        bannedDelegatorsUntil[_miningAddress] = _bannedUntil;
+    function setBannedUntil(address _stakingAddress, uint256 _until) public {
+        _bannedUntil[_stakingAddress] = _until;
+        _bannedDelegatorsUntil[_stakingAddress] = _until;
     }
 
     function setBlockRewardContract(address _address) public {

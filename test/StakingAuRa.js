@@ -2903,10 +2903,10 @@ contract('StakingAuRa', async accounts => {
     it('shouldn\'t allow withdrawing from a banned pool', async () => {
       await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
       await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
-      await validatorSetAuRa.setBannedUntil(initialValidators[1], 100).should.be.fulfilled;
+      await validatorSetAuRa.setBannedUntil(initialStakingAddresses[1], 100).should.be.fulfilled;
       await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.rejectedWith(ERROR_MSG);
       await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.rejectedWith(ERROR_MSG);
-      await validatorSetAuRa.setBannedUntil(initialValidators[1], 0).should.be.fulfilled;
+      await validatorSetAuRa.setBannedUntil(initialStakingAddresses[1], 0).should.be.fulfilled;
       await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
       await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
     });
