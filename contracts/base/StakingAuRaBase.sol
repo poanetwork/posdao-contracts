@@ -956,7 +956,7 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
         address _miningAddress,
         bool _byOnTokenTransfer
     ) internal {
-        validatorSetContract.setStakingAddress(_miningAddress, _stakingAddress);
+        validatorSetContract.addPool(_miningAddress, _stakingAddress);
         if (_byOnTokenTransfer) {
             _stake(_stakingAddress, _stakingAddress, _amount);
         } else {

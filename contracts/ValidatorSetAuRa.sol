@@ -63,7 +63,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     mapping(address => bool) internal _isValidatorPrevious;
 
     /// @dev A mining address bound to a specified staking address.
-    /// See the `_setStakingAddress` internal function.
+    /// See the `_addPool` internal function.
     mapping(address => address) public miningByStakingAddress;
 
     /// @dev The `RandomAuRa` contract address.
@@ -80,7 +80,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     mapping(uint256 => uint256) internal _reportingCounterTotal;
 
     /// @dev A staking address bound to a specified mining address.
-    /// See the `_setStakingAddress` internal function.
+    /// See the `_addPool` internal function.
     mapping(address => address) public stakingByMiningAddress;
 
     /// @dev The `StakingAuRa` contract address.
@@ -108,6 +108,26 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
 
     /// @dev Designates whether the specified address has ever been a staking address.
     mapping(address => bool) public hasEverBeenStakingAddress;
+
+    /// @dev A pool id bound to a specified mining address.
+    /// See the `_addPool` internal function.
+    mapping(address => uint256) public idByMiningAddress;
+
+    /// @dev A pool id bound to a specified staking address.
+    /// See the `_addPool` internal function.
+    mapping(address => uint256) public idByStakingAddress;
+
+    /// @dev A pool mining address bound to a specified id.
+    /// See the `_addPool` internal function.
+    mapping(uint256 => address) public miningAddressById;
+
+    /// @dev A pool staking address bound to a specified id.
+    /// See the `_addPool` internal function.
+    mapping(uint256 => address) public stakingAddressById;
+
+    /// @dev Stores the last pool id used for a new pool creation.
+    /// Increments each time a new pool is created by the `addPool` function.
+    uint256 public lastPoolId;
 
     // ============================================== Constants =======================================================
 
@@ -164,40 +184,19 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     // =============================================== Setters ========================================================
 
     // Temporary function (must be removed after `upgradeToAndCall` call)
-    function migrateAddMappings() external {
+    function migrateSetIds() external {
         require(msg.sender == _admin());
-        hasEverBeenMiningAddress[0x9233042B8E9E03D5DC6454BBBe5aee83818fF103] = true;
-        hasEverBeenMiningAddress[0x6dC0c0be4c8B2dFE750156dc7d59FaABFb5B923D] = true;
-        hasEverBeenMiningAddress[0x9e41BA620FebA8198369c26351063B26eC5b7C9E] = true;
-        hasEverBeenMiningAddress[0xA13D45301207711B7C0328c6b2b64862abFe9b7a] = true;
-        hasEverBeenMiningAddress[0x657eA4A9572DfdBFd95899eAdA0f6197211527BE] = true;
-        hasEverBeenMiningAddress[0x06d563905b085A6B3070C819BDB96a44E5665005] = true;
-        hasEverBeenMiningAddress[0xDb1c683758F493Cef2E7089A3640502AB306322a] = true;
-        hasEverBeenMiningAddress[0x657E832b1a67CDEF9e117aFd2F419387259Fa93e] = true;
-        hasEverBeenMiningAddress[0x10AaE121b3c62F3DAfec9cC46C27b4c1dfe4A835] = true;
-        hasEverBeenMiningAddress[0x1438087186FdbFd4c256Fa2DF446921E30E54Df8] = true;
-        hasEverBeenMiningAddress[0x0000999dc55126CA626c20377F0045946db69b6E] = true;
-        hasEverBeenMiningAddress[0x9488f50c33e9616EE3B5B09CD3A9c603A108db4a] = true;
-        hasEverBeenMiningAddress[0x1A740616e96E07d86203707C1619d9871614922A] = true;
-        hasEverBeenMiningAddress[0x642C40173134f6E457a62D4C2033259433A53E8C] = true;
-        hasEverBeenMiningAddress[0xb76756f95A9fB6ff9ad3E6cb41b734c1bd805103] = true;
-        hasEverBeenMiningAddress[0x35770EF700Ff88D5f650597068e3Aaf051F3D5a4] = true;
-        hasEverBeenStakingAddress[0x6A3154a1f55a8fAF96DFdE75D25eFf0C06eB6784] = true;
-        hasEverBeenStakingAddress[0x99c72Eb5c22c38137541ef4B9a2FD0316C42b510] = true;
-        hasEverBeenStakingAddress[0x2FFEA37B7ab0977dac61f980d6c633946407627B] = true;
-        hasEverBeenStakingAddress[0xCb253E1Fd995cb1E2b33A9c64be9D09Dc4dF0336] = true;
-        hasEverBeenStakingAddress[0x5DCeE6BC39F327F9317530B61fA75ffe0AF46C62] = true;
-        hasEverBeenStakingAddress[0x30C1002d1F341609fbBb45b5e18dd9B1Ab79C26D] = true;
-        hasEverBeenStakingAddress[0x751F0Bf3Ddec2e6677C90E869D8154C6622f31b2] = true;
-        hasEverBeenStakingAddress[0x29CF39dE6d963D092c177a60ce67879EeA9910BB] = true;
-        hasEverBeenStakingAddress[0x10Bb52d950B0d472d989A4D220Fa73bC0Cc7e62d] = true;
-        hasEverBeenStakingAddress[0xd3537bD39480C91271825a862180551037fddA99] = true;
-        hasEverBeenStakingAddress[0xE868BE4d8C7A212a41a288A409658Ed3F4750495] = true;
-        hasEverBeenStakingAddress[0xe6Ae876Cdb07acC21390722352789aD989BbF0de] = true;
-        hasEverBeenStakingAddress[0x915E73d969a1e8B718D225B929dAf96E963e56DE] = true;
-        hasEverBeenStakingAddress[0x59bE7069745A9820a75Aa66357A50A5d7f66ceD5] = true;
-        hasEverBeenStakingAddress[0x91d8116fA60516Cf25E258Ef14dEaAcAf7a74127] = true;
-        hasEverBeenStakingAddress[0xeb43574E8f4FDdF11FBAf65A8632CA92262A1266] = true;
+        address[] memory miningAddresses = getValidators();
+        require(miningAddresses.length == 16);
+        for (uint256 i = 0; i < miningAddresses.length; i++) {
+            address miningAddress = miningAddresses[i];
+            address stakingAddress = stakingByMiningAddress[miningAddress];
+            uint256 poolId = uint256(stakingAddress);
+            idByMiningAddress[miningAddress] = poolId;
+            idByStakingAddress[stakingAddress] = poolId;
+            miningAddressById[poolId] = miningAddress;
+            stakingAddressById[poolId] = stakingAddress;
+        }
     }
 
     /// @dev Makes the non-removable validator removable. Can only be called by the staking address of the
@@ -294,7 +293,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
             _pendingValidators.push(stakingAddress);
             _isValidator[stakingAddress] = true;
             _validatorCounter[stakingAddress]++;
-            _setStakingAddress(miningAddress, stakingAddress);
+            _addPool(miningAddress, stakingAddress);
         }
 
         if (_firstValidatorIsUnremovable) {
@@ -416,15 +415,17 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         }
     }
 
-    /// @dev Binds a mining address to the specified staking address. Called by the `StakingAuRa.addPool` function
-    /// when a user wants to become a candidate and creates a pool.
-    /// See also the `miningByStakingAddress` and `stakingByMiningAddress` public mappings.
+    /// @dev Binds a mining address to the specified staking address and vice versa,
+    /// generates a unique ID for the newly created pool and binds it to the mining/staking addresses.
+    /// Called by the `StakingAuRa.addPool` function when a user wants to become a candidate and creates a pool.
+    /// See also the `miningByStakingAddress`, `stakingByMiningAddress`, `idByMiningAddress`, `idByStakingAddress`,
+    /// `miningAddressById`, `stakingAddressById` public mappings.
     /// @param _miningAddress The mining address of the newly created pool. Cannot be equal to the `_stakingAddress`
-    /// and should never be used as a pool before.
+    /// and should never be used as a pool or delegator before.
     /// @param _stakingAddress The staking address of the newly created pool. Cannot be equal to the `_miningAddress`
-    /// and should never be used as a pool before.
-    function setStakingAddress(address _miningAddress, address _stakingAddress) external onlyStakingContract {
-        _setStakingAddress(_miningAddress, _stakingAddress);
+    /// and should never be used as a pool or delegator before.
+    function addPool(address _miningAddress, address _stakingAddress) external onlyStakingContract {
+        _addPool(_miningAddress, _stakingAddress);
     }
 
     // =============================================== Getters ========================================================
@@ -914,13 +915,17 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         }
     }
 
-    /// @dev Binds a mining address to the specified staking address. Used by the `setStakingAddress` function.
-    /// See also the `miningByStakingAddress` and `stakingByMiningAddress` public getters.
+    /// @dev Binds a mining address to the specified staking address and vice versa,
+    /// generates a unique ID for the newly created pool and binds it to the mining/staking addresses.
+    /// Used by the `addPool` function. See also the `miningByStakingAddress`, `stakingByMiningAddress`,
+    /// `idByMiningAddress`, `idByStakingAddress`, `miningAddressById`, `stakingAddressById` public mappings.
     /// @param _miningAddress The mining address of the newly created pool. Cannot be equal to the `_stakingAddress`
     /// and should never be used as a pool or delegator before.
     /// @param _stakingAddress The staking address of the newly created pool. Cannot be equal to the `_miningAddress`
     /// and should never be used as a pool or delegator before.
-    function _setStakingAddress(address _miningAddress, address _stakingAddress) internal {
+    function _addPool(address _miningAddress, address _stakingAddress) internal {
+        require(_getCurrentBlockNumber() == 0, "Temporarily disabled");
+
         require(_miningAddress != address(0));
         require(_stakingAddress != address(0));
         require(_miningAddress != _stakingAddress);
@@ -941,7 +946,13 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         require(!hasEverBeenStakingAddress[_miningAddress]);
         require(!hasEverBeenStakingAddress[_stakingAddress]);
 
+        uint256 poolId = ++lastPoolId;
+
+        idByMiningAddress[_miningAddress] = poolId;
+        idByStakingAddress[_stakingAddress] = poolId;
+        miningAddressById[poolId] = _miningAddress;
         miningByStakingAddress[_stakingAddress] = _miningAddress;
+        stakingAddressById[poolId] = _stakingAddress;
         stakingByMiningAddress[_miningAddress] = _stakingAddress;
 
         hasEverBeenMiningAddress[_miningAddress] = true;
