@@ -103,6 +103,12 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// Can be used by Staking DApp.
     uint256 public lastChangeBlock;
 
+    /// @dev Designates whether the specified address has ever been a mining address.
+    mapping(address => bool) public hasEverBeenMiningAddress;
+
+    /// @dev Designates whether the specified address has ever been a staking address.
+    mapping(address => bool) public hasEverBeenStakingAddress;
+
     // ============================================== Constants =======================================================
 
     /// @dev The max number of validators.
@@ -158,63 +164,40 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     // =============================================== Setters ========================================================
 
     // Temporary function (must be removed after `upgradeToAndCall` call)
-    function migrateToStakingAddresses2() external {
+    function migrateAddMappings() external {
         require(msg.sender == _admin());
-        address nethermindMining = 0x1A740616e96E07d86203707C1619d9871614922A;
-        address nethermindStaking = 0x915E73d969a1e8B718D225B929dAf96E963e56DE;
-        uint24[3] memory blockNumbers = [9989454, 10154400, 10732576];
-        for (uint256 b = 0; b < blockNumbers.length; b++) {
-            uint256 blockNumber = uint256(blockNumbers[b]);
-            address[] storage reportedValidators =
-                _maliceReportedForBlock[nethermindMining][blockNumber];
-            uint256 length = reportedValidators.length;
-            for (uint256 i = 0; i < length; i++) {
-                address miningAddress = reportedValidators[i];
-                address stakingAddress = stakingByMiningAddress[miningAddress];
-                _maliceReportedForBlock[nethermindStaking][blockNumber].push(stakingAddress);
-                _maliceReportedForBlockMapped[nethermindStaking][blockNumber][stakingAddress] = true;
-                delete _maliceReportedForBlockMapped[nethermindMining][blockNumber][miningAddress];
-
-                if (blockNumber == 9989454) {
-                    uint256 epoch = 6;
-                    _reportingCounter[stakingAddress][epoch] = _reportingCounter[miningAddress][epoch];
-                    _reportingCounter[miningAddress][epoch] = 0;
-                } else if (blockNumber == 10154400) {
-                    uint256 epoch = 8;
-                    _reportingCounter[stakingAddress][epoch] = _reportingCounter[miningAddress][epoch];
-                    _reportingCounter[miningAddress][epoch] = 0;
-                } else if (blockNumber == 10732576) {
-                    uint256 epoch = 12;
-                    _reportingCounter[stakingAddress][epoch] = _reportingCounter[miningAddress][epoch];
-                    _reportingCounter[miningAddress][epoch] = 0;
-                }
-            }
-            reportedValidators.length = 0;
-        }
-
-        address[] memory stakingAddresses = _currentValidators;
-        for (uint256 i = 0; i < stakingAddresses.length; i++) {
-            address stakingAddress = stakingAddresses[i];
-            address miningAddress = miningByStakingAddress[stakingAddress];
-
-            uint256 counter = _banCounter[miningAddress];
-            if (counter > 0) {
-                _banCounter[stakingAddress] = counter;
-                _banCounter[miningAddress] = 0;
-                _bannedUntil[stakingAddress] = _bannedUntil[miningAddress];
-                _bannedUntil[miningAddress] = 0;
-                _bannedDelegatorsUntil[stakingAddress] = _bannedDelegatorsUntil[miningAddress];
-                _bannedDelegatorsUntil[miningAddress] = 0;
-                _banReason[stakingAddress] = _banReason[miningAddress];
-                delete _banReason[miningAddress];
-            }
-
-            _isValidator[stakingAddress] = true;
-            _isValidator[miningAddress] = false;
-
-            _validatorCounter[stakingAddress] = _validatorCounter[miningAddress];
-            _validatorCounter[miningAddress] = 0;
-        }
+        hasEverBeenMiningAddress[0x9233042B8E9E03D5DC6454BBBe5aee83818fF103] = true;
+        hasEverBeenMiningAddress[0x6dC0c0be4c8B2dFE750156dc7d59FaABFb5B923D] = true;
+        hasEverBeenMiningAddress[0x9e41BA620FebA8198369c26351063B26eC5b7C9E] = true;
+        hasEverBeenMiningAddress[0xA13D45301207711B7C0328c6b2b64862abFe9b7a] = true;
+        hasEverBeenMiningAddress[0x657eA4A9572DfdBFd95899eAdA0f6197211527BE] = true;
+        hasEverBeenMiningAddress[0x06d563905b085A6B3070C819BDB96a44E5665005] = true;
+        hasEverBeenMiningAddress[0xDb1c683758F493Cef2E7089A3640502AB306322a] = true;
+        hasEverBeenMiningAddress[0x657E832b1a67CDEF9e117aFd2F419387259Fa93e] = true;
+        hasEverBeenMiningAddress[0x10AaE121b3c62F3DAfec9cC46C27b4c1dfe4A835] = true;
+        hasEverBeenMiningAddress[0x1438087186FdbFd4c256Fa2DF446921E30E54Df8] = true;
+        hasEverBeenMiningAddress[0x0000999dc55126CA626c20377F0045946db69b6E] = true;
+        hasEverBeenMiningAddress[0x9488f50c33e9616EE3B5B09CD3A9c603A108db4a] = true;
+        hasEverBeenMiningAddress[0x1A740616e96E07d86203707C1619d9871614922A] = true;
+        hasEverBeenMiningAddress[0x642C40173134f6E457a62D4C2033259433A53E8C] = true;
+        hasEverBeenMiningAddress[0xb76756f95A9fB6ff9ad3E6cb41b734c1bd805103] = true;
+        hasEverBeenMiningAddress[0x35770EF700Ff88D5f650597068e3Aaf051F3D5a4] = true;
+        hasEverBeenStakingAddress[0x6A3154a1f55a8fAF96DFdE75D25eFf0C06eB6784] = true;
+        hasEverBeenStakingAddress[0x99c72Eb5c22c38137541ef4B9a2FD0316C42b510] = true;
+        hasEverBeenStakingAddress[0x2FFEA37B7ab0977dac61f980d6c633946407627B] = true;
+        hasEverBeenStakingAddress[0xCb253E1Fd995cb1E2b33A9c64be9D09Dc4dF0336] = true;
+        hasEverBeenStakingAddress[0x5DCeE6BC39F327F9317530B61fA75ffe0AF46C62] = true;
+        hasEverBeenStakingAddress[0x30C1002d1F341609fbBb45b5e18dd9B1Ab79C26D] = true;
+        hasEverBeenStakingAddress[0x751F0Bf3Ddec2e6677C90E869D8154C6622f31b2] = true;
+        hasEverBeenStakingAddress[0x29CF39dE6d963D092c177a60ce67879EeA9910BB] = true;
+        hasEverBeenStakingAddress[0x10Bb52d950B0d472d989A4D220Fa73bC0Cc7e62d] = true;
+        hasEverBeenStakingAddress[0xd3537bD39480C91271825a862180551037fddA99] = true;
+        hasEverBeenStakingAddress[0xE868BE4d8C7A212a41a288A409658Ed3F4750495] = true;
+        hasEverBeenStakingAddress[0xe6Ae876Cdb07acC21390722352789aD989BbF0de] = true;
+        hasEverBeenStakingAddress[0x915E73d969a1e8B718D225B929dAf96E963e56DE] = true;
+        hasEverBeenStakingAddress[0x59bE7069745A9820a75Aa66357A50A5d7f66ceD5] = true;
+        hasEverBeenStakingAddress[0x91d8116fA60516Cf25E258Ef14dEaAcAf7a74127] = true;
+        hasEverBeenStakingAddress[0xeb43574E8f4FDdF11FBAf65A8632CA92262A1266] = true;
     }
 
     /// @dev Makes the non-removable validator removable. Can only be called by the staking address of the
@@ -932,11 +915,11 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     }
 
     /// @dev Binds a mining address to the specified staking address. Used by the `setStakingAddress` function.
-    /// See also the `miningByStakingAddress` and `stakingByMiningAddress` public mappings.
+    /// See also the `miningByStakingAddress` and `stakingByMiningAddress` public getters.
     /// @param _miningAddress The mining address of the newly created pool. Cannot be equal to the `_stakingAddress`
-    /// and should never be used as a pool before.
+    /// and should never be used as a pool or delegator before.
     /// @param _stakingAddress The staking address of the newly created pool. Cannot be equal to the `_miningAddress`
-    /// and should never be used as a pool before.
+    /// and should never be used as a pool or delegator before.
     function _setStakingAddress(address _miningAddress, address _stakingAddress) internal {
         require(_miningAddress != address(0));
         require(_stakingAddress != address(0));
@@ -945,8 +928,24 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         require(miningByStakingAddress[_miningAddress] == address(0));
         require(stakingByMiningAddress[_stakingAddress] == address(0));
         require(stakingByMiningAddress[_miningAddress] == address(0));
+
+        // Make sure that `_miningAddress` and `_stakingAddress` have never been a delegator before
+        require(stakingContract.getDelegatorPoolsLength(_miningAddress) == 0);
+        require(stakingContract.getDelegatorPoolsLength(_stakingAddress) == 0);
+
+        // Make sure that `_miningAddress` and `_stakingAddress` have never been a mining address before
+        require(!hasEverBeenMiningAddress[_miningAddress]);
+        require(!hasEverBeenMiningAddress[_stakingAddress]);
+
+        // Make sure that `_miningAddress` and `_stakingAddress` have never been a staking address before
+        require(!hasEverBeenStakingAddress[_miningAddress]);
+        require(!hasEverBeenStakingAddress[_stakingAddress]);
+
         miningByStakingAddress[_stakingAddress] = _miningAddress;
         stakingByMiningAddress[_miningAddress] = _stakingAddress;
+
+        hasEverBeenMiningAddress[_miningAddress] = true;
+        hasEverBeenStakingAddress[_stakingAddress] = true;
     }
 
     /// @dev Returns the future block number until which a validator is banned.

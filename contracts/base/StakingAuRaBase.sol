@@ -1120,15 +1120,23 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
             // Add `_staker` to the array of pool's delegators
             _addPoolDelegator(_poolStakingAddress, _staker);
 
-            // Save amount value staked by the delegator
+            // Save/update amount value staked by the delegator
             _snapshotDelegatorStake(_poolStakingAddress, _staker);
 
-            // Remember that the delegator (`_staker`) staked into `_poolStakingAddress`
+            // Remember that the delegator (`_staker`) has ever staked into `_poolStakingAddress`
             address[] storage delegatorPools = _delegatorPools[_staker];
+            uint256 delegatorPoolsLength = delegatorPools.length;
             uint256 index = _delegatorPoolsIndexes[_staker][_poolStakingAddress];
-            if (index >= delegatorPools.length || delegatorPools[index] != _poolStakingAddress) {
-                _delegatorPoolsIndexes[_staker][_poolStakingAddress] = delegatorPools.length;
+            bool neverStakedBefore = index >= delegatorPoolsLength || delegatorPools[index] != _poolStakingAddress;
+            if (neverStakedBefore) {
+                _delegatorPoolsIndexes[_staker][_poolStakingAddress] = delegatorPoolsLength;
                 delegatorPools.push(_poolStakingAddress);
+            }
+
+            if (delegatorPoolsLength == 0) {
+                // If this is the first time the delegator stakes,
+                // make sure the delegator has never been a mining address
+                require(!validatorSetContract.hasEverBeenMiningAddress(_staker));
             }
         }
 

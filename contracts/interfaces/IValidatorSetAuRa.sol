@@ -19,6 +19,7 @@ interface IValidatorSetAuRa {
     function emitInitiateChangeCallable() external view returns(bool);
     function getPendingValidators() external view returns(address[] memory);
     function getValidators() external view returns(address[] memory);
+    function hasEverBeenMiningAddress(address) external view returns(bool);
     function isReportValidatorValid(address) external view returns(bool);
     function isValidator(address) external view returns(bool);
     function isValidatorBanned(address) external view returns(bool);
