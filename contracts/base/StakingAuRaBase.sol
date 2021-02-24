@@ -288,14 +288,14 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
     /// depending on their own stake in their own pool when they become removable. This allows the
     /// `ValidatorSetAuRa.newValidatorSet` function to recognize the unremovable validator as a regular removable pool.
     /// Called by the `ValidatorSet.clearUnremovableValidator` function.
-    /// @param _unremovableStakingAddress The staking address of the unremovable validator.
-    function clearUnremovableValidator(address _unremovableStakingAddress) external onlyValidatorSetContract {
-        require(_unremovableStakingAddress != address(0));
-        if (stakeAmount[_unremovableStakingAddress][address(0)] != 0) {
-            _addPoolToBeElected(_unremovableStakingAddress);
-            _setLikelihood(_unremovableStakingAddress);
+    /// @param _unremovablePoolId The pool id of the unremovable validator.
+    function clearUnremovableValidator(uint256 _unremovablePoolId) external onlyValidatorSetContract {
+        require(_unremovablePoolId != 0);
+        if (stakeAmount[_unremovablePoolId][address(0)] != 0) {
+            _addPoolToBeElected(_unremovablePoolId);
+            _setLikelihood(_unremovablePoolId);
         } else {
-            _addPoolToBeRemoved(_unremovableStakingAddress);
+            _addPoolToBeRemoved(_unremovablePoolId);
         }
     }
 
@@ -391,9 +391,9 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
     /// @dev Removes a specified pool from the `pools` array (a list of active pools which can be retrieved by the
     /// `getPools` getter). Called by the `ValidatorSetAuRa._removeMaliciousValidator` internal function
     /// when a pool must be removed by the algorithm.
-    /// @param _stakingAddress The staking address of the pool to be removed.
-    function removePool(address _stakingAddress) external onlyValidatorSetContract {
-        _removePool(_stakingAddress);
+    /// @param _poolId The id of the pool to be removed.
+    function removePool(uint256 _poolId) external onlyValidatorSetContract {
+        _removePool(_poolId);
     }
 
     /// @dev Removes pools which are in the `_poolsToBeRemoved` internal array from the `pools` array.
@@ -631,11 +631,11 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
         return (_poolsLikelihood, _poolsLikelihoodSum);
     }
 
-    /// @dev Returns the list of pools (their staking addresses) which will participate in a new validator set
+    /// @dev Returns the list of pools (their ids) which will participate in a new validator set
     /// selection process in the `ValidatorSetAuRa.newValidatorSet` function. This is an array of pools
     /// which will be considered as candidates when forming a new validator set (at the last block of a staking epoch).
     /// This array is kept updated by the `_addPoolToBeElected` and `_deletePoolToBeElected` internal functions.
-    function getPoolsToBeElected() external view returns(address[] memory) {
+    function getPoolsToBeElected() external view returns(uint256[] memory) {
         return _poolsToBeElected;
     }
 

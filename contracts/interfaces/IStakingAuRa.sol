@@ -2,7 +2,7 @@ pragma solidity 0.5.10;
 
 
 interface IStakingAuRa {
-    function clearUnremovableValidator(address) external;
+    function clearUnremovableValidator(uint256) external;
     function incrementStakingEpoch() external;
     function initialize(
         address,
@@ -18,7 +18,7 @@ interface IStakingAuRa {
     function setStakingEpochStartBlock(uint256) external;
     function getDelegatorPoolsLength(address) external view returns(uint256);
     function getPoolsLikelihood() external view returns(uint256[] memory, uint256);
-    function getPoolsToBeElected() external view returns(address[] memory);
+    function getPoolsToBeElected() external view returns(uint256[] memory);
     function getPoolsToBeRemoved() external view returns(address[] memory);
     function isPoolActive(address) external view returns(bool);
     function MAX_CANDIDATES() external pure returns(uint256); // solhint-disable-line func-name-mixedcase

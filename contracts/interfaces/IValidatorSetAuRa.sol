@@ -31,7 +31,7 @@ interface IValidatorSetAuRa {
     function reportMaliciousCallable(address, address, uint256) external view returns(bool, bool);
     function stakingByMiningAddress(address) external view returns(address);
     function stakingContract() external view returns(address);
-    function unremovableValidator() external view returns(address);
+    function unremovableValidator() external view returns(uint256);
     function validatorSetApplyBlock() external view returns(uint256);
     function validatorsToBeFinalized() external view returns(address[] memory, bool);
 }
