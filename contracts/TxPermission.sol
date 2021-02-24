@@ -34,6 +34,10 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
 
     mapping(address => uint256) internal _deployerInputLengthLimit;
 
+    /// @dev The min gas price allowed for a specified sender, in Wei.
+    /// Zero means default min gas price.
+    mapping(address => uint256) public senderMinGasPrice;
+
     // ============================================== Constants =======================================================
 
     /// @dev A constant that defines a regular block gas limit.
@@ -50,6 +54,11 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
     /// @param deployer The address of a contract deployer.
     /// @param limit The maximum number of bytes in `input` field of deployment transaction.
     event DeployerInputLengthLimitSet(address indexed deployer, uint256 limit);
+
+    /// @dev Emitted by the `setSenderMinGasPrice` function.
+    /// @param sender The address of transaction sender.
+    /// @param minGasPrice The min gas price in Wei. Zero to reset to default min gas price.
+    event SenderMinGasPriceSet(address indexed sender, uint256 minGasPrice);
 
     // ============================================== Modifiers =======================================================
 
@@ -119,6 +128,14 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
     function setDeployerInputLengthLimit(address _deployer, uint256 _limit) public onlyOwner onlyInitialized {
         _deployerInputLengthLimit[_deployer] = _limit;
         emit DeployerInputLengthLimitSet(_deployer, _limit);
+    }
+
+    /// @dev Sets the min gas price allowed for a specified sender.
+    /// @param _sender The address of transaction sender.
+    /// @param _minGasPrice The min gas price in Wei. Zero to reset to default min gas price.
+    function setSenderMinGasPrice(address _sender, uint256 _minGasPrice) public onlyOwner onlyInitialized {
+        senderMinGasPrice[_sender] = _minGasPrice;
+        emit SenderMinGasPriceSet(_sender, _minGasPrice);
     }
 
     // =============================================== Getters ========================================================
@@ -245,6 +262,11 @@ contract TxPermission is UpgradeableOwned, ITxPermission {
         // Don't let the `_sender` use a zero gas price, if it is not explicitly allowed by the `Certifier` contract
         if (_gasPrice == 0) {
             return (certifierContract.certifiedExplicitly(_sender) ? ALL : NONE, false);
+        }
+
+        // Disallow invalid gas price for the specified sender
+        if (_gasPrice < senderMinGasPrice[_sender]) {
+            return (NONE, false);
         }
 
         // In other cases let the `_sender` create any transaction with non-zero gas price
