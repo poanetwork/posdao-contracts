@@ -19,7 +19,7 @@ async function main() {
 
   for (let i = 0; i < pending.result.length; i++) {
     const from = pending.result[i].from.toLowerCase();
-    addresses[from] = { balance: new BN(0), nonce: new BN(0), certified: false };
+    addresses[from] = { balance: new BN(0), nonce: new BN(0), certified: false, minGasPrice: new BN(0) };
   }
 
   const addressArray = Object.keys(addresses);
@@ -74,6 +74,26 @@ async function main() {
       const address = addressArray[i];
       addresses[address].certified = certified[i];
     }
+
+    // Retrieve min gas price allowed for each address
+    const TxPermission = new web3.eth.Contract([{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"setSenderMinGasPrice","inputs":[{"type":"address","name":"_sender"},{"type":"uint256","name":"_minGasPrice"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"address","name":""}],"name":"certifierContract","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"BLOCK_GAS_LIMIT_REDUCED","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"address[]","name":""}],"name":"allowedSenders","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bool","name":""}],"name":"isInitialized","inputs":[],"constant":true},{"type":"function","stateMutability":"pure","payable":false,"outputs":[{"type":"bytes32","name":""}],"name":"contractNameHash","inputs":[],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"removeAllowedSender","inputs":[{"type":"address","name":"_sender"}],"constant":false},{"type":"function","stateMutability":"pure","payable":false,"outputs":[{"type":"string","name":""}],"name":"contractName","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"blockGasLimit","inputs":[],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"initialize","inputs":[{"type":"address[]","name":"_allowed"},{"type":"address","name":"_certifier"},{"type":"address","name":"_validatorSet"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"senderMinGasPrice","inputs":[{"type":"address","name":""}],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"deployerInputLengthLimit","inputs":[{"type":"address","name":"_deployer"}],"constant":true},{"type":"function","stateMutability":"pure","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"contractVersion","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint32","name":"typesMask"},{"type":"bool","name":"cache"}],"name":"allowedTxTypes","inputs":[{"type":"address","name":"_sender"},{"type":"address","name":"_to"},{"type":"uint256","name":"_value"},{"type":"uint256","name":"_gasPrice"},{"type":"bytes","name":"_data"}],"constant":true},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"setDeployerInputLengthLimit","inputs":[{"type":"address","name":"_deployer"},{"type":"uint256","name":"_limit"}],"constant":false},{"type":"function","stateMutability":"nonpayable","payable":false,"outputs":[],"name":"addAllowedSender","inputs":[{"type":"address","name":"_sender"}],"constant":false},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"uint256","name":""}],"name":"BLOCK_GAS_LIMIT","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"address","name":""}],"name":"validatorSetContract","inputs":[],"constant":true},{"type":"function","stateMutability":"view","payable":false,"outputs":[{"type":"bool","name":""}],"name":"isSenderAllowed","inputs":[{"type":"address","name":""}],"constant":true},{"type":"event","name":"DeployerInputLengthLimitSet","inputs":[{"type":"address","name":"deployer","indexed":true},{"type":"uint256","name":"limit","indexed":false}],"anonymous":false},{"type":"event","name":"SenderMinGasPriceSet","inputs":[{"type":"address","name":"sender","indexed":true},{"type":"uint256","name":"minGasPrice","indexed":false}],"anonymous":false}], '0x7Dd7032AA75A37ea0b150f57F899119C7379A78b');
+    promises = [];
+    batch = new web3.BatchRequest();
+    for (let i = 0; i < addressArray.length; i++) {
+      const address = addressArray[i];
+      promises.push(new Promise((resolve, reject) => {
+        batch.add(TxPermission.methods.senderMinGasPrice(address).call.request((err, result) => {
+          if (err) reject(err);
+          else resolve(result);
+        }));
+      }));
+    }
+    await batch.execute();
+    const minGasPrices = await Promise.all(promises);
+    for (let i = 0; i < addressArray.length; i++) {
+      const address = addressArray[i];
+      addresses[address].minGasPrice = minGasPrices[i];
+    }
   }
   
   for (let i = 0; i < addressArray.length; i++) {
@@ -98,14 +118,25 @@ async function main() {
       minGasLimit = new BN('21064');
     }
 
+    let isCorrect = true;
+
     if (netId == 100) { // if this is xDai chain
-      // check for zero gas price allowance
-      if (txGasPrice.isZero() && !addresses[from].certified) {
-        continue;
+      if (txGasPrice.isZero()) {
+        // check for zero gas price allowance
+        if (!addresses[from].certified) {
+          isCorrect = false;
+        }
+      } else {
+        // check gas price correctness
+        if (txGasPrice.lt(addresses[from].minGasPrice)) {
+          isCorrect = false;
+        }
       }
     }
 
-    if (txNonce.eq(addresses[from].nonce) && txGas.lt(gasLimit) && txGas.gte(minGasLimit) && txValuePlusGas.lte(addresses[from].balance)) {
+    isCorrect = isCorrect && txNonce.eq(addresses[from].nonce) && txGas.lt(gasLimit) && txGas.gte(minGasLimit) && txValuePlusGas.lte(addresses[from].balance);
+
+    if (isCorrect) {
       console.log(`Correct TX:`);
       console.log(tx);
       correctTXsFound++;
