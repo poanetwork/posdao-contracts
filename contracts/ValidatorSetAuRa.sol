@@ -57,7 +57,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
 
     /// @dev A boolean flag indicating whether the specified pool id is in the current validator set.
     /// See also the `getValidators` getter.
-    mapping(uint256 => bool) internal _isValidator;
+    mapping(uint256 => bool) public isValidatorById;
 
     /// @dev A boolean flag indicating whether the specified pool id was a validator in the previous set.
     mapping(uint256 => bool) internal _isValidatorPrevious;
@@ -285,7 +285,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
             uint256 poolId = _addPool(miningAddress, stakingAddress);
             _currentValidators.push(poolId);
             _pendingValidators.push(poolId);
-            _isValidator[poolId] = true;
+            isValidatorById[poolId] = true;
             _validatorCounter[poolId]++;
 
             if (i == 0 && _firstValidatorIsUnremovable) {
@@ -311,7 +311,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
             (uint256[] memory likelihood, uint256 likelihoodSum) = stakingContract.getPoolsLikelihood();
 
             if (likelihood.length > 0 && likelihoodSum > 0) {
-                uint256[] memory newValidators = new address[](
+                uint256[] memory newValidators = new uint256[](
                     unremovableValidator == 0 ? MAX_VALIDATORS : MAX_VALIDATORS - 1
                 );
 
@@ -366,6 +366,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     ) external onlyInitialized {
         revert("Temporarily disabled");
 
+        /*
         address reportingMiningAddress = msg.sender;
         uint256 reportingId = idByMiningAddress[reportingMiningAddress];
         uint256 maliciousId = idByMiningAddress[_maliciousMiningAddress];
@@ -414,10 +415,12 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
             miningAddresses[0] = _maliciousMiningAddress;
             _removeMaliciousValidators(miningAddresses, "malicious");
         }
+        */
     }
 
     /// @dev Binds a mining address to the specified staking address and vice versa,
-    /// generates a unique ID for the newly created pool and binds it to the mining/staking addresses.
+    /// generates a unique ID for the newly created pool, binds it to the mining/staking addresses,
+    /// and returns it as a result.
     /// Called by the `StakingAuRa.addPool` function when a user wants to become a candidate and creates a pool.
     /// See also the `miningByStakingAddress`, `stakingByMiningAddress`, `idByMiningAddress`, `idByStakingAddress`,
     /// `miningAddressById`, `stakingAddressById` public mappings.
@@ -425,8 +428,8 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// and should never be used as a pool or delegator before.
     /// @param _stakingAddress The staking address of the newly created pool. Cannot be equal to the `_miningAddress`
     /// and should never be used as a pool or delegator before.
-    function addPool(address _miningAddress, address _stakingAddress) external onlyStakingContract {
-        _addPool(_miningAddress, _stakingAddress);
+    function addPool(address _miningAddress, address _stakingAddress) external onlyStakingContract returns(uint256) {
+        return _addPool(_miningAddress, _stakingAddress);
     }
 
     // =============================================== Getters ========================================================
@@ -436,6 +439,13 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// @param _miningAddress The mining address of the pool.
     function areDelegatorsBanned(address _miningAddress) public view returns(bool) {
         return _getCurrentBlockNumber() <= bannedDelegatorsUntil(_miningAddress);
+    }
+
+    /// @dev Returns a boolean flag indicating whether delegators of the specified pool are currently banned.
+    /// A validator pool can be banned when they misbehave (see the `_removeMaliciousValidator` function).
+    /// @param _poolId An id of the pool.
+    function areIdDelegatorsBanned(uint256 _poolId) public view returns(bool) {
+        return _getCurrentBlockNumber() <= _bannedDelegatorsUntil[_poolId];
     }
 
     /// @dev Returns how many times a given validator was banned.
@@ -484,6 +494,16 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         return miningAddresses;
     }
 
+    /// @dev Returns the current array of validators (their pool ids).
+    /// The pending array is changed when a validator is removed as malicious
+    /// or the validator set is updated by the `newValidatorSet` function.
+    /// Every time the pending array is changed, it is marked by the `_setPendingValidatorsChanged` and then
+    /// used by the `emitInitiateChange` function which emits the `InitiateChange` event to all
+    /// validator nodes.
+    function getPendingValidatorsIds() public view returns(uint256[] memory) {
+        return _pendingValidators;
+    }
+
     /// @dev Returns the current validator set (an array of mining addresses)
     /// which always matches the validator set kept in validator's node.
     function getValidators() public view returns(address[] memory) {
@@ -492,6 +512,11 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
             miningAddresses[i] = miningAddressById[_currentValidators[i]];
         }
         return miningAddresses;
+    }
+
+    /// @dev Returns the current validator set (an array of pool ids).
+    function getValidatorsIds() public view returns(uint256[] memory) {
+        return _currentValidators;
     }
 
     /// @dev A boolean flag indicating whether the `emitInitiateChange` can be called at the moment.
@@ -511,7 +536,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// @dev Returns a boolean flag indicating whether the specified mining address is in the current validator set.
     /// See also the `getValidators` getter.
     function isValidator(address _miningAddress) public view returns(bool) {
-        return _isValidator[idByMiningAddress[_miningAddress]];
+        return isValidatorById[idByMiningAddress[_miningAddress]];
     }
 
     /// @dev Returns a boolean flag indicating whether the specified validator (mining address)
@@ -523,7 +548,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// @param _miningAddress The validator's mining address.
     function isReportValidatorValid(address _miningAddress) public view returns(bool) {
         uint256 poolId = idByMiningAddress[_miningAddress];
-        bool isValid = _isValidator[poolId] && !isValidatorBanned(_miningAddress);
+        bool isValid = isValidatorById[poolId] && !isValidatorIdBanned(poolId);
         if (stakingContract.stakingEpoch() == 0 || validatorSetApplyBlock == 0) {
             return isValid;
         }
@@ -531,7 +556,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
             // The current validator set was finalized by the engine,
             // but we should let the previous validators finish
             // reporting malicious validator within a few blocks
-            bool previousValidator = _isValidatorPrevious[poolId] && !isValidatorBanned(_miningAddress);
+            bool previousValidator = _isValidatorPrevious[poolId] && !isValidatorIdBanned(poolId);
             return isValid || previousValidator;
         }
         return isValid;
@@ -549,14 +574,24 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         return _getCurrentBlockNumber() <= bn;
     }
 
-    /// @dev Returns a boolean flag indicating whether the specified mining address is a validator
+    /// @dev Returns a boolean flag indicating whether the specified pool id is currently banned.
+    /// A validator can be banned when they misbehave (see the `_removeMaliciousValidator` internal function).
+    /// @param _poolId The pool id.
+    function isValidatorIdBanned(uint256 _poolId) public view returns(bool) {
+        uint256 bn = _bannedUntil[_poolId];
+        if (bn == 0) {
+            // Avoid returning `true` for the genesis block
+            return false;
+        }
+        return _getCurrentBlockNumber() <= bn;
+    }
+
+    /// @dev Returns a boolean flag indicating whether the specified pool id is a validator
     /// or is in the `_pendingValidators` or `_finalizeValidators` array.
     /// Used by the `StakingAuRa.maxWithdrawAllowed` and `StakingAuRa.maxWithdrawOrderAllowed` getters.
-    /// @param _miningAddress The mining address.
-    function isValidatorOrPending(address _miningAddress) public view returns(bool) {
-        uint256 poolId = idByMiningAddress[_miningAddress];
-
-        if (_isValidator[poolId]) {
+    /// @param _poolId The pool id.
+    function isValidatorOrPending(uint256 _poolId) public view returns(bool) {
+        if (isValidatorById[_poolId]) {
             return true;
         }
 
@@ -565,7 +600,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
 
         length = _finalizeValidators.list.length;
         for (i = 0; i < length; i++) {
-            if (poolId == _finalizeValidators.list[i]) {
+            if (_poolId == _finalizeValidators.list[i]) {
                 // This validator waits to be finalized,
                 // so we treat them as `pending`
                 return true;
@@ -574,7 +609,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
 
         length = _pendingValidators.length;
         for (i = 0; i < length; i++) {
-            if (poolId == _pendingValidators[i]) {
+            if (_poolId == _pendingValidators[i]) {
                 return true;
             }
         }
@@ -603,8 +638,8 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         if (!isReportValidatorValid(_reportingMiningAddress)) return (false, false);
         if (!isReportValidatorValid(_maliciousMiningAddress)) return (false, false);
 
-        uint256 maliciousId = idByMiningAddress[_maliciousMiningAddress];
         uint256 reportingId = idByMiningAddress[_reportingMiningAddress];
+        uint256 maliciousId = idByMiningAddress[_maliciousMiningAddress];
         uint256 validatorsNumber = _currentValidators.length;
 
         if (validatorsNumber > 1) {
@@ -659,13 +694,13 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         if (currentBlock > 100 && currentBlock - 100 > _blockNumber) {
             return false;
         }
-        if (isValidatorBanned(_maliciousMiningAddress)) {
+        uint256 maliciousId = idByMiningAddress[_maliciousMiningAddress];
+        if (isValidatorIdBanned(maliciousId)) {
             // We shouldn't report of the malicious validator
             // as it has already been reported
             return false;
         }
-        address reportingId = idByMiningAddress[_reportingMiningAddress];
-        address maliciousId = idByMiningAddress[_maliciousMiningAddress];
+        uint256 reportingId = idByMiningAddress[_reportingMiningAddress];
         return !_maliceReportedForBlockMapped[maliciousId][_blockNumber][reportingId];
     }
 
@@ -684,6 +719,11 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
             miningAddresses[i] = miningAddressById[_finalizeValidators.list[i]];
         }
         return (miningAddresses, _finalizeValidators.forNewEpoch);
+    }
+
+    /// @dev Returns a validator set about to be finalized by the `finalizeChange` function.
+    function validatorsToBeFinalizedIds() public view returns(uint256[] memory) {
+        return _finalizeValidators.list;
     }
 
     // ============================================== Internal ========================================================
@@ -718,7 +758,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
 
         validators = _currentValidators;
         for (i = 0; i < validators.length; i++) {
-            _isValidator[validators[i]] = false;
+            isValidatorById[validators[i]] = false;
         }
 
         _currentValidators = _finalizeValidators.list;
@@ -726,7 +766,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         validators = _currentValidators;
         for (i = 0; i < validators.length; i++) {
             uint256 poolId = validators[i];
-            _isValidator[poolId] = true;
+            isValidatorById[poolId] = true;
             if (_newStakingEpoch) {
                 _validatorCounter[poolId]++;
             }
@@ -781,7 +821,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
             return false;
         }
 
-        bool isBanned = isValidatorBanned(_miningAddress);
+        bool isBanned = isValidatorIdBanned(poolId);
 
         // Ban the malicious validator for the next 3 months
         _banCounter[poolId]++;

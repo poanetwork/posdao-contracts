@@ -30,24 +30,24 @@ contract BlockRewardAuRaCoins is BlockRewardAuRaBase, IBlockRewardAuRaCoins {
     /// @dev Returns the reward amount in native coins for
     /// some delegator with the specified stake amount placed into the specified
     /// pool before the specified staking epoch. Used by the `StakingAuRa.claimReward` function.
-    /// @param _delegatorStake The stake amount placed by some delegator into the `_poolStakingAddress` pool.
+    /// @param _delegatorStake The stake amount placed by some delegator into the `_poolId` pool.
     /// @param _stakingEpoch The serial number of staking epoch.
-    /// @param _poolStakingAddress The pool staking address.
+    /// @param _poolId The pool id.
     /// @return `uint256 nativeReward` - the reward amount in native coins.
     function getDelegatorReward(
         uint256 _delegatorStake,
         uint256 _stakingEpoch,
-        address _poolStakingAddress
+        uint256 _poolId
     ) external view returns(uint256 nativeReward) {
-        uint256 validatorStake = snapshotPoolValidatorStakeAmount[_stakingEpoch][_poolStakingAddress];
-        uint256 totalStake = snapshotPoolTotalStakeAmount[_stakingEpoch][_poolStakingAddress];
+        uint256 validatorStake = snapshotPoolValidatorStakeAmount[_stakingEpoch][_poolId];
+        uint256 totalStake = snapshotPoolTotalStakeAmount[_stakingEpoch][_poolId];
 
         nativeReward = delegatorShare(
             _stakingEpoch,
             _delegatorStake,
             validatorStake,
             totalStake,
-            epochPoolNativeReward[_stakingEpoch][_poolStakingAddress]
+            epochPoolNativeReward[_stakingEpoch][_poolId]
         );
     }
 
@@ -55,20 +55,20 @@ contract BlockRewardAuRaCoins is BlockRewardAuRaBase, IBlockRewardAuRaCoins {
     /// the specified validator and for the specified staking epoch.
     /// Used by the `StakingAuRa.claimReward` function.
     /// @param _stakingEpoch The serial number of staking epoch.
-    /// @param _poolStakingAddress The pool staking address.
+    /// @param _poolId The pool id.
     /// @return `uint256 nativeReward` - the reward amount in native coins.
     function getValidatorReward(
         uint256 _stakingEpoch,
-        address _poolStakingAddress
+        uint256 _poolId
     ) external view returns(uint256 nativeReward) {
-        uint256 validatorStake = snapshotPoolValidatorStakeAmount[_stakingEpoch][_poolStakingAddress];
-        uint256 totalStake = snapshotPoolTotalStakeAmount[_stakingEpoch][_poolStakingAddress];
+        uint256 validatorStake = snapshotPoolValidatorStakeAmount[_stakingEpoch][_poolId];
+        uint256 totalStake = snapshotPoolTotalStakeAmount[_stakingEpoch][_poolId];
 
         nativeReward = validatorShare(
             _stakingEpoch,
             validatorStake,
             totalStake,
-            epochPoolNativeReward[_stakingEpoch][_poolStakingAddress]
+            epochPoolNativeReward[_stakingEpoch][_poolId]
         );
     }
 
@@ -78,16 +78,16 @@ contract BlockRewardAuRaCoins is BlockRewardAuRaBase, IBlockRewardAuRaCoins {
     /// staking epoch and validator set. Uses NATIVE_COIN_INFLATION_RATE constant.
     /// Used by `_distributeNativeRewards` internal function.
     /// @param _stakingEpoch The number of the current staking epoch.
-    /// @param _validators The array of the current validators (their staking addresses).
+    /// @param _validators The array of the current validators (their pool ids).
     function _coinInflationAmount(
         uint256 _stakingEpoch,
-        address[] memory _validators
+        uint256[] memory _validators
     ) internal view returns(uint256) {
         return _inflationAmount(_stakingEpoch, _validators, NATIVE_COIN_INFLATION_RATE);
     }
 
     function _distributeTokenRewards(
-        address, uint256, uint256, uint256, address[] memory, uint256[] memory, uint256
+        address, uint256, uint256, uint256, uint256[] memory, uint256[] memory, uint256
     ) internal {
     }
 

@@ -18,15 +18,17 @@ contract StakingAuRaCoins is StakingAuRaBase {
 
     /// @dev Emitted by the `claimReward` function to signal the staker withdrew the specified
     /// amount of native coins from the specified pool for the specified staking epoch.
-    /// @param fromPoolStakingAddress The pool from which the `staker` withdrew the amount.
+    /// @param fromPoolStakingAddress A staking address of the pool from which the `staker` withdrew the amount.
     /// @param staker The address of the staker that withdrew the amount.
     /// @param stakingEpoch The serial number of the staking epoch for which the claim was made.
     /// @param nativeCoinsAmount The withdrawal amount of native coins.
+    /// @param fromPoolId An id of the pool from which the `staker` withdrew the amount.
     event ClaimedReward(
         address indexed fromPoolStakingAddress,
         address indexed staker,
         uint256 indexed stakingEpoch,
-        uint256 nativeCoinsAmount
+        uint256 nativeCoinsAmount,
+        uint256 fromPoolId
     );
 
     // =============================================== Setters ========================================================
@@ -41,18 +43,20 @@ contract StakingAuRaCoins is StakingAuRaBase {
         address _poolStakingAddress
     ) public gasPriceIsValid onlyInitialized {
         address payable staker = msg.sender;
+        uint256 poolId = validatorSetContract.idByStakingAddress(_poolStakingAddress);
 
         require(_poolStakingAddress != address(0));
         require(staker != address(0));
+        require(poolId != 0);
 
         address delegatorOrZero = (staker != _poolStakingAddress) ? staker : address(0);
         uint256 firstEpoch;
         uint256 lastEpoch;
 
         if (_poolStakingAddress != staker) { // this is a delegator
-            firstEpoch = stakeFirstEpoch[_poolStakingAddress][staker];
+            firstEpoch = stakeFirstEpoch[poolId][staker];
             require(firstEpoch != 0);
-            lastEpoch = stakeLastEpoch[_poolStakingAddress][staker];
+            lastEpoch = stakeLastEpoch[poolId][staker];
         }
 
         IBlockRewardAuRaCoins blockRewardContract = IBlockRewardAuRaCoins(validatorSetContract.blockRewardContract());
@@ -60,7 +64,7 @@ contract StakingAuRaCoins is StakingAuRaBase {
         uint256 delegatorStake = 0;
 
         if (_stakingEpochs.length == 0) {
-            _stakingEpochs = IBlockRewardAuRa(address(blockRewardContract)).epochsPoolGotRewardFor(_poolStakingAddress);
+            _stakingEpochs = IBlockRewardAuRa(address(blockRewardContract)).epochsPoolGotRewardFor(poolId);
         }
 
         for (uint256 i = 0; i < _stakingEpochs.length; i++) {
@@ -69,7 +73,7 @@ contract StakingAuRaCoins is StakingAuRaBase {
             require(i == 0 || epoch > _stakingEpochs[i - 1]);
             require(epoch < stakingEpoch);
 
-            if (rewardWasTaken[_poolStakingAddress][delegatorOrZero][epoch]) continue;
+            if (rewardWasTaken[poolId][delegatorOrZero][epoch]) continue;
             
             uint256 reward;
 
@@ -86,19 +90,19 @@ contract StakingAuRaCoins is StakingAuRaBase {
                     break;
                 }
 
-                delegatorStake = _getDelegatorStake(epoch, firstEpoch, delegatorStake, _poolStakingAddress, staker);
+                delegatorStake = _getDelegatorStake(epoch, firstEpoch, delegatorStake, poolId, staker);
                 firstEpoch = epoch + 1;
 
-                reward = blockRewardContract.getDelegatorReward(delegatorStake, epoch, _poolStakingAddress);
+                reward = blockRewardContract.getDelegatorReward(delegatorStake, epoch, poolId);
             } else { // this is a validator
-                reward = blockRewardContract.getValidatorReward(epoch, _poolStakingAddress);
+                reward = blockRewardContract.getValidatorReward(epoch, poolId);
             }
 
             rewardSum = rewardSum.add(reward);
 
-            rewardWasTaken[_poolStakingAddress][delegatorOrZero][epoch] = true;
+            rewardWasTaken[poolId][delegatorOrZero][epoch] = true;
 
-            emit ClaimedReward(_poolStakingAddress, staker, epoch, reward);
+            emit ClaimedReward(_poolStakingAddress, staker, epoch, reward, poolId);
         }
 
         blockRewardContract.transferReward(rewardSum, staker);
@@ -117,17 +121,20 @@ contract StakingAuRaCoins is StakingAuRaBase {
         address _poolStakingAddress,
         address _staker
     ) public view returns(uint256 rewardSum) {
+        uint256 poolId = validatorSetContract.idByStakingAddress(_poolStakingAddress);
+
         require(_poolStakingAddress != address(0));
         require(_staker != address(0));
+        require(poolId != 0);
 
         address delegatorOrZero = (_staker != _poolStakingAddress) ? _staker : address(0);
         uint256 firstEpoch;
         uint256 lastEpoch;
 
         if (_poolStakingAddress != _staker) { // this is a delegator
-            firstEpoch = stakeFirstEpoch[_poolStakingAddress][_staker];
+            firstEpoch = stakeFirstEpoch[poolId][_staker];
             require(firstEpoch != 0);
-            lastEpoch = stakeLastEpoch[_poolStakingAddress][_staker];
+            lastEpoch = stakeLastEpoch[poolId][_staker];
         }
 
         IBlockRewardAuRaCoins blockRewardContract = IBlockRewardAuRaCoins(validatorSetContract.blockRewardContract());
@@ -135,7 +142,7 @@ contract StakingAuRaCoins is StakingAuRaBase {
         rewardSum = 0;
 
         if (_stakingEpochs.length == 0) {
-            _stakingEpochs = IBlockRewardAuRa(address(blockRewardContract)).epochsPoolGotRewardFor(_poolStakingAddress);
+            _stakingEpochs = IBlockRewardAuRa(address(blockRewardContract)).epochsPoolGotRewardFor(poolId);
         }
 
         for (uint256 i = 0; i < _stakingEpochs.length; i++) {
@@ -144,7 +151,7 @@ contract StakingAuRaCoins is StakingAuRaBase {
             require(i == 0 || epoch > _stakingEpochs[i - 1]);
             require(epoch < stakingEpoch);
 
-            if (rewardWasTaken[_poolStakingAddress][delegatorOrZero][epoch]) continue;
+            if (rewardWasTaken[poolId][delegatorOrZero][epoch]) continue;
 
             uint256 reward;
 
@@ -152,12 +159,12 @@ contract StakingAuRaCoins is StakingAuRaBase {
                 if (epoch < firstEpoch) continue;
                 if (lastEpoch <= epoch && lastEpoch != 0) break;
 
-                delegatorStake = _getDelegatorStake(epoch, firstEpoch, delegatorStake, _poolStakingAddress, _staker);
+                delegatorStake = _getDelegatorStake(epoch, firstEpoch, delegatorStake, poolId, _staker);
                 firstEpoch = epoch + 1;
 
-                reward = blockRewardContract.getDelegatorReward(delegatorStake, epoch, _poolStakingAddress);
+                reward = blockRewardContract.getDelegatorReward(delegatorStake, epoch, poolId);
             } else { // this is a validator
-                reward = blockRewardContract.getValidatorReward(epoch, _poolStakingAddress);
+                reward = blockRewardContract.getValidatorReward(epoch, poolId);
             }
 
             rewardSum += reward;

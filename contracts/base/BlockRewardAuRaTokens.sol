@@ -24,8 +24,9 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
     uint256 public bridgeTokenReward;
 
     /// @dev The reward amount to be distributed in staking tokens among participants (the validator and their
-    /// delegators) of the specified pool (staking address) for the specified staking epoch.
-    mapping(uint256 => mapping(address => uint256)) public epochPoolTokenReward;
+    /// delegators) of the specified pool for the specified staking epoch.
+    /// The first parameter is a number of staking epoch. The second one is a pool id.
+    mapping(uint256 => mapping(uint256 => uint256)) public epochPoolTokenReward;
 
     /// @dev The total reward amount in staking tokens which is not yet distributed among pools.
     uint256 public tokenRewardUndistributed;
@@ -148,25 +149,25 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
     /// @dev Returns the reward amounts in tokens and native coins for
     /// some delegator with the specified stake amount placed into the specified
     /// pool before the specified staking epoch. Used by the `StakingAuRa.claimReward` function.
-    /// @param _delegatorStake The stake amount placed by some delegator into the `_poolStakingAddress` pool.
+    /// @param _delegatorStake The stake amount placed by some delegator into the `_poolId` pool.
     /// @param _stakingEpoch The serial number of staking epoch.
-    /// @param _poolStakingAddress The pool staking address.
+    /// @param _poolId The pool id.
     /// @return `uint256 tokenReward` - the reward amount in tokens.
     /// `uint256 nativeReward` - the reward amount in native coins.
     function getDelegatorReward(
         uint256 _delegatorStake,
         uint256 _stakingEpoch,
-        address _poolStakingAddress
+        uint256 _poolId
     ) external view returns(uint256 tokenReward, uint256 nativeReward) {
-        uint256 validatorStake = snapshotPoolValidatorStakeAmount[_stakingEpoch][_poolStakingAddress];
-        uint256 totalStake = snapshotPoolTotalStakeAmount[_stakingEpoch][_poolStakingAddress];
+        uint256 validatorStake = snapshotPoolValidatorStakeAmount[_stakingEpoch][_poolId];
+        uint256 totalStake = snapshotPoolTotalStakeAmount[_stakingEpoch][_poolId];
 
         tokenReward = delegatorShare(
             _stakingEpoch,
             _delegatorStake,
             validatorStake,
             totalStake,
-            epochPoolTokenReward[_stakingEpoch][_poolStakingAddress]
+            epochPoolTokenReward[_stakingEpoch][_poolId]
         );
 
         nativeReward = delegatorShare(
@@ -174,7 +175,7 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
             _delegatorStake,
             validatorStake,
             totalStake,
-            epochPoolNativeReward[_stakingEpoch][_poolStakingAddress]
+            epochPoolNativeReward[_stakingEpoch][_poolId]
         );
     }
 
@@ -182,28 +183,28 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
     /// the specified validator and for the specified staking epoch.
     /// Used by the `StakingAuRa.claimReward` function.
     /// @param _stakingEpoch The serial number of staking epoch.
-    /// @param _poolStakingAddress The pool staking address.
+    /// @param _poolId The pool id of the validator.
     /// @return `uint256 tokenReward` - the reward amount in tokens.
     /// `uint256 nativeReward` - the reward amount in native coins.
     function getValidatorReward(
         uint256 _stakingEpoch,
-        address _poolStakingAddress
+        uint256 _poolId
     ) external view returns(uint256 tokenReward, uint256 nativeReward) {
-        uint256 validatorStake = snapshotPoolValidatorStakeAmount[_stakingEpoch][_poolStakingAddress];
-        uint256 totalStake = snapshotPoolTotalStakeAmount[_stakingEpoch][_poolStakingAddress];
+        uint256 validatorStake = snapshotPoolValidatorStakeAmount[_stakingEpoch][_poolId];
+        uint256 totalStake = snapshotPoolTotalStakeAmount[_stakingEpoch][_poolId];
 
         tokenReward = validatorShare(
             _stakingEpoch,
             validatorStake,
             totalStake,
-            epochPoolTokenReward[_stakingEpoch][_poolStakingAddress]
+            epochPoolTokenReward[_stakingEpoch][_poolId]
         );
 
         nativeReward = validatorShare(
             _stakingEpoch,
             validatorStake,
             totalStake,
-            epochPoolNativeReward[_stakingEpoch][_poolStakingAddress]
+            epochPoolNativeReward[_stakingEpoch][_poolId]
         );
     }
 
@@ -234,7 +235,7 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
         uint256 _stakingEpoch,
         uint256 _totalRewardShareNum,
         uint256 _totalRewardShareDenom,
-        address[] memory _validators
+        uint256[] memory _validators
     ) public view returns(uint256, uint256) {
         return _currentRewardToDistribute(
             _getTotalTokenReward(_stakingEpoch, _validators),
@@ -248,7 +249,7 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
 
     /// @dev See the description of `BlockRewardAuRaCoins._coinInflationAmount` internal function.
     /// In this case (when ERC tokens are used for staking) the inflation for native coins is zero.
-    function _coinInflationAmount(uint256, address[] memory) internal view returns(uint256) {
+    function _coinInflationAmount(uint256, uint256[] memory) internal view returns(uint256) {
         return 0;
     }
 
@@ -258,7 +259,7 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
     /// @param _stakingEpoch The number of the current staking epoch.
     /// @param _totalRewardShareNum Numerator of the total reward share.
     /// @param _totalRewardShareDenom Denominator of the total reward share.
-    /// @param _validators The array of the current validators (their staking addresses).
+    /// @param _validators The array of the current validators (their pool ids).
     /// @param _blocksCreatedShareNum Numerators of blockCreated share for each of the validators.
     /// @param _blocksCreatedShareDenom Denominator of blockCreated share.
     function _distributeTokenRewards(
@@ -266,7 +267,7 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
         uint256 _stakingEpoch,
         uint256 _totalRewardShareNum,
         uint256 _totalRewardShareDenom,
-        address[] memory _validators,
+        uint256[] memory _validators,
         uint256[] memory _blocksCreatedShareNum,
         uint256 _blocksCreatedShareDenom
     ) internal {
@@ -329,7 +330,7 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
     /// the `_inflationAmount` internal function.
     function _getTotalTokenReward(
         uint256 _stakingEpoch,
-        address[] memory _validators
+        uint256[] memory _validators
     ) internal view returns(uint256 totalReward) {
         totalReward =
             bridgeTokenReward +

@@ -21,8 +21,8 @@ contract BlockRewardAuRaBaseMock is BlockRewardAuRaBase {
     }
 
     function setBlocksCreated(uint256 _stakingEpoch, address _miningAddress, uint256 _value) public {
-        address stakingAddress = validatorSetContract.stakingByMiningAddress(_miningAddress);
-        blocksCreated[_stakingEpoch][stakingAddress] = _value;
+        uint256 poolId = validatorSetContract.idByMiningAddress(_miningAddress);
+        blocksCreated[_stakingEpoch][poolId] = _value;
     }
 
     function setCurrentBlockNumber(uint256 _blockNumber) public {
@@ -40,21 +40,21 @@ contract BlockRewardAuRaBaseMock is BlockRewardAuRaBase {
     function snapshotPoolStakeAmounts(
         IStakingAuRa _stakingContract,
         uint256 _stakingEpoch,
-        address _miningAddress
+        uint256 _poolId
     ) public {
-        _snapshotPoolStakeAmounts(_stakingContract, _stakingEpoch, _miningAddress);
+        _snapshotPoolStakeAmounts(_stakingContract, _stakingEpoch, _poolId);
     }
 
     function setSnapshotPoolValidatorStakeAmount(uint256 _stakingEpoch, address _poolMiningAddress, uint256 _amount) public {
-        address stakingAddress = validatorSetContract.stakingByMiningAddress(_poolMiningAddress);
-        snapshotPoolValidatorStakeAmount[_stakingEpoch][stakingAddress] = _amount;
+        uint256 poolId = validatorSetContract.idByMiningAddress(_poolMiningAddress);
+        snapshotPoolValidatorStakeAmount[_stakingEpoch][poolId] = _amount;
     }
 
     // =============================================== Getters ========================================================
 
     function inflationAmount(
         uint256 _stakingEpoch,
-        address[] memory _validators,
+        uint256[] memory _validators,
         uint256 _inflationRate
     ) public view returns(uint256) {
         return _inflationAmount(_stakingEpoch, _validators, _inflationRate);

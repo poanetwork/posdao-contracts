@@ -23,8 +23,9 @@ contract ValidatorSetAuRaMock is ValidatorSetAuRa {
     }
 
     function setBannedUntil(address _stakingAddress, uint256 _until) public {
-        _bannedUntil[_stakingAddress] = _until;
-        _bannedDelegatorsUntil[_stakingAddress] = _until;
+        uint256 poolId = idByStakingAddress[_stakingAddress];
+        _bannedUntil[poolId] = _until;
+        _bannedDelegatorsUntil[poolId] = _until;
     }
 
     function setBlockRewardContract(address _address) public {

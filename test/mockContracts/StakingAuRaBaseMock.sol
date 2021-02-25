@@ -9,40 +9,40 @@ contract StakingAuRaBaseMock is StakingAuRaBase {
 
     // =============================================== Setters ========================================================
 
-    function addPoolActiveMock(address _stakingAddress) public {
-        _addPoolActive(_stakingAddress, true);
+    function addPoolActiveMock(uint256 _poolId) public {
+        _addPoolActive(_poolId, true);
     }
 
-    function addPoolInactiveMock(address _stakingAddress) public {
-        _addPoolInactive(_stakingAddress);
+    function addPoolInactiveMock(uint256 _poolId) public {
+        _addPoolInactive(_poolId);
     }
 
-    function clearDelegatorStakeSnapshot(address _poolStakingAddress, address _delegator, uint256 _stakingEpoch) public {
-        delegatorStakeSnapshot[_poolStakingAddress][_delegator][_stakingEpoch] = 0;
+    function clearDelegatorStakeSnapshot(uint256 _poolId, address _delegator, uint256 _stakingEpoch) public {
+        delegatorStakeSnapshot[_poolId][_delegator][_stakingEpoch] = 0;
     }
 
-    function clearRewardWasTaken(address _poolStakingAddress, address _staker, uint256 _epoch) public {
-        rewardWasTaken[_poolStakingAddress][_staker][_epoch] = false;
+    function clearRewardWasTaken(uint256 _poolId, address _staker, uint256 _epoch) public {
+        rewardWasTaken[_poolId][_staker][_epoch] = false;
     }
 
     function setCurrentBlockNumber(uint256 _blockNumber) public {
         _currentBlockNumber = _blockNumber;
     }
 
-    function setInitialStake(address _stakingAddress, uint256 _amount) public {
-        _stakeInitial[_stakingAddress] = _amount;
+    function setInitialStake(uint256 _poolId, uint256 _amount) public {
+        _stakeInitial[_poolId] = _amount;
     }
 
-    function setStakeAmountTotal(address _poolStakingAddress, uint256 _amount) public {
-        stakeAmountTotal[_poolStakingAddress] = _amount;
+    function setStakeAmountTotal(uint256 _poolId, uint256 _amount) public {
+        stakeAmountTotal[_poolId] = _amount;
     }
 
-    function setStakeFirstEpoch(address _poolStakingAddress, address _delegator, uint256 _value) public {
-        stakeFirstEpoch[_poolStakingAddress][_delegator] = _value;
+    function setStakeFirstEpoch(uint256 _poolId, address _delegator, uint256 _value) public {
+        stakeFirstEpoch[_poolId][_delegator] = _value;
     }
 
-    function setStakeLastEpoch(address _poolStakingAddress, address _delegator, uint256 _value) public {
-        stakeLastEpoch[_poolStakingAddress][_delegator] = _value;
+    function setStakeLastEpoch(uint256 _poolId, address _delegator, uint256 _value) public {
+        stakeLastEpoch[_poolId][_delegator] = _value;
     }
 
     function setStakingEpoch(uint256 _stakingEpoch) public {
