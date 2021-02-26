@@ -12,7 +12,7 @@ contract BlockRewardAuRaCoinsMock is BlockRewardAuRaCoins, BlockRewardAuRaBaseMo
         uint256 poolId = validatorSetContract.idByMiningAddress(_poolMiningAddress);
         require(_stakingEpoch != 0);
         require(_poolMiningAddress != address(0));
-        require(_poolId != 0);
+        require(poolId != 0);
         require(msg.value != 0);
         require(epochPoolNativeReward[_stakingEpoch][poolId] == 0);
         epochPoolNativeReward[_stakingEpoch][poolId] = msg.value;

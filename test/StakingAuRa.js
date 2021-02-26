@@ -18,6 +18,7 @@ contract('StakingAuRa', async accounts => {
   let owner;
   let initialValidators;
   let initialStakingAddresses;
+  let initialPoolIds;
   let blockRewardAuRa;
   let randomAuRa;
   let stakingAuRa;
@@ -56,6 +57,10 @@ contract('StakingAuRa', async accounts => {
       initialStakingAddresses, // _initialStakingAddresses
       false // _firstValidatorIsUnremovable
     ).should.be.fulfilled;
+    initialPoolIds = [];
+    for (let i = 0; i < initialValidators.length; i++) {
+      initialPoolIds.push(await validatorSetAuRa.idByMiningAddress.call(initialValidators[i]));
+    }
   });
 
   describe('addPool(), transferAndCall()', async () => {
@@ -72,7 +77,7 @@ contract('StakingAuRa', async accounts => {
       // Initialize StakingAuRa
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
-        initialStakingAddresses, // _initialStakingAddresses
+        initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
@@ -111,9 +116,11 @@ contract('StakingAuRa', async accounts => {
 
     for (let step = 0; step < 2; step++) {
       it('should create a new pool' + fnName(step), async () => {
-        false.should.be.equal(await stakingAuRa.isPoolActive.call(candidateStakingAddress));
+        let lastPoolId = await validatorSetAuRa.lastPoolId.call();
+        const poolId = ++lastPoolId;
+        false.should.be.equal(await stakingAuRa.isPoolActive.call(poolId));
         await addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.fulfilled;
-        true.should.be.equal(await stakingAuRa.isPoolActive.call(candidateStakingAddress));
+        true.should.be.equal(await stakingAuRa.isPoolActive.call(poolId));
       });
       it('should fail if mining address is 0' + fnName(step), async () => {
         await addPool(stakeUnit.mul(new BN(1)), '0x0000000000000000000000000000000000000000', {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
@@ -154,15 +161,17 @@ contract('StakingAuRa', async accounts => {
         await stakingAuRa.setErc677TokenContractMock('0x0000000000000000000000000000000000000000').should.be.fulfilled;
 
         // Try to add a new pool
+        let lastPoolId = await validatorSetAuRa.lastPoolId.call();
+        const poolId = ++lastPoolId;
         await addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
-        false.should.be.equal(await stakingAuRa.isPoolActive.call(candidateStakingAddress));
+        false.should.be.equal(await stakingAuRa.isPoolActive.call(poolId));
 
         // Pass ERC677 contract address to ValidatorSet contract
         await stakingAuRa.setErc677TokenContract(erc677Token.address, {from: owner}).should.be.fulfilled;
 
         // Add a new pool
         await addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.fulfilled;
-        true.should.be.equal(await stakingAuRa.isPoolActive.call(candidateStakingAddress));
+        true.should.be.equal(await stakingAuRa.isPoolActive.call(poolId));
       });
       it('should fail if staking amount is 0' + fnName(step), async () => {
         await addPool(new BN(0), candidateMiningAddress, {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
@@ -186,15 +195,20 @@ contract('StakingAuRa', async accounts => {
       it('stake amount should be increased' + fnName(step), async () => {
         const amount = stakeUnit.mul(new BN(2));
         await addPool(amount, candidateMiningAddress, {from: candidateStakingAddress}).should.be.fulfilled;
-        amount.should.be.bignumber.equal(await stakingAuRa.stakeAmount.call(candidateStakingAddress, '0x0000000000000000000000000000000000000000'));
-        amount.should.be.bignumber.equal(await stakingAuRa.stakeAmountByCurrentEpoch.call(candidateStakingAddress, '0x0000000000000000000000000000000000000000'));
-        amount.should.be.bignumber.equal(await stakingAuRa.stakeAmountTotal.call(candidateStakingAddress));
+        const poolId = await validatorSetAuRa.idByStakingAddress.call(candidateStakingAddress);
+        amount.should.be.bignumber.equal(await stakingAuRa.stakeAmount.call(poolId, '0x0000000000000000000000000000000000000000'));
+        amount.should.be.bignumber.equal(await stakingAuRa.stakeAmountByCurrentEpoch.call(poolId, '0x0000000000000000000000000000000000000000'));
+        amount.should.be.bignumber.equal(await stakingAuRa.stakeAmountTotal.call(poolId));
       });
       it('should be able to add more than one pool' + fnName(step), async () => {
+        let lastPoolId = await validatorSetAuRa.lastPoolId.call();
+
         const candidate1MiningAddress = candidateMiningAddress;
         const candidate1StakingAddress = candidateStakingAddress;
         const candidate2MiningAddress = accounts[9];
         const candidate2StakingAddress = accounts[10];
+        const candidate1PoolId = lastPoolId - 0 + 1;
+        const candidate2PoolId = candidate1PoolId + 1;
         const amount1 = stakeUnit.mul(new BN(2));
         const amount2 = stakeUnit.mul(new BN(3));
 
@@ -203,58 +217,60 @@ contract('StakingAuRa', async accounts => {
         amount2.should.be.bignumber.equal(await erc677Token.balanceOf.call(candidate2StakingAddress));
 
         // Add two new pools
-        (await stakingAuRa.isPoolActive.call(candidate1StakingAddress)).should.be.equal(false);
-        (await stakingAuRa.isPoolActive.call(candidate2StakingAddress)).should.be.equal(false);
+        (await stakingAuRa.isPoolActive.call(candidate1PoolId)).should.be.equal(false);
+        (await stakingAuRa.isPoolActive.call(candidate2PoolId)).should.be.equal(false);
         await addPool(amount1, candidate1MiningAddress, {from: candidate1StakingAddress}).should.be.fulfilled;
         await addPool(amount2, candidate2MiningAddress, {from: candidate2StakingAddress}).should.be.fulfilled;
-        (await stakingAuRa.isPoolActive.call(candidate1StakingAddress)).should.be.equal(true);
-        (await stakingAuRa.isPoolActive.call(candidate2StakingAddress)).should.be.equal(true);
+        (await stakingAuRa.isPoolActive.call(candidate1PoolId)).should.be.equal(true);
+        (await stakingAuRa.isPoolActive.call(candidate2PoolId)).should.be.equal(true);
+
+        (new BN(candidate1PoolId)).should.be.bignumber.equal(
+          await validatorSetAuRa.idByStakingAddress.call(candidate1StakingAddress)
+        );
+        (new BN(candidate2PoolId)).should.be.bignumber.equal(
+          await validatorSetAuRa.idByStakingAddress.call(candidate2StakingAddress)
+        );
 
         // Check indexes (0...2 are busy by initial validators)
-        new BN(3).should.be.bignumber.equal(await stakingAuRa.poolIndex.call(candidate1StakingAddress));
-        new BN(4).should.be.bignumber.equal(await stakingAuRa.poolIndex.call(candidate2StakingAddress));
+        new BN(3).should.be.bignumber.equal(await stakingAuRa.poolIndex.call(candidate1PoolId));
+        new BN(4).should.be.bignumber.equal(await stakingAuRa.poolIndex.call(candidate2PoolId));
 
         // Check indexes in the `poolsToBeElected` list
-        new BN(0).should.be.bignumber.equal(await stakingAuRa.poolToBeElectedIndex.call(candidate1StakingAddress));
-        new BN(1).should.be.bignumber.equal(await stakingAuRa.poolToBeElectedIndex.call(candidate2StakingAddress));
+        new BN(0).should.be.bignumber.equal(await stakingAuRa.poolToBeElectedIndex.call(candidate1PoolId));
+        new BN(1).should.be.bignumber.equal(await stakingAuRa.poolToBeElectedIndex.call(candidate2PoolId));
 
         // Check pools' existence
         const validators = await validatorSetAuRa.getValidators.call();
-
-        (await stakingAuRa.getPools.call()).should.be.deep.equal([
-          await validatorSetAuRa.stakingByMiningAddress.call(validators[0]),
-          await validatorSetAuRa.stakingByMiningAddress.call(validators[1]),
-          await validatorSetAuRa.stakingByMiningAddress.call(validators[2]),
-          candidate1StakingAddress,
-          candidate2StakingAddress
+        (await stakingAuRa.getPools.call()).bignumbersEqual([
+          await validatorSetAuRa.idByMiningAddress.call(validators[0]),
+          await validatorSetAuRa.idByMiningAddress.call(validators[1]),
+          await validatorSetAuRa.idByMiningAddress.call(validators[2]),
+          candidate1PoolId,
+          candidate2PoolId
         ]);
       });
       it('shouldn\'t allow adding more than MAX_CANDIDATES pools' + fnName(step), async () => {
-        for (let p = initialValidators.length; p < 100; p++) {
-          // Generate new candidate staking address
-          let candidateStakingAddress = '0x';
-          for (let i = 0; i < 20; i++) {
-            let randomByte = random(0, 255).toString(16);
-            if (randomByte.length % 2) {
-              randomByte = '0' + randomByte;
-            }
-            candidateStakingAddress += randomByte;
-          }
+        let lastPoolId = await validatorSetAuRa.lastPoolId.call();
 
+        for (let p = initialValidators.length; p < 100; p++) {
           // Add a new pool
-          await stakingAuRa.addPoolActiveMock(candidateStakingAddress).should.be.fulfilled;
-          new BN(p).should.be.bignumber.equal(await stakingAuRa.poolIndex.call(candidateStakingAddress));
+          const poolId = ++lastPoolId;
+          await stakingAuRa.addPoolActiveMock(poolId).should.be.fulfilled;
+          new BN(p).should.be.bignumber.equal(await stakingAuRa.poolIndex.call(poolId));
         }
 
         // Try to add a new pool outside of max limit
+        const poolId = ++lastPoolId;
         await addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
-        false.should.be.equal(await stakingAuRa.isPoolActive.call(candidateStakingAddress));
+        false.should.be.equal(await stakingAuRa.isPoolActive.call(poolId));
       });
       it('should remove added pool from the list of inactive pools' + fnName(step), async () => {
-        await stakingAuRa.addPoolInactiveMock(candidateStakingAddress).should.be.fulfilled;
-        (await stakingAuRa.getPoolsInactive.call()).should.be.deep.equal([candidateStakingAddress]);
+        let lastPoolId = await validatorSetAuRa.lastPoolId.call();
+        const candidatePoolId = ++lastPoolId;
+        await stakingAuRa.addPoolInactiveMock(candidatePoolId).should.be.fulfilled;
+        (await stakingAuRa.getPoolsInactive.call()).should.be.deep.equal([candidatePoolId]);
         await addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.fulfilled;
-        true.should.be.equal(await stakingAuRa.isPoolActive.call(candidateStakingAddress));
+        true.should.be.equal(await stakingAuRa.isPoolActive.call(candidatePoolId));
         (await stakingAuRa.getPoolsInactive.call()).length.should.be.equal(0);
       });
       it('switch useTransferAndCall variable', async () => {
@@ -279,7 +295,7 @@ contract('StakingAuRa', async accounts => {
       // Initialize StakingAuRa
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
-        initialStakingAddresses, // _initialStakingAddresses
+        initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         76, // _stakingEpochDuration
@@ -378,7 +394,7 @@ contract('StakingAuRa', async accounts => {
       // Initialize StakingAuRa
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
-        initialStakingAddresses, // _initialStakingAddresses
+        initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
@@ -434,6 +450,7 @@ contract('StakingAuRa', async accounts => {
     async function _claimRewardStakeIncreasing(epochsPoolRewarded, epochsStakeIncreased) {
       const miningAddress = initialValidators[0];
       const stakingAddress = initialStakingAddresses[0];
+      const poolId = initialPoolIds[0];
       const epochPoolReward = new BN(web3.utils.toWei('1', 'ether'));
       const maxStakingEpoch = Math.max(Math.max.apply(null, epochsPoolRewarded), Math.max.apply(null, epochsStakeIncreased));
 
@@ -450,8 +467,8 @@ contract('StakingAuRa', async accounts => {
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(epochPoolReward.mul(new BN(epochsPoolRewarded.length)));
 
       let prevStakingEpoch = 0;
-      const validatorStakeAmount = await stakingAuRa.stakeAmount.call(stakingAddress, '0x0000000000000000000000000000000000000000');
-      let stakeAmount = await stakingAuRa.stakeAmount.call(stakingAddress, delegator);
+      const validatorStakeAmount = await stakingAuRa.stakeAmount.call(poolId, '0x0000000000000000000000000000000000000000');
+      let stakeAmount = await stakingAuRa.stakeAmount.call(poolId, delegator);
       let stakeAmountOnEpoch = [new BN(0)];
 
       let s = 0;
@@ -474,7 +491,7 @@ contract('StakingAuRa', async accounts => {
           for (let e = prevStakingEpoch + 1; e <= stakingEpoch; e++) {
             stakeAmountOnEpoch[e] = stakeAmount;
           }
-          stakeAmount = await stakingAuRa.stakeAmount.call(stakingAddress, delegator);
+          stakeAmount = await stakingAuRa.stakeAmount.call(poolId, delegator);
           prevStakingEpoch = stakingEpoch;
           s++;
         }
@@ -528,6 +545,7 @@ contract('StakingAuRa', async accounts => {
     async function _delegatorNeverStakedBefore() {
       const miningAddress = initialValidators[0];
       const stakingAddress = initialStakingAddresses[0];
+      const poolId = initialPoolIds[0];
       const epochPoolReward = new BN(web3.utils.toWei('1', 'ether'));
       let unclaimedReward = new BN(0);
 
@@ -564,16 +582,16 @@ contract('StakingAuRa', async accounts => {
       await callFinalizeChange();
 
       await stakingAuRa.claimOrderedWithdraw(stakingAddress, {from: delegator}).should.be.fulfilled;
-      (await stakingAuRa.stakeAmount.call(stakingAddress, delegator)).should.be.bignumber.equal(new BN(0));
-      (await stakingAuRa.orderedWithdrawAmount.call(stakingAddress, delegator)).should.be.bignumber.equal(new BN(0));
+      (await stakingAuRa.stakeAmount.call(poolId, delegator)).should.be.bignumber.equal(new BN(0));
+      (await stakingAuRa.orderedWithdrawAmount.call(poolId, delegator)).should.be.bignumber.equal(new BN(0));
 
-      (await stakingAuRa.stakeFirstEpoch.call(stakingAddress, delegator)).should.be.bignumber.equal(new BN(1));
-      (await stakingAuRa.stakeLastEpoch.call(stakingAddress, delegator)).should.be.bignumber.equal(new BN(2));
+      (await stakingAuRa.stakeFirstEpoch.call(poolId, delegator)).should.be.bignumber.equal(new BN(1));
+      (await stakingAuRa.stakeLastEpoch.call(poolId, delegator)).should.be.bignumber.equal(new BN(2));
 
-      await stakingAuRa.setStakeFirstEpoch(stakingAddress, delegator, new BN(0)).should.be.fulfilled;
-      await stakingAuRa.setStakeLastEpoch(stakingAddress, delegator, new BN(0)).should.be.fulfilled;
-      await stakingAuRa.clearDelegatorStakeSnapshot(stakingAddress, delegator, new BN(1)).should.be.fulfilled;
-      await stakingAuRa.clearDelegatorStakeSnapshot(stakingAddress, delegator, new BN(2)).should.be.fulfilled;
+      await stakingAuRa.setStakeFirstEpoch(poolId, delegator, new BN(0)).should.be.fulfilled;
+      await stakingAuRa.setStakeLastEpoch(poolId, delegator, new BN(0)).should.be.fulfilled;
+      await stakingAuRa.clearDelegatorStakeSnapshot(poolId, delegator, new BN(1)).should.be.fulfilled;
+      await stakingAuRa.clearDelegatorStakeSnapshot(poolId, delegator, new BN(2)).should.be.fulfilled;
 
       stakingEpochEndBlock = stakingEpochStartBlock.add(new BN(120954 - 1));
       await setCurrentBlockNumber(stakingEpochEndBlock);
@@ -592,7 +610,7 @@ contract('StakingAuRa', async accounts => {
 
       (await stakingAuRa.stakingEpoch.call()).should.be.bignumber.equal(new BN(3));
 
-      return {miningAddress, stakingAddress, epochPoolReward, unclaimedReward};
+      return {miningAddress, stakingAddress, poolId, epochPoolReward, unclaimedReward};
     }
 
     async function testClaimRewardRandom(epochsPoolRewarded, epochsStakeIncreased) {
@@ -694,6 +712,7 @@ contract('StakingAuRa', async accounts => {
     async function testClaimRewardAfterStakeMovements(epochsPoolRewarded, epochsStakeMovement) {
       const miningAddress = initialValidators[0];
       const stakingAddress = initialStakingAddresses[0];
+      const poolId = initialPoolIds[0];
       const epochPoolReward = new BN(web3.utils.toWei('1', 'ether'));
 
       (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(new BN(0));
@@ -726,10 +745,10 @@ contract('StakingAuRa', async accounts => {
         await stakingAuRa.orderWithdraw(stakingAddress, delegatorMinStake.neg(), {from: delegator}).should.be.fulfilled;
       }
 
-      const stakeFirstEpoch = await stakingAuRa.stakeFirstEpoch.call(stakingAddress, delegator);
-      await stakingAuRa.setStakeFirstEpoch(stakingAddress, delegator, 0);
+      const stakeFirstEpoch = await stakingAuRa.stakeFirstEpoch.call(poolId, delegator);
+      await stakingAuRa.setStakeFirstEpoch(poolId, delegator, 0);
       await stakingAuRa.claimReward([], stakingAddress, {from: delegator}).should.be.rejectedWith(ERROR_MSG);
-      await stakingAuRa.setStakeFirstEpoch(stakingAddress, delegator, stakeFirstEpoch);
+      await stakingAuRa.setStakeFirstEpoch(poolId, delegator, stakeFirstEpoch);
 
       if (epochsPoolRewarded.length > 0) {
         if (epochsPoolRewarded.length > 1) {
@@ -742,14 +761,14 @@ contract('StakingAuRa', async accounts => {
         await stakingAuRa.setStakingEpoch(epochsPoolRewarded[epochsPoolRewarded.length - 1] + 1).should.be.fulfilled;
 
         if (epochsPoolRewarded.length == 1) {
-          const validatorStakeAmount = await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(epochsPoolRewarded[0], stakingAddress);
+          const validatorStakeAmount = await blockRewardAuRa.snapshotPoolValidatorStakeAmount.call(epochsPoolRewarded[0], poolId);
           await blockRewardAuRa.setSnapshotPoolValidatorStakeAmount(epochsPoolRewarded[0], miningAddress, 0);
           const result = await stakingAuRa.claimReward([], stakingAddress, {from: delegator}).should.be.fulfilled;
           result.logs.length.should.be.equal(1);
           result.logs[0].args.tokensAmount.should.be.bignumber.equal(new BN(0));
           result.logs[0].args.nativeCoinsAmount.should.be.bignumber.equal(new BN(0));
           await blockRewardAuRa.setSnapshotPoolValidatorStakeAmount(epochsPoolRewarded[0], miningAddress, validatorStakeAmount);
-          await stakingAuRa.clearRewardWasTaken(stakingAddress, delegator, epochsPoolRewarded[0]);
+          await stakingAuRa.clearRewardWasTaken(poolId, delegator, epochsPoolRewarded[0]);
         }
       }
 
@@ -792,6 +811,7 @@ contract('StakingAuRa', async accounts => {
       let {
         miningAddress,
         stakingAddress,
+        poolId,
         epochPoolReward,
         unclaimedReward
       } = await _delegatorNeverStakedBefore();
@@ -878,14 +898,15 @@ contract('StakingAuRa', async accounts => {
 
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(new BN(0));
 
-      (await stakingAuRa.stakeFirstEpoch.call(stakingAddress, delegator)).should.be.bignumber.equal(new BN(11));
-      (await stakingAuRa.stakeLastEpoch.call(stakingAddress, delegator)).should.be.bignumber.equal(new BN(0));
+      (await stakingAuRa.stakeFirstEpoch.call(poolId, delegator)).should.be.bignumber.equal(new BN(11));
+      (await stakingAuRa.stakeLastEpoch.call(poolId, delegator)).should.be.bignumber.equal(new BN(0));
     });
 
     it('delegator stakes and withdraws at the same epoch', async () => {
       let {
         miningAddress,
         stakingAddress,
+        poolId,
         epochPoolReward,
         unclaimedReward
       } = await _delegatorNeverStakedBefore();
@@ -968,8 +989,8 @@ contract('StakingAuRa', async accounts => {
 
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(new BN(0));
 
-      (await stakingAuRa.stakeFirstEpoch.call(stakingAddress, delegator)).should.be.bignumber.equal(new BN(11));
-      (await stakingAuRa.stakeLastEpoch.call(stakingAddress, delegator)).should.be.bignumber.equal(new BN(11));
+      (await stakingAuRa.stakeFirstEpoch.call(poolId, delegator)).should.be.bignumber.equal(new BN(11));
+      (await stakingAuRa.stakeLastEpoch.call(poolId, delegator)).should.be.bignumber.equal(new BN(11));
     });
 
     it('non-rewarded epochs are passed', async () => {
@@ -1302,16 +1323,16 @@ contract('StakingAuRa', async accounts => {
       let blockRewardTokensBalanceBefore = await erc677Token.balanceOf.call(blockRewardAuRa.address);
       let blockRewardCoinsBalanceBefore = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
       for (let i = 0; i < initialValidators.length; i++) {
-        (await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialStakingAddresses[i])).should.be.bignumber.equal(new BN(0));
-        (await blockRewardAuRa.epochPoolNativeReward.call(stakingEpoch, initialStakingAddresses[i])).should.be.bignumber.equal(new BN(0));
+        (await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialPoolIds[i])).should.be.bignumber.equal(new BN(0));
+        (await blockRewardAuRa.epochPoolNativeReward.call(stakingEpoch, initialPoolIds[i])).should.be.bignumber.equal(new BN(0));
       }
       await callReward();
       (await validatorSetAuRa.validatorSetApplyBlock.call()).should.be.bignumber.equal(new BN(0));
       let distributedTokensAmount = new BN(0);
       let distributedCoinsAmount = new BN(0);
       for (let i = 0; i < initialValidators.length; i++) {
-        const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialStakingAddresses[i]);
-        const epochPoolNativeReward = await blockRewardAuRa.epochPoolNativeReward.call(stakingEpoch, initialStakingAddresses[i]);
+        const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialPoolIds[i]);
+        const epochPoolNativeReward = await blockRewardAuRa.epochPoolNativeReward.call(stakingEpoch, initialPoolIds[i]);
         epochPoolTokenReward.should.be.bignumber.above(new BN(0));
         epochPoolNativeReward.should.be.bignumber.above(new BN(0));
         distributedTokensAmount = distributedTokensAmount.add(epochPoolTokenReward);
@@ -1406,15 +1427,15 @@ contract('StakingAuRa', async accounts => {
         const blockRewardTokensBalanceBefore = await erc677Token.balanceOf.call(blockRewardAuRa.address);
         const blockRewardCoinsBalanceBefore = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
         for (let i = 0; i < initialValidators.length; i++) {
-          (await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialStakingAddresses[i])).should.be.bignumber.equal(new BN(0));
-          (await blockRewardAuRa.epochPoolNativeReward.call(stakingEpoch, initialStakingAddresses[i])).should.be.bignumber.equal(new BN(0));
+          (await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialPoolIds[i])).should.be.bignumber.equal(new BN(0));
+          (await blockRewardAuRa.epochPoolNativeReward.call(stakingEpoch, initialPoolIds[i])).should.be.bignumber.equal(new BN(0));
         }
         await callReward();
         let distributedTokensAmount = new BN(0);
         let distributedCoinsAmount = new BN(0);
         for (let i = 0; i < initialValidators.length; i++) {
-          const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialStakingAddresses[i]);
-          const epochPoolNativeReward = await blockRewardAuRa.epochPoolNativeReward.call(stakingEpoch, initialStakingAddresses[i]);
+          const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialPoolIds[i]);
+          const epochPoolNativeReward = await blockRewardAuRa.epochPoolNativeReward.call(stakingEpoch, initialPoolIds[i]);
           epochPoolTokenReward.should.be.bignumber.above(new BN(0));
           epochPoolNativeReward.should.be.bignumber.above(new BN(0));
           distributedTokensAmount = distributedTokensAmount.add(epochPoolTokenReward);
@@ -1598,15 +1619,15 @@ contract('StakingAuRa', async accounts => {
         const blockRewardTokensBalanceBefore = await erc677Token.balanceOf.call(blockRewardAuRa.address);
         const blockRewardCoinsBalanceBefore = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
         for (let i = 0; i < initialValidators.length; i++) {
-          (await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialStakingAddresses[i])).should.be.bignumber.equal(new BN(0));
-          (await blockRewardAuRa.epochPoolNativeReward.call(stakingEpoch, initialStakingAddresses[i])).should.be.bignumber.equal(new BN(0));
+          (await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialPoolIds[i])).should.be.bignumber.equal(new BN(0));
+          (await blockRewardAuRa.epochPoolNativeReward.call(stakingEpoch, initialPoolIds[i])).should.be.bignumber.equal(new BN(0));
         }
         await callReward();
         let distributedTokensAmount = new BN(0);
         let distributedCoinsAmount = new BN(0);
         for (let i = 0; i < initialValidators.length; i++) {
-          const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialStakingAddresses[i]);
-          const epochPoolNativeReward = await blockRewardAuRa.epochPoolNativeReward.call(stakingEpoch, initialStakingAddresses[i]);
+          const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialPoolIds[i]);
+          const epochPoolNativeReward = await blockRewardAuRa.epochPoolNativeReward.call(stakingEpoch, initialPoolIds[i]);
           epochPoolTokenReward.should.be.bignumber.above(new BN(0));
           epochPoolNativeReward.should.be.bignumber.above(new BN(0));
           distributedTokensAmount = distributedTokensAmount.add(epochPoolTokenReward);
@@ -1771,15 +1792,15 @@ contract('StakingAuRa', async accounts => {
         const blockRewardTokensBalanceBefore = await erc677Token.balanceOf.call(blockRewardAuRa.address);
         const blockRewardCoinsBalanceBefore = new BN(await web3.eth.getBalance(blockRewardAuRa.address));
         for (let i = 0; i < initialValidators.length; i++) {
-          (await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialStakingAddresses[i])).should.be.bignumber.equal(new BN(0));
-          (await blockRewardAuRa.epochPoolNativeReward.call(stakingEpoch, initialStakingAddresses[i])).should.be.bignumber.equal(new BN(0));
+          (await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialPoolIds[i])).should.be.bignumber.equal(new BN(0));
+          (await blockRewardAuRa.epochPoolNativeReward.call(stakingEpoch, initialPoolIds[i])).should.be.bignumber.equal(new BN(0));
         }
         await callReward();
         let distributedTokensAmount = new BN(0);
         let distributedCoinsAmount = new BN(0);
         for (let i = 0; i < initialValidators.length; i++) {
-          const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialStakingAddresses[i]);
-          const epochPoolNativeReward = await blockRewardAuRa.epochPoolNativeReward.call(stakingEpoch, initialStakingAddresses[i]);
+          const epochPoolTokenReward = await blockRewardAuRa.epochPoolTokenReward.call(stakingEpoch, initialPoolIds[i]);
+          const epochPoolNativeReward = await blockRewardAuRa.epochPoolNativeReward.call(stakingEpoch, initialPoolIds[i]);
           epochPoolTokenReward.should.be.bignumber.above(new BN(0));
           epochPoolNativeReward.should.be.bignumber.above(new BN(0));
           distributedTokensAmount = distributedTokensAmount.add(epochPoolTokenReward);
@@ -1800,7 +1821,7 @@ contract('StakingAuRa', async accounts => {
         }
       }
 
-      const epochsPoolGotRewardFor = await blockRewardAuRa.epochsPoolGotRewardFor.call(initialStakingAddresses[0]);
+      const epochsPoolGotRewardFor = await blockRewardAuRa.epochsPoolGotRewardFor.call(initialPoolIds[0]);
 
       // The delegator claims their rewards
       const delegatorTokensBalanceBefore = await erc677Token.balanceOf.call(delegator);
@@ -1936,7 +1957,7 @@ contract('StakingAuRa', async accounts => {
       // Initialize StakingAuRa
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
-        initialStakingAddresses, // _initialStakingAddresses
+        initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
@@ -1973,10 +1994,10 @@ contract('StakingAuRa', async accounts => {
       (await stakingAuRa.getPoolsToBeElected.call()).length.should.be.equal(0);
 
       await stakingAuRa.setValidatorSetAddress(accounts[7]).should.be.fulfilled;
-      await stakingAuRa.clearUnremovableValidator(initialStakingAddresses[0], {from: accounts[7]}).should.be.fulfilled;
+      await stakingAuRa.clearUnremovableValidator(initialPoolIds[0], {from: accounts[7]}).should.be.fulfilled;
 
       (await stakingAuRa.getPoolsToBeElected.call()).should.be.deep.equal([
-        initialStakingAddresses[0]
+        initialPoolIds[0]
       ]);
 
       const likelihoodInfo = await stakingAuRa.getPoolsLikelihood.call();
@@ -1986,28 +2007,28 @@ contract('StakingAuRa', async accounts => {
     it('should add validator pool to the poolsToBeRemoved list', async () => {
       await stakingAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
       (await stakingAuRa.getPoolsToBeRemoved.call()).should.be.deep.equal([
-        initialStakingAddresses[1],
-        initialStakingAddresses[2]
+        initialPoolIds[1],
+        initialPoolIds[2]
       ]);
       await stakingAuRa.setValidatorSetAddress(accounts[7]).should.be.fulfilled;
-      await stakingAuRa.clearUnremovableValidator(initialStakingAddresses[0], {from: accounts[7]}).should.be.fulfilled;
+      await stakingAuRa.clearUnremovableValidator(initialPoolIds[0], {from: accounts[7]}).should.be.fulfilled;
       (await stakingAuRa.getPoolsToBeRemoved.call()).should.be.deep.equal([
-        initialStakingAddresses[1],
-        initialStakingAddresses[2],
-        initialStakingAddresses[0]
+        initialPoolIds[1],
+        initialPoolIds[2],
+        initialPoolIds[0]
       ]);
     });
     it('can only be called by the ValidatorSet contract', async () => {
       await stakingAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
       await stakingAuRa.setValidatorSetAddress(accounts[7]).should.be.fulfilled;
-      await stakingAuRa.clearUnremovableValidator(initialStakingAddresses[0], {from: accounts[8]}).should.be.rejectedWith(ERROR_MSG);
-      await stakingAuRa.clearUnremovableValidator(initialStakingAddresses[0], {from: accounts[7]}).should.be.fulfilled;
+      await stakingAuRa.clearUnremovableValidator(initialPoolIds[0], {from: accounts[8]}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.clearUnremovableValidator(initialPoolIds[0], {from: accounts[7]}).should.be.fulfilled;
     });
-    it('non-removable validator address cannot be zero', async () => {
+    it('non-removable validator pool id cannot be zero', async () => {
       await stakingAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
       await stakingAuRa.setValidatorSetAddress(accounts[7]).should.be.fulfilled;
-      await stakingAuRa.clearUnremovableValidator('0x0000000000000000000000000000000000000000', {from: accounts[7]}).should.be.rejectedWith(ERROR_MSG);
-      await stakingAuRa.clearUnremovableValidator(initialStakingAddresses[0], {from: accounts[7]}).should.be.fulfilled;
+      await stakingAuRa.clearUnremovableValidator(0, {from: accounts[7]}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.clearUnremovableValidator(initialPoolIds[0], {from: accounts[7]}).should.be.fulfilled;
     });
   });
 
@@ -2032,7 +2053,7 @@ contract('StakingAuRa', async accounts => {
     it('should initialize successfully', async () => {
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
-        initialStakingAddresses, // _initialStakingAddresses
+        initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
@@ -2056,16 +2077,16 @@ contract('StakingAuRa', async accounts => {
       );
       for (let i = 0; i < initialStakingAddresses.length; i++) {
         new BN(i).should.be.bignumber.equal(
-          await stakingAuRa.poolIndex.call(initialStakingAddresses[i])
+          await stakingAuRa.poolIndex.call(initialPoolIds[i])
         );
         true.should.be.equal(
-          await stakingAuRa.isPoolActive.call(initialStakingAddresses[i])
+          await stakingAuRa.isPoolActive.call(initialPoolIds[i])
         );
         new BN(i).should.be.bignumber.equal(
-          await stakingAuRa.poolToBeRemovedIndex.call(initialStakingAddresses[i])
+          await stakingAuRa.poolToBeRemovedIndex.call(initialPoolIds[i])
         );
       }
-      (await stakingAuRa.getPools.call()).should.be.deep.equal(initialStakingAddresses);
+      (await stakingAuRa.getPools.call()).should.be.deep.equal(initialPoolIds);
       new BN(web3.utils.toWei('1', 'ether')).should.be.bignumber.equal(
         await stakingAuRa.delegatorMinStake.call()
       );
@@ -2076,7 +2097,7 @@ contract('StakingAuRa', async accounts => {
     it('should fail if ValidatorSet contract address is zero', async () => {
       await stakingAuRa.initialize(
         '0x0000000000000000000000000000000000000000', // _validatorSetContract
-        initialStakingAddresses, // _initialStakingAddresses
+        initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
@@ -2087,7 +2108,7 @@ contract('StakingAuRa', async accounts => {
     it('should fail if delegatorMinStake is zero', async () => {
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
-        initialStakingAddresses, // _initialStakingAddresses
+        initialPoolIds, // _initialIds
         web3.utils.toWei('0', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
@@ -2098,7 +2119,7 @@ contract('StakingAuRa', async accounts => {
     it('should fail if candidateMinStake is zero', async () => {
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
-        initialStakingAddresses, // _initialStakingAddresses
+        initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('0', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
@@ -2109,7 +2130,7 @@ contract('StakingAuRa', async accounts => {
     it('should fail if already initialized', async () => {
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
-        initialStakingAddresses, // _initialStakingAddresses
+        initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
@@ -2118,7 +2139,7 @@ contract('StakingAuRa', async accounts => {
       ).should.be.fulfilled;
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
-        initialStakingAddresses, // _initialStakingAddresses
+        initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
@@ -2129,7 +2150,7 @@ contract('StakingAuRa', async accounts => {
     it('should fail if stakingEpochDuration is 0', async () => {
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
-        initialStakingAddresses, // _initialStakingAddresses
+        initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         0, // _stakingEpochDuration
@@ -2140,7 +2161,7 @@ contract('StakingAuRa', async accounts => {
     it('should fail if stakeWithdrawDisallowPeriod is 0', async () => {
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
-        initialStakingAddresses, // _initialStakingAddresses
+        initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
@@ -2151,7 +2172,7 @@ contract('StakingAuRa', async accounts => {
     it('should fail if stakeWithdrawDisallowPeriod >= stakingEpochDuration', async () => {
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
-        initialStakingAddresses, // _initialStakingAddresses
+        initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
@@ -2160,7 +2181,7 @@ contract('StakingAuRa', async accounts => {
       ).should.be.rejectedWith(ERROR_MSG);
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
-        initialStakingAddresses, // _initialStakingAddresses
+        initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
@@ -2172,7 +2193,7 @@ contract('StakingAuRa', async accounts => {
       initialStakingAddresses[0] = '0x0000000000000000000000000000000000000000';
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
-        initialStakingAddresses, // _initialStakingAddresses
+        initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
@@ -2194,7 +2215,7 @@ contract('StakingAuRa', async accounts => {
       // Initialize StakingAuRa
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
-        initialStakingAddresses, // _initialStakingAddresses
+        initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
@@ -2235,35 +2256,37 @@ contract('StakingAuRa', async accounts => {
     });
 
     it('should move entire stake', async () => {
-      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[0], delegatorAddress)).should.be.bignumber.equal(mintAmount);
-      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
+      (await stakingAuRa.stakeAmount.call(initialPoolIds[0], delegatorAddress)).should.be.bignumber.equal(mintAmount);
+      (await stakingAuRa.stakeAmount.call(initialPoolIds[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
       await stakingAuRa.moveStake(initialStakingAddresses[0], initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
-      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[0], delegatorAddress)).should.be.bignumber.equal(new BN(0));
-      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(mintAmount);
+      (await stakingAuRa.stakeAmount.call(initialPoolIds[0], delegatorAddress)).should.be.bignumber.equal(new BN(0));
+      (await stakingAuRa.stakeAmount.call(initialPoolIds[1], delegatorAddress)).should.be.bignumber.equal(mintAmount);
     });
     it('should move part of the stake', async () => {
-      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[0], delegatorAddress)).should.be.bignumber.equal(mintAmount);
-      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
+      (await stakingAuRa.stakeAmount.call(initialPoolIds[0], delegatorAddress)).should.be.bignumber.equal(mintAmount);
+      (await stakingAuRa.stakeAmount.call(initialPoolIds[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
       await stakingAuRa.moveStake(initialStakingAddresses[0], initialStakingAddresses[1], stakeUnit, {from: delegatorAddress}).should.be.fulfilled;
-      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[0], delegatorAddress)).should.be.bignumber.equal(stakeUnit);
-      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(stakeUnit);
+      (await stakingAuRa.stakeAmount.call(initialPoolIds[0], delegatorAddress)).should.be.bignumber.equal(stakeUnit);
+      (await stakingAuRa.stakeAmount.call(initialPoolIds[1], delegatorAddress)).should.be.bignumber.equal(stakeUnit);
     });
     it('should move part of the stake', async () => {
       await erc677Token.mint(delegatorAddress, mintAmount, {from: owner}).should.be.fulfilled;
       await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
 
       const sourcePool = initialStakingAddresses[0];
+      const sourcePoolId = initialPoolIds[0];
       const targetPool = initialStakingAddresses[1];
+      const targetPoolId = initialPoolIds[1];
 
-      (await stakingAuRa.stakeAmount.call(sourcePool, delegatorAddress)).should.be.bignumber.equal(mintAmount);
-      (await stakingAuRa.stakeAmount.call(targetPool, delegatorAddress)).should.be.bignumber.equal(mintAmount);
+      (await stakingAuRa.stakeAmount.call(sourcePoolId, delegatorAddress)).should.be.bignumber.equal(mintAmount);
+      (await stakingAuRa.stakeAmount.call(targetPoolId, delegatorAddress)).should.be.bignumber.equal(mintAmount);
       
       const moveAmount = stakeUnit.div(new BN(2));
       moveAmount.should.be.bignumber.below(await stakingAuRa.delegatorMinStake.call());
       
       await stakingAuRa.moveStake(sourcePool, targetPool, moveAmount, {from: delegatorAddress}).should.be.fulfilled;
-      (await stakingAuRa.stakeAmount.call(sourcePool, delegatorAddress)).should.be.bignumber.equal(mintAmount.sub(moveAmount));
-      (await stakingAuRa.stakeAmount.call(targetPool, delegatorAddress)).should.be.bignumber.equal(mintAmount.add(moveAmount));
+      (await stakingAuRa.stakeAmount.call(sourcePoolId, delegatorAddress)).should.be.bignumber.equal(mintAmount.sub(moveAmount));
+      (await stakingAuRa.stakeAmount.call(targetPoolId, delegatorAddress)).should.be.bignumber.equal(mintAmount.add(moveAmount));
     });
     it('should fail for zero gas price', async () => {
       await stakingAuRa.moveStake(initialStakingAddresses[0], initialStakingAddresses[1], mintAmount, {from: delegatorAddress, gasPrice: 0}).should.be.rejectedWith(ERROR_MSG);
@@ -2293,7 +2316,7 @@ contract('StakingAuRa', async accounts => {
       // Initialize StakingAuRa
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
-        initialStakingAddresses, // _initialStakingAddresses
+        initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
@@ -2332,10 +2355,10 @@ contract('StakingAuRa', async accounts => {
 
     for (let step = 0; step < 2; step++) {
       it('should place a stake' + fnName(step), async () => {
-        (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], '0x0000000000000000000000000000000000000000')).should.be.bignumber.equal(new BN(0));
-        (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
+        (await stakingAuRa.stakeAmount.call(initialPoolIds[1], '0x0000000000000000000000000000000000000000')).should.be.bignumber.equal(new BN(0));
+        (await stakingAuRa.stakeAmount.call(initialPoolIds[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
         await stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
-        (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], '0x0000000000000000000000000000000000000000')).should.be.bignumber.equal(mintAmount);
+        (await stakingAuRa.stakeAmount.call(initialPoolIds[1], '0x0000000000000000000000000000000000000000')).should.be.bignumber.equal(mintAmount);
         const result = await stake(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
         const events = await stakingAuRa.getPastEvents('PlacedStake', {fromBlock: result.receipt.blockNumber, toBlock: result.receipt.blockNumber});
         events[0].event.should.be.equal("PlacedStake");
@@ -2343,8 +2366,8 @@ contract('StakingAuRa', async accounts => {
         events[0].args.staker.should.be.equal(delegatorAddress);
         events[0].args.stakingEpoch.should.be.bignumber.equal(new BN(0));
         events[0].args.amount.should.be.bignumber.equal(mintAmount);
-        (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(mintAmount);
-        (await stakingAuRa.stakeAmountTotal.call(initialStakingAddresses[1])).should.be.bignumber.equal(mintAmount.mul(new BN(2)));
+        (await stakingAuRa.stakeAmount.call(initialPoolIds[1], delegatorAddress)).should.be.bignumber.equal(mintAmount);
+        (await stakingAuRa.stakeAmountTotal.call(initialPoolIds[1])).should.be.bignumber.equal(mintAmount.mul(new BN(2)));
       });
       it('should fail for zero gas price' + fnName(step), async () => {
         await stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1], gasPrice: 0}).should.be.rejectedWith(ERROR_MSG);
@@ -2393,41 +2416,41 @@ contract('StakingAuRa', async accounts => {
         await stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
       });
       it('should fail if a delegator stakes into an empty pool' + fnName(step), async () => {
-        (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], '0x0000000000000000000000000000000000000000')).should.be.bignumber.equal(new BN(0));
+        (await stakingAuRa.stakeAmount.call(initialPoolIds[1], '0x0000000000000000000000000000000000000000')).should.be.bignumber.equal(new BN(0));
         await stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.rejectedWith(ERROR_MSG);
         await stake(initialStakingAddresses[1], candidateMinStake, {from: initialStakingAddresses[1]}).should.be.fulfilled;
         await stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
       });
       it('should increase a stake amount' + fnName(step), async () => {
         await stake(initialStakingAddresses[1], candidateMinStake, {from: initialStakingAddresses[1]}).should.be.fulfilled;
-        (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
+        (await stakingAuRa.stakeAmount.call(initialPoolIds[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
         await stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
-        (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(delegatorMinStake);
+        (await stakingAuRa.stakeAmount.call(initialPoolIds[1], delegatorAddress)).should.be.bignumber.equal(delegatorMinStake);
         await stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
-        (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(delegatorMinStake.mul(new BN(2)));
+        (await stakingAuRa.stakeAmount.call(initialPoolIds[1], delegatorAddress)).should.be.bignumber.equal(delegatorMinStake.mul(new BN(2)));
       });
       it('should increase the stakeAmountByCurrentEpoch' + fnName(step), async () => {
         await stake(initialStakingAddresses[1], candidateMinStake, {from: initialStakingAddresses[1]}).should.be.fulfilled;
-        (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
+        (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialPoolIds[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
         await stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
-        (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(delegatorMinStake);
+        (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialPoolIds[1], delegatorAddress)).should.be.bignumber.equal(delegatorMinStake);
         await stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
-        (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(delegatorMinStake.mul(new BN(2)));
+        (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialPoolIds[1], delegatorAddress)).should.be.bignumber.equal(delegatorMinStake.mul(new BN(2)));
       });
       it('should increase a total stake amount' + fnName(step), async () => {
         await stake(initialStakingAddresses[1], candidateMinStake, {from: initialStakingAddresses[1]}).should.be.fulfilled;
-        (await stakingAuRa.stakeAmountTotal.call(initialStakingAddresses[1])).should.be.bignumber.equal(candidateMinStake);
+        (await stakingAuRa.stakeAmountTotal.call(initialPoolIds[1])).should.be.bignumber.equal(candidateMinStake);
         await stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
-        (await stakingAuRa.stakeAmountTotal.call(initialStakingAddresses[1])).should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake));
+        (await stakingAuRa.stakeAmountTotal.call(initialPoolIds[1])).should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake));
         await stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
-        (await stakingAuRa.stakeAmountTotal.call(initialStakingAddresses[1])).should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake.mul(new BN(2))));
+        (await stakingAuRa.stakeAmountTotal.call(initialPoolIds[1])).should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake.mul(new BN(2))));
       });
       it('should add a delegator to the pool' + fnName(step), async () => {
         await stake(initialStakingAddresses[1], candidateMinStake, {from: initialStakingAddresses[1]}).should.be.fulfilled;
-        (await stakingAuRa.poolDelegators.call(initialStakingAddresses[1])).length.should.be.equal(0);
+        (await stakingAuRa.poolDelegators.call(initialPoolIds[1])).length.should.be.equal(0);
         await stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
         await stake(initialStakingAddresses[1], delegatorMinStake, {from: delegatorAddress}).should.be.fulfilled;
-        (await stakingAuRa.poolDelegators.call(initialStakingAddresses[1])).should.be.deep.equal([delegatorAddress]);
+        (await stakingAuRa.poolDelegators.call(initialPoolIds[1])).should.be.deep.equal([delegatorAddress]);
       });
       it('should update pool\'s likelihood' + fnName(step), async () => {
         let likelihoodInfo = await stakingAuRa.getPoolsLikelihood.call();
@@ -2490,7 +2513,7 @@ contract('StakingAuRa', async accounts => {
       // Initialize StakingAuRa
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
-        initialStakingAddresses, // _initialStakingAddresses
+        initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
@@ -2505,18 +2528,18 @@ contract('StakingAuRa', async accounts => {
       await validatorSetAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
     });
     it('should place a stake', async () => {
-      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], '0x0000000000000000000000000000000000000000')).should.be.bignumber.equal(new BN(0));
-      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
+      (await stakingAuRa.stakeAmount.call(initialPoolIds[1], '0x0000000000000000000000000000000000000000')).should.be.bignumber.equal(new BN(0));
+      (await stakingAuRa.stakeAmount.call(initialPoolIds[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
       await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
-      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], '0x0000000000000000000000000000000000000000')).should.be.bignumber.equal(candidateMinStake);
+      (await stakingAuRa.stakeAmount.call(initialPoolIds[1], '0x0000000000000000000000000000000000000000')).should.be.bignumber.equal(candidateMinStake);
       const result = await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
       result.logs[0].event.should.be.equal("PlacedStake");
       result.logs[0].args.toPoolStakingAddress.should.be.equal(initialStakingAddresses[1]);
       result.logs[0].args.staker.should.be.equal(delegatorAddress);
       result.logs[0].args.stakingEpoch.should.be.bignumber.equal(new BN(0));
       result.logs[0].args.amount.should.be.bignumber.equal(delegatorMinStake);
-      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(delegatorMinStake);
-      (await stakingAuRa.stakeAmountTotal.call(initialStakingAddresses[1])).should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake));
+      (await stakingAuRa.stakeAmount.call(initialPoolIds[1], delegatorAddress)).should.be.bignumber.equal(delegatorMinStake);
+      (await stakingAuRa.stakeAmountTotal.call(initialPoolIds[1])).should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake));
     });
     it('should fail for zero gas price', async () => {
       await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake, gasPrice: 0}).should.be.rejectedWith(ERROR_MSG);
@@ -2555,41 +2578,41 @@ contract('StakingAuRa', async accounts => {
       await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
     });
     it('should fail if a delegator stakes into an empty pool', async () => {
-      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], '0x0000000000000000000000000000000000000000')).should.be.bignumber.equal(new BN(0));
+      (await stakingAuRa.stakeAmount.call(initialPoolIds[1], '0x0000000000000000000000000000000000000000')).should.be.bignumber.equal(new BN(0));
       await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: delegatorAddress, value: delegatorMinStake}).should.be.rejectedWith(ERROR_MSG);
       await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
       await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
     });
     it('should increase a stake amount', async () => {
       await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
-      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
+      (await stakingAuRa.stakeAmount.call(initialPoolIds[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
       await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
-      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(delegatorMinStake);
+      (await stakingAuRa.stakeAmount.call(initialPoolIds[1], delegatorAddress)).should.be.bignumber.equal(delegatorMinStake);
       await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
-      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(delegatorMinStake.mul(new BN(2)));
+      (await stakingAuRa.stakeAmount.call(initialPoolIds[1], delegatorAddress)).should.be.bignumber.equal(delegatorMinStake.mul(new BN(2)));
     });
     it('should increase the stakeAmountByCurrentEpoch', async () => {
       await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
-      (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
+      (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialPoolIds[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
       await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
-      (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(delegatorMinStake);
+      (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialPoolIds[1], delegatorAddress)).should.be.bignumber.equal(delegatorMinStake);
       await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
-      (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(delegatorMinStake.mul(new BN(2)));
+      (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialPoolIds[1], delegatorAddress)).should.be.bignumber.equal(delegatorMinStake.mul(new BN(2)));
     });
     it('should increase a total stake amount', async () => {
       await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
-      (await stakingAuRa.stakeAmountTotal.call(initialStakingAddresses[1])).should.be.bignumber.equal(candidateMinStake);
+      (await stakingAuRa.stakeAmountTotal.call(initialPoolIds[1])).should.be.bignumber.equal(candidateMinStake);
       await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
-      (await stakingAuRa.stakeAmountTotal.call(initialStakingAddresses[1])).should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake));
+      (await stakingAuRa.stakeAmountTotal.call(initialPoolIds[1])).should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake));
       await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
-      (await stakingAuRa.stakeAmountTotal.call(initialStakingAddresses[1])).should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake.mul(new BN(2))));
+      (await stakingAuRa.stakeAmountTotal.call(initialPoolIds[1])).should.be.bignumber.equal(candidateMinStake.add(delegatorMinStake.mul(new BN(2))));
     });
     it('should add a delegator to the pool', async () => {
       await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: initialStakingAddresses[1], value: candidateMinStake}).should.be.fulfilled;
-      (await stakingAuRa.poolDelegators.call(initialStakingAddresses[1])).length.should.be.equal(0);
+      (await stakingAuRa.poolDelegators.call(initialPoolIds[1])).length.should.be.equal(0);
       await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
       await stakingAuRa.stake(initialStakingAddresses[1], 0, {from: delegatorAddress, value: delegatorMinStake}).should.be.fulfilled;
-      (await stakingAuRa.poolDelegators.call(initialStakingAddresses[1])).should.be.deep.equal([delegatorAddress]);
+      (await stakingAuRa.poolDelegators.call(initialPoolIds[1])).should.be.deep.equal([delegatorAddress]);
     });
     it('should update pool\'s likelihood', async () => {
       let likelihoodInfo = await stakingAuRa.getPoolsLikelihood.call();
@@ -2622,7 +2645,7 @@ contract('StakingAuRa', async accounts => {
       // Initialize StakingAuRa
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
-        initialStakingAddresses, // _initialStakingAddresses
+        initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
@@ -2634,31 +2657,31 @@ contract('StakingAuRa', async accounts => {
     });
 
     it('should remove a pool', async () => {
-      (await stakingAuRa.getPools.call()).should.be.deep.equal(initialStakingAddresses);
+      (await stakingAuRa.getPools.call()).should.be.deep.equal(initialPoolIds);
       await stakingAuRa.setValidatorSetAddress(accounts[7]).should.be.fulfilled;
-      await stakingAuRa.removePool(initialStakingAddresses[0], {from: accounts[7]}).should.be.fulfilled;
+      await stakingAuRa.removePool(initialPoolIds[0], {from: accounts[7]}).should.be.fulfilled;
       (await stakingAuRa.getPools.call()).should.be.deep.equal([
-        initialStakingAddresses[2],
-        initialStakingAddresses[1]
+        initialPoolIds[2],
+        initialPoolIds[1]
       ]);
       (await stakingAuRa.getPoolsInactive.call()).length.should.be.equal(0);
     });
     it('can only be called by the ValidatorSetAuRa contract', async () => {
       await stakingAuRa.setValidatorSetAddress(accounts[7]).should.be.fulfilled;
-      await stakingAuRa.removePool(initialStakingAddresses[0], {from: accounts[8]}).should.be.rejectedWith(ERROR_MSG);
-      await stakingAuRa.removePool(initialStakingAddresses[0], {from: accounts[7]}).should.be.fulfilled;
+      await stakingAuRa.removePool(initialPoolIds[0], {from: accounts[8]}).should.be.rejectedWith(ERROR_MSG);
+      await stakingAuRa.removePool(initialPoolIds[0], {from: accounts[7]}).should.be.fulfilled;
     });
     it('shouldn\'t remove a nonexistent pool', async () => {
-      (await stakingAuRa.getPools.call()).should.be.deep.equal(initialStakingAddresses);
+      (await stakingAuRa.getPools.call()).should.be.deep.equal(initialPoolIds);
       await stakingAuRa.setValidatorSetAddress(accounts[7]).should.be.fulfilled;
-      await stakingAuRa.removePool(accounts[10], {from: accounts[7]}).should.be.fulfilled;
-      (await stakingAuRa.getPools.call()).should.be.deep.equal(initialStakingAddresses);
+      await stakingAuRa.removePool(10, {from: accounts[7]}).should.be.fulfilled;
+      (await stakingAuRa.getPools.call()).should.be.deep.equal(initialPoolIds);
     });
     it('should reset pool index', async () => {
-      (await stakingAuRa.poolIndex.call(initialStakingAddresses[1])).should.be.bignumber.equal(new BN(1));
+      (await stakingAuRa.poolIndex.call(initialPoolIds[1])).should.be.bignumber.equal(new BN(1));
       await stakingAuRa.setValidatorSetAddress(accounts[7]).should.be.fulfilled;
-      await stakingAuRa.removePool(initialStakingAddresses[1], {from: accounts[7]}).should.be.fulfilled;
-      (await stakingAuRa.poolIndex.call(initialStakingAddresses[1])).should.be.bignumber.equal(new BN(0));
+      await stakingAuRa.removePool(initialPoolIds[1], {from: accounts[7]}).should.be.fulfilled;
+      (await stakingAuRa.poolIndex.call(initialPoolIds[1])).should.be.bignumber.equal(new BN(0));
     });
     it('should add/remove a pool to/from the utility lists', async () => {
       // Deploy ERC677 contract
@@ -2683,32 +2706,32 @@ contract('StakingAuRa', async accounts => {
 
       // The first validator places stake for themselves
       (await stakingAuRa.getPoolsToBeElected.call()).length.should.be.deep.equal(0);
-      (await stakingAuRa.getPoolsToBeRemoved.call()).should.be.deep.equal(initialStakingAddresses);
+      (await stakingAuRa.getPoolsToBeRemoved.call()).should.be.deep.equal(initialPoolIds);
       await stakingAuRa.stake(initialStakingAddresses[0], stakeUnit.mul(new BN(1)), {from: initialStakingAddresses[0]}).should.be.fulfilled;
-      (await stakingAuRa.stakeAmountTotal.call(initialStakingAddresses[0])).should.be.bignumber.equal(stakeUnit);
-      (await stakingAuRa.getPoolsToBeElected.call()).should.be.deep.equal([initialStakingAddresses[0]]);
+      (await stakingAuRa.stakeAmountTotal.call(initialPoolIds[0])).should.be.bignumber.equal(stakeUnit);
+      (await stakingAuRa.getPoolsToBeElected.call()).should.be.deep.equal([initialPoolIds[0]]);
       (await stakingAuRa.getPoolsToBeRemoved.call()).should.be.deep.equal([
-        initialStakingAddresses[2],
-        initialStakingAddresses[1]
+        initialPoolIds[2],
+        initialPoolIds[1]
       ]);
 
       // Remove the pool
       await stakingAuRa.setValidatorSetAddress(accounts[7]).should.be.fulfilled;
-      (await stakingAuRa.poolInactiveIndex.call(initialStakingAddresses[0])).should.be.bignumber.equal(new BN(0));
-      await stakingAuRa.removePool(initialStakingAddresses[0], {from: accounts[7]}).should.be.fulfilled;
-      await stakingAuRa.removePool(initialStakingAddresses[0], {from: accounts[7]}).should.be.fulfilled;
-      (await stakingAuRa.getPoolsInactive.call()).should.be.deep.equal([initialStakingAddresses[0]]);
-      (await stakingAuRa.poolInactiveIndex.call(initialStakingAddresses[0])).should.be.bignumber.equal(new BN(0));
+      (await stakingAuRa.poolInactiveIndex.call(initialPoolIds[0])).should.be.bignumber.equal(new BN(0));
+      await stakingAuRa.removePool(initialPoolIds[0], {from: accounts[7]}).should.be.fulfilled;
+      await stakingAuRa.removePool(initialPoolIds[0], {from: accounts[7]}).should.be.fulfilled;
+      (await stakingAuRa.getPoolsInactive.call()).should.be.deep.equal([initialPoolIds[0]]);
+      (await stakingAuRa.poolInactiveIndex.call(initialPoolIds[0])).should.be.bignumber.equal(new BN(0));
 
-      await stakingAuRa.setStakeAmountTotal(initialStakingAddresses[0], 0);
-      await stakingAuRa.removePool(initialStakingAddresses[0], {from: accounts[7]}).should.be.fulfilled;
+      await stakingAuRa.setStakeAmountTotal(initialPoolIds[0], 0);
+      await stakingAuRa.removePool(initialPoolIds[0], {from: accounts[7]}).should.be.fulfilled;
       (await stakingAuRa.getPoolsInactive.call()).length.should.be.equal(0);
       (await stakingAuRa.getPoolsToBeElected.call()).length.should.be.deep.equal(0);
 
-      (await stakingAuRa.poolToBeRemovedIndex.call(initialStakingAddresses[1])).should.be.bignumber.equal(new BN(1));
-      await stakingAuRa.removePool(initialStakingAddresses[1], {from: accounts[7]}).should.be.fulfilled;
-      (await stakingAuRa.getPoolsToBeRemoved.call()).should.be.deep.equal([initialStakingAddresses[2]]);
-      (await stakingAuRa.poolToBeRemovedIndex.call(initialStakingAddresses[1])).should.be.bignumber.equal(new BN(0));
+      (await stakingAuRa.poolToBeRemovedIndex.call(initialPoolIds[1])).should.be.bignumber.equal(new BN(1));
+      await stakingAuRa.removePool(initialPoolIds[1], {from: accounts[7]}).should.be.fulfilled;
+      (await stakingAuRa.getPoolsToBeRemoved.call()).should.be.deep.equal([initialPoolIds[2]]);
+      (await stakingAuRa.poolToBeRemovedIndex.call(initialPoolIds[1])).should.be.bignumber.equal(new BN(0));
     });
   });
 
@@ -2717,7 +2740,7 @@ contract('StakingAuRa', async accounts => {
       // Initialize StakingAuRa
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
-        initialStakingAddresses, // _initialStakingAddresses
+        initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
@@ -2776,7 +2799,7 @@ contract('StakingAuRa', async accounts => {
       // Initialize StakingAuRa
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
-        initialStakingAddresses, // _initialStakingAddresses
+        initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
@@ -2786,15 +2809,15 @@ contract('StakingAuRa', async accounts => {
 
       await stakingAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
 
-      (await stakingAuRa.getPools.call()).should.be.deep.equal(initialStakingAddresses);
+      (await stakingAuRa.getPools.call()).should.be.deep.equal(initialPoolIds);
       await stakingAuRa.setValidatorSetAddress(accounts[7]).should.be.fulfilled;
       await stakingAuRa.incrementStakingEpoch({from: accounts[7]}).should.be.fulfilled;
       await stakingAuRa.setValidatorSetAddress(validatorSetAuRa.address).should.be.fulfilled;
       await stakingAuRa.removeMyPool({from: initialStakingAddresses[0]}).should.be.rejectedWith(ERROR_MSG);
       await stakingAuRa.removeMyPool({from: initialStakingAddresses[1]}).should.be.fulfilled;
       (await stakingAuRa.getPools.call()).should.be.deep.equal([
-        initialStakingAddresses[0],
-        initialStakingAddresses[2]
+        initialPoolIds[0],
+        initialPoolIds[2]
       ]);
     });
   });
@@ -2812,7 +2835,7 @@ contract('StakingAuRa', async accounts => {
       // Initialize StakingAuRa
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
-        initialStakingAddresses, // _initialStakingAddresses
+        initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
@@ -2852,19 +2875,19 @@ contract('StakingAuRa', async accounts => {
     });
 
     it('should withdraw a stake', async () => {
-      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], '0x0000000000000000000000000000000000000000')).should.be.bignumber.equal(new BN(0));
-      (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialStakingAddresses[1], '0x0000000000000000000000000000000000000000')).should.be.bignumber.equal(new BN(0));
-      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
-      (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
+      (await stakingAuRa.stakeAmount.call(initialPoolIds[1], '0x0000000000000000000000000000000000000000')).should.be.bignumber.equal(new BN(0));
+      (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialPoolIds[1], '0x0000000000000000000000000000000000000000')).should.be.bignumber.equal(new BN(0));
+      (await stakingAuRa.stakeAmount.call(initialPoolIds[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
+      (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialPoolIds[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
       await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
-      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], '0x0000000000000000000000000000000000000000')).should.be.bignumber.equal(mintAmount);
-      (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialStakingAddresses[1], '0x0000000000000000000000000000000000000000')).should.be.bignumber.equal(mintAmount);
+      (await stakingAuRa.stakeAmount.call(initialPoolIds[1], '0x0000000000000000000000000000000000000000')).should.be.bignumber.equal(mintAmount);
+      (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialPoolIds[1], '0x0000000000000000000000000000000000000000')).should.be.bignumber.equal(mintAmount);
       (await erc677Token.balanceOf.call(initialStakingAddresses[1])).should.be.bignumber.equal(new BN(0));
 
       await stakingAuRa.stake(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
-      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(mintAmount);
-      (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(mintAmount);
-      (await stakingAuRa.stakeAmountTotal.call(initialStakingAddresses[1])).should.be.bignumber.equal(mintAmount.mul(new BN(2)));
+      (await stakingAuRa.stakeAmount.call(initialPoolIds[1], delegatorAddress)).should.be.bignumber.equal(mintAmount);
+      (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialPoolIds[1], delegatorAddress)).should.be.bignumber.equal(mintAmount);
+      (await stakingAuRa.stakeAmountTotal.call(initialPoolIds[1])).should.be.bignumber.equal(mintAmount.mul(new BN(2)));
       (await erc677Token.balanceOf.call(delegatorAddress)).should.be.bignumber.equal(new BN(0));
 
       const result = await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.fulfilled;
@@ -2873,9 +2896,9 @@ contract('StakingAuRa', async accounts => {
       result.logs[0].args.staker.should.be.equal(delegatorAddress);
       result.logs[0].args.stakingEpoch.should.be.bignumber.equal(new BN(0));
       result.logs[0].args.amount.should.be.bignumber.equal(mintAmount);
-      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
-      (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
-      (await stakingAuRa.stakeAmountTotal.call(initialStakingAddresses[1])).should.be.bignumber.equal(mintAmount);
+      (await stakingAuRa.stakeAmount.call(initialPoolIds[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
+      (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialPoolIds[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
+      (await stakingAuRa.stakeAmountTotal.call(initialPoolIds[1])).should.be.bignumber.equal(mintAmount);
       (await erc677Token.balanceOf.call(delegatorAddress)).should.be.bignumber.equal(mintAmount);
     });
     it('should fail for zero gas price', async () => {
@@ -2943,15 +2966,16 @@ contract('StakingAuRa', async accounts => {
       const one = new BN(1);
       const initialStake = mintAmount.sub(one);
       const stakingAddress = initialStakingAddresses[1];
+      const poolId = initialPoolIds[1];
       await stakingAuRa.stake(stakingAddress, initialStake, { from: stakingAddress }).should.be.fulfilled;
-      await stakingAuRa.setInitialStake(stakingAddress, initialStake).should.be.fulfilled;
+      await stakingAuRa.setInitialStake(poolId, initialStake).should.be.fulfilled;
       await stakingAuRa.stake(stakingAddress, one, { from: stakingAddress }).should.be.fulfilled;
-      (await stakingAuRa.stakeAmount.call(stakingAddress, '0x0000000000000000000000000000000000000000')).should.be.bignumber.equal(mintAmount);
+      (await stakingAuRa.stakeAmount.call(poolId, '0x0000000000000000000000000000000000000000')).should.be.bignumber.equal(mintAmount);
       await stakingAuRa.withdraw(stakingAddress, one, { from: stakingAddress }).should.be.fulfilled;
-      (await stakingAuRa.stakeAmount.call(stakingAddress, '0x0000000000000000000000000000000000000000')).should.be.bignumber.equal(initialStake);
+      (await stakingAuRa.stakeAmount.call(poolId, '0x0000000000000000000000000000000000000000')).should.be.bignumber.equal(initialStake);
       await stakingAuRa.withdraw(stakingAddress, one, { from: stakingAddress }).should.be.rejectedWith(ERROR_MSG);
       await stakingAuRa.withdraw(stakingAddress, initialStake, { from: stakingAddress }).should.be.rejectedWith(ERROR_MSG);
-      await stakingAuRa.setInitialStake(stakingAddress, zero).should.be.fulfilled;
+      await stakingAuRa.setInitialStake(poolId, zero).should.be.fulfilled;
       await stakingAuRa.withdraw(stakingAddress, initialStake, { from: stakingAddress }).should.be.fulfilled;
     });
     it('should fail if withdraw already ordered amount', async () => {
@@ -2991,7 +3015,7 @@ contract('StakingAuRa', async accounts => {
       (await validatorSetAuRa.isValidator.call(initialValidators[1])).should.be.equal(true);
       (await stakingAuRa.getPoolsInactive.call()).length.should.be.equal(0);
       await stakingAuRa.removeMyPool({from: initialStakingAddresses[1]}).should.be.fulfilled;
-      (await stakingAuRa.getPoolsInactive.call()).should.be.deep.equal([initialStakingAddresses[1]]);
+      (await stakingAuRa.getPoolsInactive.call()).should.be.deep.equal([initialPoolIds[1]]);
 
       // Change staking epoch and enqueue pending validators
       await stakingAuRa.setCurrentBlockNumber(120954*2).should.be.fulfilled;
@@ -3010,17 +3034,17 @@ contract('StakingAuRa', async accounts => {
 
       // Check withdrawal for a delegator
       const restOfAmount = mintAmount.mul(new BN(3)).div(new BN(4));
-      (await stakingAuRa.poolDelegators.call(initialStakingAddresses[1])).should.be.deep.equal([delegatorAddress]);
-      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(restOfAmount);
-      (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
+      (await stakingAuRa.poolDelegators.call(initialPoolIds[1])).should.be.deep.equal([delegatorAddress]);
+      (await stakingAuRa.stakeAmount.call(initialPoolIds[1], delegatorAddress)).should.be.bignumber.equal(restOfAmount);
+      (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialPoolIds[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
       await stakingAuRa.withdraw(initialStakingAddresses[1], mintAmount, {from: delegatorAddress}).should.be.rejectedWith(ERROR_MSG);
       await stakingAuRa.withdraw(initialStakingAddresses[1], restOfAmount.add(new BN(1)), {from: delegatorAddress}).should.be.rejectedWith(ERROR_MSG);
       await stakingAuRa.withdraw(initialStakingAddresses[1], restOfAmount, {from: delegatorAddress}).should.be.fulfilled;
-      (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
-      (await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
-      (await stakingAuRa.orderedWithdrawAmount.call(initialStakingAddresses[1], delegatorAddress)).should.be.bignumber.equal(orderedAmount);
-      (await stakingAuRa.poolDelegators.call(initialStakingAddresses[1])).length.should.be.equal(0);
-      (await stakingAuRa.poolDelegatorsInactive.call(initialStakingAddresses[1])).should.be.deep.equal([delegatorAddress]);
+      (await stakingAuRa.stakeAmountByCurrentEpoch.call(initialPoolIds[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
+      (await stakingAuRa.stakeAmount.call(initialPoolIds[1], delegatorAddress)).should.be.bignumber.equal(new BN(0));
+      (await stakingAuRa.orderedWithdrawAmount.call(initialPoolIds[1], delegatorAddress)).should.be.bignumber.equal(orderedAmount);
+      (await stakingAuRa.poolDelegators.call(initialPoolIds[1])).length.should.be.equal(0);
+      (await stakingAuRa.poolDelegatorsInactive.call(initialPoolIds[1])).should.be.deep.equal([delegatorAddress]);
     });
     it('should decrease likelihood', async () => {
       let likelihoodInfo = await stakingAuRa.getPoolsLikelihood.call();
@@ -3081,6 +3105,14 @@ contract('StakingAuRa', async accounts => {
     await randomAuRa.setCurrentBlockNumber(blockNumber).should.be.fulfilled;
     await stakingAuRa.setCurrentBlockNumber(blockNumber).should.be.fulfilled;
     await validatorSetAuRa.setCurrentBlockNumber(blockNumber).should.be.fulfilled;
+  }
+
+  Array.prototype.bignumbersEqual = function(arr) {
+    let arr1 = [...this];
+    arr1 = arr1.map(item => (new BN(item)).toString())
+    let arr2 = [...arr];
+    arr2 = arr2.map(item => (new BN(item)).toString());
+    arr1.should.be.deep.equal(arr2);
   }
 });
 

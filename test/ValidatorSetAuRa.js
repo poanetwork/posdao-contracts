@@ -37,6 +37,7 @@ contract('ValidatorSetAuRa', async accounts => {
 
   describe('clearUnremovableValidator()', async () => {
     let initialStakingAddresses;
+    let initialPoolIds;
 
     beforeEach(async () => {
       const initialValidators = accounts.slice(1, 3 + 1); // accounts[1...3]
@@ -50,18 +51,22 @@ contract('ValidatorSetAuRa', async accounts => {
         initialStakingAddresses, // _initialStakingAddresses
         true // _firstValidatorIsUnremovable
       ).should.be.fulfilled;
+      initialPoolIds = [];
+      for (let i = 0; i < initialValidators.length; i++) {
+        initialPoolIds.push(await validatorSetAuRa.idByMiningAddress.call(initialValidators[i]));
+      }
       await stakingAuRa.setValidatorSetAddress(validatorSetAuRa.address).should.be.fulfilled;
-      (await validatorSetAuRa.unremovableValidator.call()).should.be.equal(initialStakingAddresses[0]);
+      (await validatorSetAuRa.unremovableValidator.call()).should.be.equal(initialPoolIds[0]);
       initialStakingAddresses[0].should.not.be.equal('0x0000000000000000000000000000000000000000');
       await validatorSetAuRa.setCurrentBlockNumber(100);
     });
     it('should make a non-removable validator removable', async () => {
       await validatorSetAuRa.clearUnremovableValidator({from: initialStakingAddresses[0]}).should.be.fulfilled;
-      (await validatorSetAuRa.unremovableValidator.call()).should.be.equal('0x0000000000000000000000000000000000000000');
+      (await validatorSetAuRa.unremovableValidator.call()).should.be.equal('0');
     });
     it('cannot be called more than once', async () => {
       await validatorSetAuRa.clearUnremovableValidator({from: initialStakingAddresses[0]}).should.be.fulfilled;
-      (await validatorSetAuRa.unremovableValidator.call()).should.be.equal('0x0000000000000000000000000000000000000000');
+      (await validatorSetAuRa.unremovableValidator.call()).should.be.equal('0');
       await validatorSetAuRa.clearUnremovableValidator({from: initialStakingAddresses[0]}).should.be.rejectedWith(ERROR_MSG);
     });
     it('can be called by an owner', async () => {
@@ -74,7 +79,7 @@ contract('ValidatorSetAuRa', async accounts => {
       await stakingAuRa.setValidatorSetAddress('0x0000000000000000000000000000000000000000').should.be.fulfilled;
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
-        initialStakingAddresses, // _initialStakingAddresses
+        initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
@@ -110,14 +115,14 @@ contract('ValidatorSetAuRa', async accounts => {
       await validatorSetAuRa.clearUnremovableValidator({from: initialStakingAddresses[0]}).should.be.fulfilled;
 
       (await stakingAuRa.getPoolsToBeElected.call()).should.be.deep.equal([
-        initialStakingAddresses[0]
+        initialPoolIds[0]
       ]);
     });
     it('should add validator pool to the poolsToBeRemoved list', async () => {
       await stakingAuRa.setValidatorSetAddress('0x0000000000000000000000000000000000000000').should.be.fulfilled;
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
-        initialStakingAddresses, // _initialStakingAddresses
+        initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
@@ -125,14 +130,14 @@ contract('ValidatorSetAuRa', async accounts => {
         4320 // _stakeWithdrawDisallowPeriod
       ).should.be.fulfilled;
       (await stakingAuRa.getPoolsToBeRemoved.call()).should.be.deep.equal([
-        initialStakingAddresses[1],
-        initialStakingAddresses[2]
+        initialPoolIds[1],
+        initialPoolIds[2]
       ]);
       await validatorSetAuRa.clearUnremovableValidator({from: initialStakingAddresses[0]}).should.be.fulfilled;
       (await stakingAuRa.getPoolsToBeRemoved.call()).should.be.deep.equal([
-        initialStakingAddresses[1],
-        initialStakingAddresses[2],
-        initialStakingAddresses[0]
+        initialPoolIds[1],
+        initialPoolIds[2],
+        initialPoolIds[0]
       ]);
     });
   });
@@ -140,6 +145,7 @@ contract('ValidatorSetAuRa', async accounts => {
   describe('emitInitiateChange()', async () => {
     let initialValidators;
     let initialStakingAddresses;
+    let initialPoolIds;
     let randomAuRa;
 
     beforeEach(async () => {
@@ -159,10 +165,14 @@ contract('ValidatorSetAuRa', async accounts => {
         initialStakingAddresses, // _initialStakingAddresses
         false // _firstValidatorIsUnremovable
       ).should.be.fulfilled;
+      initialPoolIds = [];
+      for (let i = 0; i < initialValidators.length; i++) {
+        initialPoolIds.push(await validatorSetAuRa.idByMiningAddress.call(initialValidators[i]));
+      }
       await stakingAuRa.setCurrentBlockNumber(0).should.be.fulfilled;
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
-        initialStakingAddresses, // _initialStakingAddresses
+        initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
@@ -273,9 +283,7 @@ contract('ValidatorSetAuRa', async accounts => {
       false.should.be.equal(
         await validatorSetAuRa.isValidator.call('0x0000000000000000000000000000000000000000')
       );
-      (await validatorSetAuRa.unremovableValidator.call()).should.be.equal(
-        '0x0000000000000000000000000000000000000000'
-      );
+      (await validatorSetAuRa.unremovableValidator.call()).should.be.equal('0');
       new BN(0).should.be.bignumber.equal(
         await validatorSetAuRa.validatorSetApplyBlock.call()
       );
@@ -289,7 +297,8 @@ contract('ValidatorSetAuRa', async accounts => {
         initialStakingAddresses, // _initialStakingAddresses
         true // _firstValidatorIsUnremovable
       ).should.be.fulfilled;
-      initialStakingAddresses[0].should.be.equal(
+      const poolId = await validatorSetAuRa.idByStakingAddress.call(initialStakingAddresses[0]);
+      poolId.should.be.equal(
         await validatorSetAuRa.unremovableValidator.call()
       );
     });
@@ -400,6 +409,7 @@ contract('ValidatorSetAuRa', async accounts => {
   describe('newValidatorSet()', async () => {
     let initialValidators;
     let initialStakingAddresses;
+    let initialPoolIds;
     let randomAuRa;
 
     beforeEach(async () => {
@@ -419,10 +429,14 @@ contract('ValidatorSetAuRa', async accounts => {
         initialStakingAddresses, // _initialStakingAddresses
         false // _firstValidatorIsUnremovable
       ).should.be.fulfilled;
+      initialPoolIds = [];
+      for (let i = 0; i < initialValidators.length; i++) {
+        initialPoolIds.push(await validatorSetAuRa.idByMiningAddress.call(initialValidators[i]));
+      }
       await stakingAuRa.setCurrentBlockNumber(0).should.be.fulfilled;
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
-        initialStakingAddresses, // _initialStakingAddresses
+        initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
@@ -512,7 +526,7 @@ contract('ValidatorSetAuRa', async accounts => {
       await stakingAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
       await validatorSetAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
       await stakingAuRa.stake(initialStakingAddresses[0], stakeAmount, {from: initialStakingAddresses[0]}).should.be.fulfilled;
-      stakeAmount.should.be.bignumber.equal(await stakingAuRa.stakeAmount.call(initialStakingAddresses[0], '0x0000000000000000000000000000000000000000'));
+      stakeAmount.should.be.bignumber.equal(await stakingAuRa.stakeAmount.call(initialPoolIds[0], '0x0000000000000000000000000000000000000000'));
 
       // Emulate calling `newValidatorSet()` at the last block of staking epoch
       await stakingAuRa.setCurrentBlockNumber(120954).should.be.fulfilled;
@@ -541,11 +555,14 @@ contract('ValidatorSetAuRa', async accounts => {
         initialStakingAddresses, // _initialStakingAddresses
         true // _firstValidatorIsUnremovable
       ).should.be.fulfilled;
-
+      initialPoolIds = [];
+      for (let i = 0; i < initialValidators.length; i++) {
+        initialPoolIds.push(await validatorSetAuRa.idByMiningAddress.call(initialValidators[i]));
+      }
       await stakingAuRa.setCurrentBlockNumber(0).should.be.fulfilled;
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
-        initialStakingAddresses, // _initialStakingAddresses
+        initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
@@ -579,7 +596,7 @@ contract('ValidatorSetAuRa', async accounts => {
       await stakingAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
       await validatorSetAuRa.setCurrentBlockNumber(100).should.be.fulfilled;
       await stakingAuRa.stake(initialStakingAddresses[1], stakeAmount, {from: initialStakingAddresses[1]}).should.be.fulfilled;
-      stakeAmount.should.be.bignumber.equal(await stakingAuRa.stakeAmount.call(initialStakingAddresses[1], '0x0000000000000000000000000000000000000000'));
+      stakeAmount.should.be.bignumber.equal(await stakingAuRa.stakeAmount.call(initialPoolIds[1], '0x0000000000000000000000000000000000000000'));
 
       // Emulate calling `newValidatorSet()` at the last block of staking epoch
       await stakingAuRa.setCurrentBlockNumber(120954).should.be.fulfilled;
@@ -588,8 +605,8 @@ contract('ValidatorSetAuRa', async accounts => {
       await validatorSetAuRa.newValidatorSet({from: accounts[4]}).should.be.fulfilled;
 
       // Check the returned value of `getPendingValidators()`
-      const unremovableStakingAddress = await validatorSetAuRa.unremovableValidator.call();
-      const unremovableMiningAddress = await validatorSetAuRa.miningByStakingAddress.call(unremovableStakingAddress);
+      const unremovablePoolId = await validatorSetAuRa.unremovableValidator.call();
+      const unremovableMiningAddress = await validatorSetAuRa.miningAddressById.call(unremovablePoolId);
       (await validatorSetAuRa.getPendingValidators.call()).should.be.deep.equal([
         unremovableMiningAddress,
         initialValidators[1]
@@ -597,8 +614,8 @@ contract('ValidatorSetAuRa', async accounts => {
 
       // Check the current active pools
       (await stakingAuRa.getPools.call()).should.be.deep.equal([
-        unremovableStakingAddress,
-        initialStakingAddresses[1]
+        unremovablePoolId,
+        initialPoolIds[1]
       ]);
     });
     it('should choose validators randomly', async () => {
@@ -643,14 +660,17 @@ contract('ValidatorSetAuRa', async accounts => {
       // Emulate staking by the candidates into their own pool
       await stakingAuRa.setCurrentBlockNumber(30).should.be.fulfilled;
       await validatorSetAuRa.setCurrentBlockNumber(30).should.be.fulfilled;
+      const poolIds = [];
       for (let i = 0; i < stakingAddresses.length; i++) {
         const stakeAmount = stakeUnit.mul(new BN(i + 1));
         await stakingAuRa.addPool(stakeAmount, miningAddresses[i], {from: stakingAddresses[i]}).should.be.fulfilled;
-        stakeAmount.should.be.bignumber.equal(await stakingAuRa.stakeAmount.call(stakingAddresses[i], '0x0000000000000000000000000000000000000000'));
+        const poolId = await validatorSetAuRa.idByStakingAddress.call(stakingAddresses[i]);
+        stakeAmount.should.be.bignumber.equal(await stakingAuRa.stakeAmount.call(poolId, '0x0000000000000000000000000000000000000000'));
+        poolIds.push(poolId);
       }
 
       // Check pools of the new candidates
-      (await stakingAuRa.getPoolsToBeElected.call()).should.be.deep.equal(stakingAddresses);
+      (await stakingAuRa.getPoolsToBeElected.call()).should.be.deep.equal(poolIds);
       const poolsLikelihood = await stakingAuRa.getPoolsLikelihood.call();
       let likelihoodSum = new BN(0);
       for (let i = 0; i < stakingAddresses.length; i++) {
@@ -716,11 +736,14 @@ contract('ValidatorSetAuRa', async accounts => {
         initialStakingAddresses, // _initialStakingAddresses
         true // _firstValidatorIsUnremovable
       ).should.be.fulfilled;
-
+      initialPoolIds = [];
+      for (let i = 0; i < initialValidators.length; i++) {
+        initialPoolIds.push(await validatorSetAuRa.idByMiningAddress.call(initialValidators[i]));
+      }
       await stakingAuRa.setCurrentBlockNumber(0).should.be.fulfilled;
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
-        initialStakingAddresses, // _initialStakingAddresses
+        initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
         120954, // _stakingEpochDuration
@@ -771,14 +794,17 @@ contract('ValidatorSetAuRa', async accounts => {
       (await stakingAuRa.getPoolsToBeElected.call()).length.should.be.equal(0);
       await stakingAuRa.setCurrentBlockNumber(30).should.be.fulfilled;
       await validatorSetAuRa.setCurrentBlockNumber(30).should.be.fulfilled;
+      const poolIds = [];
       for (let i = 0; i < stakingAddresses.length; i++) {
         const stakeAmount = stakeUnit.mul(new BN(i + 1));
         await stakingAuRa.addPool(stakeAmount, miningAddresses[i], {from: stakingAddresses[i]}).should.be.fulfilled;
-        stakeAmount.should.be.bignumber.equal(await stakingAuRa.stakeAmount.call(stakingAddresses[i], '0x0000000000000000000000000000000000000000'));
+        const poolId = await validatorSetAuRa.idByStakingAddress.call(stakingAddresses[i]);
+        stakeAmount.should.be.bignumber.equal(await stakingAuRa.stakeAmount.call(poolId, '0x0000000000000000000000000000000000000000'));
+        poolIds.push(poolId);
       }
 
       // Check pools of the new candidates
-      (await stakingAuRa.getPoolsToBeElected.call()).should.be.deep.equal(stakingAddresses);
+      (await stakingAuRa.getPoolsToBeElected.call()).should.be.deep.equal(poolIds);
       const poolsLikelihood = await stakingAuRa.getPoolsLikelihood.call();
       let likelihoodSum = new BN(0);
       for (let i = 0; i < stakingAddresses.length; i++) {

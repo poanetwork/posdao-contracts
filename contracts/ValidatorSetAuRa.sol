@@ -364,9 +364,8 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         uint256 _blockNumber,
         bytes calldata
     ) external onlyInitialized {
-        revert("Temporarily disabled");
+        //revert("Temporarily disabled");
 
-        /*
         address reportingMiningAddress = msg.sender;
         uint256 reportingId = idByMiningAddress[reportingMiningAddress];
         uint256 maliciousId = idByMiningAddress[_maliciousMiningAddress];
@@ -415,7 +414,6 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
             miningAddresses[0] = _maliciousMiningAddress;
             _removeMaliciousValidators(miningAddresses, "malicious");
         }
-        */
     }
 
     /// @dev Binds a mining address to the specified staking address and vice versa,
@@ -955,7 +953,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// @param _stakingAddress The staking address of the newly created pool. Cannot be equal to the `_miningAddress`
     /// and should never be used as a pool or delegator before.
     function _addPool(address _miningAddress, address _stakingAddress) internal returns(uint256) {
-        require(_getCurrentBlockNumber() == 0, "Temporarily disabled");
+        //require(_getCurrentBlockNumber() == 0, "Temporarily disabled");
 
         require(_miningAddress != address(0));
         require(_stakingAddress != address(0));
