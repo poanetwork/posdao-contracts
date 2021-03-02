@@ -22,6 +22,10 @@ contract ValidatorSetAuRaMock is ValidatorSetAuRa {
         _setPendingValidatorsChanged(true);
     }
 
+    function incrementLastPoolId() public {
+        lastPoolId++;
+    }
+
     function setBannedUntil(address _stakingAddress, uint256 _until) public {
         uint256 poolId = idByStakingAddress[_stakingAddress];
         _bannedUntil[poolId] = _until;

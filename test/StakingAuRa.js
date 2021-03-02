@@ -257,7 +257,10 @@ contract('StakingAuRa', async accounts => {
           const poolId = ++lastPoolId;
           await stakingAuRa.addPoolActiveMock(poolId).should.be.fulfilled;
           new BN(p).should.be.bignumber.equal(await stakingAuRa.poolIndex.call(poolId));
+          await validatorSetAuRa.incrementLastPoolId();
         }
+
+        new BN(lastPoolId).should.be.bignumber.equal(await validatorSetAuRa.lastPoolId.call());
 
         // Try to add a new pool outside of max limit
         const poolId = ++lastPoolId;
@@ -268,7 +271,7 @@ contract('StakingAuRa', async accounts => {
         let lastPoolId = await validatorSetAuRa.lastPoolId.call();
         const candidatePoolId = ++lastPoolId;
         await stakingAuRa.addPoolInactiveMock(candidatePoolId).should.be.fulfilled;
-        (await stakingAuRa.getPoolsInactive.call()).should.be.deep.equal([candidatePoolId]);
+        (await stakingAuRa.getPoolsInactive.call()).bignumbersEqual([candidatePoolId]);
         await addPool(stakeUnit.mul(new BN(1)), candidateMiningAddress, {from: candidateStakingAddress}).should.be.fulfilled;
         true.should.be.equal(await stakingAuRa.isPoolActive.call(candidatePoolId));
         (await stakingAuRa.getPoolsInactive.call()).length.should.be.equal(0);
