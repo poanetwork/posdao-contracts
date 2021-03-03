@@ -500,7 +500,7 @@ contract('StakingAuRa', async accounts => {
         }
 
         // Emulate snapshotting for the pool
-        await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, epoch + 1, miningAddress).should.be.fulfilled;
+        await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, epoch + 1, poolId).should.be.fulfilled;
       }
 
       const lastEpochRewarded = epochsPoolRewarded[epochsPoolRewarded.length - 1];
@@ -725,7 +725,7 @@ contract('StakingAuRa', async accounts => {
         const stakingEpoch = epochsPoolRewarded[i];
 
         // Emulate snapshotting for the pool
-        await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch, miningAddress).should.be.fulfilled;
+        await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch, poolId).should.be.fulfilled;
 
         // Emulate rewards for the pool
         await blockRewardAuRa.setEpochPoolReward(stakingEpoch, miningAddress, epochPoolReward, {value: epochPoolReward}).should.be.fulfilled;
@@ -823,12 +823,12 @@ contract('StakingAuRa', async accounts => {
 
       // Emulate snapshotting and rewards for the pool on the epoch #9
       let stakingEpoch = 9;
-      await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch, miningAddress).should.be.fulfilled;
+      await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch, poolId).should.be.fulfilled;
       await blockRewardAuRa.setEpochPoolReward(stakingEpoch, miningAddress, epochPoolReward, {value: epochPoolReward}).should.be.fulfilled;
       unclaimedReward = unclaimedReward.add(epochPoolReward);
       (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(blockRewardInitialBalance.add(epochPoolReward));
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(epochPoolReward);
-      await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, miningAddress).should.be.fulfilled;
+      await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, poolId).should.be.fulfilled;
 
       // Emulate the delegator's first stake on epoch #10
       stakingEpoch = 10;
@@ -843,7 +843,7 @@ contract('StakingAuRa', async accounts => {
       unclaimedReward = unclaimedReward.add(epochPoolReward);
       (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(blockRewardInitialBalance.add(epochPoolReward.mul(new BN(2))));
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(epochPoolReward.mul(new BN(2)));
-      await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, miningAddress).should.be.fulfilled;
+      await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, poolId).should.be.fulfilled;
 
       // Emulate rewards for the pool on epoch #11
       stakingEpoch = 11;
@@ -851,7 +851,7 @@ contract('StakingAuRa', async accounts => {
       unclaimedReward = unclaimedReward.add(epochPoolReward);
       (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(blockRewardInitialBalance.add(epochPoolReward.mul(new BN(3))));
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(epochPoolReward.mul(new BN(3)));
-      await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, miningAddress).should.be.fulfilled;
+      await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, poolId).should.be.fulfilled;
 
       await stakingAuRa.setStakingEpoch(12).should.be.fulfilled;
 
@@ -918,12 +918,12 @@ contract('StakingAuRa', async accounts => {
 
       // Emulate snapshotting and rewards for the pool on the epoch #9
       let stakingEpoch = 9;
-      await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch, miningAddress).should.be.fulfilled;
+      await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch, poolId).should.be.fulfilled;
       await blockRewardAuRa.setEpochPoolReward(stakingEpoch, miningAddress, epochPoolReward, {value: epochPoolReward}).should.be.fulfilled;
       unclaimedReward = unclaimedReward.add(epochPoolReward);
       (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(blockRewardInitialBalance.add(epochPoolReward));
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(epochPoolReward);
-      await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, miningAddress).should.be.fulfilled;
+      await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, poolId).should.be.fulfilled;
 
       // Emulate the delegator's first stake and withdrawal on epoch #10
       stakingEpoch = 10;
@@ -939,7 +939,7 @@ contract('StakingAuRa', async accounts => {
       unclaimedReward = unclaimedReward.add(epochPoolReward);
       (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(blockRewardInitialBalance.add(epochPoolReward.mul(new BN(2))));
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(epochPoolReward.mul(new BN(2)));
-      await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, miningAddress).should.be.fulfilled;
+      await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, poolId).should.be.fulfilled;
 
       // Emulate rewards for the pool on epoch #11
       stakingEpoch = 11;
@@ -947,7 +947,7 @@ contract('StakingAuRa', async accounts => {
       unclaimedReward = unclaimedReward.add(epochPoolReward);
       (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(blockRewardInitialBalance.add(epochPoolReward.mul(new BN(3))));
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(epochPoolReward.mul(new BN(3)));
-      await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, miningAddress).should.be.fulfilled;
+      await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, poolId).should.be.fulfilled;
 
       await stakingAuRa.setStakingEpoch(12).should.be.fulfilled;
 
@@ -999,6 +999,7 @@ contract('StakingAuRa', async accounts => {
     it('non-rewarded epochs are passed', async () => {
       const miningAddress = initialValidators[0];
       const stakingAddress = initialStakingAddresses[0];
+      const poolId = initialPoolIds[0];
       const epochPoolReward = new BN(web3.utils.toWei('1', 'ether'));
 
       (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(new BN(0));
@@ -1009,7 +1010,7 @@ contract('StakingAuRa', async accounts => {
         const stakingEpoch = epochsPoolRewarded[i];
 
         // Emulate snapshotting for the pool
-        await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch, miningAddress).should.be.fulfilled;
+        await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch, poolId).should.be.fulfilled;
 
         // Emulate rewards for the pool
         await blockRewardAuRa.setEpochPoolReward(stakingEpoch, miningAddress, epochPoolReward, {value: epochPoolReward}).should.be.fulfilled;
@@ -1152,6 +1153,7 @@ contract('StakingAuRa', async accounts => {
     it('stake is withdrawn forever', async () => {
       const miningAddress = initialValidators[0];
       const stakingAddress = initialStakingAddresses[0];
+      const poolId = initialPoolIds[0];
       const epochPoolReward = new BN(web3.utils.toWei('1', 'ether'));
 
       (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(new BN(0));
@@ -1161,11 +1163,11 @@ contract('StakingAuRa', async accounts => {
 
       // Emulate snapshotting and rewards for the pool
       stakingEpoch = 9;
-      await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch, miningAddress).should.be.fulfilled;
+      await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch, poolId).should.be.fulfilled;
       await blockRewardAuRa.setEpochPoolReward(stakingEpoch, miningAddress, epochPoolReward, {value: epochPoolReward}).should.be.fulfilled;
       (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward);
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(epochPoolReward);
-      await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, miningAddress).should.be.fulfilled;
+      await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, poolId).should.be.fulfilled;
 
       // Emulate delegator's stake withdrawal
       stakingEpoch = 10;
@@ -1179,14 +1181,14 @@ contract('StakingAuRa', async accounts => {
       await blockRewardAuRa.setEpochPoolReward(stakingEpoch, miningAddress, epochPoolReward, {value: epochPoolReward}).should.be.fulfilled;
       (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward.mul(new BN(2)));
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(epochPoolReward.mul(new BN(2)));
-      await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, miningAddress).should.be.fulfilled;
+      await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, poolId).should.be.fulfilled;
 
       // Emulate rewards for the pool
       stakingEpoch = 11;
       await blockRewardAuRa.setEpochPoolReward(stakingEpoch, miningAddress, epochPoolReward, {value: epochPoolReward}).should.be.fulfilled;
       (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward.mul(new BN(3)));
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(epochPoolReward.mul(new BN(3)));
-      await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, miningAddress).should.be.fulfilled;
+      await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, poolId).should.be.fulfilled;
 
       await stakingAuRa.setStakingEpoch(12).should.be.fulfilled;
 
@@ -1229,6 +1231,7 @@ contract('StakingAuRa', async accounts => {
     it('stake is withdrawn forever', async () => {
       const miningAddress = initialValidators[0];
       const stakingAddress = initialStakingAddresses[0];
+      const poolId = initialPoolIds[0];
       const epochPoolReward = new BN(web3.utils.toWei('1', 'ether'));
 
       (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(new BN(0));
@@ -1238,11 +1241,11 @@ contract('StakingAuRa', async accounts => {
 
       // Emulate snapshotting and rewards for the pool
       stakingEpoch = 9;
-      await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch, miningAddress).should.be.fulfilled;
+      await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch, poolId).should.be.fulfilled;
       await blockRewardAuRa.setEpochPoolReward(stakingEpoch, miningAddress, epochPoolReward, {value: epochPoolReward}).should.be.fulfilled;
       (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward);
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(epochPoolReward);
-      await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, miningAddress).should.be.fulfilled;
+      await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, poolId).should.be.fulfilled;
 
       // Emulate delegator's stake withdrawal
       stakingEpoch = 10;
@@ -1256,14 +1259,14 @@ contract('StakingAuRa', async accounts => {
       await blockRewardAuRa.setEpochPoolReward(stakingEpoch, miningAddress, epochPoolReward, {value: epochPoolReward}).should.be.fulfilled;
       (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward.mul(new BN(2)));
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(epochPoolReward.mul(new BN(2)));
-      await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, miningAddress).should.be.fulfilled;
+      await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, poolId).should.be.fulfilled;
 
       // Emulate rewards for the pool
       stakingEpoch = 11;
       await blockRewardAuRa.setEpochPoolReward(stakingEpoch, miningAddress, epochPoolReward, {value: epochPoolReward}).should.be.fulfilled;
       (await erc677Token.balanceOf.call(blockRewardAuRa.address)).should.be.bignumber.equal(epochPoolReward.mul(new BN(3)));
       (new BN(await web3.eth.getBalance(blockRewardAuRa.address))).should.be.bignumber.equal(epochPoolReward.mul(new BN(3)));
-      await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, miningAddress).should.be.fulfilled;
+      await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch + 1, poolId).should.be.fulfilled;
 
       await stakingAuRa.setStakingEpoch(12).should.be.fulfilled;
 
@@ -1288,7 +1291,7 @@ contract('StakingAuRa', async accounts => {
       const stakingEpoch = 2600;
 
       for (let i = 0; i < initialValidators.length; i++) {
-        await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch, initialValidators[i]);
+        await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, stakingEpoch, initialPoolIds[i]);
       }
 
       await stakingAuRa.setStakingEpoch(stakingEpoch).should.be.fulfilled;
@@ -1511,7 +1514,7 @@ contract('StakingAuRa', async accounts => {
 
       if (!!process.env.SOLIDITY_COVERAGE !== true) {
         const perEpochGasConsumption = endGasConsumption.sub(startGasConsumption).div(new BN(maxStakingEpoch - 2));
-        perEpochGasConsumption.should.be.bignumber.equal(new BN(509));
+        perEpochGasConsumption.should.be.bignumber.equal(new BN(500));
         // perEpochGasConsumption.should.be.bignumber.equal(new BN(1109)); // for Istanbul
 
         // Check gas consumption for the case when the delegator didn't touch their
@@ -1675,7 +1678,7 @@ contract('StakingAuRa', async accounts => {
       // console.log(`gasUsed = ${result.receipt.gasUsed}, cumulativeGasUsed = ${result.receipt.cumulativeGasUsed}`);
 
       if (!!process.env.SOLIDITY_COVERAGE !== true) {
-        result.receipt.gasUsed.should.be.below(1720000);
+        result.receipt.gasUsed.should.be.below(1730000);
         // result.receipt.gasUsed.should.be.below(2100000); // for Istanbul
       }
 
@@ -1820,7 +1823,7 @@ contract('StakingAuRa', async accounts => {
         await stakingAuRa.setStakingEpochStartBlock(120954 * nextStakingEpoch + 1).should.be.fulfilled;
         await stakingAuRa.setValidatorSetAddress(validatorSetAuRa.address).should.be.fulfilled;
         for (let i = 0; i < initialValidators.length; i++) {
-          await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, nextStakingEpoch, initialValidators[i]);
+          await blockRewardAuRa.snapshotPoolStakeAmounts(stakingAuRa.address, nextStakingEpoch, initialPoolIds[i]);
         }
       }
 
@@ -2192,8 +2195,8 @@ contract('StakingAuRa', async accounts => {
         4320 // _stakeWithdrawDisallowPeriod
       ).should.be.fulfilled;
     });
-    it('should fail if some staking address is 0', async () => {
-      initialStakingAddresses[0] = '0x0000000000000000000000000000000000000000';
+    it('should fail if some pool id is 0', async () => {
+      initialPoolIds[0] = 0;
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
         initialPoolIds, // _initialIds

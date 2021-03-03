@@ -185,7 +185,7 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
         uint256[] memory _stakingEpochs,
         address _poolStakingAddress,
         address _staker
-    ) public view returns(uint256, uint256) {
+    ) public view returns(uint256 tokenRewardSum, uint256 nativeRewardSum) {
         uint256 poolId = validatorSetContract.idByStakingAddress(_poolStakingAddress);
 
         require(_poolStakingAddress != address(0));
