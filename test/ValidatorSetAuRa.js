@@ -56,17 +56,17 @@ contract('ValidatorSetAuRa', async accounts => {
         initialPoolIds.push(await validatorSetAuRa.idByMiningAddress.call(initialValidators[i]));
       }
       await stakingAuRa.setValidatorSetAddress(validatorSetAuRa.address).should.be.fulfilled;
-      (await validatorSetAuRa.unremovableValidator.call()).should.be.equal(initialPoolIds[0]);
+      (await validatorSetAuRa.unremovableValidator.call()).should.be.bignumber.equal(initialPoolIds[0]);
       initialStakingAddresses[0].should.not.be.equal('0x0000000000000000000000000000000000000000');
       await validatorSetAuRa.setCurrentBlockNumber(100);
     });
     it('should make a non-removable validator removable', async () => {
       await validatorSetAuRa.clearUnremovableValidator({from: initialStakingAddresses[0]}).should.be.fulfilled;
-      (await validatorSetAuRa.unremovableValidator.call()).should.be.equal('0');
+      (await validatorSetAuRa.unremovableValidator.call()).should.be.bignumber.equal('0');
     });
     it('cannot be called more than once', async () => {
       await validatorSetAuRa.clearUnremovableValidator({from: initialStakingAddresses[0]}).should.be.fulfilled;
-      (await validatorSetAuRa.unremovableValidator.call()).should.be.equal('0');
+      (await validatorSetAuRa.unremovableValidator.call()).should.be.bignumber.equal('0');
       await validatorSetAuRa.clearUnremovableValidator({from: initialStakingAddresses[0]}).should.be.rejectedWith(ERROR_MSG);
     });
     it('can be called by an owner', async () => {
@@ -283,7 +283,7 @@ contract('ValidatorSetAuRa', async accounts => {
       false.should.be.equal(
         await validatorSetAuRa.isValidator.call('0x0000000000000000000000000000000000000000')
       );
-      (await validatorSetAuRa.unremovableValidator.call()).should.be.equal('0');
+      (await validatorSetAuRa.unremovableValidator.call()).should.be.bignumber.equal('0');
       new BN(0).should.be.bignumber.equal(
         await validatorSetAuRa.validatorSetApplyBlock.call()
       );
@@ -298,7 +298,7 @@ contract('ValidatorSetAuRa', async accounts => {
         true // _firstValidatorIsUnremovable
       ).should.be.fulfilled;
       const poolId = await validatorSetAuRa.idByStakingAddress.call(initialStakingAddresses[0]);
-      poolId.should.be.equal(
+      poolId.should.be.bignumber.equal(
         await validatorSetAuRa.unremovableValidator.call()
       );
     });

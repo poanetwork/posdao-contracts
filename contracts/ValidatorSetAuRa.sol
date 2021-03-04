@@ -197,8 +197,8 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         require(unremovableValidator != 0);
         address unremovableStakingAddress = stakingAddressById[unremovableValidator];
         require(msg.sender == unremovableStakingAddress || msg.sender == _admin());
-        unremovableValidator = 0;
         stakingContract.clearUnremovableValidator(unremovableValidator);
+        unremovableValidator = 0;
         lastChangeBlock = _getCurrentBlockNumber();
     }
 
