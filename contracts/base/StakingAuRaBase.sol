@@ -767,8 +767,8 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
     /// @param _staker The staker address that is going to order the withdrawal.
     function maxWithdrawOrderAllowed(address _poolStakingAddress, address _staker) public view returns(uint256) {
         uint256 poolId = validatorSetContract.idByStakingAddress(_poolStakingAddress);
-        address delegatorOrZero = (_staker != _poolStakingAddress) ? _staker : address(0);
         bool isDelegator = _poolStakingAddress != _staker;
+        address delegatorOrZero = isDelegator ? _staker : address(0);
 
         if (!_isWithdrawAllowed(poolId, isDelegator)) {
             return 0;
@@ -1160,7 +1160,7 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
             if (delegatorPoolsLength == 0) {
                 // If this is the first time the delegator stakes,
                 // make sure the delegator has never been a mining address
-                require(!validatorSetContract.hasEverBeenMiningAddress(_staker));
+                require(validatorSetContract.hasEverBeenMiningAddress(_staker) == 0);
             }
         }
 

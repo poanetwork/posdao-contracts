@@ -104,7 +104,8 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     uint256 public lastChangeBlock;
 
     /// @dev Designates whether the specified address has ever been a mining address.
-    mapping(address => bool) public hasEverBeenMiningAddress;
+    /// Returns pool id which has ever be bound to the specified mining address.
+    mapping(address => uint256) public hasEverBeenMiningAddress;
 
     /// @dev Designates whether the specified address has ever been a staking address.
     mapping(address => bool) public hasEverBeenStakingAddress;
@@ -128,6 +129,12 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// @dev Stores the last pool id used for a new pool creation.
     /// Increments each time a new pool is created by the `addPool` function.
     uint256 public lastPoolId;
+
+    struct MiningAddressChangeRequest {
+        uint256 poolId;
+        address newMiningAddress;
+    }
+    MiningAddressChangeRequest internal _miningAddressChangeRequest;
 
     // ============================================== Constants =======================================================
 
@@ -191,6 +198,17 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
 
     // =============================================== Setters ========================================================
 
+    // Temporary function (must be removed after upgradeToAndCall).
+    function migrateHasEverBeenMiningAddress() external {
+        require(msg.sender == _admin());
+        require(_currentValidators.length == 16);
+        for (uint256 i = 0; i < _currentValidators.length; i++) {
+            uint256 poolId = _currentValidators[i];
+            address miningAddress = miningAddressById[poolId];
+            hasEverBeenMiningAddress[miningAddress] = poolId;
+        }
+    }
+
     /// @dev Makes the non-removable validator removable. Can only be called by the staking address of the
     /// non-removable validator or by the `owner`.
     function clearUnremovableValidator() external onlyInitialized {
@@ -200,6 +218,58 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         stakingContract.clearUnremovableValidator(unremovableValidator);
         unremovableValidator = 0;
         lastChangeBlock = _getCurrentBlockNumber();
+    }
+
+    /// @dev Makes a request to change validator's mining address or changes the mining address of a candidate pool
+    /// immediately. Will fail if there is already another request. Must be called by pool's staking address.
+    /// @param _newMiningAddress The new mining address to set for the pool that called this function.
+    function changeMiningAddress(address _newMiningAddress) external onlyInitialized {
+        address stakingAddress = msg.sender;
+        address oldMiningAddress = miningByStakingAddress[stakingAddress];
+        uint256 poolId = idByStakingAddress[stakingAddress];
+        require(_newMiningAddress != address(0));
+        require(oldMiningAddress != address(0));
+        require(oldMiningAddress != _newMiningAddress);
+        require(poolId != 0);
+        require(_miningAddressChangeRequest.poolId == 0);
+
+        // Make sure that `_newMiningAddress` has never been a delegator before
+        require(stakingContract.getDelegatorPoolsLength(_newMiningAddress) == 0);
+
+        // Make sure that `_newMiningAddress` has never been a mining address before
+        require(hasEverBeenMiningAddress[_newMiningAddress] == 0);
+
+        // Make sure that `_newMiningAddress` has never been a staking address before
+        require(!hasEverBeenStakingAddress[_newMiningAddress]);
+
+        if (isValidatorById[poolId]) {
+            // Since the pool is a validator at the moment, we cannot change their
+            // mining address immediately. We create a request to change the address instead.
+            // The request will be applied by the `finalizeChange` function once the new
+            // validator set is applied.
+            require(initiateChangeAllowed());
+            require(!_pendingValidatorsChanged);
+            require(_getCurrentBlockNumber() < stakingContract.stakingEpochEndBlock().sub(MAX_VALIDATORS));
+
+            address[] memory newSet = getPendingValidators();
+            for (uint256 i = 0; i < newSet.length; i++) {
+                if (newSet[i] == oldMiningAddress) {
+                    newSet[i] = _newMiningAddress;
+                    break;
+                }
+            }
+
+            _finalizeValidators.list = _pendingValidators;
+            _miningAddressChangeRequest.poolId = poolId;
+            _miningAddressChangeRequest.newMiningAddress = _newMiningAddress;
+
+            emit InitiateChange(blockhash(_getCurrentBlockNumber() - 1), newSet);
+        } else {
+            // The pool is not a validator. It is a candidate,
+            // so we can change its mining address right now.
+            _changeMiningAddress(oldMiningAddress, _newMiningAddress, poolId, stakingAddress);
+            lastChangeBlock = _getCurrentBlockNumber();
+        }
     }
 
     /// @dev Emits the `InitiateChange` event to pass a new validator set to the validator nodes.
@@ -243,6 +313,17 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
             // This is the very first call of the `finalizeChange` (block #1 when starting from genesis)
             validatorSetApplyBlock = _getCurrentBlockNumber();
         }
+
+        // If there was a request from a validator to change their mining address
+        uint256 poolId = _miningAddressChangeRequest.poolId;
+        if (poolId != 0) {
+            address oldMiningAddress = miningAddressById[poolId];
+            address newMiningAddress = _miningAddressChangeRequest.newMiningAddress;
+            address stakingAddress = stakingAddressById[poolId];
+            _changeMiningAddress(oldMiningAddress, newMiningAddress, poolId, stakingAddress);
+        }
+        delete _miningAddressChangeRequest;
+
         delete _finalizeValidators; // since this moment the `emitInitiateChange` is allowed
         lastChangeBlock = _getCurrentBlockNumber();
     }
@@ -368,9 +449,9 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
 
         address reportingMiningAddress = msg.sender;
         uint256 reportingId = idByMiningAddress[reportingMiningAddress];
-        uint256 maliciousId = idByMiningAddress[_maliciousMiningAddress];
+        uint256 maliciousId = hasEverBeenMiningAddress[_maliciousMiningAddress];
 
-        if (isReportValidatorValid(reportingMiningAddress)) {
+        if (isReportValidatorValid(reportingMiningAddress, true)) {
             _incrementReportingCounter(reportingId);
         }
 
@@ -537,6 +618,12 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         return isValidatorById[idByMiningAddress[_miningAddress]];
     }
 
+    /// @dev See the description of isReportValidatorValid(address,bool) below.
+    /// Used for backward compatibility with the Certifier contract.
+    function isReportValidatorValid(address _miningAddress) public view returns(bool) {
+        return isReportValidatorValid(_miningAddress, true);
+    }
+
     /// @dev Returns a boolean flag indicating whether the specified validator (mining address)
     /// is able to call the `reportMalicious` function or whether the specified validator (mining address)
     /// can be reported as malicious. This function also allows a validator to call the `reportMalicious`
@@ -544,8 +631,15 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// validator did not have the opportunity to call the `reportMalicious` function prior to the
     /// engine calling the `finalizeChange` function.
     /// @param _miningAddress The validator's mining address.
-    function isReportValidatorValid(address _miningAddress) public view returns(bool) {
-        uint256 poolId = idByMiningAddress[_miningAddress];
+    /// @param _reportingValidator Set to true if _miningAddress belongs to reporting validator.
+    /// Set to false, if _miningAddress belongs to malicious validator.
+    function isReportValidatorValid(address _miningAddress, bool _reportingValidator) public view returns(bool) {
+        uint256 poolId;
+        if (_reportingValidator) {
+            poolId = idByMiningAddress[_miningAddress];
+        } else {
+            poolId = hasEverBeenMiningAddress[_miningAddress];
+        }
         bool isValid = isValidatorById[poolId] && !isValidatorIdBanned(poolId);
         if (stakingContract.stakingEpoch() == 0 || validatorSetApplyBlock == 0) {
             return isValid;
@@ -633,11 +727,11 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         address _maliciousMiningAddress,
         uint256 _blockNumber
     ) public view returns(bool callable, bool removeReportingValidator) {
-        if (!isReportValidatorValid(_reportingMiningAddress)) return (false, false);
-        if (!isReportValidatorValid(_maliciousMiningAddress)) return (false, false);
+        if (!isReportValidatorValid(_reportingMiningAddress, true)) return (false, false);
+        if (!isReportValidatorValid(_maliciousMiningAddress, false)) return (false, false);
 
         uint256 reportingId = idByMiningAddress[_reportingMiningAddress];
-        uint256 maliciousId = idByMiningAddress[_maliciousMiningAddress];
+        uint256 maliciousId = hasEverBeenMiningAddress[_maliciousMiningAddress];
         uint256 validatorsNumber = _currentValidators.length;
 
         if (validatorsNumber > 1) {
@@ -692,7 +786,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         if (currentBlock > 100 && currentBlock - 100 > _blockNumber) {
             return false;
         }
-        uint256 maliciousId = idByMiningAddress[_maliciousMiningAddress];
+        uint256 maliciousId = hasEverBeenMiningAddress[_maliciousMiningAddress];
         if (isValidatorIdBanned(maliciousId)) {
             // We shouldn't report of the malicious validator
             // as it has already been reported
@@ -726,13 +820,32 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
 
     // ============================================== Internal ========================================================
 
+    /// @dev Updates mappings to change mining address of a pool.
+    /// Used by the `changeMiningAddress` and `finalizeChange` functions.
+    /// @param _oldMiningAddress An old mining address of the pool.
+    /// @param _newMiningAddress A new mining address of the pool.
+    /// @param _poolId The pool id for which the mining address is being changed.
+    /// @param _stakingAddress The current staking address of the pool.
+    function _changeMiningAddress(address _oldMiningAddress, address _newMiningAddress, uint256 _poolId, address _stakingAddress) internal {
+        idByMiningAddress[_oldMiningAddress] = 0;
+        idByMiningAddress[_newMiningAddress] = _poolId;
+
+        miningAddressById[_poolId] = _newMiningAddress;
+        miningByStakingAddress[_stakingAddress] = _newMiningAddress;
+
+        stakingByMiningAddress[_oldMiningAddress] = address(0);
+        stakingByMiningAddress[_newMiningAddress] = _stakingAddress;
+
+        hasEverBeenMiningAddress[_newMiningAddress] = _poolId;
+    }
+
     /// @dev Updates the total reporting counter (see the `_reportingCounterTotal` mapping) for the current
     /// staking epoch after the specified validator is removed as malicious. The `reportMaliciousCallable` getter
     /// uses this counter for reporting checks so it must be up-to-date. Called by the `_removeMaliciousValidators`
     /// internal function.
     /// @param _miningAddress The mining address of the removed malicious validator.
     function _clearReportingCounter(address _miningAddress) internal {
-        uint256 poolId = idByMiningAddress[_miningAddress];
+        uint256 poolId = hasEverBeenMiningAddress[_miningAddress];
         uint256 currentStakingEpoch = stakingContract.stakingEpoch();
         uint256 total = _reportingCounterTotal[currentStakingEpoch];
         uint256 counter = _reportingCounter[poolId][currentStakingEpoch];
@@ -813,7 +926,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// @return Returns `true` if the specified validator has been removed from the pending validator set.
     /// Otherwise returns `false` (if the specified validator has already been removed or cannot be removed).
     function _removeMaliciousValidator(address _miningAddress, bytes32 _reason) internal returns(bool) {
-        uint256 poolId = idByMiningAddress[_miningAddress];
+        uint256 poolId = hasEverBeenMiningAddress[_miningAddress];
 
         if (poolId == unremovableValidator) {
             return false;
@@ -955,6 +1068,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     function _addPool(address _miningAddress, address _stakingAddress) internal returns(uint256) {
         //require(_getCurrentBlockNumber() == 0, "Temporarily disabled");
 
+        require(_miningAddressChangeRequest.poolId == 0);
         require(_miningAddress != address(0));
         require(_stakingAddress != address(0));
         require(_miningAddress != _stakingAddress);
@@ -968,8 +1082,8 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         require(stakingContract.getDelegatorPoolsLength(_stakingAddress) == 0);
 
         // Make sure that `_miningAddress` and `_stakingAddress` have never been a mining address before
-        require(!hasEverBeenMiningAddress[_miningAddress]);
-        require(!hasEverBeenMiningAddress[_stakingAddress]);
+        require(hasEverBeenMiningAddress[_miningAddress] == 0);
+        require(hasEverBeenMiningAddress[_stakingAddress] == 0);
 
         // Make sure that `_miningAddress` and `_stakingAddress` have never been a staking address before
         require(!hasEverBeenStakingAddress[_miningAddress]);
@@ -984,7 +1098,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         stakingAddressById[poolId] = _stakingAddress;
         stakingByMiningAddress[_miningAddress] = _stakingAddress;
 
-        hasEverBeenMiningAddress[_miningAddress] = true;
+        hasEverBeenMiningAddress[_miningAddress] = poolId;
         hasEverBeenStakingAddress[_stakingAddress] = true;
 
         return poolId;

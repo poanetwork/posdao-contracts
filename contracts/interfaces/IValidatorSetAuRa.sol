@@ -22,10 +22,11 @@ interface IValidatorSetAuRa {
     function getPendingValidatorsIds() external view returns(uint256[] memory);
     function getValidators() external view returns(address[] memory);
     function getValidatorsIds() external view returns(uint256[] memory);
-    function hasEverBeenMiningAddress(address) external view returns(bool);
+    function hasEverBeenMiningAddress(address) external view returns(uint256);
     function idByMiningAddress(address) external view returns(uint256);
     function idByStakingAddress(address) external view returns(uint256);
     function isReportValidatorValid(address) external view returns(bool);
+    function isReportValidatorValid(address, bool) external view returns(bool);
     function isValidator(address) external view returns(bool);
     function isValidatorById(uint256) external view returns(bool);
     function isValidatorBanned(address) external view returns(bool);
