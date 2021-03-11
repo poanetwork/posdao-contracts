@@ -143,6 +143,26 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
 
     // ================================================ Events ========================================================
 
+    /// @dev Emitted by the `changeMiningAddress` function.
+    /// @param poolId The ID of a pool for which the mining address is changed.
+    /// @param oldMiningAddress An old mining address of the pool.
+    /// @param newMiningAddress A new mining address of the pool.
+    event ChangedMiningAddress(
+        uint256 indexed poolId,
+        address indexed oldMiningAddress,
+        address indexed newMiningAddress
+    );
+
+    /// @dev Emitted by the `changeStakingAddress` function.
+    /// @param poolId The ID of a pool for which the staking address is changed.
+    /// @param oldStakingAddress An old staking address of the pool.
+    /// @param newStakingAddress A new staking address of the pool.
+    event ChangedStakingAddress(
+        uint256 indexed poolId,
+        address indexed oldStakingAddress,
+        address indexed newStakingAddress
+    );
+
     /// @dev Emitted by the `emitInitiateChange` function when a new validator set
     /// needs to be applied by validator nodes. See https://openethereum.github.io/Validator-Set.html
     /// @param parentHash Should be the parent block hash, otherwise the signal won't be recognized.
@@ -222,6 +242,8 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
 
     /// @dev Makes a request to change validator's mining address or changes the mining address of a candidate pool
     /// immediately. Will fail if there is already another request. Must be called by pool's staking address.
+    /// If this is called by a validator pool, the function emits `InitiateChange` event,
+    /// so the mining address change is actually applied once the `finalizeChange` function is invoked.
     /// @param _newMiningAddress The new mining address to set for the pool that called this function.
     function changeMiningAddress(address _newMiningAddress) external onlyInitialized {
         address stakingAddress = msg.sender;
@@ -270,6 +292,46 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
             _changeMiningAddress(oldMiningAddress, _newMiningAddress, poolId, stakingAddress);
             lastChangeBlock = _getCurrentBlockNumber();
         }
+
+        emit ChangedMiningAddress(poolId, oldMiningAddress, _newMiningAddress);
+    }
+
+    /// @dev Changes the staking address of a pool. Will fail if there is already another request
+    /// to change mining address. Must be called by pool's staking address.
+    /// @param _newStakingAddress The new staking address to set for the pool that called this function.
+    function changeStakingAddress(address _newStakingAddress) external onlyInitialized {
+        address oldStakingAddress = msg.sender;
+
+        uint256 poolId = idByStakingAddress[oldStakingAddress];
+        require(_newStakingAddress != address(0));
+        require(oldStakingAddress != _newStakingAddress);
+        require(poolId != 0);
+        require(_miningAddressChangeRequest.poolId == 0);
+
+        // Make sure that `_newStakingAddress` has never been a delegator before
+        require(stakingContract.getDelegatorPoolsLength(_newStakingAddress) == 0);
+
+        // Make sure that `_newStakingAddress` has never been a mining address before
+        require(hasEverBeenMiningAddress[_newStakingAddress] == 0);
+
+        // Make sure that `_newStakingAddress` has never been a staking address before
+        require(!hasEverBeenStakingAddress[_newStakingAddress]);
+
+        address miningAddress = miningAddressById[poolId];
+
+        idByStakingAddress[oldStakingAddress] = 0;
+        idByStakingAddress[_newStakingAddress] = poolId;
+
+        miningByStakingAddress[oldStakingAddress] = address(0);
+        miningByStakingAddress[_newStakingAddress] = miningAddress;
+
+        stakingAddressById[poolId] = _newStakingAddress;
+        stakingByMiningAddress[miningAddress] = _newStakingAddress;
+        hasEverBeenStakingAddress[_newStakingAddress] = true;
+
+        lastChangeBlock = _getCurrentBlockNumber();
+
+        emit ChangedStakingAddress(poolId, oldStakingAddress, _newStakingAddress);
     }
 
     /// @dev Emits the `InitiateChange` event to pass a new validator set to the validator nodes.
@@ -314,15 +376,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
             validatorSetApplyBlock = _getCurrentBlockNumber();
         }
 
-        // If there was a request from a validator to change their mining address
-        uint256 poolId = _miningAddressChangeRequest.poolId;
-        if (poolId != 0) {
-            address oldMiningAddress = miningAddressById[poolId];
-            address newMiningAddress = _miningAddressChangeRequest.newMiningAddress;
-            address stakingAddress = stakingAddressById[poolId];
-            _changeMiningAddress(oldMiningAddress, newMiningAddress, poolId, stakingAddress);
-        }
-        delete _miningAddressChangeRequest;
+        _applyMiningAddressChangeRequest();
 
         delete _finalizeValidators; // since this moment the `emitInitiateChange` is allowed
         lastChangeBlock = _getCurrentBlockNumber();
@@ -820,13 +874,32 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
 
     // ============================================== Internal ========================================================
 
+    /// @dev Called by `finalizeChange` function to apply mining address change
+    /// requested by a validator through `changeMiningAddress` function.
+    function _applyMiningAddressChangeRequest() internal {
+        // If there was a request from a validator to change their mining address
+        uint256 poolId = _miningAddressChangeRequest.poolId;
+        if (poolId != 0) {
+            address oldMiningAddress = miningAddressById[poolId];
+            address newMiningAddress = _miningAddressChangeRequest.newMiningAddress;
+            address stakingAddress = stakingAddressById[poolId];
+            _changeMiningAddress(oldMiningAddress, newMiningAddress, poolId, stakingAddress);
+        }
+        delete _miningAddressChangeRequest;
+    }
+
     /// @dev Updates mappings to change mining address of a pool.
     /// Used by the `changeMiningAddress` and `finalizeChange` functions.
     /// @param _oldMiningAddress An old mining address of the pool.
     /// @param _newMiningAddress A new mining address of the pool.
     /// @param _poolId The pool id for which the mining address is being changed.
     /// @param _stakingAddress The current staking address of the pool.
-    function _changeMiningAddress(address _oldMiningAddress, address _newMiningAddress, uint256 _poolId, address _stakingAddress) internal {
+    function _changeMiningAddress(
+        address _oldMiningAddress,
+        address _newMiningAddress,
+        uint256 _poolId,
+        address _stakingAddress
+    ) internal {
         idByMiningAddress[_oldMiningAddress] = 0;
         idByMiningAddress[_newMiningAddress] = _poolId;
 
