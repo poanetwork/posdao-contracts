@@ -55,7 +55,25 @@ contract RandomAuRa is UpgradeableOwned, IRandomAuRa {
         _;
     }
 
+    /// @dev Ensures the caller is the ValidatorSetAuRa contract address.
+    modifier onlyValidatorSet() {
+        require(msg.sender == address(validatorSetContract));
+        _;
+    }
+
     // =============================================== Setters ========================================================
+
+    /// @dev Clears commit and cipher for the given validator's pool if the pool
+    /// hasn't yet revealed their number.
+    /// Called by the ValidatorSetAuRa.changeMiningAddress function
+    /// when a validator creates a request to change their mining address.
+    function clearCommit(uint256 _poolId) external onlyValidatorSet {
+        uint256 collectRound = currentCollectRound();
+        if (!_sentReveal[collectRound][_poolId]) {
+            delete _commits[collectRound][_poolId];
+            delete _ciphers[collectRound][_poolId];
+        }
+    }
 
     /// @dev Called by the validator's node to store a hash and a cipher of the validator's number on each collection
     /// round. The validator's node must use its mining address to call this function.
@@ -256,11 +274,24 @@ contract RandomAuRa is UpgradeableOwned, IRandomAuRa {
 
     /// @dev Returns a boolean flag indicating whether the specified validator has committed their number's hash for the
     /// specified collection round. Note that for the past collection rounds it can return false-negative results
-    /// because there was a migration from mining addresses to staking addresses.
+    /// because there was a migration from mining addresses to staking addresses (on xDai chain).
+    /// Also, it intentionally returns a false-positive result during the commit phase when the specified
+    /// mining address of a validator is about to be changed. This is needed to prevent committing hash/cipher pair
+    /// by Ethereum node to guarantee that a new validator's node (with a new mining address) won't try to wrongly
+    /// decrypt the cipher stored by the previous node (created by the private key of the previous mining address).
     /// @param _collectRound The serial number of the collection round for which the checkup should be done.
     /// @param _miningAddress The mining address of the validator.
     function isCommitted(uint256 _collectRound, address _miningAddress) public view returns(bool) {
-        return getCommit(_collectRound, _miningAddress) != bytes32(0);
+        uint256 poolId = validatorSetContract.idByMiningAddress(_miningAddress);
+
+        if (poolId != 0 && isCommitPhase()) {
+            (uint256 requestPoolId,) = validatorSetContract.miningAddressChangeRequest();
+            if (poolId == requestPoolId) {
+                return true;
+            }
+        }
+
+        return _commits[_collectRound][poolId] != bytes32(0);
     }
 
     /// @dev Returns a boolean flag indicating whether the current phase of the current collection round

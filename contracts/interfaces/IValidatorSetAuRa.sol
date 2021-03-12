@@ -34,6 +34,7 @@ interface IValidatorSetAuRa {
     function isValidatorOrPending(uint256) external view returns(bool);
     function MAX_VALIDATORS() external view returns(uint256); // solhint-disable-line func-name-mixedcase
     function miningAddressById(uint256) external view returns(address);
+    function miningAddressChangeRequest() external view returns(uint256, address);
     function miningByStakingAddress(address) external view returns(address);
     function randomContract() external view returns(address);
     function reportMaliciousCallable(address, address, uint256) external view returns(bool, bool);

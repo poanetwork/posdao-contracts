@@ -134,7 +134,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         uint256 poolId;
         address newMiningAddress;
     }
-    MiningAddressChangeRequest internal _miningAddressChangeRequest;
+    MiningAddressChangeRequest public miningAddressChangeRequest;
 
     // ============================================== Constants =======================================================
 
@@ -253,7 +253,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         require(oldMiningAddress != address(0));
         require(oldMiningAddress != _newMiningAddress);
         require(poolId != 0);
-        require(_miningAddressChangeRequest.poolId == 0);
+        require(miningAddressChangeRequest.poolId == 0);
 
         // Make sure that `_newMiningAddress` has never been a delegator before
         require(stakingContract.getDelegatorPoolsLength(_newMiningAddress) == 0);
@@ -271,7 +271,12 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
             // validator set is applied.
             require(initiateChangeAllowed());
             require(!_pendingValidatorsChanged);
-            require(_getCurrentBlockNumber() < stakingContract.stakingEpochEndBlock().sub(MAX_VALIDATORS));
+
+            // Deny requesting on the latest two randomness collection rounds
+            // to prevend unrevealing due to validator's mining key change.
+            require(_getCurrentBlockNumber() < stakingContract.stakingEpochEndBlock().sub(
+                IRandomAuRa(randomContract).collectRoundLength().mul(2)
+            ));
 
             address[] memory newSet = getPendingValidators();
             for (uint256 i = 0; i < newSet.length; i++) {
@@ -282,8 +287,10 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
             }
 
             _finalizeValidators.list = _pendingValidators;
-            _miningAddressChangeRequest.poolId = poolId;
-            _miningAddressChangeRequest.newMiningAddress = _newMiningAddress;
+            miningAddressChangeRequest.poolId = poolId;
+            miningAddressChangeRequest.newMiningAddress = _newMiningAddress;
+
+            IRandomAuRa(randomContract).clearCommit(poolId);
 
             emit InitiateChange(blockhash(_getCurrentBlockNumber() - 1), newSet);
         } else {
@@ -306,7 +313,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         require(_newStakingAddress != address(0));
         require(oldStakingAddress != _newStakingAddress);
         require(poolId != 0);
-        require(_miningAddressChangeRequest.poolId == 0);
+        require(miningAddressChangeRequest.poolId == 0);
 
         // Make sure that `_newStakingAddress` has never been a delegator before
         require(stakingContract.getDelegatorPoolsLength(_newStakingAddress) == 0);
@@ -878,14 +885,14 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// requested by a validator through `changeMiningAddress` function.
     function _applyMiningAddressChangeRequest() internal {
         // If there was a request from a validator to change their mining address
-        uint256 poolId = _miningAddressChangeRequest.poolId;
+        uint256 poolId = miningAddressChangeRequest.poolId;
         if (poolId != 0) {
             address oldMiningAddress = miningAddressById[poolId];
-            address newMiningAddress = _miningAddressChangeRequest.newMiningAddress;
+            address newMiningAddress = miningAddressChangeRequest.newMiningAddress;
             address stakingAddress = stakingAddressById[poolId];
             _changeMiningAddress(oldMiningAddress, newMiningAddress, poolId, stakingAddress);
         }
-        delete _miningAddressChangeRequest;
+        delete miningAddressChangeRequest;
     }
 
     /// @dev Updates mappings to change mining address of a pool.
@@ -1141,7 +1148,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     function _addPool(address _miningAddress, address _stakingAddress) internal returns(uint256) {
         //require(_getCurrentBlockNumber() == 0, "Temporarily disabled");
 
-        require(_miningAddressChangeRequest.poolId == 0);
+        require(miningAddressChangeRequest.poolId == 0);
         require(_miningAddress != address(0));
         require(_stakingAddress != address(0));
         require(_miningAddress != _stakingAddress);
