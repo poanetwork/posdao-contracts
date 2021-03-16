@@ -130,6 +130,8 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
     /// @param _nativeCoins The amount of native coins to transfer as a reward.
     /// @param _to The target address to transfer the amounts to.
     function transferReward(uint256 _tokens, uint256 _nativeCoins, address payable _to) external onlyStakingContract {
+        revert("Temporarily disabled");
+
         if (_tokens != 0) {
             IStakingAuRaTokens stakingContract = IStakingAuRaTokens(msg.sender);
             IERC677 erc677TokenContract = IERC677(stakingContract.erc677TokenContract());

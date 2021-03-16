@@ -246,6 +246,8 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// so the mining address change is actually applied once the `finalizeChange` function is invoked.
     /// @param _newMiningAddress The new mining address to set for the pool that called this function.
     function changeMiningAddress(address _newMiningAddress) external onlyInitialized {
+        revert("Temporarily disabled");
+
         address stakingAddress = msg.sender;
         address oldMiningAddress = miningByStakingAddress[stakingAddress];
         uint256 poolId = idByStakingAddress[stakingAddress];
@@ -307,6 +309,8 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// to change mining address. Must be called by pool's staking address.
     /// @param _newStakingAddress The new staking address to set for the pool that called this function.
     function changeStakingAddress(address _newStakingAddress) external onlyInitialized {
+        revert("Temporarily disabled");
+
         address oldStakingAddress = msg.sender;
 
         uint256 poolId = idByStakingAddress[oldStakingAddress];
@@ -506,8 +510,6 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         uint256 _blockNumber,
         bytes calldata
     ) external onlyInitialized {
-        //revert("Temporarily disabled");
-
         address reportingMiningAddress = msg.sender;
         uint256 reportingId = idByMiningAddress[reportingMiningAddress];
         uint256 maliciousId = hasEverBeenMiningAddress[_maliciousMiningAddress];
@@ -1055,6 +1057,8 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// @param _reason A short string of the reason why the mining addresses are treated as malicious,
     /// see the `_removeMaliciousValidator` internal function description for possible values.
     function _removeMaliciousValidators(address[] memory _miningAddresses, bytes32 _reason) internal {
+        // Temporarily turned off as all validators known
+        /*
         bool removed = false;
 
         for (uint256 i = 0; i < _miningAddresses.length; i++) {
@@ -1068,6 +1072,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         if (removed) {
             _setPendingValidatorsChanged(false);
         }
+        */
 
         lastChangeBlock = _getCurrentBlockNumber();
     }
@@ -1146,7 +1151,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// @param _stakingAddress The staking address of the newly created pool. Cannot be equal to the `_miningAddress`
     /// and should never be used as a pool or delegator before.
     function _addPool(address _miningAddress, address _stakingAddress) internal returns(uint256) {
-        //require(_getCurrentBlockNumber() == 0, "Temporarily disabled");
+        revert("Temporarily disabled");
 
         require(miningAddressChangeRequest.poolId == 0);
         require(_miningAddress != address(0));
