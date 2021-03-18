@@ -218,17 +218,6 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
 
     // =============================================== Setters ========================================================
 
-    // Temporary function (must be removed after upgradeToAndCall).
-    function migrateHasEverBeenMiningAddress() external {
-        require(msg.sender == _admin());
-        require(_currentValidators.length == 16);
-        for (uint256 i = 0; i < _currentValidators.length; i++) {
-            uint256 poolId = _currentValidators[i];
-            address miningAddress = miningAddressById[poolId];
-            hasEverBeenMiningAddress[miningAddress] = poolId;
-        }
-    }
-
     /// @dev Makes the non-removable validator removable. Can only be called by the staking address of the
     /// non-removable validator or by the `owner`.
     function clearUnremovableValidator() external onlyInitialized {
@@ -246,8 +235,6 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// so the mining address change is actually applied once the `finalizeChange` function is invoked.
     /// @param _newMiningAddress The new mining address to set for the pool that called this function.
     function changeMiningAddress(address _newMiningAddress) external onlyInitialized {
-        revert("Temporarily disabled");
-
         address stakingAddress = msg.sender;
         address oldMiningAddress = miningByStakingAddress[stakingAddress];
         uint256 poolId = idByStakingAddress[stakingAddress];
@@ -309,8 +296,6 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// to change mining address. Must be called by pool's staking address.
     /// @param _newStakingAddress The new staking address to set for the pool that called this function.
     function changeStakingAddress(address _newStakingAddress) external onlyInitialized {
-        revert("Temporarily disabled");
-
         address oldStakingAddress = msg.sender;
 
         uint256 poolId = idByStakingAddress[oldStakingAddress];
@@ -1151,8 +1136,6 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// @param _stakingAddress The staking address of the newly created pool. Cannot be equal to the `_miningAddress`
     /// and should never be used as a pool or delegator before.
     function _addPool(address _miningAddress, address _stakingAddress) internal returns(uint256) {
-        revert("Temporarily disabled");
-
         require(miningAddressChangeRequest.poolId == 0);
         require(_miningAddress != address(0));
         require(_stakingAddress != address(0));
