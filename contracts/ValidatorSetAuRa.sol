@@ -666,12 +666,6 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         return isValidatorById[idByMiningAddress[_miningAddress]];
     }
 
-    /// @dev See the description of isReportValidatorValid(address,bool) below.
-    /// Used for backward compatibility with the Certifier contract.
-    function isReportValidatorValid(address _miningAddress) public view returns(bool) {
-        return isReportValidatorValid(_miningAddress, true);
-    }
-
     /// @dev Returns a boolean flag indicating whether the specified validator (mining address)
     /// is able to call the `reportMalicious` function or whether the specified validator (mining address)
     /// can be reported as malicious. This function also allows a validator to call the `reportMalicious`

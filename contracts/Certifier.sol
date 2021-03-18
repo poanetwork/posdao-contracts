@@ -90,7 +90,7 @@ contract Certifier is UpgradeableOwned, ICertifier {
         if (_certified[_who]) {
             return true;
         }
-        return validatorSetContract.isReportValidatorValid(_who);
+        return validatorSetContract.isReportValidatorValid(_who, true);
     }
 
     /// @dev Returns a boolean flag indicating whether the specified address is allowed to use zero gas price

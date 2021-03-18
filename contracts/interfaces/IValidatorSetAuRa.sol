@@ -25,7 +25,6 @@ interface IValidatorSetAuRa {
     function hasEverBeenMiningAddress(address) external view returns(uint256);
     function idByMiningAddress(address) external view returns(uint256);
     function idByStakingAddress(address) external view returns(uint256);
-    function isReportValidatorValid(address) external view returns(bool);
     function isReportValidatorValid(address, bool) external view returns(bool);
     function isValidator(address) external view returns(bool);
     function isValidatorById(uint256) external view returns(bool);
