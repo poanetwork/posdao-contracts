@@ -147,7 +147,7 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
     }
 
     /// @dev Ensures the caller is the SYSTEM_ADDRESS.
-    /// See https://openethereum.github.io/wiki/Block-Reward-Contract.html
+    /// See https://openethereum.github.io/Block-Reward-Contract.html
     modifier onlySystem {
         require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
         _;
@@ -230,6 +230,7 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
     /// accumulating block producing statistics, starting a new staking epoch, snapshotting staking amounts
     /// for the upcoming staking epoch, rewards distributing at the end of a staking epoch, and minting
     /// native coins needed for the `erc-to-native` bridge.
+    /// The function has unlimited gas (according to OpenEthereum and/or Nethermind client code).
     function reward(address[] calldata benefactors, uint16[] calldata kind)
         external
         onlySystem

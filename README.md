@@ -10,11 +10,12 @@ The algorithm provides a Sybil control mechanism for reporting malicious validat
 
 ## POSDAO Repositories and Resources
 
-- White paper https://forum.poa.network/t/posdao-white-paper/2208
-- Backported OpenEthereum client with all POSDAO features https://github.com/poanetwork/open-ethereum/tree/posdao-backport
-- Original OpenEthereum client supporting all POSDAO features https://github.com/openethereum/openethereum starting from v3.0.0
-- Integration tests setup for a POSDAO network https://github.com/poanetwork/posdao-test-setup
-- Discussion forum https://forum.poa.network/c/posdao
+- White paper: https://forum.poa.network/t/posdao-white-paper/2208
+- Backported OpenEthereum client with POSDAO features: https://github.com/poanetwork/open-ethereum/tree/posdao-backport (v2.7.2) and https://github.com/openethereum/openethereum/tree/xdai (v3.1.0-rc.1)
+- Original OpenEthereum client supporting POSDAO features: https://github.com/openethereum/parity-ethereum/tree/v3.0.1 (v3.0.1)
+- Nethermind client supporting POSDAO features: https://github.com/NethermindEth/nethermind
+- Integration tests setup for a POSDAO network: https://github.com/poanetwork/posdao-test-setup
+- Discussion forum: https://forum.poa.network/c/posdao
 
 ## Smart Contract Summaries
 
@@ -25,7 +26,7 @@ _Note: The following descriptions are for AuRa contracts only. HBBFT contract im
   - mints native coins needed for the `erc-to-native` bridge;
   - makes a snapshot of the validators stakes at the beginning of each staking epoch. That snapshot is used by the `StakingAuRa.claimReward` function to transfer rewards to validators and their delegators.
 
-- `Certifier`: allows validators to use a zero gas price for their service transactions (see [OpenEthereum Wiki](https://openethereum.github.io/wiki/Permissioning.html#gas-price) for more info). The following functions are considered service transactions:
+- `Certifier`: allows validators to use a zero gas price for their service transactions (see [OpenEthereum Wiki](https://openethereum.github.io/Permissioning.html#gas-price) for more info). The following functions are considered service transactions:
   - ValidatorSetAuRa.emitInitiateChange
   - ValidatorSetAuRa.reportMalicious
   - RandomAura.commitHash
@@ -92,7 +93,7 @@ _Note: The following descriptions are for AuRa contracts only. HBBFT contract im
     ```
     </details>
 
-- `Registry`: stores human-readable keys associated with addresses, like DNS information (see [OpenEthereum Wiki](https://openethereum.github.io/wiki/Parity-name-registry.html)). This contract is needed primarily to store the address of the `Certifier` contract (see [OpenEthereum Wiki](https://openethereum.github.io/wiki/Permissioning.html#gas-price) for details).
+- `Registry`: stores human-readable keys associated with addresses, like DNS information. This contract is needed primarily to store the address of the `Certifier` contract (see [OpenEthereum Wiki](https://openethereum.github.io/Service-transaction-checker-contract.html) for details).
 
 - `StakingAuRa`: contains staking logic including:
   - creating, storing, and removing pools by candidates and validators;
@@ -107,7 +108,7 @@ _Note: The following descriptions are for AuRa contracts only. HBBFT contract im
 
 - `TxPriority`: manages and stores the transactions priority list used by Ethereum client. See https://github.com/NethermindEth/nethermind/issues/2300 for description.
 
-- `ValidatorSetAuRa`: stores the current validator set and contains the logic for choosing new validators at the beginning of each staking epoch. The logic uses a random seed generated and stored by the `RandomAuRa` contract. Also, ValidatorSetAuRa is responsible for discovering and removing malicious validators. This contract is based on `reporting ValidatorSet` [described in OpenEthereum Wiki](https://openethereum.github.io/wiki/Validator-Set.html#reporting-contract).
+- `ValidatorSetAuRa`: stores the current validator set and contains the logic for choosing new validators at the beginning of each staking epoch. The logic uses a random seed generated and stored by the `RandomAuRa` contract. Also, ValidatorSetAuRa is responsible for discovering and removing malicious validators. This contract is based on `reporting ValidatorSet` [described in OpenEthereum Wiki](https://openethereum.github.io/Validator-Set.html#reporting-contract).
 
 For a detailed description of each function of the contracts, see their source code.
 

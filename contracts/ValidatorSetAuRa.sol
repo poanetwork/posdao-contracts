@@ -210,7 +210,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         _;
     }
 
-    /// @dev Ensures the caller is the SYSTEM_ADDRESS. See https://openethereum.github.io/wiki/Validator-Set.html
+    /// @dev Ensures the caller is the SYSTEM_ADDRESS. See https://openethereum.github.io/Validator-Set.html
     modifier onlySystem() {
         require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
         _;
@@ -230,10 +230,15 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     }
 
     /// @dev Makes a request to change validator's mining address or changes the mining address of a candidate pool
-    /// immediately. Will fail if there is already another request. Must be called by pool's staking address.
+    /// immediately. Will fail if there is already another request. Can be called by pool's staking address.
     /// If this is called by a validator pool, the function emits `InitiateChange` event,
     /// so the mining address change is actually applied once the `finalizeChange` function is invoked.
-    /// @param _newMiningAddress The new mining address to set for the pool that called this function.
+    /// A validator cannot call this function at the end of a staking epoch during the last
+    /// two randomness collection rounds (see the `RandomAuRa` contract).
+    /// A candidate can call this function at any time.
+    /// @param _newMiningAddress The new mining address to set for the pool
+    /// whose staking address called this function. The new mining address shouldn't be a former
+    /// delegator or a pool (staking address or mining address).
     function changeMiningAddress(address _newMiningAddress) external onlyInitialized {
         address stakingAddress = msg.sender;
         address oldMiningAddress = miningByStakingAddress[stakingAddress];
@@ -293,8 +298,11 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     }
 
     /// @dev Changes the staking address of a pool. Will fail if there is already another request
-    /// to change mining address. Must be called by pool's staking address.
-    /// @param _newStakingAddress The new staking address to set for the pool that called this function.
+    /// to change mining address (see `changeMiningAddress` code). Can be called by pool's staking address.
+    /// Can be called at any time during a staking epoch.
+    /// @param _newStakingAddress The new staking address to set for the pool
+    /// whose old staking address called this function. The new staking address shouldn't be a former
+    /// delegator or a pool (staking address or mining address).
     function changeStakingAddress(address _newStakingAddress) external onlyInitialized {
         address oldStakingAddress = msg.sender;
 
@@ -357,6 +365,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// The `finalizeChange` is only called once for each `InitiateChange` event emitted. The next `InitiateChange`
     /// event is not emitted until the previous one is not yet finalized by the `finalizeChange`
     /// (see the code of `emitInitiateChangeCallable` getter).
+    /// The function has unlimited gas (according to OpenEthereum and/or Nethermind client code).
     function finalizeChange() external onlySystem {
         if (_finalizeValidators.forNewEpoch) {
             // Apply a new validator set formed by the `newValidatorSet` function
