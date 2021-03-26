@@ -11,8 +11,8 @@ The algorithm provides a Sybil control mechanism for reporting malicious validat
 ## POSDAO Repositories and Resources
 
 - White paper: https://forum.poa.network/t/posdao-white-paper/2208
-- Backported OpenEthereum client with POSDAO features: https://github.com/poanetwork/open-ethereum/tree/posdao-backport (v2.7.2) and https://github.com/openethereum/openethereum/tree/xdai (v3.1.0-rc.1)
-- Original OpenEthereum client supporting POSDAO features: https://github.com/openethereum/parity-ethereum/tree/v3.0.1 (v3.0.1)
+- Backported OpenEthereum client with POSDAO features: https://github.com/poanetwork/open-ethereum/tree/posdao-backport (v2.7.2)
+- Original OpenEthereum client supporting POSDAO features: https://github.com/openethereum/openethereum/tree/dev (> v3.2.1)
 - Nethermind client supporting POSDAO features: https://github.com/NethermindEth/nethermind
 - Integration tests setup for a POSDAO network: https://github.com/poanetwork/posdao-test-setup
 - Discussion forum: https://forum.poa.network/c/posdao
