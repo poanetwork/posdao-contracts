@@ -291,8 +291,15 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
     /// because `msg.value` is used in that case.
     /// @param _miningAddress The mining address of the candidate. The mining address is bound to the staking address
     /// (msg.sender). This address cannot be equal to `msg.sender`.
-    function addPool(uint256 _amount, address _miningAddress) external payable returns(uint256) {
-        return _addPool(_amount, msg.sender, _miningAddress, false);
+    /// @param _name A name of the pool as UTF-8 string (max length is 256 bytes).
+    /// @param _description A short description of the pool as UTF-8 string (max length is 1024 bytes).
+    function addPool(
+        uint256 _amount,
+        address _miningAddress,
+        string calldata _name,
+        string calldata _description
+    ) external payable returns(uint256) {
+        return _addPool(_amount, msg.sender, _miningAddress, false, _name, _description);
     }
 
     /// @dev Adds the `unremovable validator` to either the `poolsToBeElected` or the `poolsToBeRemoved` array
@@ -972,13 +979,17 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
     /// (msg.sender). This address cannot be equal to `_stakingAddress`.
     /// @param _byOnTokenTransfer A boolean flag defining whether this internal function is called
     /// by the `onTokenTransfer` function.
+    /// @param _name A name of the pool as UTF-8 string (max length is 256 bytes).
+    /// @param _description A short description of the pool as UTF-8 string (max length is 1024 bytes).
     function _addPool(
         uint256 _amount,
         address _stakingAddress,
         address _miningAddress,
-        bool _byOnTokenTransfer
+        bool _byOnTokenTransfer,
+        string memory _name,
+        string memory _description
     ) internal returns(uint256) {
-        uint256 poolId = validatorSetContract.addPool(_miningAddress, _stakingAddress);
+        uint256 poolId = validatorSetContract.addPool(_miningAddress, _stakingAddress, _name, _description);
         if (_byOnTokenTransfer) {
             _stake(_stakingAddress, _stakingAddress, _amount);
         } else {

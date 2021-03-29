@@ -2,7 +2,7 @@ pragma solidity 0.5.10;
 
 
 interface IValidatorSetAuRa {
-    function addPool(address, address) external returns(uint256);
+    function addPool(address, address, string calldata, string calldata) external returns(uint256);
     function initialize(
         address,
         address,

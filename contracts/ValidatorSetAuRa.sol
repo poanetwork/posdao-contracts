@@ -136,6 +136,12 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     }
     MiningAddressChangeRequest public miningAddressChangeRequest;
 
+    /// @dev Stores pool's name as UTF-8 string.
+    mapping(uint256 => string) public poolName;
+
+    /// @dev Stores pool's short description as UTF-8 string.
+    mapping(uint256 => string) public poolDescription;
+
     // ============================================== Constants =======================================================
 
     /// @dev The max number of validators.
@@ -184,6 +190,16 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         uint256 maliciousPoolId
     );
 
+    /// @dev Emitted by the `_setPoolMetadata` function when the pool's metadata is changed.
+    /// @param poolId The unique ID of the pool.
+    /// @param name A new name of the pool.
+    /// @param description A new short description of the pool.
+    event SetPoolMetadata(
+        uint256 indexed poolId,
+        string name,
+        string description
+    );
+
     // ============================================== Modifiers =======================================================
 
     /// @dev Ensures the `initialize` function was called before.
@@ -226,6 +242,17 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         require(msg.sender == unremovableStakingAddress || msg.sender == _admin());
         stakingContract.clearUnremovableValidator(unremovableValidator);
         unremovableValidator = 0;
+        lastChangeBlock = _getCurrentBlockNumber();
+    }
+
+    /// @dev Changes pool's metadata (such as name and short description).
+    /// Can only be called by a pool owner (staking address).
+    /// @param _name A new name of the pool as UTF-8 string.
+    /// @param _description A new short description of the pool as UTF-8 string.
+    function changeMetadata(string calldata _name, string calldata _description) external onlyInitialized {
+        uint256 poolId = idByStakingAddress[msg.sender];
+        require(poolId != 0);
+        _setPoolMetadata(poolId, _name, _description);
         lastChangeBlock = _getCurrentBlockNumber();
     }
 
@@ -564,8 +591,17 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// and should never be used as a pool or delegator before.
     /// @param _stakingAddress The staking address of the newly created pool. Cannot be equal to the `_miningAddress`
     /// and should never be used as a pool or delegator before.
-    function addPool(address _miningAddress, address _stakingAddress) external onlyStakingContract returns(uint256) {
-        return _addPool(_miningAddress, _stakingAddress);
+    /// @param _name A name of the pool as UTF-8 string (max length is 256 bytes).
+    /// @param _description A short description of the pool as UTF-8 string (max length is 1024 bytes).
+    function addPool(
+        address _miningAddress,
+        address _stakingAddress,
+        string calldata _name,
+        string calldata _description
+    ) external onlyStakingContract returns(uint256) {
+        uint256 poolId = _addPool(_miningAddress, _stakingAddress);
+        _setPoolMetadata(poolId, _name, _description);
+        return poolId;
     }
 
     // =============================================== Getters ========================================================
@@ -974,6 +1010,16 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         _pendingValidatorsChanged = false;
         _pendingValidatorsChangedForNewEpoch = false;
         return forNewEpoch;
+    }
+
+    /// @dev Sets pool metadata (such as name and short description).
+    /// @param _poolId The unique ID of the pool.
+    /// @param _name A name of the pool as UTF-8 string.
+    /// @param _description A short description of the pool as UTF-8 string.
+    function _setPoolMetadata(uint256 _poolId, string memory _name, string memory _description) internal {
+        poolName[_poolId] = _name;
+        poolDescription[_poolId] = _description;
+        emit SetPoolMetadata(_poolId, _name, _description);
     }
 
     /// @dev Increments the reporting counter for the specified validator and the current staking epoch.
