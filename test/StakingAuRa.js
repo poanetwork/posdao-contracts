@@ -281,15 +281,58 @@ contract('StakingAuRa', async accounts => {
       });
     }
 
+    it('onTokenTransfer should accept and save pool metadata', async () => {
+      const amount = stakeUnit.mul(new BN(1));
+
+      const name = 'Grüße';
+      const description = 'Grüße Grüße Grüße Grüße Grüße';
+      const nameHex = web3.utils.utf8ToHex(name).replace('0x', '');
+      const nameLength = web3.utils.numberToHex(nameHex.length / 2).replace('0x', '').padStart(2, '0');
+      const descriptionHex = web3.utils.utf8ToHex(description).replace('0x', '');
+      const descriptionLength = web3.utils.numberToHex(descriptionHex.length / 2).replace('0x', '').padStart(4, '0');
+      const data = `${candidateMiningAddress}01${nameLength}${nameHex}${descriptionLength}${descriptionHex}`;
+
+      await erc677Token.transferAndCall(stakingAuRa.address, amount, data, {from: candidateStakingAddress}).should.be.fulfilled;
+
+      const poolId = await validatorSetAuRa.idByMiningAddress.call(candidateMiningAddress);
+      (await validatorSetAuRa.poolName.call(poolId)).should.be.equal(name);
+      (await validatorSetAuRa.poolDescription.call(poolId)).should.be.equal(description);
+    });
+
+    it('onTokenTransfer should accept pool empty metadata', async () => {
+      const amount = stakeUnit.mul(new BN(1));
+      const data = `${candidateMiningAddress}01000000`;
+      await erc677Token.transferAndCall(stakingAuRa.address, amount, data, {from: candidateStakingAddress}).should.be.fulfilled;
+
+      const poolId = await validatorSetAuRa.idByMiningAddress.call(candidateMiningAddress);
+      (await validatorSetAuRa.poolName.call(poolId)).should.be.equal('');
+      (await validatorSetAuRa.poolDescription.call(poolId)).should.be.equal('');
+    });
+
+    it('onTokenTransfer should not accept invalid data length', async () => {
+      const amount = stakeUnit.mul(new BN(1));
+      await erc677Token.transferAndCall(stakingAuRa.address, amount, `${candidateMiningAddress}01010000`, {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
+      await erc677Token.transferAndCall(stakingAuRa.address, amount, `${candidateMiningAddress}01000001`, {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
+      await erc677Token.transferAndCall(stakingAuRa.address, amount, `${candidateMiningAddress}0100`, {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
+      await erc677Token.transferAndCall(stakingAuRa.address, amount, `${candidateMiningAddress}01`, {from: candidateStakingAddress}).should.be.rejectedWith(ERROR_MSG);
+    });
+
     function fnName(step) {
       return step == 0 ? ' [addPool]' : ' [transferAndCall]';
     }
 
     function addPool(amount, miningAddress, options) {
+      const poolName = `Pool name for ${options.from}`;
+      const poolDescription = `Pool description for ${options.from}`;
       if (useTransferAndCall) {
-        return erc677Token.transferAndCall(stakingAuRa.address, amount, `${miningAddress}01`, options);
+        const poolNameHex = web3.utils.utf8ToHex(poolName).replace('0x', '');
+        const poolNameLength = web3.utils.numberToHex(poolNameHex.length / 2).replace('0x', '').padStart(2, '0');
+        const poolDescriptionHex = web3.utils.utf8ToHex(poolDescription).replace('0x', '');
+        const poolDescriptionLength = web3.utils.numberToHex(poolDescriptionHex.length / 2).replace('0x', '').padStart(4, '0');
+        const data = `${miningAddress}01${poolNameLength}${poolNameHex}${poolDescriptionLength}${poolDescriptionHex}`;
+        return erc677Token.transferAndCall(stakingAuRa.address, amount, data, options);
       }
-      return stakingAuRa.addPool(amount, miningAddress, options);
+      return stakingAuRa.addPool(amount, miningAddress, poolName, poolDescription, options);
     }
   });
 

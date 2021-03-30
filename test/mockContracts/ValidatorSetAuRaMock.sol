@@ -80,4 +80,24 @@ contract ValidatorSetAuRaMock is ValidatorSetAuRa {
         return _systemAddress;
     }
 
+    // To keep the unit tests unbroken, rewrite the `_removeMaliciousValidators` internal function
+    // since the original one is temporarily turned off in the production contract.
+    function _removeMaliciousValidators(address[] memory _miningAddresses, bytes32 _reason) internal {
+        bool removed = false;
+
+        for (uint256 i = 0; i < _miningAddresses.length; i++) {
+            if (_removeMaliciousValidator(_miningAddresses[i], _reason)) {
+                // From this moment `getPendingValidators()` returns the new validator set
+                _clearReportingCounter(_miningAddresses[i]);
+                removed = true;
+            }
+        }
+
+        if (removed) {
+            _setPendingValidatorsChanged(false);
+        }
+
+        lastChangeBlock = _getCurrentBlockNumber();
+    }
+
 }

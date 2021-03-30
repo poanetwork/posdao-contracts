@@ -1014,9 +1014,11 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
 
     /// @dev Sets pool metadata (such as name and short description).
     /// @param _poolId The unique ID of the pool.
-    /// @param _name A name of the pool as UTF-8 string.
-    /// @param _description A short description of the pool as UTF-8 string.
+    /// @param _name A name of the pool as UTF-8 string (256 bytes max).
+    /// @param _description A short description of the pool as UTF-8 string (1024 bytes max).
     function _setPoolMetadata(uint256 _poolId, string memory _name, string memory _description) internal {
+        require(bytes(_name).length <= 256);
+        require(bytes(_description).length <= 1024);
         poolName[_poolId] = _name;
         poolDescription[_poolId] = _description;
         emit SetPoolMetadata(_poolId, _name, _description);

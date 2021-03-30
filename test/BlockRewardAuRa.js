@@ -737,7 +737,12 @@ contract('BlockRewardAuRa', async accounts => {
         candidateMinStake.should.be.bignumber.equal(await erc677Token.balanceOf.call(stakingAddress));
 
         // Candidate places stake on themselves
-        await stakingAuRa.addPool(candidateMinStake, miningAddress, {from: stakingAddress}).should.be.fulfilled;
+        const poolName = `Pool name for ${stakingAddress}. Grüße`;
+        const poolDescription = `Pool description for ${stakingAddress}. Grüße`;
+        const {logs} = await stakingAuRa.addPool(candidateMinStake, miningAddress, poolName, poolDescription, {from: stakingAddress}).should.be.fulfilled;
+        const poolId = logs.find(log => log.event == 'AddedPool').args.poolId;
+        (await validatorSetAuRa.poolName.call(poolId)).should.be.equal(poolName);
+        (await validatorSetAuRa.poolDescription.call(poolId)).should.be.equal(poolDescription);
 
         const delegatorsLength = 3;
         const delegators = accounts.slice(41 + i*delegatorsLength, 41 + i*delegatorsLength + delegatorsLength);
@@ -903,7 +908,9 @@ contract('BlockRewardAuRa', async accounts => {
         candidateMinStake.should.be.bignumber.equal(await erc677Token.balanceOf.call(stakingAddress));
 
         // Candidate places stake on themselves
-        await stakingAuRa.addPool(candidateMinStake, miningAddress, {from: stakingAddress}).should.be.fulfilled;
+        const poolName = `Pool name for ${stakingAddress}`;
+        const poolDescription = `Pool description for ${stakingAddress}`;
+        await stakingAuRa.addPool(candidateMinStake, miningAddress, poolName, poolDescription, {from: stakingAddress}).should.be.fulfilled;
 
         const delegatorsLength = 3;
         const delegators = accounts.slice(71 + i*delegatorsLength, 71 + i*delegatorsLength + delegatorsLength);
@@ -1063,7 +1070,9 @@ contract('BlockRewardAuRa', async accounts => {
         candidateMinStake.should.be.bignumber.equal(await erc677Token.balanceOf.call(stakingAddress));
 
         // Candidate places stake on themselves
-        await stakingAuRa.addPool(candidateMinStake, miningAddress, {from: stakingAddress}).should.be.fulfilled;
+        const poolName = `Pool name for ${stakingAddress}`;
+        const poolDescription = `Pool description for ${stakingAddress}`;
+        await stakingAuRa.addPool(candidateMinStake, miningAddress, poolName, poolDescription, {from: stakingAddress}).should.be.fulfilled;
       }
     });
 
@@ -1220,7 +1229,9 @@ contract('BlockRewardAuRa', async accounts => {
         candidateMinStake.should.be.bignumber.equal(await erc677Token.balanceOf.call(stakingAddress));
 
         // Candidate places stake on themselves
-        await stakingAuRa.addPool(candidateMinStake, miningAddress, {from: stakingAddress}).should.be.fulfilled;
+        const poolName = `Pool name for ${stakingAddress}`;
+        const poolDescription = `Pool description for ${stakingAddress}`;
+        await stakingAuRa.addPool(candidateMinStake, miningAddress, poolName, poolDescription, {from: stakingAddress}).should.be.fulfilled;
       }
     });
 
@@ -1386,7 +1397,9 @@ contract('BlockRewardAuRa', async accounts => {
         candidateMinStake.should.be.bignumber.equal(await erc677Token.balanceOf.call(stakingAddress));
 
         // Candidate places stake on themselves
-        await stakingAuRa.addPool(candidateMinStake, miningAddress, {from: stakingAddress}).should.be.fulfilled;
+        const poolName = `Pool name for ${stakingAddress}`;
+        const poolDescription = `Pool description for ${stakingAddress}`;
+        await stakingAuRa.addPool(candidateMinStake, miningAddress, poolName, poolDescription, {from: stakingAddress}).should.be.fulfilled;
       }
     });
 
@@ -1549,7 +1562,9 @@ contract('BlockRewardAuRa', async accounts => {
         candidateMinStake.should.be.bignumber.equal(await erc677Token.balanceOf.call(stakingAddress));
 
         // Candidate places stake on themselves
-        await stakingAuRa.addPool(candidateMinStake, miningAddress, {from: stakingAddress}).should.be.fulfilled;
+        const poolName = `Pool name for ${stakingAddress}`;
+        const poolDescription = `Pool description for ${stakingAddress}`;
+        await stakingAuRa.addPool(candidateMinStake, miningAddress, poolName, poolDescription, {from: stakingAddress}).should.be.fulfilled;
       }
     });
 
@@ -1735,7 +1750,9 @@ contract('BlockRewardAuRa', async accounts => {
         candidateMinStake.should.be.bignumber.equal(await erc677Token.balanceOf.call(stakingAddress));
 
         // Candidate places stake on themselves
-        await stakingAuRa.addPool(candidateMinStake, miningAddress, {from: stakingAddress}).should.be.fulfilled;
+        const poolName = `Pool name for ${stakingAddress}`;
+        const poolDescription = `Pool description for ${stakingAddress}`;
+        await stakingAuRa.addPool(candidateMinStake, miningAddress, poolName, poolDescription, {from: stakingAddress}).should.be.fulfilled;
       }
     });
 
@@ -1883,7 +1900,9 @@ contract('BlockRewardAuRa', async accounts => {
         candidateMinStake.should.be.bignumber.equal(await erc677Token.balanceOf.call(stakingAddress));
 
         // Candidate places stake on themselves
-        await stakingAuRa.addPool(candidateMinStake, miningAddress, {from: stakingAddress}).should.be.fulfilled;
+        const poolName = `Pool name for ${stakingAddress}`;
+        const poolDescription = `Pool description for ${stakingAddress}`;
+        await stakingAuRa.addPool(candidateMinStake, miningAddress, poolName, poolDescription, {from: stakingAddress}).should.be.fulfilled;
       }
     });
 
@@ -2063,7 +2082,9 @@ contract('BlockRewardAuRa', async accounts => {
         candidateMinStake.should.be.bignumber.equal(await erc677Token.balanceOf.call(stakingAddress));
 
         // Candidate places stake on themselves
-        await stakingAuRa.addPool(candidateMinStake, miningAddress, {from: stakingAddress}).should.be.fulfilled;
+        const poolName = `Pool name for ${stakingAddress}`;
+        const poolDescription = `Pool description for ${stakingAddress}`;
+        await stakingAuRa.addPool(candidateMinStake, miningAddress, poolName, poolDescription, {from: stakingAddress}).should.be.fulfilled;
       }
     });
 

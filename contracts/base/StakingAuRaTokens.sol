@@ -141,12 +141,12 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
     /// to the list of active pools. In this case, the first 20 bytes of the `_data` field
     /// represent the mining address which should be bound to the staking address defined
     /// by the `_staker` param.
-    /// If the boolean flag `isAddPool` is set, the next byte contains the length of pool's name (256 bytes max),
+    /// If the boolean flag `isAddPool` is set, the next byte contains the length of pool's name,
     /// and the bytes following to the `length byte` represent pool's name in UTF-8.
-    /// After the pool's name bytes, there are two bytes (word) encoding pool's description length (1024 bytes max),
+    /// After the pool's name bytes, there are two bytes (word) encoding pool's description length,
     /// and the bytes following to the `length word` represent pool's description in UTF-8.
     /// The entire structure of the `_data` for pool adding is:
-    /// [20-byte address]01[1-byte name length][name][2-byte description length][description]
+    /// <20-byte address>01<1-byte name length>[name]<2-byte description length>[description]
     function onTokenTransfer(
         address _staker,
         uint256 _amount,
@@ -170,18 +170,20 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
             assembly {
                 let dataLengthless := mload(add(_data, 32))
                 nameLength := and(shr(80, dataLengthless), 0xff)
-                mstore(str, nameLength)
+            }
+            str = new bytes(nameLength);
+            assembly {
                 calldatacopy(add(str, 32), 154, nameLength)
             }
             string memory name = string(str);
-            
+
             // Get `description` UTF-8 field from the `_data`
             assembly {
                 descLength := and(shr(240, calldataload(add(154, nameLength))), 0xffff)
             }
-            require(descLength <= 1024);
+            require(_data.length == 20 + 1 + 1 + nameLength + 2 + descLength);
+            str = new bytes(descLength);
             assembly {
-                mstore(str, descLength)
                 calldatacopy(add(str, 32), add(156, nameLength), descLength)
             }
             string memory description = string(str);

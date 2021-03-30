@@ -35,6 +35,64 @@ contract('ValidatorSetAuRa', async accounts => {
     validatorSetAuRa = await ValidatorSetAuRa.at(validatorSetAuRa.address);
   });
 
+  describe('changeMetadata()', async () => {
+    let initialValidators;
+    let initialStakingAddresses;
+    let initialPoolIds;
+
+    beforeEach(async () => {
+      initialValidators = accounts.slice(1, 3 + 1); // accounts[1...3]
+      initialStakingAddresses = accounts.slice(4, 6 + 1); // accounts[4...6]
+      await validatorSetAuRa.setCurrentBlockNumber(0);
+      await validatorSetAuRa.initialize(
+        blockRewardAuRa.address, // _blockRewardContract
+        '0x3000000000000000000000000000000000000001', // _randomContract
+        stakingAuRa.address, // _stakingContract
+        initialValidators, // _initialMiningAddresses
+        initialStakingAddresses, // _initialStakingAddresses
+        true // _firstValidatorIsUnremovable
+      ).should.be.fulfilled;
+      initialPoolIds = [];
+      for (let i = 0; i < initialValidators.length; i++) {
+        initialPoolIds.push(await validatorSetAuRa.idByMiningAddress.call(initialValidators[i]));
+      }
+      await stakingAuRa.setValidatorSetAddress(validatorSetAuRa.address).should.be.fulfilled;
+      (await validatorSetAuRa.unremovableValidator.call()).should.be.bignumber.equal(initialPoolIds[0]);
+      initialStakingAddresses[0].should.not.be.equal('0x0000000000000000000000000000000000000000');
+      await validatorSetAuRa.setCurrentBlockNumber(100);
+    });
+    it('should set a new metadata for an existing pool', async () => {
+      const poolId = initialPoolIds[0];
+      const name = 'Grüße';
+      const description = 'Grüße Grüße Grüße Grüße Grüße';
+      (await validatorSetAuRa.poolName.call(poolId)).should.not.be.equal(name);
+      (await validatorSetAuRa.poolDescription.call(poolId)).should.not.be.equal(description);
+      (await validatorSetAuRa.lastChangeBlock.call()).should.not.be.bignumber.equal(new BN(120));
+      await validatorSetAuRa.setCurrentBlockNumber(120);
+      const {logs} = await validatorSetAuRa.changeMetadata(name, description, {from: initialStakingAddresses[0]}).should.be.fulfilled;
+      logs[0].event.should.be.equal('SetPoolMetadata');
+      logs[0].args.poolId.should.be.bignumber.equal(poolId);
+      logs[0].args.name.should.be.equal(name);
+      logs[0].args.description.should.be.equal(description);
+      (await validatorSetAuRa.poolName.call(poolId)).should.be.equal(name);
+      (await validatorSetAuRa.poolDescription.call(poolId)).should.be.equal(description);
+      (await validatorSetAuRa.lastChangeBlock.call()).should.be.bignumber.equal(new BN(120));
+    });
+    it('should only allow setting a metadata for an existing pool by its staking address', async () => {
+      const name = 'Grüße';
+      const description = 'Grüße Grüße Grüße Grüße Grüße';
+      await validatorSetAuRa.changeMetadata(name, description, {from: initialValidators[0]}).should.be.rejectedWith(ERROR_MSG);
+      await validatorSetAuRa.changeMetadata(name, description, {from: accounts[10]}).should.be.rejectedWith(ERROR_MSG);
+    });
+    it('should not set too long metadata', async () => {
+      const name = 'Grüße';
+      const longDescription = 'd'.repeat(1025);
+      await validatorSetAuRa.changeMetadata(name, longDescription, {from: initialStakingAddresses[0]}).should.be.rejectedWith(ERROR_MSG);
+      const normalDescription = 'd'.repeat(1024);
+      await validatorSetAuRa.changeMetadata(name, normalDescription, {from: initialStakingAddresses[0]}).should.be.fulfilled;
+    });
+  });
+
   describe('clearUnremovableValidator()', async () => {
     let initialStakingAddresses;
     let initialPoolIds;
@@ -663,7 +721,9 @@ contract('ValidatorSetAuRa', async accounts => {
       const poolIds = [];
       for (let i = 0; i < stakingAddresses.length; i++) {
         const stakeAmount = stakeUnit.mul(new BN(i + 1));
-        await stakingAuRa.addPool(stakeAmount, miningAddresses[i], {from: stakingAddresses[i]}).should.be.fulfilled;
+        const poolName = `Pool name for ${stakingAddresses[i]}`;
+        const poolDescription = `Pool description for ${stakingAddresses[i]}`;
+        await stakingAuRa.addPool(stakeAmount, miningAddresses[i], poolName, poolDescription, {from: stakingAddresses[i]}).should.be.fulfilled;
         const poolId = await validatorSetAuRa.idByStakingAddress.call(stakingAddresses[i]);
         stakeAmount.should.be.bignumber.equal(await stakingAuRa.stakeAmount.call(poolId, '0x0000000000000000000000000000000000000000'));
         poolIds.push(poolId);
@@ -797,7 +857,9 @@ contract('ValidatorSetAuRa', async accounts => {
       const poolIds = [];
       for (let i = 0; i < stakingAddresses.length; i++) {
         const stakeAmount = stakeUnit.mul(new BN(i + 1));
-        await stakingAuRa.addPool(stakeAmount, miningAddresses[i], {from: stakingAddresses[i]}).should.be.fulfilled;
+        const poolName = `Pool name for ${stakingAddresses[i]}`;
+        const poolDescription = `Pool description for ${stakingAddresses[i]}`;
+        await stakingAuRa.addPool(stakeAmount, miningAddresses[i], poolName, poolDescription, {from: stakingAddresses[i]}).should.be.fulfilled;
         const poolId = await validatorSetAuRa.idByStakingAddress.call(stakingAddresses[i]);
         stakeAmount.should.be.bignumber.equal(await stakingAuRa.stakeAmount.call(poolId, '0x0000000000000000000000000000000000000000'));
         poolIds.push(poolId);
