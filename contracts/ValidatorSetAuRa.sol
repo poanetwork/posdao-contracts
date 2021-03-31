@@ -234,27 +234,6 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
 
     // =============================================== Setters ========================================================
 
-    // Temporary function. Should be removed after upgradeToAndCall call.
-    function setPoolNames() external {
-        require(msg.sender == _admin());
-        poolName[idByMiningAddress[0x9233042B8E9E03D5DC6454BBBe5aee83818fF103]] = "POA Network";
-        poolName[idByMiningAddress[0x6dC0c0be4c8B2dFE750156dc7d59FaABFb5B923D]] = "Giveth";
-        poolName[idByMiningAddress[0x9e41BA620FebA8198369c26351063B26eC5b7C9E]] = "Mariano Conti";
-        poolName[idByMiningAddress[0xA13D45301207711B7C0328c6b2b64862abFe9b7a]] = "Protofire";
-        poolName[idByMiningAddress[0x657eA4A9572DfdBFd95899eAdA0f6197211527BE]] = "Burner Wallet";
-        poolName[idByMiningAddress[0x06d563905b085A6B3070C819BDB96a44E5665005]] = "POA Network";
-        poolName[idByMiningAddress[0xDb1c683758F493Cef2E7089A3640502AB306322a]] = "Anyblock Analytics";
-        poolName[idByMiningAddress[0x657E832b1a67CDEF9e117aFd2F419387259Fa93e]] = "Syncnode";
-        poolName[idByMiningAddress[0x10AaE121b3c62F3DAfec9cC46C27b4c1dfe4A835]] = "Lab10";
-        poolName[idByMiningAddress[0x1438087186FdbFd4c256Fa2DF446921E30E54Df8]] = "Gnosis";
-        poolName[idByMiningAddress[0x0000999dc55126CA626c20377F0045946db69b6E]] = "Galt Project";
-        poolName[idByMiningAddress[0x9488f50c33e9616EE3B5B09CD3A9c603A108db4a]] = "POA Network";
-        poolName[idByMiningAddress[0x1A740616e96E07d86203707C1619d9871614922A]] = "Nethermind";
-        poolName[idByMiningAddress[0xC7b90a1b52d5E28EB3e6ea35E952975467bf9930]] = "xDaiDev";
-        poolName[idByMiningAddress[0xb76756f95A9fB6ff9ad3E6cb41b734c1bd805103]] = "Portis";
-        poolName[idByMiningAddress[0x35770EF700Ff88D5f650597068e3Aaf051F3D5a4]] = "1Hive";
-    }
-
     /// @dev Makes the non-removable validator removable. Can only be called by the staking address of the
     /// non-removable validator or by the `owner`.
     function clearUnremovableValidator() external onlyInitialized {
