@@ -37,6 +37,10 @@ main();
 //   return web3.utils.keccak256(web3.eth.abi.encodeParameters(['uint256','uint256'], [key2, slot2]));
 // }
 
+function findMapLocation(slot, key) {
+  return web3.utils.keccak256(web3.eth.abi.encodeParameters(['uint256','uint256'], [key, slot]));
+}
+
 async function main() {
   // web3.setProvider('https://rpc.xdaichain.com');
   // console.log(await web3.eth.getStorageAt('0x42b20D645a372c2150962E6D4D3bB5d4F3231143', web3.utils.toBN(web3.utils.keccak256(web3.eth.abi.encodeParameters(['uint256'], ['0']))).add(new BN(0))));
@@ -47,7 +51,8 @@ async function main() {
   // return;
 
   // web3.setProvider('https://rpc.xdaichain.com');
-  // const events = await ValidatorSet.getPastEvents('ReportedMalicious', {fromBlock: 15000000-50000, toBlock: 15000000});
+  // const events = await ValidatorSet.getPastEvents('ReportedMalicious', {fromBlock: 15000000, toBlock: 15530350});
+  // console.log(`events.length = ${events.length}`);
   // for (let i = 0; i < events.length; i++) {
   //   console.log('ReportedMalicious:');
   //   console.log(`  reportingValidator = ${events[i].returnValues.reportingValidator}`);
