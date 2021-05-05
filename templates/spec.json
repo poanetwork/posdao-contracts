@@ -67,9 +67,7 @@
         "pricing": {
           "0": {
             "price": {
-              "modexp": {
-                "divisor": 20
-              }
+              "modexp2565": {}
             }
           }
         }
