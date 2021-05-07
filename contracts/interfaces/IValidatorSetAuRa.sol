@@ -7,6 +7,7 @@ interface IValidatorSetAuRa {
         address,
         address,
         address,
+        address,
         address[] calldata,
         address[] calldata,
         bool

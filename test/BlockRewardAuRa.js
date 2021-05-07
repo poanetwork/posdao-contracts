@@ -64,6 +64,7 @@ contract('BlockRewardAuRa', async accounts => {
       // Initialize ValidatorSetAuRa
       await validatorSetAuRa.initialize(
         blockRewardAuRa.address, // _blockRewardContract
+        '0x0000000000000000000000000000000000000000', // _governanceContract
         randomAuRa.address, // _randomContract
         stakingAuRa.address, // _stakingContract
         initialValidators, // _initialMiningAddresses
@@ -79,6 +80,7 @@ contract('BlockRewardAuRa', async accounts => {
       // Initialize StakingAuRa
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
+        '0x0000000000000000000000000000000000000000', // _governanceContract
         initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
@@ -417,6 +419,7 @@ contract('BlockRewardAuRa', async accounts => {
       // Initialize ValidatorSetAuRa
       await validatorSetAuRa.initialize(
         blockRewardAuRa.address, // _blockRewardContract
+        '0x0000000000000000000000000000000000000000', // _governanceContract
         randomAuRa.address, // _randomContract
         stakingAuRa.address, // _stakingContract
         initialValidators, // _initialMiningAddresses
@@ -432,6 +435,7 @@ contract('BlockRewardAuRa', async accounts => {
       // Initialize StakingAuRa
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
+        '0x0000000000000000000000000000000000000000', // _governanceContract
         initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake

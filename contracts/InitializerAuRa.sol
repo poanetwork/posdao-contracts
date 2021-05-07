@@ -19,7 +19,8 @@ contract InitializerAuRa {
     ///   2 is RandomAuRa,
     ///   3 is StakingAuRa,
     ///   4 is TxPermission,
-    ///   5 is Certifier.
+    ///   5 is Certifier,
+    ///   6 is Governance.
     /// @param _owner The contracts' owner.
     /// @param _miningAddresses The array of initial validators' mining addresses.
     /// @param _stakingAddresses The array of initial validators' staking addresses.
@@ -53,6 +54,7 @@ contract InitializerAuRa {
     ) public {
         IValidatorSetAuRa(_contracts[0]).initialize(
             _contracts[1], // _blockRewardContract
+            _contracts[6], // _governanceContract
             _contracts[2], // _randomContract
             _contracts[3], // _stakingContract
             _miningAddresses,
@@ -66,6 +68,7 @@ contract InitializerAuRa {
             }
             IStakingAuRa(_contracts[3]).initialize(
                 _contracts[0], // _validatorSetContract
+                _contracts[6], // _governanceContract
                 _ids,
                 _delegatorMinStake,
                 _candidateMinStake,
