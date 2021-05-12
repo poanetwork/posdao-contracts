@@ -14,6 +14,7 @@ interface IValidatorSetAuRa {
     ) external;
     function newValidatorSet() external;
     function removeMaliciousValidators(address[] calldata) external;
+    function removeValidator(uint256, uint256, bytes32) external;
     function areDelegatorsBanned(address) external view returns(bool);
     function areIdDelegatorsBanned(uint256) external view returns(bool);
     function blockRewardContract() external view returns(address);

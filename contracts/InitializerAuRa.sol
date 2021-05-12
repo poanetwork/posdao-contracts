@@ -2,6 +2,7 @@ pragma solidity 0.5.10;
 
 import "./interfaces/IBlockRewardAuRa.sol";
 import "./interfaces/ICertifier.sol";
+import "./interfaces/IGovernance.sol";
 import "./interfaces/IRandomAuRa.sol";
 import "./interfaces/IStakingAuRa.sol";
 import "./interfaces/ITxPermission.sol";
@@ -83,6 +84,7 @@ contract InitializerAuRa {
         permittedAddresses[0] = _owner;
         ITxPermission(_contracts[4]).initialize(permittedAddresses, _contracts[5], _contracts[0]);
         ICertifier(_contracts[5]).initialize(permittedAddresses, _contracts[0]);
+        IGovernance(_contracts[6]).initialize(_contracts[0]);
         if (block.number > 0) {
             selfdestruct(msg.sender); // this is to clear the state
             // OpenEthereum and Nethermind clients
