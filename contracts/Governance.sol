@@ -94,11 +94,11 @@ contract Governance is UpgradeableOwned, BanReasons, IGovernance {
     /// @dev Max possible ballot duration in blocks.
     uint256 public constant MAX_DURATION = 86400; // 5 days if 5-second blocks
 
-    /// @dev Ban duration in full staking epochs.
+    /// @dev Long ban duration in full staking epochs.
     uint256 internal constant BAN_DURATION = 12; // ~90 days
 
     /// @dev Ballot statuses
-    uint256 internal constant BALLOT_STATUS_OPEN = 1; // unfinalized and not cancelled ballot
+    uint256 internal constant BALLOT_STATUS_OPEN = 1; // unfinalized and not cancelled
     uint256 internal constant BALLOT_STATUS_FINALIZED = 2;
     uint256 internal constant BALLOT_STATUS_CANCELED = 3;
 
@@ -107,9 +107,31 @@ contract Governance is UpgradeableOwned, BanReasons, IGovernance {
     uint256 internal constant BALLOT_RESULT_REMOVE = 2; // remove a validator but don't ban them
     uint256 internal constant BALLOT_RESULT_BAN = 3; // remove a validator from the validator set and ban them
 
+    // ================================================ Events ========================================================
+
+    /// @dev Emitted by the `create` function to signal that a new ballot is created.
+    /// @param ballotId A unique id of the newly added ballot.
+    event Created(uint256 ballotId);
+
+    /// @dev Emitted by the `cancel` function to signal that a ballot is canceled.
+    /// @param ballotId The id of the canceled ballot.
+    event Canceled(uint256 ballotId);
+
+    /// @dev Emitted by the `vote` function to signal that there is a new vote
+    /// related to the specified ballot from the specified pool.
+    /// @param ballotId The id of the ballot for which the vote was given.
+    /// @param choice Can be either: 1 - keep the pool, 2 - remove, 3 - remove and ban.
+    /// @param senderPoolId The id of the pool which called the `vote` function.
+    event Voted(uint256 indexed ballotId, uint256 choice, uint256 indexed senderPoolId);
+
+    /// @dev Emitted by the `finalize` or `vote` function to signal that a ballot is finalized.
+    /// @param ballotId The id of the finalized ballot.
+    event Finalized(uint256 ballotId);
+
     // =============================================== Setters ========================================================
 
-    /// @dev Initializes the contract. Used by the constructor of the `InitializerAuRa` contract.
+    /// @dev Initializes the contract. Used by the constructor of the `InitializerAuRa` contract, or separately when
+    /// initializing not from genesis.
     /// @param _validatorSetContract The address of the `ValidatorSetAuRa` contract.
     function initialize(address _validatorSetContract) external {
         require(_getCurrentBlockNumber() == 0 || msg.sender == _admin());
@@ -187,6 +209,8 @@ contract Governance is UpgradeableOwned, BanReasons, IGovernance {
         if (_choice != 0) {
             vote(ballotId, _choice);
         }
+
+        emit Created(ballotId);
     }
 
     /// @dev Cancels the specified ballot before its expiration.
@@ -200,6 +224,7 @@ contract Governance is UpgradeableOwned, BanReasons, IGovernance {
         require(validatorSetContract.isValidatorById(senderPoolId));
         ballotStatus[_ballotId] = BALLOT_STATUS_CANCELED;
         openCountPerPoolId[senderPoolId] = openCountPerPoolId[senderPoolId].sub(1);
+        emit Canceled(_ballotId);
     }
 
     /// @dev Gives a vote for the specified ballot.
@@ -228,6 +253,8 @@ contract Governance is UpgradeableOwned, BanReasons, IGovernance {
         } else {
             revert();
         }
+
+        emit Voted(_ballotId, _choice, senderPoolId);
 
         // Automatically finalize the ballot if all validators voted during the same staking epoch
         if (canBeFinalized(_ballotId)) {
@@ -360,6 +387,7 @@ contract Governance is UpgradeableOwned, BanReasons, IGovernance {
                 ballotReason[_ballotId]
             );
         }
+        emit Finalized(_ballotId);
     }
 
     /// @dev Determines a ballot result for the specified ballot.
