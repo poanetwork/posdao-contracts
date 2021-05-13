@@ -31,13 +31,13 @@
     "eth-gas-reporter": "^0.2.12",
     "ethereumjs-abi": "0.6.8",
     "ethereumjs-util": "6.2.0",
-    "ganache-cli": "^6.6.0",
+    "ganache-cli": "6.10.2",
     "mochawesome": "^3.1.1",
     "node-fetch": "^2.6.0",
     "solc": "0.5.10",
     "solhint": "^2.0.0",
     "solidity-coverage": "^0.6.7",
-    "truffle": "^5.0.43",
+    "truffle": "5.0.43",
     "web3": "^1.2.1"
   }
 }

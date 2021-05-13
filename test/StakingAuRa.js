@@ -1422,8 +1422,7 @@ contract('StakingAuRa', async accounts => {
       const weiSpent = (new BN(result.receipt.gasUsed)).mul(new BN(tx.gasPrice));
 
       if (!!process.env.SOLIDITY_COVERAGE !== true) {
-        result.receipt.gasUsed.should.be.below(1700000);
-        // result.receipt.gasUsed.should.be.below(3020000); // for Istanbul
+        result.receipt.gasUsed.should.be.below(3020000);
       }
 
       const delegatorTokensBalanceAfter = await erc677Token.balanceOf.call(delegator);
@@ -1561,14 +1560,12 @@ contract('StakingAuRa', async accounts => {
 
       if (!!process.env.SOLIDITY_COVERAGE !== true) {
         const perEpochGasConsumption = endGasConsumption.sub(startGasConsumption).div(new BN(maxStakingEpoch - 2));
-        perEpochGasConsumption.should.be.bignumber.equal(new BN(500));
-        // perEpochGasConsumption.should.be.bignumber.equal(new BN(1109)); // for Istanbul
+        perEpochGasConsumption.should.be.bignumber.below(new BN(1109));
 
         // Check gas consumption for the case when the delegator didn't touch their
         // stake for 50 years (2600 staking epochs)
         const maxGasConsumption = initialGasConsumption.sub(perEpochGasConsumption).add(perEpochGasConsumption.mul(new BN(2600)));
-        maxGasConsumption.should.be.bignumber.below(new BN(1700000));
-        // maxGasConsumption.should.be.bignumber.below(new BN(3020000)); // for Istanbul
+        maxGasConsumption.should.be.bignumber.below(new BN(3020000));
       }
 
       let blockRewardTokensBalanceTotalAfter = await erc677Token.balanceOf.call(blockRewardAuRa.address);
@@ -1725,8 +1722,7 @@ contract('StakingAuRa', async accounts => {
       // console.log(`gasUsed = ${result.receipt.gasUsed}, cumulativeGasUsed = ${result.receipt.cumulativeGasUsed}`);
 
       if (!!process.env.SOLIDITY_COVERAGE !== true) {
-        result.receipt.gasUsed.should.be.below(1730000);
-        // result.receipt.gasUsed.should.be.below(2100000); // for Istanbul
+        result.receipt.gasUsed.should.be.below(2200000);
       }
 
       const delegatorTokensBalanceAfter = await erc677Token.balanceOf.call(delegator);
@@ -1909,8 +1905,7 @@ contract('StakingAuRa', async accounts => {
       // console.log(`gasUsed = ${result.receipt.gasUsed}, cumulativeGasUsed = ${result.receipt.cumulativeGasUsed}`);
 
       if (!!process.env.SOLIDITY_COVERAGE !== true) {
-        result.receipt.gasUsed.should.be.below(2000000);
-        // result.receipt.gasUsed.should.be.below(2610000); // for Istanbul
+        result.receipt.gasUsed.should.be.below(2700000);
       }
 
       const delegatorTokensBalanceAfter = await erc677Token.balanceOf.call(delegator);
