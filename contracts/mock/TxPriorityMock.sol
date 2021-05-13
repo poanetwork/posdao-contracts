@@ -6,6 +6,7 @@ import '../../contracts/TxPriority.sol';
 
 contract TxPriorityMock is TxPriority {
 
+    // solhint-disable
     constructor(address _owner, bool _applyInitTestRules) public TxPriority(_owner) {
         if (_applyInitTestRules) {
             // Apply initial test rules for posdao-test-setup
@@ -45,6 +46,7 @@ contract TxPriorityMock is TxPriority {
             _minGasPrices.push(Destination(0x15B5c5A3D4bF2F2Dfc356A442f72Df372743d7cB, 0x00000000, 1000000000));
         }
     }
+    // solhint-enable
 
     function firstWeightInTree() external view returns(uint256) {
         return _weightsTree.first();

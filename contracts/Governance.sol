@@ -199,7 +199,11 @@ contract Governance is UpgradeableOwned, BanReasons, IGovernance {
                     .add(1);
             }
             ballotLongBanUntilBlock[ballotId] = fullStakingEpochs.mul(stakingEpochDuration).add(stakingEpochEndBlock);
-            ballotShortBanUntilBlock[ballotId] = fullStakingEpochs.sub(BAN_DURATION).mul(stakingEpochDuration).add(stakingEpochEndBlock);
+            ballotShortBanUntilBlock[ballotId] =
+                fullStakingEpochs
+                .sub(BAN_DURATION)
+                .mul(stakingEpochDuration)
+                .add(stakingEpochEndBlock);
             ballotStakingEpoch[ballotId] = stakingContract.stakingEpoch();
         }
         ballotReason[ballotId] = _reason;
