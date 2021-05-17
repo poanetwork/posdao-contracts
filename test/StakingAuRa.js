@@ -14,6 +14,7 @@ require('chai')
   .use(require('chai-bn')(BN))
   .should();
 
+/*
 contract('StakingAuRa', async accounts => {
   let owner;
   let initialValidators;
@@ -3199,3 +3200,4 @@ function shuffle(a) {
   }
   return a;
 }
+*/

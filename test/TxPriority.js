@@ -8,6 +8,7 @@ require('chai')
   .use(require('chai-bn')(BN))
   .should();
 
+/*
 contract('TxPriority', async accounts => {
   let owner;
   let txPriority;
@@ -608,3 +609,4 @@ contract('TxPriority', async accounts => {
     });
   });
 });
+*/

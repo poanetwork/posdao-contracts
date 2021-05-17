@@ -40,6 +40,18 @@ contract ValidatorSetAuRaMock is ValidatorSetAuRa {
         _currentBlockNumber = _blockNumber;
     }
 
+    function addNonValidatorPools(address[] memory _stakingAddresses) public {
+        for (uint256 i = 0; i < _stakingAddresses.length; i++) {
+            address stakingAddress = _stakingAddresses[i];
+            uint256 poolId = uint256(stakingAddress);
+            idByStakingAddress[stakingAddress] = poolId;
+        }
+    }
+
+    // function setPoolAsValidator(uint256 _poolId) public {
+    //     isValidatorById[_poolId] = true;
+    // }
+
     function setRandomContract(address _address) public {
         randomContract = _address;
     }

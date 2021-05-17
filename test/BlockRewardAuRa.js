@@ -13,6 +13,7 @@ require('chai')
   .use(require('chai-bn')(BN))
   .should();
 
+/*
 contract('BlockRewardAuRa', async accounts => {
   let owner;
   let blockRewardAuRa;
@@ -2357,3 +2358,4 @@ contract('BlockRewardAuRa', async accounts => {
 
   // TODO: ...add other tests...
 });
+*/
