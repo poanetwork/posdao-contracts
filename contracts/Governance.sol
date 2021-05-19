@@ -209,6 +209,7 @@ contract Governance is UpgradeableOwned, BanReasons, IGovernance {
         ballotReason[ballotId] = _reason;
         ballotStatus[ballotId] = BALLOT_STATUS_OPEN;
         ballotThreshold[ballotId] = validatorsLength / 2 + 1;
+        ballotIdByPoolId[_poolId] = ballotId;
 
         if (_choice != 0) {
             vote(ballotId, _choice);
@@ -228,6 +229,8 @@ contract Governance is UpgradeableOwned, BanReasons, IGovernance {
         require(validatorSetContract.isValidatorById(senderPoolId));
         ballotStatus[_ballotId] = BALLOT_STATUS_CANCELED;
         openCountPerPoolId[senderPoolId] = openCountPerPoolId[senderPoolId].sub(1);
+        uint256 targetPoolId = ballotPoolId[_ballotId];
+        ballotIdByPoolId[targetPoolId] = 0;
         emit Canceled(_ballotId);
     }
 
@@ -375,22 +378,24 @@ contract Governance is UpgradeableOwned, BanReasons, IGovernance {
         require(validatorSetContract != IValidatorSetAuRa(0));
         uint256 result = _calcBallotResult(_ballotId);
         uint256 creatorPoolId = ballotCreator[_ballotId];
+        uint256 targetPoolId = ballotPoolId[_ballotId];
         ballotResult[_ballotId] = result;
         ballotStatus[_ballotId] == BALLOT_STATUS_FINALIZED;
         openCountPerPoolId[creatorPoolId] = openCountPerPoolId[creatorPoolId].sub(1);
         if (result == BALLOT_RESULT_REMOVE) {
             validatorSetContract.removeValidator(
-                ballotPoolId[_ballotId],
+                targetPoolId,
                 ballotShortBanUntilBlock[_ballotId],
                 ballotReason[_ballotId]
             );
         } else if (result == BALLOT_RESULT_BAN) {
             validatorSetContract.removeValidator(
-                ballotPoolId[_ballotId],
+                targetPoolId,
                 ballotLongBanUntilBlock[_ballotId],
                 ballotReason[_ballotId]
             );
         }
+        ballotIdByPoolId[targetPoolId] = 0;
         emit Finalized(_ballotId);
     }
 

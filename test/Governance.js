@@ -87,15 +87,43 @@ contract('Governance', async accounts => {
   });
 
   describe('create()', async () => {
+    const reason = web3.utils.toHex("unrevealed");
+
     it('should create a new ballot', async () => {
       const targetPoolId = initialPoolIds[initialValidators.length - 1];
-      const reason = web3.utils.toHex("unrevealed");
-      await governance.create(targetPoolId, 17280, reason, 0, { from: initialStakingAddresses[0] }).should.be.fulfilled;
-      const ballot = await governance.getBallot(1);
+      const {logs} = await governance.create(targetPoolId, 17280, reason, 0, { from: initialStakingAddresses[0] }).should.be.fulfilled;
+      const ballot = await governance.getBallot.call(1);
+      logs[0].event.should.be.equal('Created');
+      logs[0].args.ballotId.should.be.bignumber.equal(new BN(1));
       ballot._poolId.should.be.bignumber.equal(targetPoolId);
       ballot._creatorPoolId.should.be.bignumber.equal(initialPoolIds[0]);
       ballot._reason.should.be.equal(web3.utils.padRight(reason, 64));
       ballot._status.should.be.bignumber.equal(new BN(1));
+    });
+    it('should not create a ballot for a non-validator pool', async () => {
+      let targetPoolId = web3.utils.sha3(Math.random().toString());
+      await governance.create(targetPoolId, 17280, reason, 0, { from: initialStakingAddresses[0] }).should.be.rejectedWith(ERROR_MSG);
+      targetPoolId = initialPoolIds[initialValidators.length - 1];
+      await governance.create(targetPoolId, 17280, reason, 0, { from: initialStakingAddresses[0] }).should.be.fulfilled;
+    });
+    it('cannot be called by a non-validator pool', async () => {
+      const targetPoolId = initialPoolIds[initialValidators.length - 1];
+      await governance.create(targetPoolId, 17280, reason, 0, { from: owner }).should.be.rejectedWith(ERROR_MSG);
+      await governance.create(targetPoolId, 17280, reason, 0, { from: initialStakingAddresses[0] }).should.be.fulfilled;
+    });
+    it('should not create a ballot for the caller pool', async () => {
+      const targetPoolId = initialPoolIds[initialValidators.length - 1];
+      await governance.create(targetPoolId, 17280, reason, 0, { from: initialStakingAddresses[initialValidators.length - 1] }).should.be.rejectedWith(ERROR_MSG);
+      await governance.create(targetPoolId, 17280, reason, 0, { from: initialStakingAddresses[initialValidators.length - 2] }).should.be.fulfilled;
+    });
+    it('should not create a ballot for the pool which is already under unfinalized ballot', async () => {
+      const targetPoolId = initialPoolIds[initialValidators.length - 1];
+      await governance.create(targetPoolId, 17280, reason, 0, { from: initialStakingAddresses[0] }).should.be.fulfilled;
+      await governance.create(targetPoolId, 17280, reason, 0, { from: initialStakingAddresses[1] }).should.be.rejectedWith(ERROR_MSG);
+      const ballotExpirationBlock = await governance.ballotExpirationBlock.call(1);
+      await governance.setCurrentBlockNumber(ballotExpirationBlock);
+      await governance.finalize(1).should.be.fulfilled;
+      await governance.create(targetPoolId, 17280, reason, 0, { from: initialStakingAddresses[2] }).should.be.fulfilled;
     });
   });
 });
