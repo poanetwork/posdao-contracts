@@ -216,6 +216,9 @@ contract TxPermissionBase is UpgradeableOwned, ITxPermission {
     // bytes4(keccak256("revealNumber(uint256)"))
     bytes4 internal constant REVEAL_NUMBER_SIGNATURE = 0xfe7d567d;
 
+    // bytes4(keccak256("transfer(address,uint256)"))
+    bytes4 internal constant TRANSFER_SIGNATURE = 0xa9059cbb;
+
     /// @dev An internal function used by the `addAllowedSender` and `initialize` functions.
     /// @param _sender The address for which transactions of any type must be allowed.
     function _addAllowedSender(address _sender) internal {
@@ -232,7 +235,7 @@ contract TxPermissionBase is UpgradeableOwned, ITxPermission {
     /// @param _to Transaction recipient address. If creating a contract, the `_to` address is zero.
     /// @param _value Transaction amount in Wei.
     /// @param _maxFeePerGas The `maxFeePerGas` in Wei for EIP-1559 transaction, or gas price for a legacy transaction.
-    /// @param _maxInclusionFeePerGas The `maxInclusionFeePerGas` in Wei for EIP-1559 transaction.
+    /// @param _maxPriorityFeePerGas The `maxPriorityFeePerGas` in Wei for EIP-1559 transaction.
     /// Equals to gas price for a legacy transaction.
     /// @param _gasLimit Gas limit for the transaction.
     /// @param _data Transaction data.
@@ -249,7 +252,7 @@ contract TxPermissionBase is UpgradeableOwned, ITxPermission {
         address _to,
         uint256 _value,
         uint256 _maxFeePerGas, // equals to gasPrice for legacy transactions
-        uint256 _maxInclusionFeePerGas, // equals to gasPrice for legacy transactions
+        uint256 _maxPriorityFeePerGas, // equals to gasPrice for legacy transactions
         uint256 _gasLimit,
         bytes memory _data
     )
@@ -318,8 +321,13 @@ contract TxPermissionBase is UpgradeableOwned, ITxPermission {
         }
 
         if (validatorSetContract.isValidator(_sender) && _maxFeePerGas > 0) {
-            // Let the validator's mining address send their accumulated tx fees to some wallet
-            return (_sender.balance > 0 ? BASIC : NONE, false);
+            if (signature == TRANSFER_SIGNATURE) {
+                // Let the validator's mining address send their tokens using ERC-20 `transfer` function
+                return (CALL, false);
+            } else {
+                // Let the validator's mining address send their accumulated tx fees to some wallet
+                return (_sender.balance > 0 ? BASIC : NONE, false);
+            }
         }
 
         if (validatorSetContract.isValidator(_to)) {
@@ -333,7 +341,7 @@ contract TxPermissionBase is UpgradeableOwned, ITxPermission {
         }
 
         // Disallow invalid gas price for the specified sender
-        if (_maxFeePerGas < senderMinGasPrice[_sender] || _maxInclusionFeePerGas < senderMinGasPrice[_sender]) {
+        if (_maxFeePerGas < senderMinGasPrice[_sender] || _maxPriorityFeePerGas < senderMinGasPrice[_sender]) {
             return (NONE, false);
         }
 

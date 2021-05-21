@@ -19,7 +19,7 @@ contract TxPermissionV4 is TxPermissionBase {
     /// @param _to Transaction recipient address. If creating a contract, the `_to` address is zero.
     /// @param _value Transaction amount in wei.
     /// @param _maxFeePerGas The `maxFeePerGas` in Wei for EIP-1559 transaction, or gas price for a legacy transaction.
-    /// @param _maxInclusionFeePerGas The `maxInclusionFeePerGas` in Wei for EIP-1559 transaction.
+    /// @param _maxPriorityFeePerGas The `maxPriorityFeePerGas` in Wei for EIP-1559 transaction.
     /// Equals to gas price for a legacy transaction.
     /// @param _gasLimit Gas limit for the transaction.
     /// @param _data Transaction data.
@@ -36,7 +36,7 @@ contract TxPermissionV4 is TxPermissionBase {
         address _to,
         uint256 _value,
         uint256 _maxFeePerGas, // equals to gasPrice for legacy transactions
-        uint256 _maxInclusionFeePerGas, // equals to gasPrice for legacy transactions
+        uint256 _maxPriorityFeePerGas, // equals to gasPrice for legacy transactions
         uint256 _gasLimit,
         bytes memory _data
     )
@@ -44,7 +44,7 @@ contract TxPermissionV4 is TxPermissionBase {
         view
         returns(uint32 typesMask, bool cache)
     {
-        return _allowedTxTypes(_sender, _to, _value, _maxFeePerGas, _maxInclusionFeePerGas, _gasLimit, _data);
+        return _allowedTxTypes(_sender, _to, _value, _maxFeePerGas, _maxPriorityFeePerGas, _gasLimit, _data);
     }
 
 }
