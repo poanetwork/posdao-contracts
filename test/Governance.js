@@ -125,5 +125,49 @@ contract('Governance', async accounts => {
       await governance.finalize(1).should.be.fulfilled;
       await governance.create(targetPoolId, 17280, reason, 0, { from: initialStakingAddresses[2] }).should.be.fulfilled;
     });
+    it('cannot create too many parallel ballots by the same creator', async () => {
+      const maxParallelBallotsAllowed = Math.floor(initialValidators.length / 3);
+      for (let i = 1; i <= maxParallelBallotsAllowed; i++) {
+        await governance.create(initialPoolIds[i], 17280, reason, 0, { from: initialStakingAddresses[0] }).should.be.fulfilled;
+      }
+      await governance.create(initialPoolIds[maxParallelBallotsAllowed + 1], 17280, reason, 0, { from: initialStakingAddresses[0] }).should.be.rejectedWith(ERROR_MSG);
+      await governance.cancel(1, { from: initialStakingAddresses[0] }).should.be.fulfilled;
+      await governance.create(initialPoolIds[maxParallelBallotsAllowed + 1], 17280, reason, 0, { from: initialStakingAddresses[0] }).should.be.fulfilled;
+      await governance.create(initialPoolIds[maxParallelBallotsAllowed + 2], 17280, reason, 0, { from: initialStakingAddresses[0] }).should.be.rejectedWith(ERROR_MSG);
+      const ballotExpirationBlock = await governance.ballotExpirationBlock.call(2);
+      await governance.setCurrentBlockNumber(ballotExpirationBlock);
+      await governance.finalize(2, { from: owner }).should.be.fulfilled;
+      await governance.create(initialPoolIds[maxParallelBallotsAllowed + 2], 17280, reason, 0, { from: initialStakingAddresses[0] }).should.be.fulfilled;
+      await governance.create(initialPoolIds[maxParallelBallotsAllowed + 3], 17280, reason, 0, { from: initialStakingAddresses[0] }).should.be.rejectedWith(ERROR_MSG);
+    });
+    it('should not create a ballot with an invalid duration', async () => {
+      const minDuration = await governance.MIN_DURATION.call();
+      const maxDuration = await governance.MAX_DURATION.call();
+      minDuration.should.be.bignumber.lt(maxDuration);
+      await governance.create(initialPoolIds[1], minDuration - 1, reason, 0, { from: initialStakingAddresses[0] }).should.be.rejectedWith(ERROR_MSG);
+      await governance.create(initialPoolIds[1], minDuration, reason, 0, { from: initialStakingAddresses[0] }).should.be.fulfilled;
+      await governance.create(initialPoolIds[3], maxDuration - 0 + 1, reason, 0, { from: initialStakingAddresses[2] }).should.be.rejectedWith(ERROR_MSG);
+      await governance.create(initialPoolIds[3], maxDuration, reason, 0, { from: initialStakingAddresses[2] }).should.be.fulfilled;
+      await governance.create(initialPoolIds[5], minDuration.add(maxDuration).div(new BN(2)), reason, 0, { from: initialStakingAddresses[4] }).should.be.fulfilled;
+    });
+    it('should not create a ballot with an invalid reason', async () => {
+      await governance.create(initialPoolIds[9], 17280, web3.utils.toHex("other reason"), 0, { from: initialStakingAddresses[8] }).should.be.rejectedWith(ERROR_MSG);
+      await governance.create(initialPoolIds[7], 17280, web3.utils.toHex("unrevealed"), 0, { from: initialStakingAddresses[6] }).should.be.fulfilled;
+      await governance.create(initialPoolIds[5], 17280, web3.utils.toHex("often reveal skips"), 0, { from: initialStakingAddresses[4] }).should.be.fulfilled;
+      await governance.create(initialPoolIds[3], 17280, web3.utils.toHex("often block skips"), 0, { from: initialStakingAddresses[2] }).should.be.fulfilled;
+      await governance.create(initialPoolIds[1], 17280, web3.utils.toHex("often block delays"), 0, { from: initialStakingAddresses[0] }).should.be.fulfilled;
+    });
+    it('should increase openCountPerPoolId getter value for the sender pool', async () => {
+      const sender = initialStakingAddresses[0];
+      const senderPoolId = await validatorSetAuRa.idByStakingAddress.call(sender);
+      const openCountPerPoolId = await governance.openCountPerPoolId.call(senderPoolId);
+      await governance.create(initialPoolIds[1], 17280, reason, 0, { from: sender }).should.be.fulfilled;
+      openCountPerPoolId.add(new BN(1)).should.be.bignumber.equal(await governance.openCountPerPoolId.call(senderPoolId));
+    });
+    it('should increase latestBallotId getter value', async () => {
+      const latestBallotId = await governance.latestBallotId.call();
+      await governance.create(initialPoolIds[1], 17280, reason, 0, { from: initialStakingAddresses[0] }).should.be.fulfilled;
+      latestBallotId.add(new BN(1)).should.be.bignumber.equal(await governance.latestBallotId.call());
+    });
   });
 });
