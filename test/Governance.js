@@ -81,6 +81,9 @@ contract('Governance', async accounts => {
     ).should.be.fulfilled;
     await stakingAuRa.setCurrentBlockNumber(currentBlockNumber).should.be.fulfilled;
     await stakingAuRa.setStakingEpoch(1).should.be.fulfilled;
+    await stakingAuRa.setValidatorSetAddress(owner).should.be.fulfilled;
+    await stakingAuRa.setStakingEpochStartBlock(9186425+120992).should.be.fulfilled;
+    await stakingAuRa.setValidatorSetAddress(validatorSetAuRa.address).should.be.fulfilled;
     // Initialize Governance
     await governance.initialize(validatorSetAuRa.address);
     await governance.setCurrentBlockNumber(currentBlockNumber).should.be.fulfilled;
@@ -168,6 +171,48 @@ contract('Governance', async accounts => {
       const latestBallotId = await governance.latestBallotId.call();
       await governance.create(initialPoolIds[1], 17280, reason, 0, { from: initialStakingAddresses[0] }).should.be.fulfilled;
       latestBallotId.add(new BN(1)).should.be.bignumber.equal(await governance.latestBallotId.call());
+    });
+    it('should set correct data for getters', async () => {
+      const targetPoolId = initialPoolIds[initialValidators.length - 1];
+      const ballotId = (new BN(await governance.latestBallotId.call())).add(new BN(1));
+      const currentBlockNumber = await governance.getCurrentBlockNumber.call();
+
+      (await governance.ballotPoolId.call(ballotId)).should.be.bignumber.equal(new BN(0));
+      (await governance.ballotCreator.call(ballotId)).should.be.bignumber.equal(new BN(0));
+      (await governance.ballotExpirationBlock.call(ballotId)).should.be.bignumber.equal(new BN(0));
+      (await governance.ballotLongBanUntilBlock.call(ballotId)).should.be.bignumber.equal(new BN(0));
+      (await governance.ballotShortBanUntilBlock.call(ballotId)).should.be.bignumber.equal(new BN(0));
+      (await governance.ballotStakingEpoch.call(ballotId)).should.be.bignumber.equal(new BN(0));
+      (await governance.ballotReason.call(ballotId)).should.be.equal('0x0000000000000000000000000000000000000000000000000000000000000000');
+      (await governance.ballotStatus.call(ballotId)).should.be.bignumber.equal(new BN(0));
+      (await governance.ballotThreshold.call(ballotId)).should.be.bignumber.equal(new BN(0));
+      (await governance.ballotIdByPoolId.call(targetPoolId)).should.be.bignumber.equal(new BN(0));
+
+      const {logs} = await governance.create(targetPoolId, 17280, reason, 0, { from: initialStakingAddresses[0] }).should.be.fulfilled;
+      logs[0].event.should.be.equal('Created');
+      logs[0].args.ballotId.should.be.bignumber.equal(ballotId);
+
+      const expirationBlock = currentBlockNumber.add(new BN(17280));
+      const stakingEpochDuration = await stakingAuRa.stakingEpochDuration.call();
+      const stakingEpochEndBlock = await stakingAuRa.stakingEpochEndBlock.call();
+
+      (await governance.ballotPoolId.call(ballotId)).should.be.bignumber.equal(targetPoolId);
+      (await governance.ballotCreator.call(ballotId)).should.be.bignumber.equal(initialPoolIds[0]);
+      (await governance.ballotExpirationBlock.call(ballotId)).should.be.bignumber.equal(expirationBlock);
+
+      let fullStakingEpochs = new BN(12);
+      if (expirationBlock.gt(stakingEpochEndBlock)) {
+        fullStakingEpochs = expirationBlock.sub(stakingEpochEndBlock).div(stakingEpochDuration).add(fullStakingEpochs).add(new BN(1));
+      }
+      const ballotLongBanUntilBlockExpected = fullStakingEpochs.mul(stakingEpochDuration).add(stakingEpochEndBlock);
+      const ballotShortBanUntilBlockExpected = fullStakingEpochs.sub(new BN(12)).mul(stakingEpochDuration).add(stakingEpochEndBlock);
+      (await governance.ballotLongBanUntilBlock.call(ballotId)).should.be.bignumber.equal(ballotLongBanUntilBlockExpected);
+      (await governance.ballotShortBanUntilBlock.call(ballotId)).should.be.bignumber.equal(ballotShortBanUntilBlockExpected);
+      (await governance.ballotStakingEpoch.call(ballotId)).should.be.bignumber.equal(new BN(1));
+      (await governance.ballotReason.call(ballotId)).should.be.equal(web3.utils.padRight(reason, 64));
+      (await governance.ballotStatus.call(ballotId)).should.be.bignumber.equal(new BN(1));
+      (await governance.ballotThreshold.call(ballotId)).should.be.bignumber.equal((new BN(initialValidators.length)).div(new BN(2)).add(new BN(1)));
+      (await governance.ballotIdByPoolId.call(targetPoolId)).should.be.bignumber.equal(ballotId);
     });
   });
 });

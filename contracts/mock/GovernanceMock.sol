@@ -13,6 +13,12 @@ contract GovernanceMock is Governance {
         _currentBlockNumber = _blockNumber;
     }
 
+    // =============================================== Getters ========================================================
+
+    function getCurrentBlockNumber() public view returns(uint256) {
+        return _getCurrentBlockNumber();
+    }
+
     // =============================================== Private ========================================================
 
     function _getCurrentBlockNumber() internal view returns(uint256) {
