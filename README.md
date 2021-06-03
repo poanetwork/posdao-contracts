@@ -102,7 +102,7 @@ _Note: The following descriptions are for AuRa contracts only. HBBFT contract im
   - withdrawing tokens and rewards by participants from the pools;
   - moving tokens between pools by participant.
 
-- `TokenMinter`: used when we need to have an ability to mint POSDAO tokens not only by the bridge, but also by the `BlockRewardAuRa` contract if the staking token contract doesn't support a `mintReward` function.
+- `TokenMinter`: used when we need to have an ability to mint POSDAO tokens not only by the bridge, but also by the `BlockRewardAuRa` contract if the staking token contract doesn't support a `mintReward` function. Particularly, it is used for the PermittableToken contract: https://blockscout.com/poa/xdai/address/0xf8D1677c8a0c961938bf2f9aDc3F3CFDA759A9d9/contracts. The PermittableToken contract is a reduced version of the full `ERC677BridgeTokenRewardable` contract.
 
 - `TxPermission`: along with the `Certifier` contract, controls the use of zero gas price by validators in service transactions, protecting the network against "transaction spamming" by malicious validators. The protection logic is declared in the `allowedTxTypes` function.
 

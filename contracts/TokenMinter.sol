@@ -11,7 +11,9 @@ interface IToken {
 
 /// @dev Used when we need to have an ability to mint POSDAO tokens not only by the bridge,
 /// but also by the BlockRewardAuRa contract if the staking token contract doesn't support
-/// the `mintReward` function.
+/// the `mintReward` function. Particularly, it is used for the PermittableToken contract:
+/// https://blockscout.com/poa/xdai/address/0xf8D1677c8a0c961938bf2f9aDc3F3CFDA759A9d9/contracts
+/// The PermittableToken contract is a reduced version of the full ERC677BridgeTokenRewardable contract.
 contract TokenMinter {
 
     address public owner;
