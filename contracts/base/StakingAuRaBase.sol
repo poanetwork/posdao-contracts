@@ -608,7 +608,7 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
         address delegatorOrZero = (staker != _poolStakingAddress) ? staker : address(0);
 
         require(stakingEpoch > orderWithdrawEpoch[poolId][delegatorOrZero]);
-        require(_isWithdrawAllowed(poolId, delegatorOrZero != address(0)));
+        require(!_isPoolBanned(poolId, delegatorOrZero != address(0)));
 
         uint256 claimAmount = orderedWithdrawAmount[poolId][delegatorOrZero];
         require(claimAmount != 0);
@@ -1318,24 +1318,35 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
         return (false, 0);
     }
 
+    /// @dev Returns `true` if the specified pool is banned or the pool is under a governance ballot.
+    /// Used by the `_isWithdrawAllowed` internal function and the `claimOrderedWithdraw` function.
+    /// @param _poolId An id of the validator's pool.
+    /// @param _isDelegator Whether the withdrawal is requested by a delegator, not by a candidate/validator.
+    function _isPoolBanned(uint256 _poolId, bool _isDelegator) internal view returns(bool) {
+        if (_isDelegator) {
+            if (validatorSetContract.areIdDelegatorsBanned(_poolId)) {
+                // The delegator cannot withdraw from the banned validator pool until the ban is expired
+                return true;
+            }
+        } else {
+            if (validatorSetContract.isValidatorIdBanned(_poolId)) {
+                // The banned validator cannot withdraw from their pool until the ban is expired
+                return true;
+            } else if (governanceContract != IGovernance(0) && governanceContract.isValidatorUnderBallot(_poolId)) {
+                // There is an active ballot in the Governance contract for this validator removal
+                return true;
+            }
+        }
+        return false;
+    }
+
     /// @dev Returns `true` if withdrawal from the pool of the specified candidate/validator is allowed at the moment.
     /// Used by all withdrawal functions.
     /// @param _poolId An id of the validator's pool.
     /// @param _isDelegator Whether the withdrawal is requested by a delegator, not by a candidate/validator.
     function _isWithdrawAllowed(uint256 _poolId, bool _isDelegator) internal view returns(bool) {
-        if (_isDelegator) {
-            if (validatorSetContract.areIdDelegatorsBanned(_poolId)) {
-                // The delegator cannot withdraw from the banned validator pool until the ban is expired
-                return false;
-            }
-        } else {
-            if (validatorSetContract.isValidatorIdBanned(_poolId)) {
-                // The banned validator cannot withdraw from their pool until the ban is expired
-                return false;
-            } else if (governanceContract != IGovernance(0) && governanceContract.isValidatorUnderBallot(_poolId)) {
-                // There is an active ballot in the Governance contract for this validator removal
-                return false;
-            }
+        if (_isPoolBanned(_poolId, _isDelegator)) {
+            return false;
         }
 
         if (!areStakeAndWithdrawAllowed()) {
