@@ -270,7 +270,9 @@ contract TxPermissionBase is UpgradeableOwned, ITxPermission {
             return (NONE, false);
         }
 
-        // Get the called function's signature
+        // Get the called function's signature.
+        // It is assumed that the `_data` field contains the `length` field in its first 32 bytes.
+        // There are data bytes right after the `length` field (without "garbage bits" between them).
         bytes4 signature = bytes4(0);
         assembly {
             signature := shl(224, mload(add(_data, 4)))

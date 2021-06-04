@@ -147,6 +147,9 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
     /// and the bytes following to the `length word` represent pool's description in UTF-8.
     /// The entire structure of the `_data` for pool adding is:
     /// <20-byte address>01<1-byte name length>[name]<2-byte description length>[description]
+    /// It is assumed that the `_data` field contains the `length` field in its first 32 bytes.
+    /// There are data bytes right after the `length` field (without "garbage bits" between them).
+    /// The same goes for the `name` and `description` string subfields.
     function onTokenTransfer(
         address _staker,
         uint256 _amount,
