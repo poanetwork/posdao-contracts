@@ -6,6 +6,7 @@ interface IStakingAuRa {
     function incrementStakingEpoch() external;
     function initialize(
         address,
+        address,
         uint256[] calldata,
         uint256,
         uint256,

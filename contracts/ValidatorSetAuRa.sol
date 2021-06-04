@@ -1,6 +1,8 @@
 pragma solidity 0.5.10;
 
+import "./base/BanReasons.sol";
 import "./interfaces/IBlockRewardAuRa.sol";
+import "./interfaces/IGovernance.sol";
 import "./interfaces/IRandomAuRa.sol";
 import "./interfaces/IStakingAuRa.sol";
 import "./interfaces/IValidatorSetAuRa.sol";
@@ -10,7 +12,7 @@ import "./libs/SafeMath.sol";
 
 /// @dev Stores the current validator set and contains the logic for choosing new validators
 /// before each staking epoch. The logic uses a random seed generated and stored by the `RandomAuRa` contract.
-contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
+contract ValidatorSetAuRa is UpgradeabilityAdmin, BanReasons, IValidatorSetAuRa {
     using SafeMath for uint256;
 
     // =============================================== Storage ========================================================
@@ -142,6 +144,9 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// @dev Stores pool's short description as UTF-8 string.
     mapping(uint256 => string) public poolDescription;
 
+    /// @dev The `Governance` contract address.
+    IGovernance public governanceContract;
+
     // ============================================== Constants =======================================================
 
     /// @dev The max number of validators.
@@ -211,6 +216,12 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// @dev Ensures the caller is the BlockRewardAuRa contract address.
     modifier onlyBlockRewardContract() {
         require(msg.sender == blockRewardContract);
+        _;
+    }
+
+    /// @dev Ensures the caller is the Governance contract address.
+    modifier onlyGovernanceContract() {
+        require(msg.sender == address(governanceContract));
         _;
     }
 
@@ -417,6 +428,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// @dev Initializes the network parameters. Used by the
     /// constructor of the `InitializerAuRa` contract.
     /// @param _blockRewardContract The address of the `BlockRewardAuRa` contract.
+    /// @param _governanceContract The address of the `Governance` contract.
     /// @param _randomContract The address of the `RandomAuRa` contract.
     /// @param _stakingContract The address of the `StakingAuRa` contract.
     /// @param _initialMiningAddresses The array of initial validators' mining addresses.
@@ -426,6 +438,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// Should be `false` for a production network.
     function initialize(
         address _blockRewardContract,
+        address _governanceContract,
         address _randomContract,
         address _stakingContract,
         address[] calldata _initialMiningAddresses,
@@ -441,6 +454,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         require(_initialMiningAddresses.length == _initialStakingAddresses.length);
 
         blockRewardContract = _blockRewardContract;
+        governanceContract = IGovernance(_governanceContract);
         randomContract = _randomContract;
         stakingContract = IStakingAuRa(_stakingContract);
         lastChangeBlock = _getCurrentBlockNumber();
@@ -517,7 +531,37 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
     /// @dev Removes malicious validators. Called by the `RandomAuRa.onFinishCollectRound` function.
     /// @param _miningAddresses The mining addresses of the malicious validators.
     function removeMaliciousValidators(address[] calldata _miningAddresses) external onlyRandomContract {
-        _removeMaliciousValidators(_miningAddresses, "unrevealed");
+        _removeMaliciousValidators(_miningAddresses, BAN_REASON_UNREVEALED);
+    }
+
+    /// @dev Removes a validator from the validator set and bans its pool.
+    /// Can only be called by the Governance contract.
+    /// @param _poolId A pool id of the removed validator.
+    /// @param _banUntilBlock The number of the latest block of a ban period.
+    /// @param _reason Can be one of the following:
+    /// - "often block delays"
+    /// - "often block skips"
+    /// - "often reveal skips"
+    /// - "unrevealed"
+    function removeValidator(uint256 _poolId, uint256 _banUntilBlock, bytes32 _reason) external onlyGovernanceContract {
+        if (_poolId == unremovableValidator) {
+            return;
+        }
+
+        require(miningAddressById[_poolId] != address(0));
+        require(_banUntilBlock != 0);
+
+        if (_banUntilBlock > _bannedUntil[_poolId]) {
+            _bannedUntil[_poolId] = _banUntilBlock;
+        }
+        _banCounter[_poolId]++;
+        _banReason[_poolId] = _reason;
+
+        if (_removePool(_poolId)) {
+            _setPendingValidatorsChanged(false);
+        }
+
+        lastChangeBlock = _getCurrentBlockNumber();
     }
 
     /// @dev Reports that the malicious validator misbehaved at the specified block.
@@ -554,7 +598,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
                 // treat them as a malicious as well
                 address[] memory miningAddresses = new address[](1);
                 miningAddresses[0] = reportingMiningAddress;
-                _removeMaliciousValidators(miningAddresses, "spam");
+                _removeMaliciousValidators(miningAddresses, BAN_REASON_SPAM);
             }
             return;
         }
@@ -577,7 +621,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         if (reportedValidators.length.mul(2) > _currentValidators.length) {
             address[] memory miningAddresses = new address[](1);
             miningAddresses[0] = _maliciousMiningAddress;
-            _removeMaliciousValidators(miningAddresses, "malicious");
+            _removeMaliciousValidators(miningAddresses, BAN_REASON_MALICIOUS);
         }
     }
 
@@ -1064,26 +1108,8 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
             _bannedDelegatorsUntil[poolId] = _banUntil();
         }
 
-        // Remove malicious validator from the `pools`
-        stakingContract.removePool(poolId);
-
-        uint256 length = _pendingValidators.length;
-
-        if (length == 1) {
-            // If the removed validator is one and only in the validator set, don't let remove them
-            return false;
-        }
-
-        for (uint256 i = 0; i < length; i++) {
-            if (_pendingValidators[i] == poolId) {
-                // Remove the malicious validator from `_pendingValidators`
-                _pendingValidators[i] = _pendingValidators[length - 1];
-                _pendingValidators.length--;
-                return true;
-            }
-        }
-
-        return false;
+        // Remove the malicious validator
+        return _removePool(poolId);
     }
 
     /// @dev Removes the specified validators as malicious from the pending validator set and marks the updated
@@ -1221,6 +1247,32 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, IValidatorSetAuRa {
         hasEverBeenStakingAddress[_stakingAddress] = true;
 
         return poolId;
+    }
+
+    /// @dev Removes validator pool from the list of active pools
+    /// and from the `_pendingValidators` array. Returns `true` if the removal
+    /// was successful, `false` - otherwise.
+    /// @param _poolId The pool id.
+    function _removePool(uint256 _poolId) internal returns(bool) {
+        stakingContract.removePool(_poolId);
+
+        uint256 length = _pendingValidators.length;
+
+        if (length == 1) {
+            // If the removed validator is one and only in the validator set, don't let remove them
+            return false;
+        }
+
+        for (uint256 i = 0; i < length; i++) {
+            if (_pendingValidators[i] == _poolId) {
+                // Remove the malicious validator from `_pendingValidators`
+                _pendingValidators[i] = _pendingValidators[length - 1];
+                _pendingValidators.length--;
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// @dev Returns the future block number until which a validator is banned.

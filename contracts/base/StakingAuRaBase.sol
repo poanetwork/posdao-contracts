@@ -2,6 +2,7 @@ pragma solidity 0.5.10;
 
 import "../interfaces/IBlockRewardAuRa.sol";
 import "../interfaces/IERC677.sol";
+import "../interfaces/IGovernance.sol";
 import "../interfaces/IStakingAuRa.sol";
 import "../interfaces/IValidatorSetAuRa.sol";
 import "../upgradeability/UpgradeableOwned.sol";
@@ -151,8 +152,11 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
     /// Can be used by Staking DApp.
     uint256 public lastChangeBlock;
 
+    /// @dev The address of the `Governance` contract.
+    IGovernance public governanceContract;
+
     // Reserved storage slots to allow for layout changes in the future.
-    uint256[24] private ______gapForPublic;
+    uint256[23] private ______gapForPublic;
 
     // ============================================== Constants =======================================================
 
@@ -326,6 +330,7 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
     /// @dev Initializes the network parameters.
     /// Can only be called by the constructor of the `InitializerAuRa` contract or owner.
     /// @param _validatorSetContract The address of the `ValidatorSetAuRa` contract.
+    /// @param _governanceContract The address of the `Governance` contract.
     /// @param _initialIds The array of initial validators' pool ids.
     /// @param _delegatorMinStake The minimum allowed amount of delegator stake in Wei.
     /// @param _candidateMinStake The minimum allowed amount of candidate/validator stake in Wei.
@@ -338,6 +343,7 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
     /// (e.g., 4320 = 6 hours for 5-seconds blocks in AuRa).
     function initialize(
         address _validatorSetContract,
+        address _governanceContract,
         uint256[] calldata _initialIds,
         uint256 _delegatorMinStake,
         uint256 _candidateMinStake,
@@ -356,6 +362,7 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
         require(!isInitialized()); // initialization can only be done once
 
         validatorSetContract = IValidatorSetAuRa(_validatorSetContract);
+        governanceContract = IGovernance(_governanceContract);
 
         uint256 unremovablePoolId = validatorSetContract.unremovableValidator();
 
@@ -1324,6 +1331,9 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
         } else {
             if (validatorSetContract.isValidatorIdBanned(_poolId)) {
                 // The banned validator cannot withdraw from their pool until the ban is expired
+                return false;
+            } else if (governanceContract != IGovernance(0) && governanceContract.isValidatorUnderBallot(_poolId)) {
+                // There is an active ballot in the Governance contract for this validator removal
                 return false;
             }
         }

@@ -19,7 +19,7 @@ contract ERC677BridgeTokenRewardableMock is ERC677BridgeTokenRewardable {
     ) {}
 
     function setNow(uint256 _timestamp) public {
-    	_blockTimestamp = _timestamp;
+        _blockTimestamp = _timestamp;
     }
 
     function _now() internal view returns(uint256) {

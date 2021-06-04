@@ -2,6 +2,7 @@ pragma solidity 0.5.10;
 
 import "./interfaces/IBlockRewardAuRa.sol";
 import "./interfaces/ICertifier.sol";
+import "./interfaces/IGovernance.sol";
 import "./interfaces/IRandomAuRa.sol";
 import "./interfaces/IStakingAuRa.sol";
 import "./interfaces/ITxPermission.sol";
@@ -19,7 +20,8 @@ contract InitializerAuRa {
     ///   2 is RandomAuRa,
     ///   3 is StakingAuRa,
     ///   4 is TxPermission,
-    ///   5 is Certifier.
+    ///   5 is Certifier,
+    ///   6 is Governance.
     /// @param _owner The contracts' owner.
     /// @param _miningAddresses The array of initial validators' mining addresses.
     /// @param _stakingAddresses The array of initial validators' staking addresses.
@@ -53,6 +55,7 @@ contract InitializerAuRa {
     ) public {
         IValidatorSetAuRa(_contracts[0]).initialize(
             _contracts[1], // _blockRewardContract
+            _contracts[6], // _governanceContract
             _contracts[2], // _randomContract
             _contracts[3], // _stakingContract
             _miningAddresses,
@@ -66,6 +69,7 @@ contract InitializerAuRa {
             }
             IStakingAuRa(_contracts[3]).initialize(
                 _contracts[0], // _validatorSetContract
+                _contracts[6], // _governanceContract
                 _ids,
                 _delegatorMinStake,
                 _candidateMinStake,
@@ -80,6 +84,7 @@ contract InitializerAuRa {
         permittedAddresses[0] = _owner;
         ITxPermission(_contracts[4]).initialize(permittedAddresses, _contracts[5], _contracts[0]);
         ICertifier(_contracts[5]).initialize(permittedAddresses, _contracts[0]);
+        IGovernance(_contracts[6]).initialize(_contracts[0]);
         if (block.number > 0) {
             selfdestruct(msg.sender); // this is to clear the state
             // OpenEthereum and Nethermind clients

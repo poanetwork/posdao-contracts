@@ -11,8 +11,7 @@ The algorithm provides a Sybil control mechanism for reporting malicious validat
 ## POSDAO Repositories and Resources
 
 - White paper: https://forum.poa.network/t/posdao-white-paper/2208
-- Backported OpenEthereum client with POSDAO features: https://github.com/poanetwork/open-ethereum/tree/posdao-backport (v2.7.2)
-- Original OpenEthereum client supporting POSDAO features: https://github.com/openethereum/openethereum/tree/dev (> v3.2.1)
+- OpenEthereum client supporting POSDAO features: https://github.com/openethereum/openethereum (>= v3.2.5)
 - Nethermind client supporting POSDAO features: https://github.com/NethermindEth/nethermind
 - Integration tests setup for a POSDAO network: https://github.com/poanetwork/posdao-test-setup
 - Discussion forum: https://forum.poa.network/c/posdao
@@ -31,6 +30,8 @@ _Note: The following descriptions are for AuRa contracts only. HBBFT contract im
   - ValidatorSetAuRa.reportMalicious
   - RandomAura.commitHash
   - RandomAura.revealNumber
+
+- `Governance`: lets any validator to create a ballot for some validator removal. This can be helpful when some validator doesn't work for a long time or delays blocks. Validators can vote to remove a bad validator from the validator set.
 
 - `InitializerAuRa`: used once on network startup and then destroyed. This contract is needed for initializing upgradable contracts since an upgradable contract can't have the constructor. The bytecode of this contract is written by the `scripts/make_spec.js` into `spec.json` along with other contracts when initializing on genesis block.
 

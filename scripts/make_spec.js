@@ -10,6 +10,7 @@ const RANDOM_CONTRACT = '0x3000000000000000000000000000000000000001';
 const STAKING_CONTRACT = '0x1100000000000000000000000000000000000001';
 const PERMISSION_CONTRACT = '0x4000000000000000000000000000000000000001';
 const CERTIFIER_CONTRACT = '0x5000000000000000000000000000000000000001';
+const GOVERNANCE_CONTRACT = '0x8000000000000000000000000000000000000001';
 
 main();
 
@@ -35,6 +36,7 @@ async function main() {
     'AdminUpgradeabilityProxy',
     'BlockRewardAuRa',
     'Certifier',
+    'Governance',
     'InitializerAuRa',
     'RandomAuRa',
     'Registry',
@@ -183,6 +185,20 @@ async function main() {
     constructor: '0x' + contractsCompiled['Certifier'].bytecode
   };
 
+  // Build Governance contract
+  deploy = await contract.deploy({data: '0x' + storageProxyCompiled.bytecode, arguments: [
+    '0x8000000000000000000000000000000000000000', // implementation address
+    owner
+  ]});
+  spec.accounts[GOVERNANCE_CONTRACT] = {
+    balance: '0',
+    constructor: await deploy.encodeABI()
+  };
+  spec.accounts['0x8000000000000000000000000000000000000000'] = {
+    balance: '0',
+    constructor: '0x' + contractsCompiled['Governance'].bytecode
+  };
+
   // Build Registry contract
   contract = new web3.eth.Contract(contractsCompiled['Registry'].abi);
   deploy = await contract.deploy({data: '0x' + contractsCompiled['Registry'].bytecode, arguments: [
@@ -204,7 +220,8 @@ async function main() {
       RANDOM_CONTRACT,
       STAKING_CONTRACT,
       PERMISSION_CONTRACT,
-      CERTIFIER_CONTRACT
+      CERTIFIER_CONTRACT,
+      GOVERNANCE_CONTRACT
     ],
     owner, // _owner
     initialValidators, // _miningAddresses

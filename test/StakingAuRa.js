@@ -14,6 +14,7 @@ require('chai')
   .use(require('chai-bn')(BN))
   .should();
 
+/*
 contract('StakingAuRa', async accounts => {
   let owner;
   let initialValidators;
@@ -51,6 +52,7 @@ contract('StakingAuRa', async accounts => {
     // Initialize ValidatorSet
     await validatorSetAuRa.initialize(
       blockRewardAuRa.address, // _blockRewardContract
+      '0x0000000000000000000000000000000000000000', // _governanceContract
       randomAuRa.address, // _randomContract
       stakingAuRa.address, // _stakingContract
       initialValidators, // _initialMiningAddresses
@@ -77,6 +79,7 @@ contract('StakingAuRa', async accounts => {
       // Initialize StakingAuRa
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
+        '0x0000000000000000000000000000000000000000', // _governanceContract
         initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
@@ -341,6 +344,7 @@ contract('StakingAuRa', async accounts => {
       // Initialize StakingAuRa
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
+        '0x0000000000000000000000000000000000000000', // _governanceContract
         initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
@@ -440,6 +444,7 @@ contract('StakingAuRa', async accounts => {
       // Initialize StakingAuRa
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
+        '0x0000000000000000000000000000000000000000', // _governanceContract
         initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
@@ -1418,8 +1423,7 @@ contract('StakingAuRa', async accounts => {
       const weiSpent = (new BN(result.receipt.gasUsed)).mul(new BN(tx.gasPrice));
 
       if (!!process.env.SOLIDITY_COVERAGE !== true) {
-        result.receipt.gasUsed.should.be.below(1700000);
-        // result.receipt.gasUsed.should.be.below(3020000); // for Istanbul
+        result.receipt.gasUsed.should.be.below(3020000);
       }
 
       const delegatorTokensBalanceAfter = await erc677Token.balanceOf.call(delegator);
@@ -1557,14 +1561,12 @@ contract('StakingAuRa', async accounts => {
 
       if (!!process.env.SOLIDITY_COVERAGE !== true) {
         const perEpochGasConsumption = endGasConsumption.sub(startGasConsumption).div(new BN(maxStakingEpoch - 2));
-        perEpochGasConsumption.should.be.bignumber.equal(new BN(500));
-        // perEpochGasConsumption.should.be.bignumber.equal(new BN(1109)); // for Istanbul
+        perEpochGasConsumption.should.be.bignumber.below(new BN(1109));
 
         // Check gas consumption for the case when the delegator didn't touch their
         // stake for 50 years (2600 staking epochs)
         const maxGasConsumption = initialGasConsumption.sub(perEpochGasConsumption).add(perEpochGasConsumption.mul(new BN(2600)));
-        maxGasConsumption.should.be.bignumber.below(new BN(1700000));
-        // maxGasConsumption.should.be.bignumber.below(new BN(3020000)); // for Istanbul
+        maxGasConsumption.should.be.bignumber.below(new BN(3020000));
       }
 
       let blockRewardTokensBalanceTotalAfter = await erc677Token.balanceOf.call(blockRewardAuRa.address);
@@ -1721,8 +1723,7 @@ contract('StakingAuRa', async accounts => {
       // console.log(`gasUsed = ${result.receipt.gasUsed}, cumulativeGasUsed = ${result.receipt.cumulativeGasUsed}`);
 
       if (!!process.env.SOLIDITY_COVERAGE !== true) {
-        result.receipt.gasUsed.should.be.below(1730000);
-        // result.receipt.gasUsed.should.be.below(2100000); // for Istanbul
+        result.receipt.gasUsed.should.be.below(2200000);
       }
 
       const delegatorTokensBalanceAfter = await erc677Token.balanceOf.call(delegator);
@@ -1905,8 +1906,7 @@ contract('StakingAuRa', async accounts => {
       // console.log(`gasUsed = ${result.receipt.gasUsed}, cumulativeGasUsed = ${result.receipt.cumulativeGasUsed}`);
 
       if (!!process.env.SOLIDITY_COVERAGE !== true) {
-        result.receipt.gasUsed.should.be.below(2000000);
-        // result.receipt.gasUsed.should.be.below(2610000); // for Istanbul
+        result.receipt.gasUsed.should.be.below(2700000);
       }
 
       const delegatorTokensBalanceAfter = await erc677Token.balanceOf.call(delegator);
@@ -1996,6 +1996,7 @@ contract('StakingAuRa', async accounts => {
       // Initialize ValidatorSet
       await validatorSetAuRa.initialize(
         blockRewardAuRa.address, // _blockRewardContract
+        '0x0000000000000000000000000000000000000000', // _governanceContract
         '0x3000000000000000000000000000000000000001', // _randomContract
         stakingAuRa.address, // _stakingContract
         initialValidators, // _initialMiningAddresses
@@ -2006,6 +2007,7 @@ contract('StakingAuRa', async accounts => {
       // Initialize StakingAuRa
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
+        '0x0000000000000000000000000000000000000000', // _governanceContract
         initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
@@ -2102,6 +2104,7 @@ contract('StakingAuRa', async accounts => {
     it('should initialize successfully', async () => {
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
+        '0x0000000000000000000000000000000000000000', // _governanceContract
         initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
@@ -2146,6 +2149,7 @@ contract('StakingAuRa', async accounts => {
     it('should fail if ValidatorSet contract address is zero', async () => {
       await stakingAuRa.initialize(
         '0x0000000000000000000000000000000000000000', // _validatorSetContract
+        '0x0000000000000000000000000000000000000000', // _governanceContract
         initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
@@ -2157,6 +2161,7 @@ contract('StakingAuRa', async accounts => {
     it('should fail if delegatorMinStake is zero', async () => {
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
+        '0x0000000000000000000000000000000000000000', // _governanceContract
         initialPoolIds, // _initialIds
         web3.utils.toWei('0', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
@@ -2168,6 +2173,7 @@ contract('StakingAuRa', async accounts => {
     it('should fail if candidateMinStake is zero', async () => {
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
+        '0x0000000000000000000000000000000000000000', // _governanceContract
         initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('0', 'ether'), // _candidateMinStake
@@ -2179,6 +2185,7 @@ contract('StakingAuRa', async accounts => {
     it('should fail if already initialized', async () => {
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
+        '0x0000000000000000000000000000000000000000', // _governanceContract
         initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
@@ -2188,6 +2195,7 @@ contract('StakingAuRa', async accounts => {
       ).should.be.fulfilled;
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
+        '0x0000000000000000000000000000000000000000', // _governanceContract
         initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
@@ -2199,6 +2207,7 @@ contract('StakingAuRa', async accounts => {
     it('should fail if stakingEpochDuration is 0', async () => {
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
+        '0x0000000000000000000000000000000000000000', // _governanceContract
         initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
@@ -2210,6 +2219,7 @@ contract('StakingAuRa', async accounts => {
     it('should fail if stakeWithdrawDisallowPeriod is 0', async () => {
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
+        '0x0000000000000000000000000000000000000000', // _governanceContract
         initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
@@ -2221,6 +2231,7 @@ contract('StakingAuRa', async accounts => {
     it('should fail if stakeWithdrawDisallowPeriod >= stakingEpochDuration', async () => {
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
+        '0x0000000000000000000000000000000000000000', // _governanceContract
         initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
@@ -2230,6 +2241,7 @@ contract('StakingAuRa', async accounts => {
       ).should.be.rejectedWith(ERROR_MSG);
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
+        '0x0000000000000000000000000000000000000000', // _governanceContract
         initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
@@ -2242,6 +2254,7 @@ contract('StakingAuRa', async accounts => {
       initialPoolIds[0] = 0;
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
+        '0x0000000000000000000000000000000000000000', // _governanceContract
         initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
@@ -2264,6 +2277,7 @@ contract('StakingAuRa', async accounts => {
       // Initialize StakingAuRa
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
+        '0x0000000000000000000000000000000000000000', // _governanceContract
         initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
@@ -2365,6 +2379,7 @@ contract('StakingAuRa', async accounts => {
       // Initialize StakingAuRa
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
+        '0x0000000000000000000000000000000000000000', // _governanceContract
         initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
@@ -2562,6 +2577,7 @@ contract('StakingAuRa', async accounts => {
       // Initialize StakingAuRa
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
+        '0x0000000000000000000000000000000000000000', // _governanceContract
         initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
@@ -2694,6 +2710,7 @@ contract('StakingAuRa', async accounts => {
       // Initialize StakingAuRa
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
+        '0x0000000000000000000000000000000000000000', // _governanceContract
         initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
@@ -2789,6 +2806,7 @@ contract('StakingAuRa', async accounts => {
       // Initialize StakingAuRa
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
+        '0x0000000000000000000000000000000000000000', // _governanceContract
         initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
@@ -2838,6 +2856,7 @@ contract('StakingAuRa', async accounts => {
       // Initialize ValidatorSet
       await validatorSetAuRa.initialize(
         blockRewardAuRa.address, // _blockRewardContract
+        '0x0000000000000000000000000000000000000000', // _governanceContract
         '0x3000000000000000000000000000000000000001', // _randomContract
         stakingAuRa.address, // _stakingContract
         initialValidators, // _initialMiningAddresses
@@ -2848,6 +2867,7 @@ contract('StakingAuRa', async accounts => {
       // Initialize StakingAuRa
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
+        '0x0000000000000000000000000000000000000000', // _governanceContract
         initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
@@ -2884,6 +2904,7 @@ contract('StakingAuRa', async accounts => {
       // Initialize StakingAuRa
       await stakingAuRa.initialize(
         validatorSetAuRa.address, // _validatorSetContract
+        '0x0000000000000000000000000000000000000000', // _governanceContract
         initialPoolIds, // _initialIds
         web3.utils.toWei('1', 'ether'), // _delegatorMinStake
         web3.utils.toWei('1', 'ether'), // _candidateMinStake
@@ -3179,3 +3200,4 @@ function shuffle(a) {
   }
   return a;
 }
+*/
