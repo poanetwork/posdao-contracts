@@ -14,7 +14,6 @@ require('chai')
 const ethUtil = require('ethereumjs-util');
 const permitSign = require('./utils/eip712.sign.permit');
 
-/*
 contract('ERC677BridgeTokenRewardable', async accounts => {
   let owner;
 
@@ -639,4 +638,3 @@ contract('ERC677BridgeTokenRewardable', async accounts => {
     });
   });
 });
-*/
