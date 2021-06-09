@@ -153,14 +153,15 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
     function onTokenTransfer(
         address _staker,
         uint256 _amount,
-        bytes memory _data
-    ) public onlyInitialized returns(bool) {
+        bytes calldata _data
+    ) external onlyInitialized returns(bool) {
         require(msg.sender == address(erc677TokenContract));
         require(_data.length >= 20);
         address inputAddress;
         bool isAddPool;
+        bytes memory localData = _data;
         assembly {
-            let dataLengthless := mload(add(_data, 32))
+            let dataLengthless := mload(add(localData, 32))
             inputAddress := shr(96, dataLengthless)
             isAddPool := gt(and(shr(88, dataLengthless), 0xff), 0)
         }
@@ -171,7 +172,7 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
 
             // Get `name` UTF-8 field from the `_data`
             assembly {
-                let dataLengthless := mload(add(_data, 32))
+                let dataLengthless := mload(add(localData, 32))
                 nameLength := and(shr(80, dataLengthless), 0xff)
             }
             str = new bytes(nameLength);
@@ -184,7 +185,7 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
             assembly {
                 descLength := and(shr(240, calldataload(add(154, nameLength))), 0xffff)
             }
-            require(_data.length == 20 + 1 + 1 + nameLength + 2 + descLength);
+            require(localData.length == 20 + 1 + 1 + nameLength + 2 + descLength);
             str = new bytes(descLength);
             assembly {
                 calldatacopy(add(str, 32), add(156, nameLength), descLength)
