@@ -1117,7 +1117,7 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
 
     function _stake(address _toPoolStakingAddress, uint256 _amount) internal;
 
-    /// @dev The internal function used by the `_stake` and `moveStake` functions.
+    /// @dev The internal function used by the `_stake`, `moveStake`, `initialValidatorStake`, `_addPool` functions.
     /// See the `stake` public function for more details.
     /// @param _poolStakingAddress The staking address of the pool where the tokens/coins should be staked.
     /// @param _staker The staker's address.

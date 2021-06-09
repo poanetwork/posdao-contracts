@@ -412,7 +412,8 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, BanReasons, IValidatorSetAuRa 
             IBlockRewardAuRa(blockRewardContract).clearBlocksCreated();
             validatorSetApplyBlock = _getCurrentBlockNumber();
         } else if (_finalizeValidators.list.length != 0) {
-            // Apply the changed validator set after malicious validator is removed
+            // Apply the changed validator set after malicious validator is removed.
+            // It is also called after the `changeMiningAddress` function is called for a validator.
             _finalizeNewValidators(false);
         } else {
             // This is the very first call of the `finalizeChange` (block #1 when starting from genesis)
