@@ -870,13 +870,13 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, BanReasons, IValidatorSetAuRa 
             uint256 currentStakingEpoch = stakingContract.stakingEpoch();
             uint256 reportsNumber = _reportingCounter[reportingId][currentStakingEpoch];
             uint256 reportsTotalNumber = _reportingCounterTotal[currentStakingEpoch];
-            uint256 averageReportsNumber = 0;
+            uint256 averageReportsNumberX10 = 0;
 
             if (reportsTotalNumber >= reportsNumber) {
-                averageReportsNumber = (reportsTotalNumber - reportsNumber) / (validatorsNumber - 1);
+                averageReportsNumberX10 = (reportsTotalNumber - reportsNumber) * 10 / (validatorsNumber - 1);
             }
 
-            if (reportsNumber > validatorsNumber * 50 && reportsNumber > averageReportsNumber * 10) {
+            if (reportsNumber > validatorsNumber * 50 && reportsNumber > averageReportsNumberX10) {
                 return (false, true);
             }
         }
