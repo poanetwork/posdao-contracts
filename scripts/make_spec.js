@@ -10,7 +10,7 @@ const RANDOM_CONTRACT = '0x3000000000000000000000000000000000000001';
 const STAKING_CONTRACT = '0x1100000000000000000000000000000000000001';
 const PERMISSION_CONTRACT = '0x4000000000000000000000000000000000000001';
 const CERTIFIER_CONTRACT = '0x5000000000000000000000000000000000000001';
-const GOVERNANCE_CONTRACT = '0x8000000000000000000000000000000000000001';
+const GOVERNANCE_CONTRACT = '0x6100000000000000000000000000000000000001';
 
 main();
 
@@ -60,7 +60,7 @@ async function main() {
     if (contractName == 'AdminUpgradeabilityProxy') {
       dir = 'contracts/upgradeability/';
     } else if (contractName == 'TxPriorityMock') {
-      dir = 'test/mockContracts/';
+      dir = 'contracts/mock/';
     } else if (contractName == 'StakingAuRa' && erc20Restricted) {
       realContractName = 'StakingAuRaCoins';
       dir = 'contracts/base/';
@@ -187,14 +187,14 @@ async function main() {
 
   // Build Governance contract
   deploy = await contract.deploy({data: '0x' + storageProxyCompiled.bytecode, arguments: [
-    '0x8000000000000000000000000000000000000000', // implementation address
+    '0x6100000000000000000000000000000000000000', // implementation address
     owner
   ]});
   spec.accounts[GOVERNANCE_CONTRACT] = {
     balance: '0',
     constructor: await deploy.encodeABI()
   };
-  spec.accounts['0x8000000000000000000000000000000000000000'] = {
+  spec.accounts['0x6100000000000000000000000000000000000000'] = {
     balance: '0',
     constructor: '0x' + contractsCompiled['Governance'].bytecode
   };
