@@ -190,9 +190,9 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, BanReasons, IValidatorSetAuRa 
     event ReportedMalicious(
         address reportingValidator,
         address maliciousValidator,
-        uint256 blockNumber,
-        uint256 reportingPoolId,
-        uint256 maliciousPoolId
+        uint256 indexed blockNumber,
+        uint256 indexed reportingPoolId,
+        uint256 indexed maliciousPoolId
     );
 
     /// @dev Emitted by the `_setPoolMetadata` function when the pool's metadata is changed.
