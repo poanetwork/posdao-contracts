@@ -133,7 +133,7 @@ contract BlockRewardAuRaTokens is BlockRewardAuRaBase, IBlockRewardAuRaTokens {
         if (_tokens != 0) {
             IStakingAuRaTokens stakingContract = IStakingAuRaTokens(msg.sender);
             IERC677 erc677TokenContract = IERC677(stakingContract.erc677TokenContract());
-            erc677TokenContract.transfer(_to, _tokens);
+            require(erc677TokenContract.transfer(_to, _tokens));
         }
 
         _transferNativeReward(_nativeCoins, _to);

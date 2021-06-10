@@ -288,7 +288,7 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
     /// @param _amount The amount to send.
     function _sendWithdrawnStakeAmount(address payable _to, uint256 _amount) internal gasPriceIsValid onlyInitialized {
         require(erc677TokenContract != IERC677(0));
-        erc677TokenContract.transfer(_to, _amount);
+        require(erc677TokenContract.transfer(_to, _amount));
         lastChangeBlock = _getCurrentBlockNumber();
     }
 
