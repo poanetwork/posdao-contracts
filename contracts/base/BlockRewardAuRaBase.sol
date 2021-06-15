@@ -592,6 +592,9 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
         }
         uint256 share = 0;
         uint256 delegatorsStaked = _totalStaked >= _validatorStaked ? _totalStaked - _validatorStaked : 0;
+        if (delegatorsStaked == 0) {
+            return 0;
+        }
         uint256 validatorMinPercent = validatorMinRewardPercent[_stakingEpoch];
         if (_validatorStaked * (100 - validatorMinPercent) > delegatorsStaked * validatorMinPercent) {
             // Validator has more than validatorMinPercent %
@@ -633,7 +636,7 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
 
     // ============================================== Internal ========================================================
 
-    uint256 internal constant VALIDATOR_MIN_REWARD_PERCENT = 30; // 30%
+    uint256 internal constant VALIDATOR_MIN_REWARD_PERCENT = 0; // 0%
     uint256 internal constant REWARD_PERCENT_MULTIPLIER = 1000000;
 
     function _coinInflationAmount(uint256, uint256[] memory) internal view returns(uint256);
