@@ -92,7 +92,7 @@ contract StakingAuRaTokens is IStakingAuRaTokens, StakingAuRaBase {
 
             if (_poolStakingAddress != staker) { // this is a delegator
                 if (epoch < firstEpoch) {
-                    // If the delegator staked for the first time before
+                    // If the delegator staked for the first time after
                     // the `epoch`, skip this staking epoch
                     continue;
                 }
