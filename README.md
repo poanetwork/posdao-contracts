@@ -145,6 +145,10 @@ $ npm run flat
 
 Once flattened, the contracts are available in the `flat` directory.
 
+## Security Audit
+
+- [Code Assessment of the POSDAO Smart Contracts](https://github.com/poanetwork/posdao-contracts/blob/master/audit/ChainSecurity/report.pdf) by ChainSecurity
+
 ## Contributing
 
 See the [CONTRIBUTING](CONTRIBUTING.md) document for contribution, testing and pull request protocol.
