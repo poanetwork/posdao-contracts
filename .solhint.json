@@ -2,8 +2,8 @@
   "extends": "solhint:default",
   "plugins": [],
   "rules": {
-    "code-complexity": false,
-    "function-max-lines": false,
-    "separate-by-one-line-in-contract": false
+    "code-complexity": "off",
+    "function-max-lines": "off",
+    "separate-by-one-line-in-contract": "off"
   }
 }
