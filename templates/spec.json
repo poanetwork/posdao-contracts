@@ -19,7 +19,7 @@
         "randomnessContractAddress": {
           "0": "0x3000000000000000000000000000000000000001"
         },
-        "twoThirdsMajorityTransition": 1000000,
+        "twoThirdsMajorityTransition": 99000000,
         "posdaoTransition": 0,
         "blockGasLimitContractTransitions": {
           "15": "0x4000000000000000000000000000000000000001"

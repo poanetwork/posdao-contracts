@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const Web3 = require('web3');
-const web3 = new Web3(new Web3.providers.HttpProvider("https://dai.poa.network"));
+const web3 = new Web3();
 const utils = require('./utils/utils');
 
 const VALIDATOR_SET_CONTRACT = '0x1000000000000000000000000000000000000001';
@@ -31,7 +31,12 @@ async function main() {
   const stakeWithdrawDisallowPeriod = process.env.STAKE_WITHDRAW_DISALLOW_PERIOD;
   const collectRoundLength = process.env.COLLECT_ROUND_LENGTH;
   const erc20Restricted = process.env.ERC20_RESTRICTED === 'true';
+  const isTestnet = process.env.IS_TESTNET === 'true';
+  const delegatorMinStake = process.env.DELEGATOR_MIN_STAKE;
+  const candidateMinStake = process.env.CANDIDATE_MIN_STAKE;
+  const ownerBalance = process.env.OWNER_BALANCE;
 
+  const txPriorityContractName = isTestnet ? 'TxPriority' : 'TxPriorityMock';
   const contracts = [
     'AdminUpgradeabilityProxy',
     'BlockRewardAuRa',
@@ -42,7 +47,7 @@ async function main() {
     'Registry',
     'StakingAuRa',
     'TxPermission',
-    'TxPriorityMock',
+    txPriorityContractName,
     'ValidatorSetAuRa',
   ];
 
@@ -161,10 +166,11 @@ async function main() {
   };
 
   // Build TxPriority contract
-  const txPriorityContract = new web3.eth.Contract(contractsCompiled['TxPriorityMock'].abi);
-  deploy = await txPriorityContract.deploy({data: '0x' + contractsCompiled['TxPriorityMock'].bytecode, arguments: [
-    owner, true
-  ]});
+  const txPriorityContract = new web3.eth.Contract(contractsCompiled[txPriorityContractName].abi);
+  deploy = await txPriorityContract.deploy({
+    data: '0x' + contractsCompiled[txPriorityContractName].bytecode,
+    arguments: isTestnet ? [owner] : [owner, true]
+  });
   const txPriorityContractItem = {
     balance: '0',
     constructor: await deploy.encodeABI()
@@ -227,8 +233,8 @@ async function main() {
     initialValidators, // _miningAddresses
     stakingAddresses, // _stakingAddresses
     firstValidatorIsUnremovable, // _firstValidatorIsUnremovable
-    web3.utils.toWei('1000'), // _delegatorMinStake
-    web3.utils.toWei('20000'), // _candidateMinStake
+    web3.utils.toWei(delegatorMinStake || '1000'), // _delegatorMinStake
+    web3.utils.toWei(candidateMinStake || '20000'), // _candidateMinStake
     stakingEpochDuration, // _stakingEpochDuration
     0, // _stakingEpochStartBlock
     stakeWithdrawDisallowPeriod, // _stakeWithdrawDisallowPeriod
@@ -238,6 +244,12 @@ async function main() {
     balance: '0',
     constructor: await deploy.encodeABI()
   };
+
+  if (ownerBalance) {
+    spec.accounts[owner] = {
+      balance: web3.utils.toWei(ownerBalance)
+    };
+  }
 
   console.log('Saving spec.json file ...');
   fs.writeFileSync(path.join(__dirname, '..', 'spec.json'), JSON.stringify(spec, null, '  '), 'UTF-8');
