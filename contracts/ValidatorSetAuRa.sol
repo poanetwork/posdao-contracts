@@ -453,6 +453,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, BanReasons, IValidatorSetAuRa 
         require(_stakingContract != address(0));
         require(_initialMiningAddresses.length > 0);
         require(_initialMiningAddresses.length == _initialStakingAddresses.length);
+        require(_initialMiningAddresses.length <= MAX_VALIDATORS);
 
         blockRewardContract = _blockRewardContract;
         governanceContract = IGovernance(_governanceContract);
