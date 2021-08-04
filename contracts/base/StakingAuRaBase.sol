@@ -383,7 +383,8 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
     }
 
     /// @dev Makes initial validator stakes. Can only be called by the owner
-    /// before the network starts (after `initialize` is called but before `stakingEpochStartBlock`).
+    /// before the network starts (after `initialize` is called but before `stakingEpochStartBlock`),
+    /// or after the network starts from genesis (`stakingEpochStartBlock` == 0).
     /// Cannot be called more than once and cannot be called when starting from genesis.
     /// Requires `StakingAuRa` contract balance to be equal to the `_totalAmount`.
     /// @param _totalAmount The initial validator total stake amount (for all initial validators).
@@ -391,7 +392,7 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
         uint256 currentBlock = _getCurrentBlockNumber();
 
         require(stakingEpoch == 0);
-        require(currentBlock < stakingEpochStartBlock);
+        require(currentBlock < stakingEpochStartBlock || stakingEpochStartBlock == 0);
         require(_thisBalance() == _totalAmount);
         require(_totalAmount % _pools.length == 0);
 
