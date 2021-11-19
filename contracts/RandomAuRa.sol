@@ -75,6 +75,36 @@ contract RandomAuRa is UpgradeableOwned, IRandomAuRa {
         }
     }
 
+    // Temporary function to remove old commits from the state
+    // function clearCommits(uint256 _startCollectRound, uint256 _endCollectRound) external {
+    //     require(msg.sender == 0xb408e8217Aa6Bb2fEaD09FFCBAa505255573e04D);
+    //     require(_endCollectRound < currentCollectRound());
+    //     //require(_startCollectRound >= 120874);
+    //     for (uint256 collectRound = _startCollectRound; collectRound <= _endCollectRound; collectRound++) {
+    //         delete _commits[collectRound][606253130765665412215227113255708804686646306692];
+    //         delete _commits[collectRound][877917505244916144474655813200667038941727339792];
+    //         delete _commits[collectRound][1159755665849286447196562649646242640866653963062];
+    //         delete _commits[collectRound][535550195073392204767456209382226357088612019298];
+    //         delete _commits[collectRound][278335616177043733181686237466437933484843057773];
+    //         delete _commits[collectRound][668644284506289795039691925950442965824919515570];
+    //         delete _commits[collectRound][238689916948522760289275602415121016635723944123];
+    //         delete _commits[collectRound][95521308841283077979135624661807116575694120493];
+    //         delete _commits[collectRound][1343114586573298819285326963872978124459450438246];
+    //         delete _commits[collectRound][1326821714054573294081975873740626849904828155029];
+    //         delete _commits[collectRound][1316960004154264615200578170463782479258711748830];
+    //         delete _commits[collectRound][829910023712684003238224907101128886395747587806];
+    //         delete _commits[collectRound][512347112651376259641477594089983356080222555861];
+    //         delete _commits[collectRound][832622141633221185170294226875262853356087361831];
+    //         delete _commits[collectRound][1206458801303451643761920808666036408897679252121];
+    //         delete _commits[collectRound][274001196829567976446124437970303001038997119611];
+    //         if (collectRound >= 214578) {
+    //             for (uint256 _poolId = 1; _poolId <= 10; _poolId++) {
+    //                 delete _commits[collectRound][_poolId];
+    //             }
+    //         }
+    //     }
+    // }
+
     /// @dev Called by the validator's node to store a hash and a cipher of the validator's number on each collection
     /// round. The validator's node must use its mining address to call this function.
     /// This function can only be called once per collection round (during the `commits phase`).
@@ -218,7 +248,7 @@ contract RandomAuRa is UpgradeableOwned, IRandomAuRa {
         }
 
         // Clear unnecessary info about previous collection round.
-        _clearOldCiphers(currentRound);
+        _clearOldData(currentRound);
     }
 
     // =============================================== Getters ========================================================
@@ -291,7 +321,7 @@ contract RandomAuRa is UpgradeableOwned, IRandomAuRa {
             }
         }
 
-        return _commits[_collectRound][poolId] != bytes32(0);
+        return _commits[_collectRound][poolId] != bytes32(0) || _sentReveal[_collectRound][poolId];
     }
 
     /// @dev Returns a boolean flag indicating whether the current phase of the current collection round
@@ -389,9 +419,9 @@ contract RandomAuRa is UpgradeableOwned, IRandomAuRa {
     // ============================================== Internal ========================================================
 
     /// @dev Removes the ciphers of all committed validators for the collection round
-    /// preceding to the specified collection round.
+    /// preceding to the specified collection round. Removes the list of committed validators for that round.
     /// @param _collectRound The serial number of the collection round.
-    function _clearOldCiphers(uint256 _collectRound) internal {
+    function _clearOldData(uint256 _collectRound) internal {
         if (_collectRound == 0) {
             return;
         }
@@ -401,7 +431,9 @@ contract RandomAuRa is UpgradeableOwned, IRandomAuRa {
         uint256 poolIdsLength = poolIds.length;
 
         for (uint256 i = 0; i < poolIdsLength; i++) {
-            delete _ciphers[collectRound][poolIds[i]];
+            uint256 poolId = poolIds[i];
+            delete _ciphers[collectRound][poolId];
+            delete _commits[collectRound][poolId];
         }
 
         poolIds.length = 0;
@@ -418,7 +450,11 @@ contract RandomAuRa is UpgradeableOwned, IRandomAuRa {
         uint256 poolId = validatorSetContract.idByMiningAddress(miningAddress);
 
         currentSeed = currentSeed ^ _number;
-        _sentReveal[currentCollectRound()][poolId] = true;
+
+        uint256 collectRound = currentCollectRound();
+
+        _sentReveal[collectRound][poolId] = true;
+        _commits[collectRound][poolId] = bytes32(0); // remove the hash as it makes no sense to keep it anymore
     }
 
     /// @dev Returns the current `coinbase` address. Needed mostly for unit tests.
