@@ -76,30 +76,30 @@ contract RandomAuRa is UpgradeableOwned, IRandomAuRa {
     }
 
     // Temporary function to remove old commits from the state
-    // function clearCommits(uint256 _startCollectRound, uint256 _endCollectRound) external {
+    // function clearReveals(uint256 _startCollectRound, uint256 _endCollectRound) external {
     //     require(msg.sender == 0xb408e8217Aa6Bb2fEaD09FFCBAa505255573e04D);
     //     require(_endCollectRound < currentCollectRound());
     //     //require(_startCollectRound >= 120874);
     //     for (uint256 collectRound = _startCollectRound; collectRound <= _endCollectRound; collectRound++) {
-    //         delete _commits[collectRound][606253130765665412215227113255708804686646306692];
-    //         delete _commits[collectRound][877917505244916144474655813200667038941727339792];
-    //         delete _commits[collectRound][1159755665849286447196562649646242640866653963062];
-    //         delete _commits[collectRound][535550195073392204767456209382226357088612019298];
-    //         delete _commits[collectRound][278335616177043733181686237466437933484843057773];
-    //         delete _commits[collectRound][668644284506289795039691925950442965824919515570];
-    //         delete _commits[collectRound][238689916948522760289275602415121016635723944123];
-    //         delete _commits[collectRound][95521308841283077979135624661807116575694120493];
-    //         delete _commits[collectRound][1343114586573298819285326963872978124459450438246];
-    //         delete _commits[collectRound][1326821714054573294081975873740626849904828155029];
-    //         delete _commits[collectRound][1316960004154264615200578170463782479258711748830];
-    //         delete _commits[collectRound][829910023712684003238224907101128886395747587806];
-    //         delete _commits[collectRound][512347112651376259641477594089983356080222555861];
-    //         delete _commits[collectRound][832622141633221185170294226875262853356087361831];
-    //         delete _commits[collectRound][1206458801303451643761920808666036408897679252121];
-    //         delete _commits[collectRound][274001196829567976446124437970303001038997119611];
+    //         delete _sentReveal[collectRound][606253130765665412215227113255708804686646306692];
+    //         delete _sentReveal[collectRound][877917505244916144474655813200667038941727339792];
+    //         delete _sentReveal[collectRound][1159755665849286447196562649646242640866653963062];
+    //         delete _sentReveal[collectRound][535550195073392204767456209382226357088612019298];
+    //         delete _sentReveal[collectRound][278335616177043733181686237466437933484843057773];
+    //         delete _sentReveal[collectRound][668644284506289795039691925950442965824919515570];
+    //         delete _sentReveal[collectRound][238689916948522760289275602415121016635723944123];
+    //         delete _sentReveal[collectRound][95521308841283077979135624661807116575694120493];
+    //         delete _sentReveal[collectRound][1343114586573298819285326963872978124459450438246];
+    //         delete _sentReveal[collectRound][1326821714054573294081975873740626849904828155029];
+    //         delete _sentReveal[collectRound][1316960004154264615200578170463782479258711748830];
+    //         delete _sentReveal[collectRound][829910023712684003238224907101128886395747587806];
+    //         delete _sentReveal[collectRound][512347112651376259641477594089983356080222555861];
+    //         delete _sentReveal[collectRound][832622141633221185170294226875262853356087361831];
+    //         delete _sentReveal[collectRound][1206458801303451643761920808666036408897679252121];
+    //         delete _sentReveal[collectRound][274001196829567976446124437970303001038997119611];
     //         if (collectRound >= 214578) {
     //             for (uint256 _poolId = 1; _poolId <= 10; _poolId++) {
-    //                 delete _commits[collectRound][_poolId];
+    //                 delete _sentReveal[collectRound][_poolId];
     //             }
     //         }
     //     }
@@ -434,6 +434,7 @@ contract RandomAuRa is UpgradeableOwned, IRandomAuRa {
             uint256 poolId = poolIds[i];
             delete _ciphers[collectRound][poolId];
             delete _commits[collectRound][poolId];
+            delete _sentReveal[collectRound][poolId];
         }
 
         poolIds.length = 0;
