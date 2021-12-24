@@ -28,6 +28,7 @@ interface IValidatorSetAuRa {
     function idByMiningAddress(address) external view returns(uint256);
     function idByStakingAddress(address) external view returns(uint256);
     function isReportValidatorValid(address, bool) external view returns(bool);
+    function isUnremovableValidator(uint256) external view returns(bool);
     function isValidator(address) external view returns(bool);
     function isValidatorById(uint256) external view returns(bool);
     function isValidatorBanned(address) external view returns(bool);
@@ -42,7 +43,6 @@ interface IValidatorSetAuRa {
     function stakingAddressById(uint256) external view returns(address);
     function stakingByMiningAddress(address) external view returns(address);
     function stakingContract() external view returns(address);
-    function unremovableValidator() external view returns(uint256);
     function validatorSetApplyBlock() external view returns(uint256);
     function validatorsToBeFinalized() external view returns(address[] memory, bool);
     function validatorsToBeFinalizedIds() external view returns(uint256[] memory);

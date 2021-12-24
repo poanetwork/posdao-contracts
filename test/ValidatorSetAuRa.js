@@ -121,19 +121,19 @@ contract('ValidatorSetAuRa', async accounts => {
       await validatorSetAuRa.setCurrentBlockNumber(100);
     });
     it('should make a non-removable validator removable', async () => {
-      await validatorSetAuRa.clearUnremovableValidator({from: initialStakingAddresses[0]}).should.be.fulfilled;
+      await validatorSetAuRa.clearUnremovableValidator(initialPoolIds[0], {from: initialStakingAddresses[0]}).should.be.fulfilled;
       (await validatorSetAuRa.unremovableValidator.call()).should.be.bignumber.equal('0');
     });
-    it('cannot be called more than once', async () => {
-      await validatorSetAuRa.clearUnremovableValidator({from: initialStakingAddresses[0]}).should.be.fulfilled;
+    it('cannot be called more than once for the same pool id', async () => {
+      await validatorSetAuRa.clearUnremovableValidator(initialPoolIds[0], {from: initialStakingAddresses[0]}).should.be.fulfilled;
       (await validatorSetAuRa.unremovableValidator.call()).should.be.bignumber.equal('0');
-      await validatorSetAuRa.clearUnremovableValidator({from: initialStakingAddresses[0]}).should.be.rejectedWith(ERROR_MSG);
+      await validatorSetAuRa.clearUnremovableValidator(initialPoolIds[0], {from: initialStakingAddresses[0]}).should.be.rejectedWith(ERROR_MSG);
     });
     it('can be called by an owner', async () => {
-      await validatorSetAuRa.clearUnremovableValidator({from: owner}).should.be.fulfilled;
+      await validatorSetAuRa.clearUnremovableValidator(initialPoolIds[0], {from: owner}).should.be.fulfilled;
     });
     it('can only be called by an owner or non-removable validator', async () => {
-      await validatorSetAuRa.clearUnremovableValidator({from: accounts[7]}).should.be.rejectedWith(ERROR_MSG);
+      await validatorSetAuRa.clearUnremovableValidator(initialPoolIds[0], {from: accounts[7]}).should.be.rejectedWith(ERROR_MSG);
     });
     it('should add validator pool to the poolsToBeElected list', async () => {
       await stakingAuRa.setValidatorSetAddress('0x0000000000000000000000000000000000000000').should.be.fulfilled;
@@ -173,7 +173,7 @@ contract('ValidatorSetAuRa', async accounts => {
 
       (await stakingAuRa.getPoolsToBeElected.call()).length.should.be.equal(0);
 
-      await validatorSetAuRa.clearUnremovableValidator({from: initialStakingAddresses[0]}).should.be.fulfilled;
+      await validatorSetAuRa.clearUnremovableValidator(initialPoolIds[0], {from: initialStakingAddresses[0]}).should.be.fulfilled;
 
       (await stakingAuRa.getPoolsToBeElected.call()).should.be.deep.equal([
         initialPoolIds[0]
@@ -195,7 +195,7 @@ contract('ValidatorSetAuRa', async accounts => {
         initialPoolIds[1],
         initialPoolIds[2]
       ]);
-      await validatorSetAuRa.clearUnremovableValidator({from: initialStakingAddresses[0]}).should.be.fulfilled;
+      await validatorSetAuRa.clearUnremovableValidator(initialPoolIds[0], {from: initialStakingAddresses[0]}).should.be.fulfilled;
       (await stakingAuRa.getPoolsToBeRemoved.call()).should.be.deep.equal([
         initialPoolIds[1],
         initialPoolIds[2],

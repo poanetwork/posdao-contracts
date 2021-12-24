@@ -306,6 +306,13 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
         return _addPool(_amount, msg.sender, _miningAddress, false, _name, _description);
     }
 
+    // Temporary function to add an unremovable validator. Used by ValidatorSetAuRa contract.
+    function addUnremovableValidator(uint256 _poolId) external onlyValidatorSetContract {
+        require(_poolsToBeElected.length == _poolsLikelihood.length);
+        _stakeInitial[_poolId] = 0;
+        _deletePoolToBeElected(_poolId);
+    }
+
     /// @dev Adds the `unremovable validator` to either the `poolsToBeElected` or the `poolsToBeRemoved` array
     /// depending on their own stake in their own pool when they become removable. This allows the
     /// `ValidatorSetAuRa.newValidatorSet` function to recognize the unremovable validator as a regular removable pool.
@@ -364,12 +371,10 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
         validatorSetContract = IValidatorSetAuRa(_validatorSetContract);
         governanceContract = IGovernance(_governanceContract);
 
-        uint256 unremovablePoolId = validatorSetContract.unremovableValidator();
-
         for (uint256 i = 0; i < _initialIds.length; i++) {
             require(_initialIds[i] != 0);
             _addPoolActive(_initialIds[i], false);
-            if (_initialIds[i] != unremovablePoolId) {
+            if (!validatorSetContract.isUnremovableValidator(_initialIds[i])) {
                 _addPoolToBeRemoved(_initialIds[i]);
             }
         }
@@ -441,7 +446,7 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
         require(poolId != 0);
         // initial validator cannot remove their pool during the initial staking epoch
         require(stakingEpoch > 0 || !validatorSetContract.isValidatorById(poolId));
-        require(poolId != validatorSetContract.unremovableValidator());
+        require(!validatorSetContract.isUnremovableValidator(poolId));
         _removePool(poolId);
     }
 
@@ -559,10 +564,11 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
             // must not exceed the diff between the entire amount and `candidateMinStake`
             require(newStakeAmount == 0 || newStakeAmount >= candidateMinStake);
 
-            uint256 unremovablePoolId = validatorSetContract.unremovableValidator();
+            bool isRemovablePool = !validatorSetContract.isUnremovableValidator(poolId);
 
             if (_amount > 0) { // if the validator orders the `_amount` for withdrawal
-                if (newStakeAmount == 0 && poolId != unremovablePoolId) {
+                if (newStakeAmount == 0) {
+                    require(isRemovablePool);
                     // If the removable validator orders their entire stake,
                     // mark their pool as `to be removed`
                     _addPoolToBeRemoved(poolId);
@@ -570,7 +576,7 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
             } else {
                 // If the validator wants to reduce withdrawal value,
                 // add their pool as `active` if it hasn't already done
-                _addPoolActive(poolId, poolId != unremovablePoolId);
+                _addPoolActive(poolId, isRemovablePool);
             }
         } else {
             // The amount to be withdrawn must be the whole staked amount or
@@ -1158,7 +1164,7 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
 
         if (_staker == _poolStakingAddress) { // `staker` places a stake for himself and becomes a candidate
             // Add `_poolStakingAddress` to the array of pools
-            _addPoolActive(poolId, poolId != validatorSetContract.unremovableValidator());
+            _addPoolActive(poolId, !validatorSetContract.isUnremovableValidator(poolId));
         } else {
             // Add `_staker` to the array of pool's delegators
             _addPoolDelegator(poolId, _staker);
@@ -1246,9 +1252,7 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
     /// @param _staker The staker's address.
     function _withdrawCheckPool(uint256 _poolId, address _poolStakingAddress, address _staker) internal {
         if (_staker == _poolStakingAddress) {
-            uint256 unremovablePoolId = validatorSetContract.unremovableValidator();
-
-            if (_poolId != unremovablePoolId) {
+            if (!validatorSetContract.isUnremovableValidator(_poolId)) {
                 if (validatorSetContract.isValidatorById(_poolId)) {
                     _addPoolToBeRemoved(_poolId);
                 } else {

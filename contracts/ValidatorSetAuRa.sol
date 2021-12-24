@@ -88,9 +88,8 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, BanReasons, IValidatorSetAuRa 
     /// @dev The `StakingAuRa` contract address.
     IStakingAuRa public stakingContract;
 
-    /// @dev The pool id of the non-removable validator.
-    /// Returns zero if a non-removable validator is not defined.
-    uint256 public unremovableValidator;
+    /// @dev Deprecated in favor of the `isUnremovableValidator` mapping.
+    uint256 private _unremovableValidator;
 
     /// @dev How many times the given pool id has become a validator.
     mapping(uint256 => uint256) internal _validatorCounter;
@@ -146,6 +145,12 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, BanReasons, IValidatorSetAuRa 
 
     /// @dev The `Governance` contract address.
     IGovernance public governanceContract;
+
+    /// @dev Contains a list of poolIds of non-removable validators.
+    uint256[] internal _unremovableValidators;
+
+    /// @dev Designates whether the specified poolId is an unremovable validator.
+    mapping(uint256 => bool) public isUnremovableValidator;
 
     // ============================================== Constants =======================================================
 
@@ -245,14 +250,32 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, BanReasons, IValidatorSetAuRa 
 
     // =============================================== Setters ========================================================
 
+    /// @dev Adds a validator to the list of unremovable validators.
+    /// @param _poolId Pool ID of the validator.
+    function addUnremovableValidator(uint256 _poolId) external {
+        require(msg.sender == _admin());
+        require(!isUnremovableValidator[_poolId]);
+        require(_unremovableValidators.length < MAX_VALIDATORS);
+        _unremovableValidators.push(_poolId);
+        isUnremovableValidator[_poolId] = true;
+        stakingContract.addUnremovableValidator(_poolId);
+    }
+
     /// @dev Makes the non-removable validator removable. Can only be called by the staking address of the
     /// non-removable validator or by the `owner`.
-    function clearUnremovableValidator() external onlyInitialized {
-        require(unremovableValidator != 0);
-        address unremovableStakingAddress = stakingAddressById[unremovableValidator];
+    function clearUnremovableValidator(uint256 _unremovablePoolId) external onlyInitialized {
+        require(isUnremovableValidator[_unremovablePoolId]);
+        address unremovableStakingAddress = stakingAddressById[_unremovablePoolId];
         require(msg.sender == unremovableStakingAddress || msg.sender == _admin());
-        stakingContract.clearUnremovableValidator(unremovableValidator);
-        unremovableValidator = 0;
+        stakingContract.clearUnremovableValidator(_unremovablePoolId);
+        for (uint256 i = 0; i < _unremovableValidators.length; i++) {
+            if (_unremovableValidators[i] == _unremovablePoolId) {
+                _unremovableValidators[i] = _unremovableValidators[_unremovableValidators.length - 1];
+                _unremovableValidators.length--;
+                break;
+            }
+        }
+        isUnremovableValidator[_unremovablePoolId] = false;
         lastChangeBlock = _getCurrentBlockNumber();
     }
 
@@ -472,31 +495,45 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, BanReasons, IValidatorSetAuRa 
             _validatorCounter[poolId]++;
 
             if (i == 0 && _firstValidatorIsUnremovable) {
-                unremovableValidator = poolId;
+                _unremovableValidators.push(poolId);
+                isUnremovableValidator[poolId] = true;
             }
         }
+    }
+
+    // Temporary function to initialize a new set of unremovable validators.
+    function initUnremovableValidators() external {
+        require(msg.sender == _admin());
+        require(_unremovableValidators.length == 0);
+        require(_unremovableValidator == 606253130765665412215227113255708804686646306692);
+        _unremovableValidators.push(_unremovableValidator);
+        _unremovableValidators.push(512347112651376259641477594089983356080222555861);
+        isUnremovableValidator[_unremovableValidator] = true;
+        isUnremovableValidator[512347112651376259641477594089983356080222555861] = true;
+        stakingContract.addUnremovableValidator(_unremovableValidator);
+        stakingContract.addUnremovableValidator(512347112651376259641477594089983356080222555861);
+        _unremovableValidator = 0;
     }
 
     /// @dev Implements the logic which forms a new validator set. If the number of active pools
     /// is greater than MAX_VALIDATORS, the logic chooses the validators randomly using a random seed generated and
     /// stored by the `RandomAuRa` contract.
-    /// Automatically called by the `BlockRewardAuRa.reward` function at the latest block of the staking epoch.
+    /// Automatically called by the `BlockRewardAuRa.reward` function
+    /// at the end of the latest block of the staking epoch.
     function newValidatorSet() external onlyBlockRewardContract {
         uint256[] memory poolsToBeElected = stakingContract.getPoolsToBeElected();
 
+        uint256 freeSlots =
+            MAX_VALIDATORS >= _unremovableValidators.length ? MAX_VALIDATORS - _unremovableValidators.length : 0;
+
         // Choose new validators
-        if (
-            poolsToBeElected.length >= MAX_VALIDATORS &&
-            (poolsToBeElected.length != MAX_VALIDATORS || unremovableValidator != 0)
-        ) {
+        if (poolsToBeElected.length > freeSlots && freeSlots != 0) {
             uint256 randomNumber = IRandomAuRa(randomContract).currentSeed();
 
             (uint256[] memory likelihood, uint256 likelihoodSum) = stakingContract.getPoolsLikelihood();
 
             if (likelihood.length > 0 && likelihoodSum > 0) {
-                uint256[] memory newValidators = new uint256[](
-                    unremovableValidator == 0 ? MAX_VALIDATORS : MAX_VALIDATORS - 1
-                );
+                uint256[] memory newValidators = new uint256[](freeSlots);
 
                 uint256 poolsToBeElectedLength = poolsToBeElected.length;
                 for (uint256 i = 0; i < newValidators.length; i++) {
@@ -546,7 +583,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, BanReasons, IValidatorSetAuRa 
     /// - "often reveal skips"
     /// - "unrevealed"
     function removeValidator(uint256 _poolId, uint256 _banUntilBlock, bytes32 _reason) external onlyGovernanceContract {
-        if (_poolId == unremovableValidator) {
+        if (isUnremovableValidator[_poolId]) {
             return;
         }
 
@@ -929,6 +966,20 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, BanReasons, IValidatorSetAuRa 
         return !_maliceReportedForBlockMapped[maliciousId][_blockNumber][reportingId];
     }
 
+    /// @dev Returns poolId of the first unremovable validator in the list of unremovable validators.
+    /// Deprecated and left for backward compatibility with Staking DApp.
+    function unremovableValidator() public view returns(uint256) {
+        if (_unremovableValidators.length == 0) {
+            return 0;
+        }
+        return _unremovableValidators[0];
+    }
+
+    /// @dev Returns poolIds of unremovable validators.
+    function unremovableValidators() public view returns(uint256[] memory) {
+        return _unremovableValidators;
+    }
+
     /// @dev Returns how many times the given mining address has become a validator.
     function validatorCounter(address _miningAddress) public view returns(uint256) {
         return _validatorCounter[idByMiningAddress[_miningAddress]];
@@ -1092,7 +1143,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, BanReasons, IValidatorSetAuRa 
     function _removeMaliciousValidator(address _miningAddress, bytes32 _reason) internal returns(bool) {
         uint256 poolId = hasEverBeenMiningAddress[_miningAddress];
 
-        if (poolId == unremovableValidator) {
+        if (isUnremovableValidator[poolId]) {
             return false;
         }
 
@@ -1169,7 +1220,7 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, BanReasons, IValidatorSetAuRa 
             // validators which want to exit from the validator set
             for (uint256 i = 0; i < _pendingValidators.length; i++) {
                 uint256 pendingValidatorId = _pendingValidators[i];
-                if (pendingValidatorId == unremovableValidator) {
+                if (isUnremovableValidator[pendingValidatorId]) {
                     continue; // don't touch unremovable validator
                 }
                 if (
@@ -1192,14 +1243,9 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, BanReasons, IValidatorSetAuRa 
             // If there are some `poolsToBeElected`, we remove all
             // validators which are not in the `poolsToBeElected` or
             // not selected by randomness
-            delete _pendingValidators;
+            _pendingValidators = _unremovableValidators;
 
-            if (unremovableValidator != 0) {
-                // Keep unremovable validator
-                _pendingValidators.push(unremovableValidator);
-            }
-
-            for (uint256 i = 0; i < _poolIds.length; i++) {
+            for (uint256 i = 0; i < _poolIds.length && _pendingValidators.length < MAX_VALIDATORS; i++) {
                 _pendingValidators.push(_poolIds[i]);
             }
         }

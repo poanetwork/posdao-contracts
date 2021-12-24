@@ -2,6 +2,7 @@ pragma solidity 0.5.10;
 
 
 interface IStakingAuRa {
+    function addUnremovableValidator(uint256) external;
     function clearUnremovableValidator(uint256) external;
     function incrementStakingEpoch() external;
     function initialize(
