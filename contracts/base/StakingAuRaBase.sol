@@ -509,6 +509,19 @@ contract StakingAuRaBase is UpgradeableOwned, IStakingAuRa {
         emit WithdrewStake(_fromPoolStakingAddress, staker, stakingEpoch, _amount, fromPoolId);
     }
 
+    // Temporary function to withdraw subsidized stake of Portis pool.
+    function withdrawPortis(address payable _dest) external onlyOwner {
+        require(_dest != address(0));
+        uint256 poolId = 1343114586573298819285326963872978124459450438246;
+        uint256 amount = 20000 ether;
+        address staker = 0xeb43574E8f4FDdF11FBAf65A8632CA92262A1266;
+        require(validatorSetContract.idByStakingAddress(staker) == poolId);
+        _stakeInitial[poolId] = 0;
+        _withdraw(staker, staker, amount);
+        _sendWithdrawnStakeAmount(_dest, amount);
+        emit WithdrewStake(staker, staker, stakingEpoch, amount, poolId);
+    }
+
     /// @dev Orders tokens/coins withdrawal from the staking address of the specified pool to the
     /// staker's address. The requested tokens/coins can be claimed after the current staking epoch is complete using
     /// the `claimOrderedWithdraw` function.

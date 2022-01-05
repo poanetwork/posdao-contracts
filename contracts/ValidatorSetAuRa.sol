@@ -254,11 +254,16 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, BanReasons, IValidatorSetAuRa 
     /// @param _poolId Pool ID of the validator.
     function addUnremovableValidator(uint256 _poolId) external {
         require(msg.sender == _admin());
-        require(!isUnremovableValidator[_poolId]);
-        require(_unremovableValidators.length < MAX_VALIDATORS);
-        _unremovableValidators.push(_poolId);
-        isUnremovableValidator[_poolId] = true;
-        stakingContract.addUnremovableValidator(_poolId);
+        _addUnremovableValidator(_poolId);
+    }
+
+    /// @dev Adds specified validators to the list of unremovable validators.
+    /// @param _poolIds Pool IDs of the validators.
+    function addUnremovableValidators(uint256[] calldata _poolIds) external {
+        require(msg.sender == _admin());
+        for (uint256 i = 0; i < _poolIds.length; i++) {
+            _addUnremovableValidator(_poolIds[i]);
+        }
     }
 
     /// @dev Makes the non-removable validator removable. Can only be called by the staking address of the
@@ -1003,6 +1008,16 @@ contract ValidatorSetAuRa is UpgradeabilityAdmin, BanReasons, IValidatorSetAuRa 
     }
 
     // ============================================== Internal ========================================================
+
+    /// @dev Called by `addUnremovableValidator` and `addUnremovableValidators`.
+    /// @param _poolId Pool ID of the validator.
+    function _addUnremovableValidator(uint256 _poolId) internal {
+        require(!isUnremovableValidator[_poolId]);
+        require(_unremovableValidators.length < MAX_VALIDATORS);
+        _unremovableValidators.push(_poolId);
+        isUnremovableValidator[_poolId] = true;
+        stakingContract.addUnremovableValidator(_poolId);
+    }
 
     /// @dev Called by `finalizeChange` function to apply mining address change
     /// requested by a validator through `changeMiningAddress` function.
