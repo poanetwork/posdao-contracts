@@ -241,7 +241,7 @@ contract BlockRewardAuRaBase is UpgradeableOwned, IBlockRewardAuRa {
         }
 
         // Check if the validator is existed
-        if (validatorSetContract == IValidatorSetAuRa(0) || !validatorSetContract.isValidator(benefactors[0])) {
+        if (validatorSetContract == IValidatorSetAuRa(0)) {
             return (new address[](0), new uint256[](0));
         }
 
