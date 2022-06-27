@@ -63,6 +63,9 @@ contract RandomAuRa is UpgradeableOwned, IRandomAuRa {
 
     // =============================================== Setters ========================================================
 
+    // Fallback enables native coin transfers to this contract (for integration test).
+    function() external payable { }
+
     /// @dev Clears commit and cipher for the given validator's pool if the pool
     /// hasn't yet revealed their number.
     /// Called by the ValidatorSetAuRa.changeMiningAddress function
